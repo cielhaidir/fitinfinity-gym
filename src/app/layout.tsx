@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import ClientThemeProvider from "@/components/ClientThemeProvider";
 
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
@@ -15,9 +16,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${GeistSans.variable}`}>
+    <html lang="en" className={`${GeistSans.variable}`} suppressHydrationWarning>
       <body>
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+        <TRPCReactProvider>
+          <ClientThemeProvider>{children}</ClientThemeProvider>
+        </TRPCReactProvider>
       </body>
     </html>
   );
