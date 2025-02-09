@@ -12,14 +12,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FileCog, Bot, UserRoundIcon as UserRoundPen } from 'lucide-react';
+import { FileCog, Bot, UserRoundIcon as UserRoundPen, Users } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const items = [
   {
-    title: "Whatsapp",
-    url: "/admin/whatsapp",
-    icon: Bot,
+    title: "Users",
+    url: "/admin/users",
+    icon: Users,
   },
   {
     title: "Feature",
