@@ -1,38 +1,48 @@
-"use client";
-import { ReactNode, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import AuthNavbar from '../headers/auth-navbar';
-import { AppSidebar } from '../headers/sidebar';
-import { SidebarProvider } from '../ui/sidebar';
+"use client"
+import { type ReactNode, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import AppNavbar from "../headers/app-navbar"
+import { AppSidebar } from "../headers/app-sidebar"
+import { SidebarProvider, SidebarInset } from "../ui/sidebar"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface AuthenticatedLayoutProps {
-    children: ReactNode;
+  children: ReactNode
 }
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-    const { data: session, status } = useSession();
-    const router = useRouter();
-    useEffect(() => {
-        if (status === 'loading') return; // Do nothing while loading
-        if (!session) router.push('/login'); // Redirect to login if not authenticated
-    }, [session, status, router]);
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
-    if (status === 'loading' || !session) {
-        return <div>Loading...</div>; // Show a loading state while checking session
-    }
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/login")
+  }, [status, router])
 
-    return (
-        <div className="flex h-screen">
-            <SidebarProvider>
-                <AppSidebar user={session?.user ?? undefined}/>
-                <div className="flex-1 flex flex-col">
-                    <AuthNavbar />
-                    <main className="flex-1 p-8">
-                        {children}
-                    </main>
-                </div>
-            </SidebarProvider>
-        </div>
-    );
+  const isLoading = status === "loading"
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <AppNavbar />
+        <main className="flex flex-1 flex-col gap-4 p-4">{isLoading ? <LoadingSkeleton /> : children}</main>
+      </SidebarInset>
+    </SidebarProvider>
+  )
 }
+
+function LoadingSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-8 w-full" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[...Array(6)].map((_, i) => (
+          <Skeleton key={i} className="h-40" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full" />
+    </>
+  )
+}
+

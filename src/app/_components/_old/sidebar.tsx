@@ -93,7 +93,8 @@ export function AppSidebar({ user }: { user?: any }) {
           <div className="px-2">
             <div className="ms-4 mt-5 text-xl font-semibold text-blue-500">
               <h2>
-                <a href="/">Dashboard Geekhub</a>
+                <a href="/"><img src="/assets/fitinfinity-lime.png" alt="FitInfinity Logo" className="h-8 w-auto" /></a>
+              
               </h2>
             </div>
           </div>

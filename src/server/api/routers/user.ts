@@ -7,7 +7,7 @@ import {
 } from "@/server/api/trpc";
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import s3Client from "@/utils/minio";
+import { uploadProfilePicture } from "@/utils/minio";
 import { createModelLogger } from "@/utils/logger";
 
 const userLogger = createModelLogger("User");
