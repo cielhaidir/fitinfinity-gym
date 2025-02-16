@@ -1,6 +1,5 @@
 "use client";
 
-
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "../ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -20,10 +19,6 @@ export default function AppNavbar() {
     setIsDrawerOpen(!isDrawerOpen);
   };
 
-  const handleLogin = () => {
-    router.push("/login");
-  };
-
   const handleLogout = () => {
     signOut();
   };
@@ -34,23 +29,13 @@ export default function AppNavbar() {
       <Separator orientation="vertical" className="mr-2 h-4" />
       <DynamicBreadcrumb />
       {/* Login/Logout Button */}
-      <div className="ml-auto hidden space-x-4 md:flex">
-        {session ? (
-          <Button
-            onClick={handleLogout}
-            className="rounded border bg-infinity"
-          >
+      <div className="ml-auto flex space-x-4">
+        <div className="hidden md:block">
+          <Button onClick={handleLogout} className="bg-infinity rounded border">
             Logout
           </Button>
-        ) : (
-          <Button
-            onClick={handleLogin}
-            className="rounded border bg-infinity"
-          >
-            Login
-          </Button>
-        )}
-         <ModeToggle />
+        </div>
+        <ModeToggle />
       </div>
     </header>
   );
