@@ -6,6 +6,7 @@ import AppNavbar from "../headers/app-navbar"
 import { AppSidebar } from "../headers/app-sidebar"
 import { SidebarProvider, SidebarInset } from "../ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Toaster } from "@/components/ui/toaster"
 
 interface AuthenticatedLayoutProps {
   children: ReactNode
@@ -26,7 +27,9 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
       <AppSidebar />
       <SidebarInset>
         <AppNavbar />
-        <main className="flex flex-1 flex-col gap-4 p-4">{isLoading ? <LoadingSkeleton /> : children}</main>
+        <main className="flex flex-1 flex-col gap-4 p-4">{isLoading ? <LoadingSkeleton /> : children}
+        <Toaster />
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )

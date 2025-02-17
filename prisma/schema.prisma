@@ -7,23 +7,18 @@ generator client {
 
 datasource db {
     provider = "postgresql"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())  
-    updatedAt DateTime @updatedAt
+enum RoleType {
+    EMPLOYEE
+    MEMBER
+}
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-
-    @@index([name])
+enum PaymentStatus {
+    SUCCESS
+    PENDING
+    FAILED
 }
 
 model File {
@@ -64,19 +59,45 @@ model Session {
 }
 
 model User {
-    id            String       @id @default(cuid())
-    name          String?
-    email         String?      @unique
-    emailVerified DateTime?
-    image         String?
-    role          Role         @default(member)
-    accounts      Account[]
-    sessions      Session[]
-    posts         Post[]
-    Membership    Membership[]
-    createdBy     String?
-    createdUsers  User[]       @relation("UserCreatedBy")
-    creator       User?        @relation("UserCreatedBy", fields: [createdBy], references: [id])
+    id                 String       @id @default(cuid())
+    name               String?
+    email              String?      @unique
+    emailVerified      DateTime?
+    image              String?
+    roles              Role[]
+    memberships        Membership[] @relation("MembershipToUser")
+    accounts           Account[]
+    sessions           Session[]
+    posts              Post[]
+    createdBy          String?
+    createdUsers       User[]       @relation("UserCreatedBy")
+    creator            User?        @relation("UserCreatedBy", fields: [createdBy], references: [id])
+    createdMemberships Membership[] @relation("MembershipCreator")
+    createdAt          DateTime     @default(now())
+    updatedAt          DateTime     @updatedAt
+}
+
+model Role {
+    id          String           @id @default(cuid())
+    name        String           @unique
+    permissions RolePermission[]
+    users       User[]
+}
+
+model Permission {
+    id    String           @id @default(cuid())
+    name  String           @unique
+    roles RolePermission[]
+}
+
+
+model RolePermission {
+    roleId       String
+    permissionId String
+    role         Role       @relation(fields: [roleId], references: [id])
+    permission   Permission @relation(fields: [permissionId], references: [id])
+
+    @@id([roleId, permissionId])
 }
 
 model VerificationToken {
@@ -88,40 +109,54 @@ model VerificationToken {
 }
 
 model Membership {
-    id             Int              @id @default(autoincrement())
-    userId         String
-    subscriptionId Int
-    startDate      DateTime
-    endDate        DateTime
-    status         MembershipStatus @default(ACTIVE)
-    revokedAt      DateTime? // For revoked subscriptions
-    createdAt      DateTime         @default(now())
-    updatedAt      DateTime         @updatedAt
-
-    user         User         @relation(fields: [userId], references: [id])
-    subscription Subscription @relation(fields: [subscriptionId], references: [id])
+    id            String         @id @default(cuid())
+    userId        String         @unique
+    user          User           @relation("MembershipToUser", fields: [userId], references: [id])
+    registerDate  DateTime
+    rfidNumber    String?
+    isActive      Boolean        @default(true)
+    createdBy     String?
+    revokedAt     DateTime?
+    creator       User?          @relation("MembershipCreator", fields: [createdBy], references: [id])
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    subscriptions Subscription[]
 }
 
 model Subscription {
-    id          Int      @id @default(autoincrement())
-    name        String // E.g., Monthly, Yearly
-    description String?
-    price       Int // Store price in cents (e.g., 10000 = $100.00)
-    duration    Int // Duration in days (e.g., 30 for monthly)
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-
-    Membership Membership[]
+    id        String     @id @default(cuid())
+    memberId  String
+    member    Membership @relation(fields: [memberId], references: [id])
+    startDate DateTime
+    endDate   DateTime
+    payments  Payment[]
 }
 
-enum Role {
-    admin
-    receptionist
-    member
+model Payment {
+    id             String        @id @default(cuid())
+    subscriptionId String
+    subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+    status         PaymentStatus
+    method         String
+    tax            Int
+    totalPayment   Int
+    createdAt      DateTime      @default(now())
 }
 
 enum MembershipStatus {
     ACTIVE
     EXPIRED
     REVOKED
+}
+
+model Post {
+    id        Int      @id @default(autoincrement())
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    createdById String
+
+    createdBy   User   @relation(fields: [createdById], references: [id])
+
+    @@index([name])
 }

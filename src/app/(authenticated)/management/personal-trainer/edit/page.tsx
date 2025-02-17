@@ -1,12 +1,11 @@
 import CardWithAction from "@/components/cards/CardWithAction";
-import Link from "next/link";
 
-const PersonalTrainerPage = () => {
+const EditPT = () => {
   return (
     <>
       {/* <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" /> */}
 
-      <h1 className="">Management Personal Trainer</h1>
+      <h1 className="">Edit Personal Trainer</h1>
       {/* <CardWithAction>
         
       </CardWithAction> */}
@@ -16,12 +15,9 @@ const PersonalTrainerPage = () => {
         <div className="aspect-video rounded-xl bg-muted/50" />
         <div className="aspect-video rounded-xl bg-muted/50" />
       </div>
-      <Link href="/management/personal-trainer/edit">
-        <button>Edit Personal Trainer</button>
-      </Link>
 
     </>
   );
 };
 
-export default PersonalTrainerPage;
+export default EditPT;

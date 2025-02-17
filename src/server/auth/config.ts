@@ -1,7 +1,8 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { uploadProfilePictureFromBuffer } from "@/utils/minio";
+import { uploadProfileImage } from "@/utils/minio";
+
 import { db } from "@/server/db";
 
 /**
@@ -58,37 +59,39 @@ export const authConfig = {
         token.name = user.name;
         token.email = user.email;
       }
-
-      // if (user.image) {
-      //   try {
-      //     const res = await fetch(user.image); // Ambil gambar dari Google
-      //     const buffer = await res.arrayBuffer();
-      //     const fileBuffer = Buffer.from(buffer);
-      //     const fileName = `profile-${user.id}-${Date.now()}.jpg`;
-
-      //     // Upload ke MinIO
-      //     const minioUrl = await uploadProfilePictureFromBuffer(
-      //       "profile-pictures",
-      //       fileName,
-      //       fileBuffer,
-      //       "image/jpeg"
-      //     );
-
-      //     token.picture = minioUrl; 
-      //   } catch (error) {
-      //     console.error("Error uploading profile picture to MinIO:", error);
-      //   }
-      // }
       return token;
     },
+
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
-        // session.user.image = token.picture as string;
       }
       return session;
+    },
+  },
+  events: {
+    async createUser({ user }) {
+      try {
+        // Cari role Member
+        const memberRole = await db.role.findUnique({
+          where: { name: "Member" },
+        });
+
+        if (memberRole) {
+          await db.user.update({
+            where: { id: user.id },
+            data: {
+              roles: {
+                connect: { id: memberRole.id },
+              },
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error in createUser event:", error);
+      }
     },
   },
 } satisfies NextAuthConfig;

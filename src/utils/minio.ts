@@ -2,6 +2,8 @@ import * as Minio from 'minio'
 import fs from 'fs'
 import mime from 'mime-types' 
 import { env } from '@/env.js'
+import { db } from '@/server/db'
+import { v4 as uuidv4 } from 'uuid'
 
 export const s3Client = new Minio.Client({
     endPoint: env.MINIO_ENDPOINT,
@@ -27,44 +29,40 @@ export async function createBucketIfNotExists(bucketName: string) {
     }
 }
 
-/**
- * Mengupload profile picture ke MinIO dari file path
- */
-export async function uploadProfilePicture(bucketName: string, objectName: string, filePath: string) {
+export async function uploadProfileImage(userId: string, filePath: string, bucketName = 'profile-images') {
     try {
         await createBucketIfNotExists(bucketName)
 
-        // Ambil MIME type dari file
-        const contentType = mime.lookup(filePath) || 'application/octet-stream'
+        const fileStream = fs.createReadStream(filePath)
+        const originalName = filePath.split('/').pop() || 'unknown'
+        const fileExt = originalName.split('.').pop() || ''
+        const mimeType = mime.lookup(filePath) || 'application/octet-stream'
 
-        await s3Client.fPutObject(bucketName, objectName, filePath, {
-            'Content-Type': contentType,
-        })
+        // Generate unique file name
+        const fileName = `${uuidv4()}.${fileExt}`
 
-        console.log(`File uploaded successfully to ${bucketName}/${objectName}`)
-
-        return `http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}/${bucketName}/${objectName}`
-    } catch (error) {
-        console.error('Error uploading profile picture:', error)
-        throw error
-    }
-}
-
-/**
- * Mengupload profile picture ke MinIO dari buffer (tanpa menyimpan ke disk)
- */
-export async function uploadProfilePictureFromBuffer(bucketName: string, objectName: string, fileBuffer: Buffer, mimeType: string) {
-    try {
-        await createBucketIfNotExists(bucketName)
-
-        await s3Client.putObject(bucketName, objectName, fileBuffer, fileBuffer.length, {
+        // Upload file ke MinIO
+        const fileSize = fs.statSync(filePath).size
+        await s3Client.putObject(bucketName, fileName, fileStream, fileSize, {
             'Content-Type': mimeType,
         })
-        console.log(`File uploaded successfully to ${bucketName}/${objectName}`)
 
-        return `http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}/${bucketName}/${objectName}`
+        // Simpan metadata file ke database
+        const uploadedFile = await db.file.create({
+            data: {
+                bucket: bucketName,
+                fileName: fileName,
+                originalName: originalName,
+                size: fs.statSync(filePath).size,
+            },
+        })
+        return {
+            success: true,
+            message: 'Profile image uploaded successfully.',
+            fileUrl: `${env.MINIO_ENDPOINT}/${bucketName}/${fileName}`,
+        }
     } catch (error) {
-        console.error('Error uploading profile picture:', error)
-        throw error
+        console.error('Error uploading profile image:', error)
+        throw new Error('Failed to upload profile image')
     }
 }
