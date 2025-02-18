@@ -7,8 +7,9 @@ import {
 } from "@/server/api/trpc";
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { uploadProfilePicture } from "@/utils/minio";
+import { uploadProfileImage } from "@/utils/minio";
 import { createModelLogger } from "@/utils/logger";
+import { add } from "winston";
 
 const userLogger = createModelLogger("User");
 
@@ -20,6 +21,10 @@ export const userRouter = createTRPCRouter({
         name: z.string().min(1),
         email: z.string().email(),
         file: z.string().min(1),
+        address: z.string().optional(),
+        phone: z.string().optional(),
+        birthDate: z.date().optional(),
+        idNumber: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
         const sessionUserId = ctx.session.user.id;
@@ -44,27 +49,17 @@ export const userRouter = createTRPCRouter({
         const fileName = `${input.name}-${Date.now()}.${mimeType.split("/")[1]}`;
 
         try {
-            const command = new PutObjectCommand({
-                Bucket: process.env.MINIO_BUCKET_NAME,
-                Key: fileName,
-                Body: Buffer.from(fileContent || "", "base64"), 
-                ContentType: mimeType, 
-            });
-
-            await s3Client.send(command);
-
+            const image = await uploadProfileImage(sessionUserId, fileName, fileContent);
             const user = await ctx.db.user.create({
                 data: {
                     name: input.name,
                     email: input.email,
-                    image: fileName,
+                    image: image,
                 },
             });
-
             userLogger.info(
                 `User ${sessionUserName} (${sessionUserId}) successfully created a user at ${new Date().toISOString()}: ${JSON.stringify(user)}`
             );
-
             return user;
         } catch (error) {
             userLogger.error(

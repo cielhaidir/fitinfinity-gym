@@ -28,41 +28,36 @@ export async function createBucketIfNotExists(bucketName: string) {
         throw error
     }
 }
-
-export async function uploadProfileImage(userId: string, filePath: string, bucketName = 'profile-images') {
+export async function uploadProfileImage(userId: string, file: Buffer | string, bucketName = "profile-images") {
     try {
-        await createBucketIfNotExists(bucketName)
+        await createBucketIfNotExists(bucketName);
 
-        const fileStream = fs.createReadStream(filePath)
-        const originalName = filePath.split('/').pop() || 'unknown'
-        const fileExt = originalName.split('.').pop() || ''
-        const mimeType = mime.lookup(filePath) || 'application/octet-stream'
+        let fileStream;
+        let fileExt;
+        let mimeType;
 
-        // Generate unique file name
-        const fileName = `${uuidv4()}.${fileExt}`
+        if (typeof file === "string") {
+            fileStream = fs.createReadStream(file);
+            const originalName = file.split("/").pop() || "unknown";
+            fileExt = originalName.split(".").pop() || "";
+            mimeType = mime.lookup(file) || "application/octet-stream";
+        } else {
+            fileStream = file;
+            fileExt = "jpg"; //
+            mimeType = "image/jpeg"; 
+        }
+
+        const fileName = `${uuidv4()}.${fileExt}`;
 
         // Upload file ke MinIO
-        const fileSize = fs.statSync(filePath).size
+        const fileSize = typeof file === "string" ? fs.statSync(file).size : file.length;
         await s3Client.putObject(bucketName, fileName, fileStream, fileSize, {
-            'Content-Type': mimeType,
-        })
+            "Content-Type": mimeType,
+        });
 
-        // Simpan metadata file ke database
-        const uploadedFile = await db.file.create({
-            data: {
-                bucket: bucketName,
-                fileName: fileName,
-                originalName: originalName,
-                size: fs.statSync(filePath).size,
-            },
-        })
-        return {
-            success: true,
-            message: 'Profile image uploaded successfully.',
-            fileUrl: `${env.MINIO_ENDPOINT}/${bucketName}/${fileName}`,
-        }
+        return `${env.MINIO_ENDPOINT}:${env.MINIO_PORT}/${bucketName}/${fileName}`;
     } catch (error) {
-        console.error('Error uploading profile image:', error)
-        throw new Error('Failed to upload profile image')
+        console.error("Error uploading profile image:", error);
+        throw new Error("Failed to upload profile image");
     }
 }

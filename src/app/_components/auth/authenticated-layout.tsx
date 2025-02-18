@@ -27,8 +27,9 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
       <AppSidebar />
       <SidebarInset>
         <AppNavbar />
-        <main className="flex flex-1 flex-col gap-4 p-4">{isLoading ? <LoadingSkeleton /> : children}
-        <Toaster />
+        <main className="flex flex-1 flex-col gap-4 p-4 bg-muted/5">
+          {isLoading ? <LoadingSkeleton /> : children}
+          <Toaster />
         </main>
       </SidebarInset>
     </SidebarProvider>

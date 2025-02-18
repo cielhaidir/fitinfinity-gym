@@ -1,6 +1,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { uploadProfileImage } from "@/utils/minio";
 
 import { db } from "@/server/db";
@@ -37,7 +38,34 @@ export const authConfig = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET
-    })
+    }),
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials.password) {
+          throw new Error("Invalid credentials");
+        }
+        const user = await db.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!user) {
+          throw new Error("No user found with the given email");
+        }
+        // if (!isPasswordValid) {
+        //   throw new Error("Invalid password");
+        // }
+        
+        return {
+          id: user.id,
+          name: user.name,
+        };
+      }
+    }),
     /**
      * ...add more providers here.
      *
@@ -88,6 +116,15 @@ export const authConfig = {
               },
             },
           });
+
+          // Create a new member
+          await db.membership.create({
+            data: {
+              userId: user.id as string,
+              registerDate: new Date(),
+            },
+          });
+          
         }
       } catch (error) {
         console.error("Error in createUser event:", error);
