@@ -6,7 +6,7 @@ import AppNavbar from "../headers/app-navbar"
 import { AppSidebar } from "../headers/app-sidebar"
 import { SidebarProvider, SidebarInset } from "../ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from 'sonner'
 
 interface AuthenticatedLayoutProps {
   children: ReactNode
@@ -27,9 +27,9 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
       <AppSidebar />
       <SidebarInset>
         <AppNavbar />
+      <Toaster position="top-center" richColors expand={false} />
         <main className="flex flex-1 flex-col gap-4 p-4 bg-muted/5">
           {isLoading ? <LoadingSkeleton /> : children}
-          <Toaster />
         </main>
       </SidebarInset>
     </SidebarProvider>

@@ -74,11 +74,7 @@ export const memberRouter = createTRPCRouter({
                 take: input.limit,
                 orderBy: { createdAt: "desc" },
                 include: {
-                    user: {
-                        select: {
-                            name: true,
-                        },
-                    },
+                    user: true,
                 },
             });
             console.log(memberships);
@@ -104,24 +100,46 @@ export const memberRouter = createTRPCRouter({
     update: protectedProcedure
         .input(z.object({
             id: z.string(),
-            userId: z.string().optional(),
             registerDate: z.date().optional(),
             rfidNumber: z.string().optional(),
             isActive: z.boolean().optional(),
-            createdBy: z.string().optional(),
             revokedAt: z.date().optional(),
+            user: z.object({
+                name: z.string().min(1),
+                email: z.string().email(),
+                address: z.string().optional(),
+                phone: z.string().optional(),
+                birthDate: z.date().optional(),
+                idNumber: z.string().optional(),
+            }).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.membership.update({
                 where: { id: input.id },
                 data: {
-                    userId: input.userId,
                     registerDate: input.registerDate,
                     rfidNumber: input.rfidNumber,
                     isActive: input.isActive,
-                    createdBy: input.createdBy,
                     revokedAt: input.revokedAt,
+                    user: {
+                        update: {
+                            name: input.user?.name,
+                            email: input.user?.email,
+                            address: input.user?.address,
+                            phone: input.user?.phone,
+                            birthDate: input.user?.birthDate,
+                            idNumber: input.user?.idNumber,
+                        },
+                    },
                 },
+            });
+        }),
+
+    remove: protectedProcedure
+        .input(z.object({ id: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            return ctx.db.membership.delete({
+                where: { id: input.id },
             });
         }),
 

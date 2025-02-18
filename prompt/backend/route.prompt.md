@@ -90,13 +90,21 @@ export const modelRouter = createTRPCRouter({
              // Model column input, add nullable if it nullable
         }))
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.membership.update({
+            return ctx.db.model.update({
                 where: { id: input.id },
                 data: {
                      // Model column input, add nullable if it nullable
                 },
             });
         }),
+
+         remove: protectedProcedure
+            .input(z.object({ id: z.string() }))
+            .mutation(async ({ ctx, input }) => {
+                return ctx.db.model.delete({
+                    where: { id: input.id },
+                });
+            }),
 
 });
 

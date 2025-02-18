@@ -10,7 +10,7 @@ import { memberRouter } from "./routers/member";
  */
 export const appRouter = createTRPCRouter({
   // post: postRouter,
-  userRouter: userRouter,
+  user: userRouter,
   member: memberRouter
 });
 

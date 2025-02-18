@@ -9,7 +9,12 @@ import { Member } from "./schema"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
 import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
 
-export const columns: ColumnDef<Member>[] = [
+interface ColumnsProps {
+  onEditMember: (member: any) => void,
+  onDeleteMember: (member: any) => void,
+}
+
+export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): ColumnDef<Member>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -35,12 +40,29 @@ export const columns: ColumnDef<Member>[] = [
     enableHiding: false,
   },  
   {
+    
+    id: "name",
+    accessorFn: (row) => row.user.name,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Member Name" />
+    ),
+    cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
+    enableColumnFilter: true,
+  },
+  {
     accessorKey: "user.name",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Member Name" />
     ),
     cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
-    },
+  },
+  {
+    id: "email",
+    accessorKey: "user.email",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Email" />
+    ),
+  },
   {
     accessorKey: "registerDate",
     header: ({ column }) => (
@@ -75,6 +97,8 @@ export const columns: ColumnDef<Member>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} />,
+    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEditMember} onDelete={onDeleteMember} />,
   },
 ]
+
+

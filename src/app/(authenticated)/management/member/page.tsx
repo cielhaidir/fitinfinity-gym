@@ -1,206 +1,217 @@
-  "use client"
+"use client";
 
-  import type React from "react"
-  import { api } from "@/trpc/react"
-  import { DataTable } from "@/components/datatable/data-table"
-  import { columns } from "./columns"
-  import { useState } from "react"
-  import { Plus, Scan } from "lucide-react"
-  import { Button } from "@/components/ui/button"
-  import { Input } from "@/components/ui/input"
-  import {
-    Sheet,
-    SheetClose,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-    SheetFooter,
-  } from "@/components/ui/sheet"
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
-  export default function MemberPage() {
-    const utils = api.useUtils()
-    const { data: member = { memberships: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({
-      page: 1,
-      limit: 10,
-    })
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 
-    const [isSheetOpen, setIsSheetOpen] = useState(false)
-    const [newMember, setNewMember] = useState({
-      registerDate: new Date().toISOString().split("T")[0],
-      rfidNumber: "",
-      isActive: true,
-      name: "",
-      email: "",
-      file: "",
-      address: "",
-      phone: "",
-      birthDate: "",
-      idNumber: "",
-    })
+import { DataTable } from "@/components/datatable/data-table";
+import { createColumns } from "./columns";
+import { api } from "@/trpc/react";
+import { UserMember } from "./schema";
+import { MemberForm } from "./member-form";
+import { toast } from "sonner"
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, value, type, checked } = e.target
-      setNewMember((prev) => ({
+export default function MemberPage() {
+  const utils = api.useUtils();
+
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<UserMember | null>(null);
+  const [newMember, setNewMember] = useState<UserMember>({
+    rfidNumber: "",
+    name: "",
+    email: "",
+    address: "",
+    phone: "",
+    birthDate: new Date(),
+    idNumber: "",
+  });
+
+  const { data: member = { memberships: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ page: 1, limit: 10 });
+  const createUserMutation = api.user.create.useMutation();
+  const createMembershipMutation = api.member.create.useMutation();
+  const updateMemberMutation = api.member.update.useMutation();
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const updatedValue = name === 'birthDate' ? new Date(value) : value;
+    
+    if (isEditMode && selectedMember) {
+      setSelectedMember(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            [name]: updatedValue,
+          } as UserMember['user'],
+        };
+      });
+    } else {
+      setNewMember(prev => ({
         ...prev,
-        [name]: type === "checkbox" ? checked : value,
-      }))
+        [name]: updatedValue,
+      }));
     }
+  };
 
-    const handleScanRFID = () => {
-      // Implement RFID scanning logic here
-      console.log("Scanning RFID...")
+  const handleScanRFID = () => {
+    console.log("Scanning RFID...");
+  };
+
+
+  const handleCreateOrUpdateMember = async () => {
+    try {
+      const promise = async () => {
+      if (isEditMode && selectedMember) {
+        await updateMemberMutation.mutateAsync({
+          id: selectedMember.id ?? "",
+          rfidNumber: selectedMember.rfidNumber ?? undefined,
+          user: {
+            name: selectedMember.user?.name || "",
+            email: selectedMember.user?.email || "",
+            address: selectedMember.user?.address ?? undefined,
+            phone: selectedMember.user?.phone ?? undefined,
+            birthDate: selectedMember.user?.birthDate ?? undefined,
+            idNumber: selectedMember.user?.idNumber ?? undefined,
+          }
+        });
+
+        await utils.member.list.invalidate();
+        setIsSheetOpen(false);
+        setIsEditMode(false);
+        setSelectedMember(null);
+
+      } else {
+        
+        const user = await createUserMutation.mutateAsync({
+          name: newMember.name,
+          email: newMember.email,
+          address: newMember.address,
+          phone: newMember.phone,
+          birthDate: newMember.birthDate,
+          idNumber: newMember.idNumber,
+        });
+
+        
+        await createMembershipMutation.mutateAsync({
+          userId: user.id,
+          registerDate: new Date(),
+          rfidNumber: newMember.rfidNumber ?? "",
+          isActive: true,
+          createdBy: user.id,
+        });
+
+        await utils.member.list.invalidate();
+        
+        setNewMember({
+          rfidNumber: "",
+          name: "",
+          email: "",
+          address: "",
+          phone: "",
+          birthDate: new Date(),
+          idNumber: "",
+        });
+
+        setIsSheetOpen(false);
+      }
     }
-
-    const handleCreateMember = () => {
-      // Implement member creation logic here
-
-      // const user =  api.user.create
-      // const membership = api.membership.create{userId: user.id, registerDate: newMember.registerDate, rfidNumber: newMember.rfidNumber, isActive: newMember.isActive, createdBy: user.id, revokedAt: null}
-      
-      console.log("Creating new member:", newMember)
-      setIsSheetOpen(false)
+    toast.promise(promise, {
+      loading: 'Loading...',
+      success: 'Member has been created/updated successfully!',
+      error: (error) => error instanceof Error ? error.message : String(error),
+    });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error))
+      console.error("Error creating member:", error);
     }
+  };
 
-    const handlePaginationChange = (page: number, limit: number) => {
-      utils.member.list.invalidate({ page, limit })
-    }
 
-    return (
-      <>
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
-            <div className="flex items-center justify-between space-y-2">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">Membership Management</h2>
-                <p className="text-muted-foreground">Here&apos;s a list of Fit Infinity Member!</p>
-              </div>
-              <SheetTrigger asChild>
-                <Button className="mb-4 bg-infinity">
-                  <Plus className="mr-2 h-4 w-4" /> Create Member
-                </Button>
-              </SheetTrigger>
+
+  const handleEditMember = (member: UserMember) => {
+    console.log("Editing member:", member);
+    setSelectedMember(member);
+    setIsEditMode(true);
+    setIsSheetOpen(true);
+  };
+
+  const deleteMemberMutation = api.member.remove.useMutation();
+
+  const handleDeleteMember = async (member: UserMember) => {
+    console.log("Deleting member:", member);
+
+    const promise = deleteMemberMutation.mutateAsync({ id: member.id ?? "" });
+
+    toast.promise(promise, {
+      loading: 'Deleting member...',
+      success: 'Member deleted successfully!',
+      error: (error) => error instanceof Error ? error.message : String(error),
+    });
+
+    await promise;
+    await utils.member.list.invalidate();
+  };
+
+  const handlePaginationChange = (page: number, limit: number) => {
+    utils.member.list.invalidate({ page, limit });
+  };
+
+  const columns = createColumns({ onEditMember: handleEditMember, onDeleteMember: handleDeleteMember })
+  
+  return (
+    <>
+      <Sheet open={isSheetOpen} onOpenChange={(open) => {
+        setIsSheetOpen(open);
+        if (!open) {
+          setIsEditMode(false);
+          setSelectedMember(null);
+        }
+      }}>
+        <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
+          <div className="flex items-center justify-between space-y-2">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">
+                Membership Management
+              </h2>
+              <p className="text-muted-foreground">
+                Here&apos;s a list of Fit Infinity Member!
+              </p>
             </div>
-
-            <SheetContent className="sm:max-w-2xl overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Create New Member</SheetTitle>
-                <SheetDescription>Add a new member to the system.</SheetDescription>
-              </SheetHeader>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium ">
-                    Name
-                  </label>
-                  <Input id="name" name="name" placeholder="Name" value={newMember.name} onChange={handleInputChange} />
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium ">
-                    Email
-                  </label>
-                  <Input
-                    id="email"
-                    name="email"
-                    placeholder="Email"
-                    value={newMember.email}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="file" className="block text-sm font-medium ">
-                    File
-                  </label>
-                  <Input id="file" name="file" placeholder="File" value={newMember.file} onChange={handleInputChange} />
-                </div>
-                <div>
-                  <label htmlFor="address" className="block text-sm font-medium ">
-                    Address
-                  </label>
-                  <Input
-                    id="address"
-                    name="address"
-                    placeholder="Address"
-                    value={newMember.address}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium ">
-                    Phone
-                  </label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    placeholder="Phone"
-                    value={newMember.phone}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="birthDate" className="block text-sm font-medium ">
-                    Birth Date
-                  </label>
-                  <Input
-                    id="birthDate"
-                    name="birthDate"
-                    type="date"
-                    value={newMember.birthDate}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="idNumber" className="block text-sm font-medium ">
-                    ID Number
-                  </label>
-                  <Input
-                    id="idNumber"
-                    name="idNumber"
-                    placeholder="ID Number"
-                    value={newMember.idNumber}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="registerDate" className="block text-sm font-medium ">
-                    Register Date
-                  </label>
-                  <Input
-                    id="registerDate"
-                    name="registerDate"
-                    type="date"
-                    value={newMember.registerDate}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="rfidNumber" className="block text-sm font-medium ">
-                    RFID Number
-                  </label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="rfidNumber"
-                      name="rfidNumber"
-                      placeholder="RFID Number"
-                      value={newMember.rfidNumber}
-                      onChange={handleInputChange}
-                    />
-                    <Button onClick={handleScanRFID} className="bg-infinity whitespace-nowrap">
-                      <Scan className="mr-2 h-4 w-4" /> Scan RFID
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <SheetFooter className="flex justify-end gap-2">
-                <Button onClick={handleCreateMember} className="bg-infinity">Create Member</Button>
-                <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
-              </SheetFooter>
-            </SheetContent>
-
-            <DataTable data={member} columns={columns} onPaginationChange={handlePaginationChange} />
+            <SheetTrigger asChild>
+              <Button className="mb-4 bg-infinity">
+                <Plus className="mr-2 h-4 w-4" /> Create Member
+              </Button>
+            </SheetTrigger>
           </div>
-        </Sheet>
-      </>
-    )
-  }
-
+          <MemberForm
+            newMember={selectedMember || newMember}
+            onScanRFID={handleScanRFID}
+            onCreateOrUpdateMember={handleCreateOrUpdateMember}
+            onInputChange={handleInputChange}
+            isEditMode={isEditMode}
+          />
+          <DataTable
+            data={member}
+            columns={columns}
+            onPaginationChange={handlePaginationChange}
+            searchColumns={[
+              {
+                id: "name",
+                placeholder: "Search by name..."
+              },
+              // {
+              //   id: "email",
+              //   placeholder: "Search by email..."
+              // }
+            ]}
+          />
+        </div>
+      </Sheet>
+    </>
+  );
+}

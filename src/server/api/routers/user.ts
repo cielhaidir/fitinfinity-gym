@@ -20,7 +20,7 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ 
         name: z.string().min(1),
         email: z.string().email(),
-        file: z.string().min(1),
+        file: z.string().optional(), // File tetap opsional
         address: z.string().optional(),
         phone: z.string().optional(),
         birthDate: z.date().optional(),
@@ -30,44 +30,60 @@ export const userRouter = createTRPCRouter({
         const sessionUserId = ctx.session.user.id;
         const sessionUserName = ctx.session.user.name;
 
-        const file = input.file;
+        let image = null; // Default tanpa file
 
-        if (!file.startsWith("data:") || !file.includes(";base64,")) {
-            throw new Error("Invalid file format");
-        }
+        if (input.file) {
+            // Validasi format file hanya jika file ada
+            if (!input.file.startsWith("data:") || !input.file.includes(";base64,")) {
+                throw new Error("Invalid file format");
+            }
 
-        const [fileType, fileContent] = file.split(",");
-        const mimeTypeMatch = fileType?.match(/data:(.*?);base64/);
-        if (!mimeTypeMatch) {
-            throw new Error("Invalid file type");
-        }
-        const mimeType = mimeTypeMatch[1];
+            const [fileType, fileContent] = input.file.split(",");
+            const mimeTypeMatch = fileType?.match(/data:(.*?);base64/);
+            if (!mimeTypeMatch) {
+                throw new Error("Invalid file type");
+            }
 
-        if (!mimeType) {
-            throw new Error("Mime type is undefined");
+            const mimeType = mimeTypeMatch[1];
+            if (!mimeType) {
+                throw new Error("Mime type is undefined");
+            }
+
+            const fileName = `${input.name}-${Date.now()}.${mimeType.split("/")[1]}`;
+
+            try {
+                image = await uploadProfileImage(sessionUserId, fileName, fileContent);
+            } catch (error) {
+                userLogger.error(
+                    `User ${sessionUserName} (${sessionUserId}) encountered an error while uploading image: ${(error as Error).message}`
+                );
+                throw new Error(`Failed to upload image: ${(error as Error).message}`);
+            }
         }
-        const fileName = `${input.name}-${Date.now()}.${mimeType.split("/")[1]}`;
 
         try {
-            const image = await uploadProfileImage(sessionUserId, fileName, fileContent);
+            // Buat user tanpa atau dengan gambar
             const user = await ctx.db.user.create({
                 data: {
                     name: input.name,
                     email: input.email,
-                    image: image,
+                    image, // Jika `image` tetap null, kolom akan tetap kosong
                 },
             });
+
             userLogger.info(
                 `User ${sessionUserName} (${sessionUserId}) successfully created a user at ${new Date().toISOString()}: ${JSON.stringify(user)}`
             );
+
             return user;
         } catch (error) {
             userLogger.error(
-                `User ${sessionUserName} (${sessionUserId}) encountered an error at ${new Date().toISOString()} while creating a user: ${(error as Error).message}`
+                `User ${sessionUserName} (${sessionUserId}) encountered an error while creating a user: ${(error as Error).message}`
             );
             throw new Error(`Failed to create user: ${(error as Error).message}`);
         }
     }),
+
 
 
     read: publicProcedure

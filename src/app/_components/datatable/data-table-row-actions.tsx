@@ -20,11 +20,15 @@ import {
 
 
 interface DataTableRowActionsProps<TData> {
-  row: Row<TData>
+  row: Row<TData>;
+  onEdit: (member: TData) => void;
+  onDelete: (member: TData) => void;
 }
 
 export function DataTableRowActions<TData>({
   row,
+  onEdit,
+  onDelete,
 }: DataTableRowActionsProps<TData>) {
 
   return (
@@ -39,9 +43,10 @@ export function DataTableRowActions<TData>({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[160px]">
-        <DropdownMenuItem>Edit</DropdownMenuItem>
-        {/* <DropdownMenuSeparator /> */}
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onEdit(row.original)}>Edit</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>Subscription</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onDelete(row.original)}>
           Delete
           <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
         </DropdownMenuItem>
