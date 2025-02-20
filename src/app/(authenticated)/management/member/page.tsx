@@ -29,8 +29,16 @@ export default function MemberPage() {
     birthDate: new Date(),
     idNumber: "",
   });
+  const [search, setSearch] = useState("");
+  const [searchColumn, setSearchColumn] = useState<string>("");
 
-  const { data: member = { memberships: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ page: 1, limit: 10 });
+  const { data: member = { memberships: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ 
+    page: 1, 
+    limit: 10,
+    search,
+    searchColumn 
+  });
+
   const createUserMutation = api.user.create.useMutation();
   const createMembershipMutation = api.member.create.useMutation();
   const updateMemberMutation = api.member.update.useMutation();
@@ -200,15 +208,14 @@ export default function MemberPage() {
             columns={columns}
             onPaginationChange={handlePaginationChange}
             searchColumns={[
-              {
-                id: "name",
-                placeholder: "Search by name..."
-              },
-              // {
-              //   id: "email",
-              //   placeholder: "Search by email..."
-              // }
+              { id: "user.name", placeholder: "Search by name..." },
+              { id: "user.email", placeholder: "Search by email..." },
+              { id: "rfidNumber", placeholder: "Search by RFID..." }
             ]}
+            onSearch={(value, column) => {
+              setSearch(value);
+              setSearchColumn(column);
+            }}
           />
         </div>
       </Sheet>

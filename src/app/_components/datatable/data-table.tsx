@@ -34,9 +34,16 @@ interface DataTableProps<TData, TValue> {
     id: string;
     placeholder: string;
   }>
+  onSearch?: (value: string, column: string) => void;
 }
 
-export function DataTable<TData, TValue>({ columns, data, onPaginationChange, searchColumns }: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({ 
+  columns, 
+  data, 
+  onPaginationChange, 
+  searchColumns,
+  onSearch 
+}: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -81,7 +88,11 @@ export function DataTable<TData, TValue>({ columns, data, onPaginationChange, se
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} searchColumns={searchColumns} />
+      <DataTableToolbar 
+        table={table} 
+        searchColumns={searchColumns} 
+        onSearch={onSearch}
+      />
       <div className="rounded-md border grid grid-cols-1">
         <Table>
           <TableHeader>

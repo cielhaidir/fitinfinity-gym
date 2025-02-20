@@ -40,16 +40,6 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
     enableHiding: false,
   },  
   {
-    
-    id: "name",
-    accessorFn: (row) => row.user.name,
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Member Name" />
-    ),
-    cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
-    enableColumnFilter: true,
-  },
-  {
     accessorKey: "user.name",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Member Name" />

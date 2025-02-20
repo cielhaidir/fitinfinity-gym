@@ -67,19 +67,39 @@ export const memberRouter = createTRPCRouter({
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
+            search: z.string().optional(),
+            searchColumn: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
+            const whereClause = input.search
+                ? input.searchColumn?.startsWith("user.")
+                    ? {
+                        user: {
+                            [input.searchColumn.replace("user.", "")]: {
+                                contains: input.search,
+                                mode: "insensitive" as const
+                            }
+                        }
+                    }
+                    : {
+                        [input.searchColumn ?? "rfidNumber"]: {
+                            contains: input.search,
+                            mode: "insensitive" as const
+                        }
+                    }
+                : {};
+
             const memberships = await ctx.db.membership.findMany({
                 skip: (input.page - 1) * input.limit,
                 take: input.limit,
+                where: whereClause,
                 orderBy: { createdAt: "desc" },
                 include: {
                     user: true,
                 },
             });
-            console.log(memberships);
 
-            const total = await ctx.db.membership.count();
+            const total = await ctx.db.membership.count({ where: whereClause });
 
             return {
                 memberships,
