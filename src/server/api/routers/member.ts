@@ -89,7 +89,7 @@ export const memberRouter = createTRPCRouter({
                     }
                 : {};
 
-            const memberships = await ctx.db.membership.findMany({
+            const items = await ctx.db.membership.findMany({
                 skip: (input.page - 1) * input.limit,
                 take: input.limit,
                 where: whereClause,
@@ -102,7 +102,7 @@ export const memberRouter = createTRPCRouter({
             const total = await ctx.db.membership.count({ where: whereClause });
 
             return {
-                memberships,
+                items,
                 total,
                 page: input.page,
                 limit: input.limit,

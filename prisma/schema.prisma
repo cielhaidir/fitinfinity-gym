@@ -176,3 +176,21 @@ model Post {
 
     @@index([name])
 }
+
+model Package {
+    id          String   @id @default(cuid())
+    name        String
+    description String?
+    price       Int
+    type        PackageType
+    sessions    Int?        // only for PERSONAL_TRAINER type
+    months      Int?        // only for GYM_MEMBERSHIP type
+    isActive    Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+enum PackageType {
+    GYM_MEMBERSHIP
+    PERSONAL_TRAINER
+}
+

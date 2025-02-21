@@ -32,7 +32,7 @@ export default function MemberPage() {
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
 
-  const { data: member = { memberships: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ 
+  const { data: member = { items: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ 
     page: 1, 
     limit: 10,
     search,

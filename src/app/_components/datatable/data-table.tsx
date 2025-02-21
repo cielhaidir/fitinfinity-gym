@@ -24,7 +24,7 @@ import { DataTableToolbar } from "./data-table-toolbar"
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: {
-    memberships: TData[]
+    items: TData[]
     total: number
     page: number
     limit: number
@@ -50,7 +50,7 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([])
 
   const table = useReactTable({
-    data: data.memberships,
+    data: data.items,
     columns,
     pageCount: Math.ceil(data.total / data.limit),
     state: {

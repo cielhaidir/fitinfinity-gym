@@ -17,8 +17,8 @@ export const Menu = {
                     url: "#",
                 },
                 {
-                    title: "Subscription Package",
-                    url: "#",
+                    title: "Package",
+                    url: "/management/package",
                 },
                 {
                     title: "User",

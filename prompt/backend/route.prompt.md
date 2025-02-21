@@ -6,7 +6,7 @@ file: prisma/schema.prisma
     - the object is from the model defined in schema prisma
     - You will defined route with trpc
 
-## Template For Schema
+## Template For Route
 
 ```typescript
 import { z } from "zod";
@@ -58,15 +58,30 @@ export const modelRouter = createTRPCRouter({
         .input(z.object({
             page: z.number().min(1),
             pageSize: z.number().min(1).max(100),
+            search: z.string().optional(),
+            searchColumn: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
+            const where = input.search
+                ? {
+                      OR: [
+                          { columnName: { contains: input.search, mode: "insensitive" } },
+                          // Add more searchable columns here
+                      ],
+                  }
+                : {};
+
             const models = await ctx.db.model.findMany({
                 skip: (input.page - 1) * input.pageSize,
                 take: input.pageSize,
+                where,
                 orderBy: { createdAt: "desc" },
+                include: {
+                    // Include related models here
+                },
             });
 
-            const total = await ctx.db.model.count();
+            const total = await ctx.db.model.count({ where });
 
             return {
                 models,
@@ -81,6 +96,9 @@ export const modelRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             return ctx.db.model.findUnique({
                 where: { id: input.id },
+                include: {
+                    // Include related models here
+                },
             });
         }),
 
