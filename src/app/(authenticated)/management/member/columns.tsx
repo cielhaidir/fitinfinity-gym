@@ -12,9 +12,10 @@ import { DataTableRowActions } from "@/components/datatable/data-table-row-actio
 interface ColumnsProps {
   onEditMember: (member: any) => void,
   onDeleteMember: (member: any) => void,
+  customActions?: { label: string, action: (member: any) => void }[] // Support multiple custom actions
 }
 
-export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): ColumnDef<Member>[] => [
+export const createColumns = ({ onEditMember, onDeleteMember, customActions }: ColumnsProps): ColumnDef<Member>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -87,7 +88,14 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
   },
   {
     id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEditMember} onDelete={onDeleteMember} />,
+    cell: ({ row }) => (
+      <DataTableRowActions 
+        row={row} 
+        onEdit={onEditMember} 
+        onDelete={onDeleteMember} 
+        customActions={customActions} // Pass customActions to DataTableRowActions
+      />
+    ),
   },
 ]
 

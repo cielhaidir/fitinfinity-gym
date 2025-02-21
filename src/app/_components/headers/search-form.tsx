@@ -1,13 +1,12 @@
 import { Search } from "lucide-react"
 
-import { Label } from "@/components/ui/label"
 import {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarInput,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button";
 
+import { ShortcutBadge } from "../ShorcutBadge";
 type SearchFormProps = {
   setOpen: (open: boolean) => void
 }
@@ -17,14 +16,15 @@ export function SearchForm({ setOpen, ...props }: SearchFormProps & React.Compon
       <SidebarGroup className="py-0">
         <SidebarGroupContent className="relative">
 
-            <Button
+          <Button
             variant="outline"
-            className="w-full text-muted-foreground pl-0"
+            className="w-full text-muted-foreground"
             onClick={() => setOpen(true)}
-            type="button" 
+            type="button"
           >
             <Search className="" />
             Search menu...
+            <ShortcutBadge keyChar="K" />
           </Button>
         </SidebarGroupContent>
       </SidebarGroup>

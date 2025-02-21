@@ -169,8 +169,25 @@ export default function MemberPage() {
     utils.member.list.invalidate({ page, limit });
   };
 
-  const columns = createColumns({ onEditMember: handleEditMember, onDeleteMember: handleDeleteMember })
-  
+  const directToSubs = () => {
+    // Direct to subscription page with parameter member id
+  }
+
+  const directToLogs = () => {
+    // Direct to access log page with parameter member id
+  }
+
+  const customActions = [
+    { label: "Subscription", action: directToSubs },
+    { label: "Access Log", action: directToLogs },
+  ];
+
+  const columns = createColumns({ 
+    onEditMember: handleEditMember, 
+    onDeleteMember: handleDeleteMember, 
+    customActions // Pass multiple custom actions
+  });
+
   return (
     <>
       <Sheet open={isSheetOpen} onOpenChange={(open) => {
