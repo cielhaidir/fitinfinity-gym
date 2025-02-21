@@ -1,3 +1,5 @@
+import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard } from 'lucide-react';
+
 export const Menu = {
     navMain: [
         {
@@ -7,43 +9,38 @@ export const Menu = {
                 {
                     title: "Personal Trainer",
                     url: "/management/personal-trainer",
+                    icon: Users,
                 },
                 {
                     title: "Role",
                     url: "#",
-                },
-                {
-                    title: "Permission",
-                    url: "#",
+                    icon: UserCog,
                 },
                 {
                     title: "Package",
                     url: "/management/package",
+                    icon: Package,
                 },
                 {
                     title: "User",
                     url: "#",
+                    icon: User,
                 },
                 {
                     title: "Member",
                     url: "/management/member",
+                    icon: UserPlus,
                 },
                 {
                     title: "Class",
                     url: "#",
-                },
-                {
-                    title: "Schedule",
-                    url: "#",
+                    icon: Dumbbell,
                 },
                 {
                     title: "Payment",
                     url: "#",
+                    icon: CreditCard,
                 },
-                {
-                    title: "Voucher",
-                    url: "#",
-                }
             ],
         },
         {

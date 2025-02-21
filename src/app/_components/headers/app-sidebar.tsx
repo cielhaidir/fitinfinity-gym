@@ -7,8 +7,9 @@ import { SearchForm } from "./search-form";
 import { VersionSwitcher } from "./version-switcher";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
-
+import { useState, useCallback, useEffect } from "react";
 import { Menu as data } from "@/lib/menu";
+import { useRouter } from "next/navigation"
 
 import {
   Sidebar,
@@ -25,16 +26,46 @@ import {
 } from "@/components/ui/sidebar";
 import { title } from "process";
 
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 // This is sample data.
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
   const handleLogout = () => {
     signOut();
   };
 
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((open) => !open);
+      }
+    };
+
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
+
+  const runCommand = useCallback((command: () => void) => {
+    setOpen(false);
+    command();
+  }, []);
+
   return (
+    <>
     <Sidebar {...props}>
       <SidebarHeader>
         <div className="flex items-center justify-center py-5">
@@ -48,9 +79,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </a>
         </div>
         {/* <VersionSwitcher versions={data.versions} defaultVersion={data.versions[0] || "1.0.0"} /> */}
-        <SearchForm />
+        {/* <SearchForm /> */}
+
+        <SearchForm setOpen={setOpen} />
+
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="ps-4 pe-2">
         {/* We create a SidebarGroup for each parent. */}
         {data.navMain.map((item) => (
           <SidebarGroup key={item.title}>
@@ -65,7 +99,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       asChild
                       isActive={pathname === subItem.url}
                     >
-                      <Link href={subItem.url}>{subItem.title}</Link>
+                      <Link href={subItem.url} className="flex items-center gap-2">
+                        {"icon" in subItem && subItem.icon && <subItem.icon className="h-4 w-4" />}
+                        <span>{subItem.title}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -86,5 +123,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+    <CommandDialog open={open} onOpenChange={setOpen}>
+        <CommandInput placeholder="Type a command or search..." />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          {data.navMain.map((group) => (
+            <div key={group.title}>
+            <CommandGroup key={group.title} heading={group.title} className="py-4">
+              {group.items.map((item) => (
+                <CommandItem
+                  key={item.title}
+                  onSelect={() => runCommand(() => router.push(item.url))}
+                >
+                  <div className="flex items-center gap-2">
+                    {"icon" in item && item.icon && <item.icon className="h-4 w-4" />}
+                    <span>{item.title}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+              <CommandSeparator />
+              </div>
+          ))}
+          
+        </CommandList>
+      </CommandDialog>
+    </>
   );
 }
