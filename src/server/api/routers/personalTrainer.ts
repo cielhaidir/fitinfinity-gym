@@ -69,7 +69,7 @@ export const personalTrainerRouter = createTRPCRouter({
                     }
                 : {};
 
-            const personalTrainers = await ctx.db.personalTrainer.findMany({
+            const items = await ctx.db.personalTrainer.findMany({
                 skip: (input.page - 1) * input.limit,
                 take: input.limit,
                 where: whereClause,
@@ -82,7 +82,7 @@ export const personalTrainerRouter = createTRPCRouter({
             const total = await ctx.db.personalTrainer.count({ where: whereClause });
 
             return {
-                personalTrainers,
+                items,
                 total,
                 page: input.page,
                 limit: input.limit,

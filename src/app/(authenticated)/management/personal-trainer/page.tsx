@@ -32,7 +32,7 @@ export default function PersonalTrainerPage() {
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
 
-  const { data: trainers = { personalTrainers: [], total: 0, page: 1, limit: 10 } } = api.personalTrainer.list.useQuery({ 
+  const { data: trainers = { items: [], total: 0, page: 1, limit: 10 } } = api.personalTrainer.list.useQuery({ 
     page: 1, 
     limit: 10,
     search,
@@ -196,7 +196,7 @@ export default function PersonalTrainerPage() {
           />
           <DataTable
             data={{
-              memberships: trainers.personalTrainers,
+              items: trainers.items,
               total: trainers.total,
               page: trainers.page,
               limit: trainers.limit
