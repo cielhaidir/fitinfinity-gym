@@ -2,6 +2,8 @@ import { postRouter } from "@/server/api/routers/post";
 import { userRouter } from "@/server/api/routers/user";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { memberRouter } from "./routers/member";
+import { personalTrainerRouter } from "./routers/personalTrainer";
+import { permissionRouter } from "./routers/permission";
 import { packageRouter } from "./routers/package";
 
 /**
@@ -13,6 +15,8 @@ export const appRouter = createTRPCRouter({
   // post: postRouter,
   user: userRouter,
   member: memberRouter,
+  personalTrainer: personalTrainerRouter,
+  permission: permissionRouter,
   package: packageRouter,
 });
 
