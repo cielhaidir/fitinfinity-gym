@@ -51,10 +51,3 @@ export const roleSchema = z.object({
 })
 
 export type Role = z.infer<typeof roleSchema>
-
-export const permissionSchema = z.object({
-    id: z.string().optional(),
-    name: z.string(),
-})
-
-export type Permission = z.infer<typeof permissionSchema>

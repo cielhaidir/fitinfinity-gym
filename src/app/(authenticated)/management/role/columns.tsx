@@ -9,15 +9,12 @@ import { PersonalTrainer } from "./schema"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
 import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
 import { Role } from "./schema"
-import { Permission } from "./schema"
 
 interface ColumnsProps {
   onEditMember: (member: any) => void,
   onDeleteMember: (member: any) => void,
   onEdit: (role: Role) => void,
   onDelete: (role: Role) => void,
-  onEditPermission: (permission: Permission) => void,
-  onDeletePermission: (permission: Permission) => void,
 }
 
 export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }: ColumnsProps): ColumnDef<PersonalTrainer>[] => [
@@ -138,43 +135,6 @@ export const roleColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Role>
     id: "actions",
     cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} onDelete={onDelete} />,
   },
-]
-
-interface ColumnsProps {
-    onEdit: (role: { name: string; id?: string; permissions?: { permission: { id: string; name: string } }[] }) => void;
-    onDelete: (role: { name: string; id?: string; permissions?: { permission: { id: string; name: string } }[] }) => void;
-}
-
-export const permissionColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Permission>[] => [
-    {
-        id: "select",
-        header: ({ table }) => (
-            <Checkbox
-                checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-                aria-label="Select all"
-            />
-        ),
-        cell: ({ row }) => (
-            <Checkbox
-                checked={row.getIsSelected()}
-                onCheckedChange={(value) => row.toggleSelected(!!value)}
-                aria-label="Select row"
-            />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-    },
-    {
-        accessorKey: "name",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Permission Name" />
-        ),
-    },
-    {
-        id: "actions",
-        cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} onDelete={onDelete} />,
-    },
 ]
 
 

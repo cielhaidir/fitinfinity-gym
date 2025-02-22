@@ -5,6 +5,8 @@ import { memberRouter } from "./routers/member";
 import { personalTrainerRouter } from "./routers/personalTrainer";
 import { permissionRouter } from "./routers/permission";
 import { packageRouter } from "./routers/package";
+import { roleRouter } from "./routers/role";
+import { rolePermissionRouter } from "./routers/role-permission";
 
 /**
  * This is the primary router for your server.
@@ -12,12 +14,14 @@ import { packageRouter } from "./routers/package";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  // post: postRouter,
+  post: postRouter,
   user: userRouter,
   member: memberRouter,
   personalTrainer: personalTrainerRouter,
   permission: permissionRouter,
   package: packageRouter,
+  role: roleRouter,
+  rolePermission: rolePermissionRouter,
 });
 
 // export type definition of API

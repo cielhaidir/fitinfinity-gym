@@ -5,30 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { DataTable } from "@/components/datatable/data-table";
-import { createColumns, permissionColumns } from "./columns";
+import { permissionColumns } from "./columns";
 import { api } from "@/trpc/react";
 import { Permission } from "./schema";
 import { PermissionForm } from "./permission-form";
 import { toast } from "sonner";
-import { ColumnDef } from "@tanstack/react-table";
 
 export default function PermissionPage() {
     const utils = api.useUtils();
-
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [selectedPermission, setSelectedPermission] = useState<Permission | null>(null);
     const [newPermission, setNewPermission] = useState<Permission>({
-        id: "",
-        name: "",
+        name: ""
     });
     const [search, setSearch] = useState("");
-    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
-    const { data: permissions = { permissions: [], total: 0, page: 1, limit: 10 } } = api.permission.list.useQuery({
+    const { data: permissions = { items: [], total: 0, page: 1, limit: 10 } } = api.permission.list.useQuery({
         page: 1,
-        limit: 10,
-        search,
+        limit: 10
     });
 
     const createPermissionMutation = api.permission.create.useMutation();
@@ -50,30 +45,17 @@ export default function PermissionPage() {
         }
     };
 
-    const handleRolesChange = (roleIds: string[]) => {
-        if (isEditMode && selectedPermission) {
-            setSelectedPermission(prev => ({
-                ...prev!,
-                roles: roleIds.map(id => ({ role: { id, name: '' } }))
-            }));
-        } else {
-            setSelectedRoles(roleIds);
-        }
-    };
-
     const handleCreateOrUpdatePermission = async () => {
         try {
             const promise = async () => {
                 if (isEditMode && selectedPermission) {
                     await updatePermissionMutation.mutateAsync({
-                        id: selectedPermission.id,
+                        id: selectedPermission.id!,
                         name: selectedPermission.name,
-                        roleIds: selectedPermission.roles?.map(r => r.role.id) ?? []
                     });
                 } else {
                     await createPermissionMutation.mutateAsync({
-                        name: newPermission.name,
-                        roleIds: selectedRoles
+                        name: newPermission.name.toLowerCase(),
                     });
                 }
 
@@ -81,13 +63,14 @@ export default function PermissionPage() {
                 setIsSheetOpen(false);
                 setIsEditMode(false);
                 setSelectedPermission(null);
-                setNewPermission({ id: "", name: "" });
-                setSelectedRoles([]);
+                setNewPermission({ name: "" });
             };
 
-            toast.promise(promise, {
+            await toast.promise(promise(), {
                 loading: 'Loading...',
-                success: `Permission ${isEditMode ? 'updated' : 'created'} successfully!`,
+                success: isEditMode 
+                    ? 'Permission updated successfully!'
+                    : 'CRUD permissions created successfully!',
                 error: (error) => error instanceof Error ? error.message : String(error),
             });
         } catch (error) {
@@ -102,16 +85,21 @@ export default function PermissionPage() {
     };
 
     const handleDeletePermission = async (permission: Permission) => {
-        const promise = deletePermissionMutation.mutateAsync({ id: permission.id });
+        if (!permission.id) return;
 
-        toast.promise(promise, {
-            loading: 'Deleting permission...',
-            success: 'Permission deleted successfully!',
-            error: (error) => error instanceof Error ? error.message : String(error),
-        });
+        try {
+            const promise = deletePermissionMutation.mutateAsync({ id: permission.id });
 
-        await promise;
-        await utils.permission.list.invalidate();
+            await toast.promise(promise, {
+                loading: 'Deleting permission...',
+                success: 'Permission deleted successfully!',
+                error: (error) => error instanceof Error ? error.message : String(error),
+            });
+
+            await utils.permission.list.invalidate();
+        } catch (error) {
+            console.error("Error deleting permission:", error);
+        }
     };
 
     const handlePaginationChange = (page: number, limit: number) => {
@@ -121,8 +109,10 @@ export default function PermissionPage() {
     const columns = permissionColumns({
         onEdit: handleEditPermission,
         onDelete: handleDeletePermission,
-        onEditMember: () => {}, // These props are still required by the type but unused
-        onDeleteMember: () => {}, // These props are still required by the type but unused
+        onEditMember: () => {},
+        onDeleteMember: () => {},
+        onEditPermission: () => {},
+        onDeletePermission: () => {},
     });
 
     return (
@@ -134,6 +124,7 @@ export default function PermissionPage() {
                     if (!open) {
                         setIsEditMode(false);
                         setSelectedPermission(null);
+                        setNewPermission({ name: "" });
                     }
                 }}
             >
@@ -153,21 +144,9 @@ export default function PermissionPage() {
                             </Button>
                         </SheetTrigger>
                     </div>
-                    <PermissionForm
-                        permission={selectedPermission || newPermission}
-                        onCreateOrUpdatePermission={handleCreateOrUpdatePermission}
-                        onInputChange={handleInputChange}
-                        onRolesChange={handleRolesChange}
-                        isEditMode={isEditMode}
-                    />
                     <DataTable
-                        columns={columns as ColumnDef<unknown, unknown>[]}
-                        data={{
-                            memberships: permissions.permissions,
-                            total: permissions.total,
-                            page: permissions.page,
-                            limit: permissions.limit
-                        }}
+                        columns={columns}
+                        data={permissions}
                         onPaginationChange={handlePaginationChange}
                         searchColumns={[
                             { id: "name", placeholder: "Search by permission name..." },
@@ -175,6 +154,12 @@ export default function PermissionPage() {
                         onSearch={(value) => setSearch(value)}
                     />
                 </div>
+                <PermissionForm
+                    permission={selectedPermission || newPermission}
+                    onCreateOrUpdatePermission={handleCreateOrUpdatePermission}
+                    onInputChange={handleInputChange}
+                    isEditMode={isEditMode}
+                />
             </Sheet>
         </>
     );
