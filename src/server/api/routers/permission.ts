@@ -107,4 +107,14 @@ export const permissionRouter = createTRPCRouter({
                 where: { id: input.id },
             });
         }),
+
+    getAll: protectedProcedure
+        .query(async ({ ctx }) => {
+            const permissions = await ctx.db.permission.findMany({
+                orderBy: {
+                    name: 'asc'
+                }
+            });
+            return permissions;
+        }),
 });

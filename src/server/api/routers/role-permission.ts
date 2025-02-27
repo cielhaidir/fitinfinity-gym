@@ -11,77 +11,112 @@ export const rolePermissionRouter = createTRPCRouter({
             permissionIds: z.array(z.string())
         }))
         .mutation(async ({ ctx, input }) => {
-            // Create multiple role-permission relationships
-            return ctx.db.rolePermission.createMany({
-                data: input.permissionIds.map(permissionId => ({
-                    roleId: input.roleId,
-                    permissionId
-                }))
-            });
+            const { roleId, permissionIds } = input;
+
+            // Create all role permissions
+            const rolePermissions = await Promise.all(
+                permissionIds.map(permissionId =>
+                    ctx.db.rolePermission.create({
+                        data: {
+                            roleId,
+                            permissionId
+                        }
+                    })
+                )
+            );
+
+            return rolePermissions;
         }),
 
     list: protectedProcedure
         .input(z.object({
-            page: z.number().min(1),
-            limit: z.number().min(1).max(100),
+            page: z.number().default(1),
+            limit: z.number().default(10),
             search: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const whereClause = input.search
+            const { page, limit, search } = input;
+            const skip = (page - 1) * limit;
+
+            const where = search
                 ? {
                     role: {
                         name: {
-                            contains: input.search,
-                            mode: "insensitive" as const
-                        }
-                    }
+                            contains: search,
+                            mode: 'insensitive' as const,
+                        },
+                    },
                 }
                 : {};
 
-            const items = await ctx.db.rolePermission.findMany({
-                skip: (input.page - 1) * input.limit,
-                take: input.limit,
-                where: whereClause,
-                include: {
-                    role: true,
-                    permission: true
-                },
-                orderBy: {
-                    role: {
-                        name: "asc"
-                    }
-                }
-            });
-
-            const total = await ctx.db.rolePermission.count({ where: whereClause });
+            const [rolePermissions, total] = await Promise.all([
+                ctx.db.rolePermission.findMany({
+                    skip,
+                    take: limit,
+                    where,
+                    include: {
+                        role: true,
+                        permission: true,
+                    },
+                    orderBy: {
+                        role: {
+                            name: 'asc',
+                        },
+                    },
+                }),
+                ctx.db.rolePermission.count({ where }),
+            ]);
 
             return {
-                items,
+                items: rolePermissions,
                 total,
-                page: input.page,
-                limit: input.limit,
+                page,
+                limit,
             };
         }),
 
-    getRoles: protectedProcedure.query(async ({ ctx }) => {
-        return ctx.db.role.findMany({
-            orderBy: { name: "asc" }
-        });
-    }),
+    getRoles: protectedProcedure
+        .query(async ({ ctx }) => {
+            const roles = await ctx.db.role.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                },
+                orderBy: {
+                    name: 'asc'
+                }
+            });
+            return roles;
+        }),
 
-    getPermissions: protectedProcedure.query(async ({ ctx }) => {
-        return ctx.db.permission.findMany({
-            orderBy: { name: "asc" }
-        });
-    }),
+    getPermissions: protectedProcedure
+        .query(async ({ ctx }) => {
+            const permissions = await ctx.db.permission.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                },
+                orderBy: {
+                    name: 'asc'
+                }
+            });
+            return permissions;
+        }),
 
     getPermissionsByRole: protectedProcedure
-        .input(z.object({ roleId: z.string() }))
+        .input(z.object({
+            roleId: z.string()
+        }))
         .query(async ({ ctx, input }) => {
-            return ctx.db.rolePermission.findMany({
-                where: { roleId: input.roleId },
-                include: { permission: true }
+            const rolePermissions = await ctx.db.rolePermission.findMany({
+                where: {
+                    roleId: input.roleId
+                },
+                include: {
+                    permission: true
+                }
             });
+            return rolePermissions;
         }),
 
     update: protectedProcedure
@@ -90,33 +125,47 @@ export const rolePermissionRouter = createTRPCRouter({
             permissionIds: z.array(z.string())
         }))
         .mutation(async ({ ctx, input }) => {
-            // Delete existing permissions for this role
+            const { roleId, permissionIds } = input;
+
+            // Delete existing role permissions
             await ctx.db.rolePermission.deleteMany({
-                where: { roleId: input.roleId }
+                where: {
+                    roleId
+                }
             });
 
-            // Create new permissions
-            return ctx.db.rolePermission.createMany({
-                data: input.permissionIds.map(permissionId => ({
-                    roleId: input.roleId,
-                    permissionId
-                }))
-            });
+            // Create new role permissions
+            const rolePermissions = await Promise.all(
+                permissionIds.map(permissionId =>
+                    ctx.db.rolePermission.create({
+                        data: {
+                            roleId,
+                            permissionId
+                        }
+                    })
+                )
+            );
+
+            return rolePermissions;
         }),
 
     remove: protectedProcedure
-        .input(z.object({ 
+        .input(z.object({
             roleId: z.string(),
             permissionId: z.string()
         }))
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.rolePermission.delete({
+            const { roleId, permissionId } = input;
+
+            const deletedRolePermission = await ctx.db.rolePermission.delete({
                 where: {
                     roleId_permissionId: {
-                        roleId: input.roleId,
-                        permissionId: input.permissionId
+                        roleId,
+                        permissionId
                     }
                 }
             });
+
+            return deletedRolePermission;
         }),
 }); 

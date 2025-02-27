@@ -71,4 +71,14 @@ export const roleRouter = createTRPCRouter({
                 where: { id: input.id },
             });
         }),
+
+    getAll: protectedProcedure
+        .query(async ({ ctx }) => {
+            const roles = await ctx.db.role.findMany({
+                orderBy: {
+                    name: 'asc'
+                }
+            });
+            return roles;
+        }),
 }); 
