@@ -36,7 +36,7 @@ export default function ClassPage() {
         search,
     }, {
         staleTime: 5000,
-        keepPreviousData: true
+        refetchOnWindowFocus: false
     })
 
     // Mutations
@@ -123,37 +123,39 @@ export default function ClassPage() {
     }
 
     return (
-        <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
-            <div className="flex items-center justify-between space-y-2">
-                <div>
+        <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+                <div className="space-y-1">
                     <h2 className="text-2xl font-bold tracking-tight">Classes</h2>
                     <p className="text-muted-foreground">
                         Manage your fitness classes here
                     </p>
                 </div>
                 <Button 
-                    className="mb-4 bg-infinity"
+                    className="bg-infinity w-full md:w-auto"
                     onClick={() => setIsSheetOpen(true)}
                 >
                     <Plus className="mr-2 h-4 w-4" /> Add Class
                 </Button>
             </div>
 
-            <DataTable
-                columns={columns({
-                    onEdit: handleEdit,
-                    onDelete: handleDelete,
-                })}
-                data={classes ?? { items: [], total: 0, page: 1, limit: 10 }}
-                onPaginationChange={(newPage, newLimit) => {
-                    setPage(newPage)
-                    setPageSize(newLimit)
-                }}
-                searchColumns={[
-                    { id: "name", placeholder: "Search by class name..." },
-                ]}
-                onSearch={(value) => setSearch(value)}
-            />
+            <div className="rounded-md">
+                <DataTable
+                    columns={columns({
+                        onEdit: handleEdit,
+                        onDelete: handleDelete,
+                    })}
+                    data={classes ?? { items: [], total: 0, page: 1, limit: 10 }}
+                    onPaginationChange={(newPage, newLimit) => {
+                        setPage(newPage)
+                        setPageSize(newLimit)
+                    }}
+                    searchColumns={[
+                        { id: "name", placeholder: "Search by class name..." },
+                    ]}
+                    onSearch={(value) => setSearch(value)}
+                />
+            </div>
 
             <Sheet 
                 open={isSheetOpen} 

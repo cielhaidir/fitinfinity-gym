@@ -115,9 +115,9 @@ export default function RolePermissionPage() {
                     }
                 }}
             >
-                <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
-                    <div className="flex items-center justify-between space-y-2">
-                        <div>
+                <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 ">
+                        <div className="space-y-1">
                             <h2 className="text-2xl font-bold tracking-tight">
                                 Role Permissions
                             </h2>
@@ -126,31 +126,31 @@ export default function RolePermissionPage() {
                             </p>
                         </div>
                         <SheetTrigger asChild>
-                            <Button className="mb-4 bg-infinity">
+                            <Button className="bg-infinity w-full md:w-auto">
                                 <Plus className="mr-2 h-4 w-4" /> Assign Permissions
                             </Button>
                         </SheetTrigger>
                     </div>
-                    <DataTable
-                        columns={columns}
-                        data={{
-                            items: rolePermissions.items.map(item => ({
-                                name: item.role.name,
-                                id: item.role.id,
-                                permissions: [{
-                                    permission: item.permission
-                                }]
-                            })),
-                            total: rolePermissions.total,
-                            page: rolePermissions.page,
-                            limit: rolePermissions.limit
-                        }}
-                        onPaginationChange={handlePaginationChange}
-                        searchColumns={[
-                            { id: "role.name", placeholder: "Search by role name..." },
-                        ]}
-                        onSearch={(value) => setSearch(value)}
-                    />
+                    <div className="rounded-md">
+                        <DataTable
+                            columns={columns}
+                            data={{
+                                items: rolePermissions.items.map(item => ({
+                                    id: item.id,
+                                    name: item.name,
+                                    permissions: item.permissions
+                                })),
+                                total: rolePermissions.total,
+                                page: rolePermissions.page,
+                                limit: rolePermissions.limit
+                            }}
+                            onPaginationChange={handlePaginationChange}
+                            searchColumns={[
+                                { id: "name", placeholder: "Search by role name..." },
+                            ]}
+                            onSearch={(value) => setSearch(value)}
+                        />
+                    </div>
                 </div>
                 <RolePermissionForm
                     roleId={selectedRoleId}

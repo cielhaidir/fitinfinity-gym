@@ -40,35 +40,39 @@ export const rolePermissionRouter = createTRPCRouter({
 
             const where = search
                 ? {
-                    role: {
-                        name: {
-                            contains: search,
-                            mode: 'insensitive' as const,
-                        },
+                    name: {
+                        contains: search,
+                        mode: 'insensitive' as const,
                     },
                 }
                 : {};
 
-            const [rolePermissions, total] = await Promise.all([
-                ctx.db.rolePermission.findMany({
+            const [roles, total] = await Promise.all([
+                ctx.db.role.findMany({
                     skip,
                     take: limit,
                     where,
                     include: {
-                        role: true,
-                        permission: true,
+                        permissions: {
+                            include: {
+                                permission: true
+                            }
+                        }
                     },
                     orderBy: {
-                        role: {
-                            name: 'asc',
-                        },
+                        name: 'asc',
                     },
                 }),
-                ctx.db.rolePermission.count({ where }),
+                ctx.db.role.count({ where }),
             ]);
 
             return {
-                items: rolePermissions,
+                items: roles.map(role => ({
+                    ...role,
+                    permissions: role.permissions.map((rp: { permission: { name: string; id: string } }) => ({
+                        permission: rp.permission
+                    }))
+                })),
                 total,
                 page,
                 limit,

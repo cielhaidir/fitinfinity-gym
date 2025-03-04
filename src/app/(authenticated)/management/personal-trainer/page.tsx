@@ -165,16 +165,19 @@ export default function PersonalTrainerPage() {
   
   return (
     <>
-      <Sheet open={isSheetOpen} onOpenChange={(open) => {
-        setIsSheetOpen(open);
-        if (!open) {
-          setIsEditMode(false);
-          setSelectedTrainer(null);
-        }
-      }}>
-        <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
-          <div className="flex items-center justify-between space-y-2">
-            <div>
+      <Sheet 
+        open={isSheetOpen} 
+        onOpenChange={(open) => {
+          setIsSheetOpen(open);
+          if (!open) {
+            setIsEditMode(false);
+            setSelectedTrainer(null);
+          }
+        }}
+      >
+        <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+            <div className="space-y-1">
               <h2 className="text-2xl font-bold tracking-tight">
                 Personal Trainer Management
               </h2>
@@ -183,36 +186,38 @@ export default function PersonalTrainerPage() {
               </p>
             </div>
             <SheetTrigger asChild>
-              <Button className="mb-4 bg-infinity">
+              <Button className="bg-infinity w-full md:w-auto">
                 <Plus className="mr-2 h-4 w-4" /> Add Personal Trainer
               </Button>
             </SheetTrigger>
           </div>
-          <TrainerForm
-            newTrainer={selectedTrainer || newTrainer}
-            onCreateOrUpdateTrainer={handleCreateOrUpdateTrainer}
-            onInputChange={handleInputChange}
-            isEditMode={isEditMode}
-          />
-          <DataTable
-            data={{
-              items: trainers.items,
-              total: trainers.total,
-              page: trainers.page,
-              limit: trainers.limit
-            }}
-            columns={columns}
-            onPaginationChange={handlePaginationChange}
-            searchColumns={[
-              { id: "user.name", placeholder: "Search by name..." },
-              { id: "user.email", placeholder: "Search by email..." },
-            ]}
-            onSearch={(value, column) => {
-              setSearch(value);
-              setSearchColumn(column);
-            }}
-          />
+          <div className="rounded-md">
+            <DataTable
+              data={{
+                items: trainers.items,
+                total: trainers.total,
+                page: trainers.page,
+                limit: trainers.limit
+              }}
+              columns={columns}
+              onPaginationChange={handlePaginationChange}
+              searchColumns={[
+                { id: "user.name", placeholder: "Search by name..." },
+                { id: "user.email", placeholder: "Search by email..." },
+              ]}
+              onSearch={(value, column) => {
+                setSearch(value);
+                setSearchColumn(column);
+              }}
+            />
+          </div>
         </div>
+        <TrainerForm
+          newTrainer={selectedTrainer || newTrainer}
+          onCreateOrUpdateTrainer={handleCreateOrUpdateTrainer}
+          onInputChange={handleInputChange}
+          isEditMode={isEditMode}
+        />
       </Sheet>
     </>
   );

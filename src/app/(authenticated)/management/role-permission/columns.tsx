@@ -4,6 +4,8 @@ import { ColumnDef } from "@tanstack/react-table"
 
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/ui/button"
+import { Edit, Trash2, Users } from "lucide-react"
 
 import { PersonalTrainer } from "./schema"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
@@ -95,46 +97,86 @@ export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }
   },
 ]
 
-export const roleColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Role>[] => [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Role Name" />
-    ),
-  },
-  {
-    id: "permissions",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Permissions" />
-    ),
-    cell: ({ row }) => {
-      const permissions = row.original.permissions?.map(p => p.permission.name).join(", ") ?? "";
-      return <div className="max-w-[300px] truncate">{permissions}</div>;
+export const roleColumns = ({
+    onEdit,
+    onDelete,
+    onEditMember,
+    onDeleteMember,
+}: ColumnsProps): ColumnDef<Role>[] => [
+    {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => (
+            <div className="font-medium">{row.getValue("name")}</div>
+        ),
     },
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} onDelete={onDelete} />,
-  },
-]
+    {
+        accessorKey: "permissions",
+        header: "Permissions",
+        cell: ({ row }) => {
+            const permissions = row.original.permissions || [];
+            return (
+                <div className="flex flex-wrap gap-1 max-w-[500px] min-w-[200px]">
+                    {permissions.map((p) => (
+                        <Badge 
+                            key={p.permission.id} 
+                            className="px-2 py-0.5 text-xs bg-infinity dark:text-black text-white whitespace-nowrap"
+                        >
+                            {p.permission.name}
+                        </Badge>
+                    ))}
+                </div>
+            );
+        },
+    },
+    {
+        id: "actions",
+        cell: ({ row }) => {
+            return (
+                <div className="flex items-center justify-end gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hidden md:flex"
+                        onClick={() => onEdit(row.original)}
+                    >
+                        <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hidden md:flex"
+                        onClick={() => onDelete(row.original)}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hidden md:flex"
+                        onClick={() => onEditMember(row.original)}
+                    >
+                        <Users className="h-4 w-4" />
+                    </Button>
+                    
+                    {/* Mobile actions */}
+                    <div className="md:hidden">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => {
+                                // Handle mobile actions menu
+                                onEdit(row.original);
+                            }}
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            );
+        },
+    },
+];
 
 

@@ -4,6 +4,8 @@ import { ColumnDef } from "@tanstack/react-table"
 
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/ui/button"
+import { Edit, Trash2 } from "lucide-react"
 
 import { PersonalTrainer } from "./schema"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
@@ -52,12 +54,14 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Email" />
     ),
+    cell: ({ row }) => <div className="hidden md:block">{row.original.user.email}</div>,
   },
   {
     accessorKey: "description",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Description" />
     ),
+    cell: ({ row }) => <div className="hidden md:block">{row.getValue("description")}</div>,
   },
   {
     accessorKey: "isActive",
@@ -77,18 +81,59 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Created At" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px] hidden md:block">
+        {new Date(row.getValue("createdAt")).toLocaleDateString()}
+      </div>
+    ),
   },
   {
     accessorKey: "updatedAt",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Updated At" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px] hidden md:block">
+        {new Date(row.getValue("updatedAt")).toLocaleDateString()}
+      </div>
+    ),
   },
   {
     id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEditMember} onDelete={onDeleteMember} />,
+    cell: ({ row }) => {
+      return (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:flex"
+            onClick={() => onEditMember(row.original)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:flex"
+            onClick={() => onDeleteMember(row.original)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          
+          {/* Mobile actions */}
+          <div className="md:hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => onEditMember(row.original)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      );
+    },
   },
 ]
 
