@@ -1,96 +1,132 @@
-"use client";
+"use client"
 
-import { Input } from "@/components/ui/input";
 import {
-    Sheet,
-    SheetClose,
     SheetContent,
-    SheetDescription,
     SheetHeader,
     SheetTitle,
     SheetFooter,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api } from "@/trpc/react";
-import { Class } from "./schema";
+} from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import { api } from "@/trpc/react"
+import { 
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { useEffect, useState } from "react"
 
 type ClassFormProps = {
-    classData: Class;
-    onInputChange: (name: string, value: string | number) => void;
+    name: string;
+    limit: number | null;
+    trainerId: string;
+    onNameChange: (name: string) => void;
+    onLimitChange: (limit: number | null) => void;
+    onTrainerChange: (trainerId: string) => void;
     onCreateOrUpdateClass: () => void;
     isEditMode: boolean;
 };
 
-export const ClassForm: React.FC<ClassFormProps> = ({
-    classData,
-    onInputChange,
+export const ClassForm = ({
+    name,
+    limit,
+    trainerId,
+    onNameChange,
+    onLimitChange,
+    onTrainerChange,
     onCreateOrUpdateClass,
     isEditMode,
-}) => {
-    const { data: trainers = [] } = api.class.getTrainers.useQuery();
+}: ClassFormProps) => {
+    // Local state
+    const [localName, setLocalName] = useState(name);
+    const [localLimit, setLocalLimit] = useState<number | null>(limit);
+    const [localTrainerId, setLocalTrainerId] = useState(trainerId);
+
+    // Update local state when props change
+    useEffect(() => {
+        setLocalName(name);
+        setLocalLimit(limit);
+        setLocalTrainerId(trainerId);
+    }, [name, limit, trainerId]);
+
+    // Handle local changes and propagate to parent
+    const handleNameChange = (value: string) => {
+        setLocalName(value);
+        onNameChange(value);
+    };
+
+    const handleLimitChange = (value: string) => {
+        const newLimit = value ? parseInt(value) : null;
+        setLocalLimit(newLimit);
+        onLimitChange(newLimit);
+    };
+
+    const handleTrainerChange = (value: string) => {
+        setLocalTrainerId(value);
+        onTrainerChange(value);
+    };
+
+    const { data: trainers } = api.personalTrainer.list.useQuery(
+        { page: 1, limit: 100 },
+        { 
+            suspense: false,
+            staleTime: 5000, // Add stale time to prevent frequent refetches
+        }
+    );
 
     return (
-        <SheetContent side="right" className="w-full overflow-y-auto">
+        <SheetContent side="right">
             <SheetHeader>
-                <SheetTitle>{isEditMode ? "Edit Class" : "Create New Class"}</SheetTitle>
-                <SheetDescription>
-                    {isEditMode ? "Edit the class details." : "Add a new class to the system."}
-                </SheetDescription>
+                <SheetTitle>
+                    {isEditMode ? "Edit Class" : "Create New Class"}
+                </SheetTitle>
             </SheetHeader>
-            <div className="flex flex-col gap-4 py-8 sm:px-0 px-4">
+
+            <div className="flex flex-col gap-4 py-8">
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium">
                         Class Name
                     </label>
                     <Input
                         id="name"
-                        name="name"
-                        placeholder="Class Name"
-                        value={classData.name}
-                        onChange={(e) => onInputChange("name", e.target.value)}
+                        value={localName}
+                        onChange={(e) => handleNameChange(e.target.value)}
+                        placeholder="Enter class name"
                     />
                 </div>
+
                 <div>
                     <label htmlFor="limit" className="block text-sm font-medium">
-                        Member Limit
+                        Student Limit
                     </label>
                     <Input
+                        type="number"
                         id="limit"
-                        name="limit"
-                        type="number"
-                        placeholder="Member Limit"
-                        value={classData.limit}
-                        onChange={(e) => onInputChange("limit", parseInt(e.target.value))}
+                        value={localLimit ?? ""}
+                        onChange={(e) => handleLimitChange(e.target.value)}
+                        placeholder="Enter student limit"
                     />
                 </div>
+
                 <div>
-                    <label htmlFor="price" className="block text-sm font-medium">
-                        Price
-                    </label>
-                    <Input
-                        id="price"
-                        name="price"
-                        type="number"
-                        placeholder="Price"
-                        value={classData.price}
-                        onChange={(e) => onInputChange("price", parseInt(e.target.value))}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="trainer" className="block text-sm font-medium">
+                    <label className="block text-sm font-medium">
                         Trainer
                     </label>
-                    <Select 
-                        value={classData.id_employee} 
-                        onValueChange={(value) => onInputChange("id_employee", value)}
+                    <Select
+                        value={localTrainerId}
+                        onValueChange={handleTrainerChange}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Select a trainer" />
                         </SelectTrigger>
                         <SelectContent>
-                            {trainers.map((trainer) => (
-                                <SelectItem key={trainer.id} value={trainer.id}>
+                            {trainers?.items.map((trainer) => (
+                                <SelectItem
+                                    key={trainer.id}
+                                    value={trainer.id}
+                                >
                                     {trainer.user.name}
                                 </SelectItem>
                             ))}
@@ -98,14 +134,17 @@ export const ClassForm: React.FC<ClassFormProps> = ({
                     </Select>
                 </div>
             </div>
-            <SheetFooter className="flex justify-end gap-2">
-                <Button onClick={onCreateOrUpdateClass} className="bg-infinity">
-                    {isEditMode ? "Update Class" : "Create Class"}
+
+            <SheetFooter>
+                <Button
+                    type="button"
+                    onClick={onCreateOrUpdateClass}
+                    className="bg-infinity"
+                    disabled={!localName || !localTrainerId}
+                >
+                    {isEditMode ? "Update" : "Create"} Class
                 </Button>
-                <SheetClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                </SheetClose>
             </SheetFooter>
         </SheetContent>
     );
-};
+}; 

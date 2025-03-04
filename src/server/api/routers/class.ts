@@ -1,23 +1,33 @@
-import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { z } from "zod"
+import {
+    createTRPCRouter,
+    protectedProcedure,
+} from "@/server/api/trpc"
+import { createClassSchema } from "@/app/(authenticated)/management/class/schema"
 
 export const classRouter = createTRPCRouter({
     create: protectedProcedure
-        .input(z.object({
-            name: z.string(),
-            limit: z.number(),
-            price: z.number(),
-            id_employee: z.string(), // PT ID
-        }))
+        .input(createClassSchema)
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.class.create({
-                data: {
-                    name: input.name,
-                    limit: input.limit,
-                    price: input.price,
-                    id_employee: input.id_employee,
-                },
-            });
+            try {
+                const newClass = await ctx.db.class.create({
+                    data: {
+                        name: input.name,
+                        limit: input.limit,
+                        trainerId: input.trainerId,
+                    },
+                    include: {
+                        trainer: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                    },
+                })
+                return newClass
+            } catch (error) {
+                throw new Error("Failed to create class")
+            }
         }),
 
     list: protectedProcedure
@@ -25,79 +35,85 @@ export const classRouter = createTRPCRouter({
             page: z.number().min(1),
             limit: z.number().min(1),
             search: z.string().optional(),
-            searchColumn: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const skip = (input.page - 1) * input.limit;
-            const where = input.search && input.searchColumn ? {
-                [input.searchColumn]: {
-                    contains: input.search,
-                    mode: "insensitive",
+            const { page, limit, search } = input
+            const skip = (page - 1) * limit
+
+            try {
+                const where = search ? {
+                    name: { contains: search, mode: "insensitive" as const },
+                } : undefined
+
+                const [items, total] = await Promise.all([
+                    ctx.db.class.findMany({
+                        skip,
+                        take: limit,
+                        where,
+                        include: {
+                            trainer: {
+                                include: {
+                                    user: true,
+                                },
+                            },
+                        },
+                        orderBy: { createdAt: "desc" },
+                    }),
+                    ctx.db.class.count({ where }),
+                ])
+
+                return {
+                    items,
+                    total,
+                    page,
+                    limit,
                 }
-            } : {};
-
-            const [items, total] = await Promise.all([
-                ctx.db.class.findMany({
-                    skip,
-                    take: input.limit,
-                    where,
-                    include: {
-                        pt: {
-                            include: {
-                                user: true
-                            }
-                        }
-                    },
-                    orderBy: { name: 'asc' }
-                }),
-                ctx.db.class.count({ where })
-            ]);
-
-            return {
-                items,
-                total,
-                page: input.page,
-                limit: input.limit,
-            };
+            } catch (error) {
+                throw new Error("Failed to fetch classes")
+            }
         }),
 
     update: protectedProcedure
-        .input(z.object({
-            id_class: z.string(),
-            name: z.string(),
-            limit: z.number(),
-            price: z.number(),
-            id_employee: z.string(),
+        .input(createClassSchema.extend({
+            id: z.string(),
         }))
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.class.update({
-                where: { id_class: input.id_class },
-                data: {
-                    name: input.name,
-                    limit: input.limit,
-                    price: input.price,
-                    id_employee: input.id_employee,
-                },
-            });
+            const { id, ...data } = input
+            try {
+                const updatedClass = await ctx.db.class.update({
+                    where: { id },
+                    data,
+                    include: {
+                        trainer: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                    },
+                })
+                return updatedClass
+            } catch (error) {
+                throw new Error("Failed to update class")
+            }
         }),
 
     remove: protectedProcedure
-        .input(z.object({
-            id_class: z.string(),
-        }))
+        .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.class.delete({
-                where: { id_class: input.id_class },
-            });
+            try {
+                const deletedClass = await ctx.db.class.delete({
+                    where: { id: input.id },
+                    include: {
+                        trainer: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                    },
+                })
+                return deletedClass
+            } catch (error) {
+                throw new Error("Failed to delete class")
+            }
         }),
-
-    getTrainers: protectedProcedure
-        .query(async ({ ctx }) => {
-            return ctx.db.personalTrainer.findMany({
-                where: { isActive: true },
-                include: {
-                    user: true
-                }
-            });
-        }),
-});
+}) 

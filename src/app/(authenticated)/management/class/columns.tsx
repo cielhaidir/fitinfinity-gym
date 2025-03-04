@@ -1,101 +1,16 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-
-import { PersonalTrainer } from "./schema"
+import { Class } from "./schema"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
 import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
-import { Class } from "./schema"
 
 interface ColumnsProps {
-  onEditMember: (member: any) => void,
-  onDeleteMember: (member: any) => void,
-  onEdit: (class_: Class) => void,
-  onDelete: (class_: Class) => void,
+    onEdit: (class_: Class) => void
+    onDelete: (class_: Class) => void
 }
 
-export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }: ColumnsProps): ColumnDef<PersonalTrainer>[] => [
-  {
-    id: "select", 
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-        className="translate-y-[2px] ring-offset-background ring-black"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-        className="translate-y-[2px] ring-infinity"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },  
-  {
-    accessorKey: "user.name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trainer Name" />
-    ),
-    cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
-  },
-  {
-    id: "email",
-    accessorKey: "user.email",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Email" />
-    ),
-  },
-  {
-    accessorKey: "description",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Description" />
-    ),
-  },
-  {
-    accessorKey: "isActive",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
-    cell: ({ row }) => (
-      <div className="w-[100px]">
-        <Badge variant={row.getValue("isActive") ? "default" : "secondary"}>
-          {row.getValue("isActive") ? "Active" : "Inactive"}
-        </Badge>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created At" />
-    ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
-  },
-  {
-    accessorKey: "updatedAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Updated At" />
-    ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEditMember} onDelete={onDeleteMember} />,
-  },
-]
-
-export const classColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Class>[] => [
+export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Class>[] => [
     {
         accessorKey: "name",
         header: ({ column }) => (
@@ -105,28 +20,26 @@ export const classColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Clas
     {
         accessorKey: "limit",
         header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Member Limit" />
+            <DataTableColumnHeader column={column} title="Student Limit" />
         ),
+        cell: ({ row }) => <div>{row.getValue("limit") || "No limit"}</div>,
     },
     {
-        accessorKey: "price",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Price" />
-        ),
-        cell: ({ row }) => (
-            <div>Rp {row.getValue<number>("price").toLocaleString()}</div>
-        ),
-    },
-    {
-        accessorKey: "pt.user.name",
+        accessorKey: "trainer.user.name",
         header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Trainer" />
         ),
+        cell: ({ row }) => <div>{row.original.trainer?.user?.name || "N/A"}</div>,
+    },
+    {
+        accessorKey: "createdAt",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Created At" />
+        ),
+        cell: ({ row }) => <div>{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
     },
     {
         id: "actions",
-        cell: ({ row }) => <DataTableRowActions row={row} onEdit={() => onEdit(row.original)} onDelete={() => onDelete(row.original)} />,
+        cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} onDelete={onDelete} />,
     },
-]
-
-
+] 
