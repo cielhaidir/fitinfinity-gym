@@ -8,56 +8,39 @@ export const permissionRouter = createTRPCRouter({
     create: protectedProcedure
         .input(z.object({
             name: z.string(),
-            roleIds: z.array(z.string()).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.permission.create({
-                data: {
-                    name: input.name,
-                    roles: input.roleIds ? {
-                        create: input.roleIds.map(roleId => ({
-                            role: {
-                                connect: { id: roleId }
-                            }
-                        }))
-                    } : undefined
-                },
-                include: {
-                    roles: {
+            const actions = ['create', 'edit', 'delete', 'list'];
+            const permissions = await Promise.all(
+                actions.map(action => 
+                    ctx.db.permission.create({
+                        data: {
+                            name: `${action}_${input.name}`,
+                        },
                         include: {
-                            role: true
+                            roles: {
+                                include: {
+                                    role: true
+                                }
+                            }
                         }
-                    }
-                }
-            });
+                    })
+                )
+            );
+            
+            return permissions;
         }),
 
     update: protectedProcedure
         .input(z.object({
             id: z.string(),
             name: z.string(),
-            roleIds: z.array(z.string()).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
-            if (input.roleIds) {
-                await ctx.db.rolePermission.deleteMany({
-                    where: {
-                        permissionId: input.id
-                    }
-                });
-            }
-
             return ctx.db.permission.update({
                 where: { id: input.id },
                 data: {
                     name: input.name,
-                    roles: input.roleIds ? {
-                        create: input.roleIds.map(roleId => ({
-                            role: {
-                                connect: { id: roleId }
-                            }
-                        }))
-                    } : undefined
                 },
                 include: {
                     roles: {
@@ -73,36 +56,18 @@ export const permissionRouter = createTRPCRouter({
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
-            search: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
-            const whereClause = input.search
-                ? {
-                    name: {
-                        contains: input.search,
-                        mode: "insensitive" as const
-                    }
-                }
-                : {};
-
-            const permissions = await ctx.db.permission.findMany({
+            const items = await ctx.db.permission.findMany({
                 skip: (input.page - 1) * input.limit,
                 take: input.limit,
-                where: whereClause,
                 orderBy: { name: "asc" },
-                include: {
-                    roles: {
-                        include: {
-                            role: true
-                        }
-                    }
-                }
             });
 
-            const total = await ctx.db.permission.count({ where: whereClause });
+            const total = await ctx.db.permission.count();
 
             return {
-                permissions,
+                items,
                 total,
                 page: input.page,
                 limit: input.limit,
@@ -141,5 +106,15 @@ export const permissionRouter = createTRPCRouter({
             return ctx.db.permission.delete({
                 where: { id: input.id },
             });
+        }),
+
+    getAll: protectedProcedure
+        .query(async ({ ctx }) => {
+            const permissions = await ctx.db.permission.findMany({
+                orderBy: {
+                    name: 'asc'
+                }
+            });
+            return permissions;
         }),
 });

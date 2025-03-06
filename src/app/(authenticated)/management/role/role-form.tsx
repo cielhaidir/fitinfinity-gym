@@ -10,58 +10,50 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Permission } from "./schema";
+import { Role } from "./schema";
 
-type PermissionFormProps = {
-    permission: Permission;
+type RoleFormProps = {
+    role: Role;
     onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onCreateOrUpdatePermission: () => void;
+    onCreateOrUpdateRole: () => void;
     isEditMode: boolean;
 };
 
-export const PermissionForm: React.FC<PermissionFormProps> = ({
-    permission,
+export const RoleForm: React.FC<RoleFormProps> = ({
+    role,
     onInputChange,
-    onCreateOrUpdatePermission,
+    onCreateOrUpdateRole,
     isEditMode,
 }) => {
     return (
         <SheetContent side="right" className="w-full overflow-y-auto">
             <SheetHeader>
                 <SheetTitle>
-                    {isEditMode ? "Edit Permission" : "Create New Permissions"}
+                    {isEditMode ? "Edit Role" : "Create New Role"}
                 </SheetTitle>
                 <SheetDescription>
                     {isEditMode
-                        ? "Edit the permission name."
-                        : "Enter a base name to create CRUD permissions (create_[name], edit_[name], delete_[name], list_[name])."}
+                        ? "Edit the role name."
+                        : "Add a new role to the system."}
                 </SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-4 py-8 sm:px-0 px-4">
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium">
-                        {isEditMode ? "Permission Name" : "Base Permission Name"}
+                        Role Name
                     </label>
                     <Input
                         id="name"
                         name="name"
-                        placeholder={isEditMode ? "Permission Name" : "e.g., member"}
-                        value={permission.name}
+                        placeholder="Role Name"
+                        value={role.name}
                         onChange={onInputChange}
                     />
-                    {!isEditMode && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            This will create: create_{permission.name || '[name]'}, 
-                            edit_{permission.name || '[name]'}, 
-                            delete_{permission.name || '[name]'}, 
-                            list_{permission.name || '[name]'}
-                        </p>
-                    )}
                 </div>
             </div>
             <SheetFooter className="flex justify-end gap-2">
-                <Button onClick={onCreateOrUpdatePermission} className="bg-infinity">
-                    {isEditMode ? "Update Permission" : "Create CRUD Permissions"}
+                <Button onClick={onCreateOrUpdateRole} className="bg-infinity">
+                    {isEditMode ? "Update Role" : "Create Role"}
                 </Button>
                 <SheetClose asChild>
                     <Button variant="outline">Cancel</Button>

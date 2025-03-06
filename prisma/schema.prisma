@@ -159,9 +159,22 @@ model PersonalTrainer {
     isActive    Boolean    @default(true)
     createdAt   DateTime   @default(now())
     updatedAt   DateTime   @updatedAt
+    class Class[]
     
     user        User       @relation("PersonalTrainerToUser", fields: [userId], references: [id])
     subscriptions Subscription[]
+
+    
+}
+
+model Class {
+    id          String   @id @default(cuid())
+    name        String
+    limit       Int?
+    trainerId   String
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])
 }
 
 enum MembershipStatus {

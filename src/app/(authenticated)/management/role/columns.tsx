@@ -10,13 +10,16 @@ import { Edit, Trash2 } from "lucide-react"
 import { PersonalTrainer } from "./schema"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
 import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
+import { Role } from "./schema"
 
 interface ColumnsProps {
   onEditMember: (member: any) => void,
   onDeleteMember: (member: any) => void,
+  onEdit: (role: Role) => void,
+  onDelete: (role: Role) => void,
 }
 
-export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): ColumnDef<PersonalTrainer>[] => [
+export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }: ColumnsProps): ColumnDef<PersonalTrainer>[] => [
   {
     id: "select", 
     header: ({ table }) => (
@@ -54,14 +57,12 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Email" />
     ),
-    cell: ({ row }) => <div className="hidden md:block">{row.original.user.email}</div>,
   },
   {
     accessorKey: "description",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Description" />
     ),
-    cell: ({ row }) => <div className="hidden md:block">{row.getValue("description")}</div>,
   },
   {
     accessorKey: "isActive",
@@ -81,21 +82,29 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Created At" />
     ),
-    cell: ({ row }) => (
-      <div className="w-[150px] hidden md:block">
-        {new Date(row.getValue("createdAt")).toLocaleDateString()}
-      </div>
-    ),
+    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
   },
   {
     accessorKey: "updatedAt",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Updated At" />
     ),
+    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEditMember} onDelete={onDeleteMember} />,
+  },
+]
+
+export const roleColumns = ({ onEdit, onDelete, onEditMember, onDeleteMember }: ColumnsProps): ColumnDef<Role>[] => [
+  {
+    accessorKey: "name",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Role Name" />
+    ),
     cell: ({ row }) => (
-      <div className="w-[150px] hidden md:block">
-        {new Date(row.getValue("updatedAt")).toLocaleDateString()}
-      </div>
+      <div className="font-medium">{row.getValue("name")}</div>
     ),
   },
   {
@@ -107,7 +116,7 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
             variant="ghost"
             size="icon"
             className="hidden md:flex"
-            onClick={() => onEditMember(row.original)}
+            onClick={() => onEdit(row.original)}
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -115,7 +124,7 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
             variant="ghost"
             size="icon"
             className="hidden md:flex"
-            onClick={() => onDeleteMember(row.original)}
+            onClick={() => onDelete(row.original)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -126,7 +135,7 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => onEditMember(row.original)}
+              onClick={() => onEdit(row.original)}
             >
               <Edit className="h-4 w-4" />
             </Button>
