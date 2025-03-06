@@ -22,7 +22,7 @@ export const appRouter = createTRPCRouter({
   personalTrainer: personalTrainerRouter,
   permission: permissionRouter,
   package: packageRouter,
-  subs: subscriptionRouter
+  subs: subscriptionRouter,
   role: roleRouter,
   rolePermission: rolePermissionRouter,
   class: classRouter,
