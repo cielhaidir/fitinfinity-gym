@@ -81,6 +81,57 @@ model User {
     createdAt          DateTime     @default(now())
     updatedAt          DateTime     @updatedAt
 }
+model Class {
+    id          String           @id @default(cuid())
+    name        String
+    limit       Int?
+    trainerId   String
+    schedule    DateTime
+    duration    Int
+    createdAt   DateTime         @default(now())
+    updatedAt   DateTime         @updatedAt
+    trainer     PersonalTrainer  @relation(fields: [trainerId], references: [id])
+    registeredMembers ClassMember[]
+    waitingList        ClassWaitingList[]
+}
+
+model ClassMember {
+    id        String      @id @default(cuid())
+    classId   String
+    memberId  String
+    class     Class       @relation(fields: [classId], references: [id])
+    member    Membership  @relation(fields: [memberId], references: [id])
+    joinedAt  DateTime    @default(now())
+}
+
+model ClassWaitingList {
+    id        String      @id @default(cuid())
+    classId   String
+    memberId  String
+    class     Class       @relation(fields: [classId], references: [id])
+    member    Membership  @relation(fields: [memberId], references: [id])
+    joinedAt  DateTime    @default(now())
+}
+
+
+model Membership {
+    id            String         @id @default(cuid())
+    userId        String         @unique
+    user          User           @relation("MembershipToUser", fields: [userId], references: [id])
+    registerDate  DateTime
+    rfidNumber    String?
+    isActive      Boolean        @default(false)
+    createdBy     String?
+    revokedAt     DateTime?
+    creator       User?          @relation("MembershipCreator", fields: [createdBy], references: [id])
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    subscriptions Subscription[]
+    registeredClasses ClassMember[]
+    waitingClasses    ClassWaitingList[]
+}
+
+
 
 model Role {
     id          String           @id @default(cuid())
@@ -113,20 +164,6 @@ model VerificationToken {
     @@unique([identifier, token])
 }
 
-model Membership {
-    id            String         @id @default(cuid())
-    userId        String         @unique
-    user          User           @relation("MembershipToUser", fields: [userId], references: [id])
-    registerDate  DateTime
-    rfidNumber    String?
-    isActive      Boolean        @default(false)
-    createdBy     String?
-    revokedAt     DateTime?
-    creator       User?          @relation("MembershipCreator", fields: [createdBy], references: [id])
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
-    subscriptions Subscription[]
-}
 
 model Subscription {
     id        String     @id @default(cuid())
@@ -156,6 +193,7 @@ model PersonalTrainer {
     id          String     @id @default(cuid())
     userId      String     @unique
     description String?
+    image     String?
     isActive    Boolean    @default(true)
     createdAt   DateTime   @default(now())
     updatedAt   DateTime   @updatedAt
@@ -166,17 +204,6 @@ model PersonalTrainer {
 
     
 }
-
-model Class {
-    id          String   @id @default(cuid())
-    name        String
-    limit       Int?
-    trainerId   String
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
-    trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])
-}
-
 enum MembershipStatus {
     ACTIVE
     EXPIRED
