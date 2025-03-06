@@ -81,35 +81,41 @@ export const createColumns = ({
                 </Badge>
             ),
         },
-        {
-            accessorKey: "sessions",
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Sessions" />
-            ),
-            cell: ({ row }) => (
-                <div className="w-[100px]">{row.getValue("sessions") ?? "-"}</div>
-            ),
-        },
-        {
-            accessorKey: "months",
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Months" />
-            ),
-            cell: ({ row }) => (
-                <div className="w-[100px]">{row.getValue("months") ?? "-"}</div>
-            ),
-        },
         // {
-        //     accessorKey: "Duration",
+        //     accessorKey: "sessions",
         //     header: ({ column }) => (
-        //         console.log('column: ',column),
-        //         <DataTableColumnHeader column={column} title="Duration" />
+        //         <DataTableColumnHeader column={column} title="Sessions" />
         //     ),
         //     cell: ({ row }) => (
-        //         <div className="w-[100px]">{row.getValue("months") ?? row.getValue("sessions") ?? "-"}</div>
+        //         <div className="w-[100px]">{row.getValue("sessions") ?? "-"}</div>
         //     ),
+        //     enableHiding: true,
+            
         // },
-
+        // {
+        //     accessorKey: "day",
+        //     header: ({ column }) => (
+        //         <DataTableColumnHeader column={column} title="Days" />
+        //     ),
+        //     cell: ({ row }) => (
+        //         <div className="w-[100px]">{row.getValue("day") ?? "-"}</div>
+        //     ),
+            
+        // },
+        {
+            accessorKey: "duration",
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Duration" />
+            ),
+            cell: ({ row }) => (
+                <div className="w-[100px]">
+                    {row.getValue("type") === PackageType.GYM_MEMBERSHIP
+                        ? (row.original.day ?? '0') + ' Day'
+                        : (row.original.sessions ?? '0') + ' Session'
+                    }
+                </div>
+            ),
+        },
         {
             accessorKey: "isActive",
             header: ({ column }) => (
@@ -124,17 +130,17 @@ export const createColumns = ({
                 </Badge>
             ),
         },
-        {
-            accessorKey: "createdAt",
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Created At" />
-            ),
-            cell: ({ row }) => (
-                <div className="w-[150px]">
-                    {new Date(row.getValue("createdAt")).toLocaleDateString()}
-                </div>
-            ),
-        },
+        // {
+        //     accessorKey: "createdAt",
+        //     header: ({ column }) => (
+        //         <DataTableColumnHeader column={column} title="Created At" />
+        //     ),
+        //     cell: ({ row }) => (
+        //         <div className="w-[150px]">
+        //             {new Date(row.getValue("createdAt")).toLocaleDateString()}
+        //         </div>
+        //     ),
+        // },
         {
             id: "actions",
             cell: ({ row }) => (

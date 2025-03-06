@@ -8,8 +8,7 @@ import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
-import { Package } from "./schema";
-import { PackageForm } from "./package-form";
+import { Subscription, Create } from "./schema";
 import { toast } from "sonner"
 import { Plus } from "lucide-react";
 
@@ -18,22 +17,22 @@ export default function PackagePage() {
 
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
-    const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+    const [selectedSubs, setselectedSubs] = useState<Subscription | null>(null);
 
-    const [newPackage, setNewPackage] = useState<Package>({
-        name: "",
-        description: "",
-        price: 0,
-        type: "GYM_MEMBERSHIP",
-        sessions: null,
-        day: null,
-        reward: 0,
+    const [newSubs, setnewSubs] = useState<Create>({
+        memberId: "",
+        startDate: new Date(),
+        endDate: new Date(),
+        packageId: "",
+        paymentMethod: "",
+        tax: 0,
+        totalPayment: 0,
     });
 
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
 
-    const { data: packageData = { items: [], total: 0, page: 1, limit: 10 } } = api.package.list.useQuery({
+    const { data: packageData = { items: [], total: 0, page: 1, limit: 10 } } = api.subs.list.useQuery({
         page: 1,
         limit: 10,
         search
@@ -46,69 +45,67 @@ export default function PackagePage() {
         const { name, value } = e.target;
         const updatedValue = name === 'day' ? parseInt(value, 10) : value;
 
-        if (isEditMode && selectedPackage) {
-            setSelectedPackage(prev => {
-                if (!prev) return null;
-                return {
-                    ...prev,
-                    [name]: updatedValue,
-                };
+        if (isEditMode && selectedSubs) {
+            setselectedSubs(prev => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                [name]: updatedValue,
+              };
             });
-        } else {
-            setNewPackage(prev => ({
+          } else {
+            setnewSubs(prev => ({
                 ...prev,
                 [name]: updatedValue,
             }));
-        }
-        console.log(selectedPackage)
+          }
+          console.log(selectedSubs)
     };
 
-    const handleOrCreatePackage = async () => {
+    const handleOrCreateSubs = async () => {
 
-        const messageLoading = isEditMode ? "Updating package..." : "Creating package...";
-        const message = isEditMode ? "Package updated successfully!" : "Package created successfully!";
+        const messageLoading = isEditMode ? "Updating subscription..." : "Creating subscription...";
+        const message = isEditMode ? "Subscription updated successfully!" : "Subscription created successfully!";
         const promise = async () => {
 
-            if (isEditMode && selectedPackage) {
-                console.log('updated package:', selectedPackage);
+            if (isEditMode && selectedSubs) {
+                console.log('updated package:', selectedSubs);
                 await updatePackageMutation.mutateAsync({
-                    id: selectedPackage.id ?? "",
-                    name: selectedPackage.name,
-                    description: selectedPackage.description ?? '',
-                    price: Number(selectedPackage.price),
-                    type: selectedPackage.type,
-                    reward: selectedPackage.reward ?? 0,
-                    sessions: Number(selectedPackage.sessions),
-                    day: typeof selectedPackage.day === 'number' ? selectedPackage.day : undefined,
+                    id: selectedSubs.id ?? "",
+                    name: newSubs.name,
+                    description: newSubs.description ?? '',
+                    price: newSubs.price,
+                    type: newSubs.type,
+                    sessions: typeof newSubs.sessions === 'number' ? newSubs.sessions : undefined,
+                    day: typeof newSubs.day === 'number' ? newSubs.day : undefined,
                 });
 
                 await utils.package.list.invalidate();
                 setIsSheetOpen(false);
                 setIsEditMode(false);
-                setSelectedPackage(null);
+                setselectedSubs(null);
 
             } else {
 
                 const packageSub = await createPackageMutation.mutateAsync({
-                    name: newPackage.name,
-                    description: newPackage.description ?? '',
-                    price: Number(newPackage.price),
-                    type: newPackage.type,
-                    sessions: Number(newPackage.sessions),
-                    day: typeof newPackage.day === 'number' ? newPackage.day : undefined,
-                    reward: newPackage.reward ?? 0,
+                    name: newSubs.name,
+                    description: newSubs.description ?? '',
+                    price: Number(newSubs.price),
+                    type: newSubs.type,
+                    sessions: typeof newSubs.sessions === 'number' ? newSubs.sessions : undefined,
+                    day: typeof newSubs.day === 'number' ? newSubs.day : undefined,
                 });
+
 
                 await utils.package.list.invalidate();
 
-                setNewPackage({
+                setnewSubs({
                     name: "",
                     description: "",
                     price: 0,
                     type: "GYM_MEMBERSHIP",
                     sessions: null,
                     day: null,
-                    reward: 0,
                 });
 
                 setIsSheetOpen(false);
@@ -123,7 +120,7 @@ export default function PackagePage() {
 
     const handleEditPackage = (packageData: Package) => {
         console.log("Editing packageData:", packageData);
-        setSelectedPackage(packageData);
+        setselectedSubs(packageData);
         setIsEditMode(true);
         setIsSheetOpen(true);
     };
@@ -157,28 +154,28 @@ export default function PackagePage() {
                 setIsSheetOpen(open);
                 if (!open) {
                     setIsEditMode(false);
-                    setSelectedPackage(null);
+                    setselectedSubs(null);
                 }
             }}>
                 <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
                     <div className="flex items-center justify-between space-y-2">
                         <div>
                             <h2 className="text-2xl font-bold tracking-tight">
-                                Package Management
+                                Subscription Management
                             </h2>
                             <p className="text-muted-foreground">
-                                Here&apos;s a list of Fit Infinity Packages!
+                                Here&apos;s a list of Fit Infinity Subscriptions!
                             </p>
                         </div>
                         <SheetTrigger asChild>
                             <Button className="mb-4 bg-infinity">
-                                <Plus className="mr-2 h-4 w-4" /> Create Package
+                                <Plus className="mr-2 h-4 w-4" /> Create Subscription
                             </Button>
                         </SheetTrigger>
                     </div>
-                    <PackageForm
-                        newPackage={selectedPackage || newPackage}
-                        onCreateOrUpdatePackage={handleOrCreatePackage}
+                    <SubscriptionForm
+                        newSubscription={selectedSubs || newSubs}
+                        onCreateOrUpdatePackage={handleOrCreateSubs}
                         onInputChange={handleInputChange}
                         isEditMode={isEditMode}
                     />

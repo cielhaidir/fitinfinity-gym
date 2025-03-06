@@ -96,4 +96,13 @@ export const personalTrainerRouter = createTRPCRouter({
                 where: { id: input.id },
             });
         }),
+
+    listAll: protectedProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.personalTrainer.findMany({
+                include: {
+                    user: true,
+                },
+            });
+        }),
 }); 

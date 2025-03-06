@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 import {
     createTRPCRouter,
@@ -58,9 +59,24 @@ export const memberRouter = createTRPCRouter({
     detail: protectedProcedure
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
-            return ctx.db.membership.findUnique({
+            console.log('id', input.id);
+            const member = await ctx.db.membership.findUnique({
                 where: { id: input.id },
+                include: {
+                    user: true,
+                    subscriptions: true
+                }
             });
+
+            if (!member) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Member not found',
+                });
+            }
+            console.log('member', member);
+
+            return member;
         }),
 
     list: protectedProcedure
@@ -114,6 +130,13 @@ export const memberRouter = createTRPCRouter({
         .query(async ({ ctx, input }) => {
             return ctx.db.membership.findUnique({
                 where: { id: input.id },
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                        }
+                    }
+                }
             });
         }),
 

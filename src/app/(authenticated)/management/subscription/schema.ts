@@ -1,0 +1,44 @@
+import { z } from 'zod';
+
+
+export const CreateSubscriptionInputSchema = z.object({
+    memberId: z.string(),
+    startDate: z.date(),
+    endDate: z.date(),
+    packageId: z.string(),
+    paymentMethod: z.string(),
+    tax: z.number(),
+    totalPayment: z.number(),
+});
+
+export const SubscriptionSchema = z.object({
+    id: z.string().optional(),
+    memberId: z.string(),
+    startDate: z.date(),
+    endDate: z.date().nullable(),
+    payments: z.array(z.object({
+        id: z.string().optional(),
+        subscriptionId: z.string(),
+        status: z.enum(['SUCCESS', 'PENDING', 'FAILED']),
+        method: z.string(),
+        totalPayment: z.number(),
+        createdAt: z.date().optional(),
+    })).optional(),
+    package: z.object({
+        id: z.string(),
+        name: z.string(),
+        price: z.number(),
+        description: z.string().nullable(),
+        sessions: z.number().nullable(),
+        day: z.number().nullable(),
+        reward: z.number().nullable(),
+        isActive: z.boolean().nullable(),
+        createdAt: z.date().nullable(),
+        updatedAt: z.date().nullable(),
+        type: z.enum(['GYM_MEMBERSHIP', 'PERSONAL_TRAINER']),
+    }),
+
+});
+
+export type Subscription = z.infer<typeof SubscriptionSchema>;
+export type Create = z.infer<typeof CreateSubscriptionInputSchema>;

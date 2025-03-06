@@ -119,7 +119,7 @@ model Membership {
     user          User           @relation("MembershipToUser", fields: [userId], references: [id])
     registerDate  DateTime
     rfidNumber    String?
-    isActive      Boolean        @default(true)
+    isActive      Boolean        @default(false)
     createdBy     String?
     revokedAt     DateTime?
     creator       User?          @relation("MembershipCreator", fields: [createdBy], references: [id])
@@ -131,9 +131,14 @@ model Membership {
 model Subscription {
     id        String     @id @default(cuid())
     memberId  String
+    trainerId String?
+    packageId String
     member    Membership @relation(fields: [memberId], references: [id])
+    package   Package   @relation(fields: [packageId], references: [id])
+    trainer   PersonalTrainer? @relation(fields: [trainerId], references: [id])
     startDate DateTime
-    endDate   DateTime
+    endDate   DateTime?
+    remainingSessions Int?
     payments  Payment[]
 }
 
@@ -143,7 +148,6 @@ model Payment {
     subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
     status         PaymentStatus
     method         String
-    tax            Int
     totalPayment   Int
     createdAt      DateTime      @default(now())
 }
@@ -157,6 +161,7 @@ model PersonalTrainer {
     updatedAt   DateTime   @updatedAt
     
     user        User       @relation("PersonalTrainerToUser", fields: [userId], references: [id])
+    subscriptions Subscription[]
 }
 
 enum MembershipStatus {
@@ -184,10 +189,12 @@ model Package {
     price       Int
     type        PackageType
     sessions    Int?        // only for PERSONAL_TRAINER type
-    months      Int?        // only for GYM_MEMBERSHIP type
+    day         Int?        // only for GYM_MEMBERSHIP type
+    reward      Int? 
     isActive    Boolean  @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
+    subscription Subscription[]
 }
 enum PackageType {
     GYM_MEMBERSHIP

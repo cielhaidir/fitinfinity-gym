@@ -64,7 +64,7 @@ export function LoginForm() {
               Login
             </Button>
             <Button variant="outline" className="w-full">
-              Login with Google
+              Login with Googless
             </Button>
           </div>
           <div className="mt-4 text-center text-sm">

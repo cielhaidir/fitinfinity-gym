@@ -1,4 +1,5 @@
 import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard } from 'lucide-react';
+import { title } from 'process';
 
 export const Menu = {
     navMain: [
@@ -11,36 +12,41 @@ export const Menu = {
                     url: "/management/personal-trainer",
                     icon: Users,
                 },
-                {
-                    title: "Role",
-                    url: "#",
-                    icon: UserCog,
-                },
+                // {
+                //     title: "Role",
+                //     url: "#",
+                //     icon: UserCog,
+                // },
                 {
                     title: "Package",
                     url: "/management/package",
                     icon: Package,
                 },
-                {
-                    title: "User",
-                    url: "#",
-                    icon: User,
-                },
+                // {
+                //     title: "User",
+                //     url: "#",
+                //     icon: User,
+                // },
                 {
                     title: "Member",
                     url: "/management/member",
                     icon: UserPlus,
                 },
+                // {
+                //     title: "Class",
+                //     url: "#",
+                //     icon: Dumbbell,
+                // },
+                // {
+                //     title: "Payment",
+                //     url: "#",
+                //     icon: CreditCard,
+                // },
                 {
-                    title: "Class",
-                    url: "#",
-                    icon: Dumbbell,
-                },
-                {
-                    title: "Payment",
-                    url: "#",
+                    title: 'Subscription',
+                    url: '/management/subscription',
                     icon: CreditCard,
-                },
+                }
             ],
         },
         {

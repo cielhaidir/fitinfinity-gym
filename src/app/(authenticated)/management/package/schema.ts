@@ -9,8 +9,9 @@ export const PackageSchema = z.object({
     price: z.number().min(0, "Price must be greater than or equal to 0"),
     type: PackageTypeEnum,
     sessions: z.number().nullable(),
-    months: z.number().nullable(),
+    day: z.number().nullable(),
     isActive: z.boolean().default(true).optional(),
+    reward: z.number().nullable(),
     createdAt: z.date().optional(),
     updatedAt: z.date().optional(),
 });

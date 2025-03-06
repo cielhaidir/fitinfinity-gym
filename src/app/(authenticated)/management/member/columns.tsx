@@ -39,7 +39,7 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
     ),
     enableSorting: false,
     enableHiding: false,
-  },  
+  },
   {
     accessorKey: "user.name",
     header: ({ column }) => (
@@ -67,32 +67,35 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
       <DataTableColumnHeader column={column} title="Active" />
     ),
     cell: ({ row }) => (
-      <div className="w-[100px]">
+      <Badge
+        variant={row.getValue("isActive") ? "default" : "destructive"}
+        className="w-[100px] justify-center"
+      >
         {row.getValue("isActive") ? "Active" : "Inactive"}
-      </div>
+      </Badge>
     ),
   },
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created At" />
-    ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
-  },
-  {
-    accessorKey: "updatedAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Updated At" />
-    ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
-  },
+  // {
+  //   accessorKey: "createdAt",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Created At" />
+  //   ),
+  //   cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
+  // },
+  // {
+  //   accessorKey: "updatedAt",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Updated At" />
+  //   ),
+  //   cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
+  // },
   {
     id: "actions",
     cell: ({ row }) => (
-      <DataTableRowActions 
-        row={row} 
-        onEdit={onEditMember} 
-        onDelete={onDeleteMember} 
+      <DataTableRowActions
+        row={row}
+        onEdit={onEditMember}
+        onDelete={onDeleteMember}
         customActions={customActions} // Pass customActions to DataTableRowActions
       />
     ),

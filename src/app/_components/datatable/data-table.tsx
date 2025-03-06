@@ -35,6 +35,7 @@ interface DataTableProps<TData, TValue> {
     placeholder: string;
   }>
   onSearch?: (value: string, column: string) => void;
+  onRowClick?: ((row: TData) => void) | null;
 }
 
 export function DataTable<TData, TValue>({ 
@@ -42,7 +43,8 @@ export function DataTable<TData, TValue>({
   data, 
   onPaginationChange, 
   searchColumns,
-  onSearch 
+  onSearch,
+  onRowClick 
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -112,6 +114,7 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row, rowIndex) => (
                 <TableRow
+                  onClick={() => onRowClick?.(row.original)}
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className={rowIndex % 2 === 0 ? "bg-muted/55" : ""}

@@ -27,8 +27,8 @@ import { ShortcutBadge } from "../ShorcutBadge"
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>
-  onEdit: (item: TData) => void
-  onDelete: (item: TData) => void
+  onEdit?: ((item: TData) => void) | null
+  onDelete?: ((item: TData) => void) | null
   customActions?: { label: string, action: (item: TData) => void }[] // Support multiple custom actions
 }
 
@@ -48,7 +48,7 @@ export function DataTableRowActions<TData>({ row, onEdit, onDelete, customAction
   }, [])
 
   const handleDelete = () => {
-    onDelete(row.original)
+    onDelete?.(row.original)
     setIsAlertOpen(false)
   }
   
@@ -63,7 +63,7 @@ export function DataTableRowActions<TData>({ row, onEdit, onDelete, customAction
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuItem onClick={() => onEdit(row.original)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onEdit?.(row.original)}>Edit</DropdownMenuItem>
           {/* <DropdownMenuSeparator /> */}
         
           {customActions && customActions.map((customAction, index) => (

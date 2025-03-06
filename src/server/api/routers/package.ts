@@ -7,6 +7,7 @@ import {
 const packageType = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER"]);
 
 export const packageRouter = createTRPCRouter({
+
     create: protectedProcedure
         .input(z.object({
             name: z.string(),
@@ -14,8 +15,9 @@ export const packageRouter = createTRPCRouter({
             price: z.number(),
             type: packageType,
             sessions: z.number().optional(),
-            months: z.number().optional(),
+            day: z.number().optional(),
             isActive: z.boolean().optional(),
+            reward: z.number().nullable(),
         }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.package.create({
@@ -50,6 +52,8 @@ export const packageRouter = createTRPCRouter({
                 orderBy: { createdAt: "desc" },
             });
 
+            
+
             const total = await ctx.db.package.count({ where });
 
             return {
@@ -76,10 +80,12 @@ export const packageRouter = createTRPCRouter({
             price: z.number(),
             type: packageType,
             sessions: z.number().optional(),
-            months: z.number().optional(),
+            day: z.number().optional(),
             isActive: z.boolean().optional(),
+            reward: z.number().nullable(),
         }))
         .mutation(async ({ ctx, input }) => {
+            console.log(input);
             const { id, ...data } = input;
             return ctx.db.package.update({
                 where: { id },
@@ -92,6 +98,21 @@ export const packageRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             return ctx.db.package.delete({
                 where: { id: input.id },
+            });
+        }),
+
+    listActive: protectedProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.package.findMany({
+                where: { isActive: true },
+            });
+        }),
+
+    listByType: protectedProcedure
+        .input(z.object({ type: packageType }))
+        .query(async ({ ctx, input }) => {
+            return ctx.db.package.findMany({
+                where: { type: input.type },
             });
         }),
 });

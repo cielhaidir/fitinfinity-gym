@@ -4,18 +4,20 @@ import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
-import { UserMember } from "./schema";
+import { Member, UserMember } from "./schema";
 import { MemberForm } from "./member-form";
 import { toast } from "sonner"
 
 export default function MemberPage() {
   const utils = api.useUtils();
+  const router = useRouter();
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -169,13 +171,13 @@ export default function MemberPage() {
     utils.member.list.invalidate({ page, limit });
   };
 
-  const directToSubs = () => {
-    // Direct to subscription page with parameter member id
-  }
+  const directToSubs = (member: Member) => {
+    router.push(`/management/subscription/${member.id}`);  // Make sure this matches your folder structure
+  };
 
-  const directToLogs = () => {
-    // Direct to access log page with parameter member id
-  }
+  const directToLogs = (member: Member) => {
+    router.push(`/management/access-log/${member.id}`);
+  };
 
   const customActions = [
     { label: "Subscription", action: directToSubs },

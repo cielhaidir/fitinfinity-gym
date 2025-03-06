@@ -5,6 +5,7 @@ import { memberRouter } from "./routers/member";
 import { personalTrainerRouter } from "./routers/personalTrainer";
 import { permissionRouter } from "./routers/permission";
 import { packageRouter } from "./routers/package";
+import { subscriptionRouter } from "./routers/subscription";
 
 /**
  * This is the primary router for your server.
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
   personalTrainer: personalTrainerRouter,
   permission: permissionRouter,
   package: packageRouter,
+  subs: subscriptionRouter
 });
 
 // export type definition of API

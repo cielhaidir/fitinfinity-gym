@@ -106,15 +106,15 @@ export const PackageForm: React.FC<PackageFormProps> = ({
 
                 {newPackage.type === 'GYM_MEMBERSHIP' && (
                     <div>
-                        <label htmlFor="months" className="block text-sm font-medium">
-                            Months
+                        <label htmlFor="day" className="block text-sm font-medium">
+                            Days
                         </label>
                         <Input
-                            id="months"
-                            name="months"
+                            id="day"
+                            name="day"
                             type="number"
-                            placeholder="Number of months"
-                            value={newPackage.months ?? ""}
+                            placeholder="Number of days"
+                            value={newPackage.day ?? ""}
                             onChange={onInputChange}
                         />
                     </div>
@@ -135,6 +135,20 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                         />
                     </div>
                 )}
+
+                <div>
+                    <label htmlFor="reward" className="block text-sm font-medium">
+                        Reward
+                    </label>
+                    <Input
+                        id="reward"
+                        name="reward"
+                        placeholder="Point reward for this package"
+                        type="number"
+                        value={newPackage.reward ?? ""}
+                        onChange={onInputChange}
+                    />
+                </div>
 
                 <div>
                     <label htmlFor="price" className="block text-sm font-medium">
