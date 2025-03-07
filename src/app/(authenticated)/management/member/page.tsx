@@ -4,7 +4,7 @@ import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 
@@ -18,6 +18,7 @@ import { toast } from "sonner"
 export default function MemberPage() {
   const utils = api.useUtils();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -33,6 +34,8 @@ export default function MemberPage() {
   });
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
+
+  const isSelectingForSubscription = searchParams.get('action') === 'select-for-subscription';
 
   const { data: member = { items: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ 
     page: 1, 
@@ -184,10 +187,16 @@ export default function MemberPage() {
     { label: "Access Log", action: directToLogs },
   ];
 
+  const handleMemberSelect = (member: Member) => {
+    if (isSelectingForSubscription) {
+        router.push(`/checkout/${member.id}`);
+    }
+  };
+
   const columns = createColumns({ 
     onEditMember: handleEditMember, 
-    onDeleteMember: handleDeleteMember, 
-    customActions // Pass multiple custom actions
+    onDeleteMember: handleDeleteMember,
+    customActions: isSelectingForSubscription ? [] : customActions
   });
 
   return (
@@ -215,6 +224,12 @@ export default function MemberPage() {
               </Button>
             </SheetTrigger>
           </div>
+          {isSelectingForSubscription && (
+            <div className="mb-4">
+                <h2 className="text-2xl font-bold">Select Member for New Subscription</h2>
+                <p className="text-muted-foreground">Click on a member to create a new subscription</p>
+            </div>
+          )}
           <MemberForm
             newMember={selectedMember || newMember}
             onScanRFID={handleScanRFID}
