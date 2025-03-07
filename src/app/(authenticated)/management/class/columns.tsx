@@ -45,6 +45,28 @@ export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Class>[] 
         ),
     },
     {
+        accessorKey: "schedule",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Schedule" />
+        ),
+        cell: ({ row }) => (
+            <div className="hidden md:block">
+                {new Date(row.getValue("schedule")).toLocaleString()}
+            </div>
+        ),
+    },
+    {
+        accessorKey: "duration",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Duration" />
+        ),
+        cell: ({ row }) => (
+            <div className="hidden md:block">
+                {row.getValue("duration")} minutes
+            </div>
+        ),
+    },
+    {
         id: "actions",
         cell: ({ row }) => {
             return (

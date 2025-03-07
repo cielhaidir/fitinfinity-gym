@@ -14,14 +14,19 @@ export const packageRouter = createTRPCRouter({
             description: z.string().optional(),
             price: z.number(),
             type: packageType,
-            sessions: z.number().optional(),
-            day: z.number().optional(),
+            sessions: z.number().nullish(),
+            day: z.number().nullish(),
             isActive: z.boolean().optional(),
             reward: z.number().nullable(),
         }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.package.create({
-                data: input,
+                data: {
+                    ...input,
+                    sessions: input.sessions ?? null,
+                    day: input.day ?? null,
+                    reward: input.reward ?? null,
+                }
             });
         }),
 
@@ -79,17 +84,21 @@ export const packageRouter = createTRPCRouter({
             description: z.string().optional(),
             price: z.number(),
             type: packageType,
-            sessions: z.number().optional(),
-            day: z.number().optional(),
+            sessions: z.number().nullish(),
+            day: z.number().nullish(),
             isActive: z.boolean().optional(),
             reward: z.number().nullable(),
         }))
         .mutation(async ({ ctx, input }) => {
-            console.log(input);
             const { id, ...data } = input;
             return ctx.db.package.update({
                 where: { id },
-                data,
+                data: {
+                    ...data,
+                    sessions: data.sessions ?? null,
+                    day: data.day ?? null,
+                    reward: data.reward ?? null,
+                },
             });
         }),
 

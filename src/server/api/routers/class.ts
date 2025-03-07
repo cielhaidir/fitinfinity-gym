@@ -15,6 +15,8 @@ export const classRouter = createTRPCRouter({
                         name: input.name,
                         limit: input.limit,
                         trainerId: input.trainerId,
+                        schedule: input.schedule,
+                        duration: input.duration,
                     },
                     include: {
                         trainer: {
@@ -82,7 +84,13 @@ export const classRouter = createTRPCRouter({
             try {
                 const updatedClass = await ctx.db.class.update({
                     where: { id },
-                    data,
+                    data: {
+                        name: data.name,
+                        limit: data.limit,
+                        trainerId: data.trainerId,
+                        schedule: data.schedule,
+                        duration: data.duration,
+                    },
                     include: {
                         trainer: {
                             include: {

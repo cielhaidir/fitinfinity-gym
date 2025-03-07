@@ -20,6 +20,8 @@ export default function ClassPage() {
         name: "",
         limit: null as number | null,
         trainerId: "",
+        schedule: new Date(),
+        duration: 60,
     })
 
     // Table state
@@ -51,12 +53,16 @@ export default function ClassPage() {
                 name: selectedClass.name,
                 limit: selectedClass.limit,
                 trainerId: selectedClass.trainerId,
+                schedule: new Date(selectedClass.schedule),
+                duration: selectedClass.duration,
             })
         } else {
             setFormData({
                 name: "",
                 limit: null,
                 trainerId: "",
+                schedule: new Date(),
+                duration: 60,
             })
         }
     }, [selectedClass])
@@ -72,6 +78,14 @@ export default function ClassPage() {
 
     const handleTrainerChange = (trainerId: string) => {
         setFormData(prev => ({ ...prev, trainerId }))
+    }
+
+    const handleScheduleChange = (schedule: Date) => {
+        setFormData(prev => ({ ...prev, schedule }))
+    }
+
+    const handleDurationChange = (duration: number) => {
+        setFormData(prev => ({ ...prev, duration }))
     }
 
     const handleCreateOrUpdateClass = async () => {
@@ -95,6 +109,8 @@ export default function ClassPage() {
                 name: "",
                 limit: null,
                 trainerId: "",
+                schedule: new Date(),
+                duration: 60,
             })
 
             // Refresh data
@@ -168,6 +184,8 @@ export default function ClassPage() {
                             name: "",
                             limit: null,
                             trainerId: "",
+                            schedule: new Date(),
+                            duration: 60,
                         })
                     }
                 }}
@@ -176,9 +194,13 @@ export default function ClassPage() {
                     name={formData.name}
                     limit={formData.limit}
                     trainerId={formData.trainerId}
+                    schedule={formData.schedule}
+                    duration={formData.duration}
                     onNameChange={handleNameChange}
                     onLimitChange={handleLimitChange}
                     onTrainerChange={handleTrainerChange}
+                    onScheduleChange={handleScheduleChange}
+                    onDurationChange={handleDurationChange}
                     onCreateOrUpdateClass={handleCreateOrUpdateClass}
                     isEditMode={isEditMode}
                 />

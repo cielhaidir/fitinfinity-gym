@@ -164,6 +164,33 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                     />
                 </div>
 
+                <div>
+                    <label htmlFor="isActive" className="block text-sm font-medium">
+                        Status
+                    </label>
+                    <Select 
+                        value={newPackage.isActive ? "true" : "false"}
+                        onValueChange={(value) => {
+                            onInputChange({
+                                target: {
+                                    name: 'isActive',
+                                    value: value === "true"
+                                }
+                            } as unknown as React.ChangeEvent<HTMLInputElement>);
+                        }}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="true">Active</SelectItem>
+                                <SelectItem value="false">Inactive</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+
             </div>
             <SheetFooter className="flex justify-end gap-2">
                 <Button onClick={onCreateOrUpdatePackage} className="bg-infinity">

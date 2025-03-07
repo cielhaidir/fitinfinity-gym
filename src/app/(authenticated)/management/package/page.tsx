@@ -27,7 +27,8 @@ export default function PackagePage() {
         type: "GYM_MEMBERSHIP",
         sessions: null,
         day: null,
-        reward: 0,
+        reward: null,
+        isActive: true,
     });
 
     const [search, setSearch] = useState("");
@@ -44,7 +45,12 @@ export default function PackagePage() {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        const updatedValue = name === 'day' ? parseInt(value, 10) : value;
+        
+        // Convert numeric fields to numbers
+        let updatedValue: string | number | null = value;
+        if (name === 'day' || name === 'sessions' || name === 'price' || name === 'reward') {
+            updatedValue = value === '' ? null : Number(value);
+        }
 
         if (isEditMode && selectedPackage) {
             setSelectedPackage(prev => {
@@ -60,60 +66,58 @@ export default function PackagePage() {
                 [name]: updatedValue,
             }));
         }
-        console.log(selectedPackage)
     };
 
     const handleOrCreatePackage = async () => {
-
         const messageLoading = isEditMode ? "Updating package..." : "Creating package...";
         const message = isEditMode ? "Package updated successfully!" : "Package created successfully!";
         const promise = async () => {
+            const packageData = isEditMode ? selectedPackage : newPackage;
+            if (!packageData) return;
 
-            if (isEditMode && selectedPackage) {
-                console.log('updated package:', selectedPackage);
+            const commonData = {
+                name: packageData.name,
+                description: packageData.description ?? '',
+                price: packageData.price === null ? null : Number(packageData.price),
+                type: packageData.type,
+                reward: packageData.reward === null ? null : Number(packageData.reward),
+                isActive: packageData.isActive,
+                sessions: packageData.type === 'PERSONAL_TRAINER' ? 
+                    (packageData.sessions === null ? null : Number(packageData.sessions)) : null,
+                day: packageData.type === 'GYM_MEMBERSHIP' ?
+                    (packageData.day === null ? null : Number(packageData.day)) : null,
+            };
+            if (isEditMode && selectedPackage?.id) {
                 await updatePackageMutation.mutateAsync({
-                    id: selectedPackage.id ?? "",
-                    name: selectedPackage.name,
-                    description: selectedPackage.description ?? '',
-                    price: Number(selectedPackage.price),
-                    type: selectedPackage.type,
-                    reward: selectedPackage.reward ?? 0,
-                    sessions: Number(selectedPackage.sessions),
-                    day: typeof selectedPackage.day === 'number' ? selectedPackage.day : undefined,
+                    id: selectedPackage.id,
+                    name: commonData.name,
+                    price: commonData.price ?? 0,
+                    reward: commonData.reward,
+                    type: commonData.type,
+                    day: commonData.day ?? undefined,
+                    sessions: commonData.sessions ?? undefined,
+                    description: commonData.description,
+                    isActive: commonData.isActive
                 });
-
-                await utils.package.list.invalidate();
-                setIsSheetOpen(false);
-                setIsEditMode(false);
-                setSelectedPackage(null);
-
             } else {
-
-                const packageSub = await createPackageMutation.mutateAsync({
-                    name: newPackage.name,
-                    description: newPackage.description ?? '',
-                    price: Number(newPackage.price),
-                    type: newPackage.type,
-                    sessions: Number(newPackage.sessions),
-                    day: typeof newPackage.day === 'number' ? newPackage.day : undefined,
-                    reward: newPackage.reward ?? 0,
+                await createPackageMutation.mutateAsync({
+                    name: commonData.name,
+                    price: commonData.price ?? 0,
+                    reward: commonData.reward,
+                    type: commonData.type,
+                    day: commonData.day ?? undefined,
+                    sessions: commonData.sessions ?? undefined,
+                    description: commonData.description,
+                    isActive: commonData.isActive
                 });
-
-                await utils.package.list.invalidate();
-
-                setNewPackage({
-                    name: "",
-                    description: "",
-                    price: 0,
-                    type: "GYM_MEMBERSHIP",
-                    sessions: null,
-                    day: null,
-                    reward: 0,
-                });
-
-                setIsSheetOpen(false);
             }
-        }
+
+            await utils.package.list.invalidate();
+            setIsSheetOpen(false);
+            setIsEditMode(false);
+            setSelectedPackage(null);
+        };
+
         toast.promise(promise, {
             loading: messageLoading,
             success: message,

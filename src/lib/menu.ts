@@ -32,16 +32,21 @@ export const Menu = {
                     url: "/management/member",
                     icon: UserPlus,
                 },
-                // {
-                //     title: "Class",
-                //     url: "#",
-                //     icon: Dumbbell,
-                // },
-                // {
-                //     title: "Payment",
-                //     url: "#",
-                //     icon: CreditCard,
-                // },
+                {
+                    title: "Class",
+                    url: "/management/class",
+                    icon: Dumbbell,
+                },
+                {
+                    title: "Role Permission",
+                    url: "/management/role-permission",
+                    icon: Users,
+                },
+                {
+                    title: "Role",
+                    url: "/management/role",
+                    icon: Users,
+                },
                 {
                     title: 'Subscription',
                     url: '/management/subscription',

@@ -22,9 +22,13 @@ type ClassFormProps = {
     name: string;
     limit: number | null;
     trainerId: string;
+    schedule: Date;
+    duration: number;
     onNameChange: (name: string) => void;
     onLimitChange: (limit: number | null) => void;
     onTrainerChange: (trainerId: string) => void;
+    onScheduleChange: (schedule: Date) => void;
+    onDurationChange: (duration: number) => void;
     onCreateOrUpdateClass: () => void;
     isEditMode: boolean;
 };
@@ -33,9 +37,13 @@ export const ClassForm = ({
     name,
     limit,
     trainerId,
+    schedule,
+    duration,
     onNameChange,
     onLimitChange,
     onTrainerChange,
+    onScheduleChange,
+    onDurationChange,
     onCreateOrUpdateClass,
     isEditMode,
 }: ClassFormProps) => {
@@ -43,13 +51,17 @@ export const ClassForm = ({
     const [localName, setLocalName] = useState(name);
     const [localLimit, setLocalLimit] = useState<number | null>(limit);
     const [localTrainerId, setLocalTrainerId] = useState(trainerId);
+    const [localSchedule, setLocalSchedule] = useState(schedule);
+    const [localDuration, setLocalDuration] = useState(duration);
 
     // Update local state when props change
     useEffect(() => {
         setLocalName(name);
         setLocalLimit(limit);
         setLocalTrainerId(trainerId);
-    }, [name, limit, trainerId]);
+        setLocalSchedule(schedule);
+        setLocalDuration(duration);
+    }, [name, limit, trainerId, schedule, duration]);
 
     // Handle local changes and propagate to parent
     const handleNameChange = (value: string) => {
@@ -66,6 +78,18 @@ export const ClassForm = ({
     const handleTrainerChange = (value: string) => {
         setLocalTrainerId(value);
         onTrainerChange(value);
+    };
+
+    const handleScheduleChange = (value: string) => {
+        const newSchedule = new Date(value);
+        setLocalSchedule(newSchedule);
+        onScheduleChange(newSchedule);
+    };
+
+    const handleDurationChange = (value: string) => {
+        const newDuration = parseInt(value);
+        setLocalDuration(newDuration);
+        onDurationChange(newDuration);
     };
 
     const { data: trainers } = api.personalTrainer.list.useQuery(
@@ -132,6 +156,31 @@ export const ClassForm = ({
                             ))}
                         </SelectContent>
                     </Select>
+                </div>
+
+                <div>
+                    <label htmlFor="schedule" className="block text-sm font-medium">
+                        Schedule
+                    </label>
+                    <Input
+                        type="datetime-local"
+                        id="schedule"
+                        value={localSchedule.toISOString().slice(0, 16)}
+                        onChange={(e) => handleScheduleChange(e.target.value)}
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="duration" className="block text-sm font-medium">
+                        Duration (minutes)
+                    </label>
+                    <Input
+                        type="number"
+                        id="duration"
+                        value={localDuration}
+                        onChange={(e) => handleDurationChange(e.target.value)}
+                        placeholder="Enter class duration"
+                    />
                 </div>
             </div>
 

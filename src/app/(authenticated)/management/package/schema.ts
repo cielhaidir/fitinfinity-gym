@@ -10,8 +10,8 @@ export const PackageSchema = z.object({
     type: PackageTypeEnum,
     sessions: z.number().nullable(),
     day: z.number().nullable(),
-    isActive: z.boolean().default(true).optional(),
     reward: z.number().nullable(),
+    isActive: z.boolean().default(true),
     createdAt: z.date().optional(),
     updatedAt: z.date().optional(),
 });
