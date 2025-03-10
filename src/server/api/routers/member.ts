@@ -186,4 +186,14 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
+    getMembership: protectedProcedure
+        .query(async ({ ctx }) => {
+            return await ctx.db.membership.findFirst({
+                where: {
+                    userId: ctx.session.user.id,
+                    isActive: true,
+                },
+            });
+        }),
+
 });

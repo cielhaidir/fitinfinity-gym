@@ -10,6 +10,7 @@ import { roleRouter } from "./routers/role";
 import { rolePermissionRouter } from "./routers/role-permission";
 import { classRouter } from "./routers/class";
 import { memberClassRouter } from "./routers/memberClass";
+import { memberUcRouter } from "./routers/member-uc";
 
 /**
  * This is the primary router for your server.
@@ -28,6 +29,7 @@ export const appRouter = createTRPCRouter({
   rolePermission: rolePermissionRouter,
   class: classRouter,
   memberClass: memberClassRouter,
+  memberUc: memberUcRouter,
 });
 
 // export type definition of API
