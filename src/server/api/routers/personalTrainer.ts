@@ -105,4 +105,41 @@ export const personalTrainerRouter = createTRPCRouter({
                 },
             });
         }),
+
+    createSession: protectedProcedure
+        .input(z.object({
+            memberId: z.string(),
+            date: z.date(),
+            startTime: z.date(),
+            endTime: z.date(),
+            description: z.string().optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            console.log('ctx.db:', ctx.db);
+            
+            const trainer = await ctx.db.personalTrainer.findFirst({
+                where: { 
+                    userId: ctx.session.user.id,
+                    isActive: true
+                }
+            });
+
+            console.log('Current user ID:', ctx.session.user.id);
+            console.log('Found trainer:', trainer);
+
+            if (!trainer) {
+                throw new Error("Trainer not found. Please make sure you are registered as an active trainer.");
+            }
+
+            return ctx.db.trainerSession.create({
+                data: {
+                    trainerId: trainer.id,
+                    memberId: input.memberId,
+                    date: input.date,
+                    startTime: input.startTime,
+                    endTime: input.endTime,
+                    description: input.description,
+                }
+            });
+        }),
 }); 

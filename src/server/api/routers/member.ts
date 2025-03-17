@@ -196,4 +196,57 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
+    getAll: protectedProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.membership.findMany({
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            email: true,
+                            phone: true
+                        }
+                    },
+                    subscriptions: true
+                }
+            });
+        }),
+
+    createSession: protectedProcedure
+        .input(z.object({
+            memberId: z.string(),
+            date: z.date(),
+            startTime: z.date(),
+            endTime: z.date(),
+            description: z.string().optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            // Get the trainer ID for the current user
+            const trainer = await ctx.db.personalTrainer.findFirst({
+                where: { 
+                    userId: ctx.session.user.id,
+                    isActive: true
+                }
+            });
+
+            if (!trainer) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Trainer not found or not active'
+                });
+            }
+
+            // Create the training session
+            return ctx.db.trainerSession.create({
+                data: {
+                    trainerId: trainer.id,
+                    memberId: input.memberId,
+                    date: input.date,
+                    startTime: input.startTime,
+                    endTime: input.endTime,
+                    description: input.description,
+                }
+            });
+        }),
+
 });

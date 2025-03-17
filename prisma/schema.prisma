@@ -129,6 +129,7 @@ model Membership {
     subscriptions Subscription[]
     registeredClasses ClassMember[]
     waitingClasses    ClassWaitingList[]
+    trainerSessions   TrainerSession[]
 }
 
 
@@ -201,8 +202,7 @@ model PersonalTrainer {
     
     user        User       @relation("PersonalTrainerToUser", fields: [userId], references: [id])
     subscriptions Subscription[]
-
-    
+    sessions      TrainerSession[]
 }
 enum MembershipStatus {
     ACTIVE
@@ -239,5 +239,22 @@ model Package {
 enum PackageType {
     GYM_MEMBERSHIP
     PERSONAL_TRAINER
+}
+
+model TrainerSession {
+    id          String   @id @default(cuid())
+    trainerId   String
+    memberId    String
+    date        DateTime
+    startTime   DateTime
+    endTime     DateTime
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])
+    member      Membership      @relation(fields: [memberId], references: [id])
+
+    @@map("trainer_sessions")
 }
 

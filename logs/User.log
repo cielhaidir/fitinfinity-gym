@@ -6,3 +6,24 @@
 [2025-03-04 10:52:55] INFO: User Muh Rezki (cm7biwwqx0000bc6yi561qlyu) successfully created a user at 2025-03-04T02:52:55.852Z: {"id":"cm7tw9221000aosyvjjlazktc","name":"gigachad","email":"alamak@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-03-04T02:52:55.849Z","updatedAt":"2025-03-04T02:52:55.849Z"}
 [2025-03-07 00:26:12] INFO: User Muh Rezki (cm7biwwqx0000bc6yi561qlyu) successfully created a user at 2025-03-06T16:26:12.847Z: {"id":"cm7xk6ne400005sc7rhxtvzmk","name":"Windah Basudara","email":"Ilham@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-03-06T16:26:12.844Z","updatedAt":"2025-03-06T16:26:12.844Z"}
 [2025-03-07 13:37:28] INFO: User Muh Rezki (cm7biwwqx0000bc6yi561qlyu) successfully created a user at 2025-03-07T05:37:28.731Z: {"id":"cm7ycg80m0000jjjt4fht3zu8","name":"Windah basuhdara","email":"windah@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-03-07T05:37:28.726Z","updatedAt":"2025-03-07T05:37:28.726Z"}
+[2025-03-13 10:42:51] ERROR: User Muh Rezki (cm7ychmgh0003jjjtxb0lwz79) encountered an error while creating a user: 
+Invalid `ctx.db.user.create()` invocation in
+/media/rezki/ehe/document/project/nextjs/fitinfinity Without store/aaa/fitinfinity/.next/server/chunks/[root of the server]__279f22._.js:773:44
+
+  770 }
+  771 try {
+  772     // Buat user tanpa atau dengan gambar
+→ 773     const user = await ctx.db.user.create(
+Unique constraint failed on the fields: (`email`)
+[2025-03-13 10:43:01] INFO: User Muh Rezki (cm7ychmgh0003jjjtxb0lwz79) successfully created a user at 2025-03-13T02:43:01.095Z: {"id":"cm86quz5100011t7wmfggr7wv","name":"test","email":"m22uhrezki4@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-03-13T02:43:01.093Z","updatedAt":"2025-03-13T02:43:01.093Z"}
+[2025-03-13 11:02:28] INFO: User Muh Rezki (cm86r3bvf00061t7wk17npeod) successfully created a user at 2025-03-13T03:02:28.764Z: {"id":"cm86rk048000b1t7wkph5caay","name":"Test","email":"test@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-03-13T03:02:28.730Z","updatedAt":"2025-03-13T03:02:28.730Z"}
+[2025-03-13 11:15:39] ERROR: User Muh Rezki (cm86r3bvf00061t7wk17npeod) encountered an error while creating a user: 
+Invalid `ctx.db.user.create()` invocation in
+/media/rezki/ehe/document/project/nextjs/fitinfinity Without store/aaa/fitinfinity/.next/server/chunks/[root of the server]__279f22._.js:773:44
+
+  770 }
+  771 try {
+  772     // Buat user tanpa atau dengan gambar
+→ 773     const user = await ctx.db.user.create(
+Unique constraint failed on the fields: (`email`)
+[2025-03-13 11:15:46] INFO: User Muh Rezki (cm86r3bvf00061t7wk17npeod) successfully created a user at 2025-03-13T03:15:46.702Z: {"id":"cm86s13t8000j1t7wyevru3um","name":"windah basudara","email":"windaaah@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-03-13T03:15:46.701Z","updatedAt":"2025-03-13T03:15:46.701Z"}
