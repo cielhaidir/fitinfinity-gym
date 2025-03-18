@@ -6,7 +6,7 @@ export function PersonalTrainerCard() {
         <Card className="col-span-1 p-6">
             <div className="relative h-[200px] overflow-hidden rounded-lg">
                 <img
-                    src="/assets/milos.png"
+                    src="/assets/ptDashboard.png"
                     alt="Personal Trainer"
                     className="h-full w-full object-cover"
                 />
