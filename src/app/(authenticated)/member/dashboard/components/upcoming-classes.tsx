@@ -2,9 +2,11 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, Waves } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dumbbell, Waves, Calendar } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 // Type definition based on Prisma Class model
 type Class = {
@@ -49,6 +51,7 @@ const formatSchedule = (date: Date) => {
 };
 
 export function UpcomingClasses() {
+    const router = useRouter();
     const { data: session } = useSession();
     const { data: classes, isLoading } = api.memberUc.list.useQuery({
         memberId: session?.user?.id ?? "",
@@ -99,6 +102,14 @@ export function UpcomingClasses() {
                         </Badge>
                     </div>
                 ))}
+
+                <Button 
+                    className="w-full mt-4 bg-[#C9D953] hover:bg-[#b8c748] text-black"
+                    onClick={() => router.push('/member/calendar-session')}
+                >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    View Full Calendar
+                </Button>
             </div>
         </Card>
     );

@@ -43,6 +43,11 @@ export const Menu = {
                     icon: Users,
                 },
                 {
+                    title: "Voucher",
+                    url: "/management/voucher",
+                    icon: Users,
+                },
+                {
                     title: "Role",
                     url: "/management/role",
                     icon: Users,
@@ -132,7 +137,7 @@ export const Menu = {
                 },
                 {
                     title: "Schedule",
-                    url: "/instructor/schedule",
+                    url: "/instructor/jadwalPT",
                 },
                 {
                     title: "Payment",

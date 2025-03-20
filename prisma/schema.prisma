@@ -21,6 +21,16 @@ enum PaymentStatus {
     FAILED
 }
 
+enum VoucherType {
+    REFERRAL
+    GENERAL
+}
+
+enum DiscountType {
+    PERCENT
+    CASH
+}
+
 model File {
     id           String   @id @default(uuid())
     bucket       String
@@ -256,5 +266,21 @@ model TrainerSession {
     member      Membership      @relation(fields: [memberId], references: [id])
 
     @@map("trainer_sessions")
+}
+
+model Voucher {
+    id            String       @id @default(cuid())
+    name          String
+    maxClaim      Int         // Maximum number of times this voucher can be claimed
+    type          VoucherType
+    discountType  DiscountType
+    referralCode  String?     // Optional referral code, only used for REFERRAL type
+    amount        Int         // Amount of discount (in percentage or cash value)
+    isActive      Boolean     @default(true)
+    createdAt     DateTime    @default(now())
+    updatedAt     DateTime    @updatedAt
+
+    @@index([referralCode])
+    @@index([type])
 }
 
