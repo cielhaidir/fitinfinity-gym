@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Edit, Trash2 } from "lucide-react"
 import { Voucher } from "./schema"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
+import { format } from "date-fns"
 
 interface ColumnsProps {
   onEditVoucher: (voucher: Voucher) => void,
@@ -88,6 +89,16 @@ export const createColumns = ({ onEditVoucher, onDeleteVoucher }: ColumnsProps):
         {row.getValue("isActive") ? "Active" : "Inactive"}
       </Badge>
     ),
+  },
+  {
+    accessorKey: "expiryDate",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Expiry Date" />
+    ),
+    cell: ({ row }) => {
+      const expiryDate = row.getValue("expiryDate") as Date | null;
+      return <div>{expiryDate ? format(new Date(expiryDate), "dd/MM/yyyy") : "No expiry"}</div>;
+    },
   },
   {
     id: "actions",

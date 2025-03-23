@@ -20,6 +20,15 @@ import {
 } from "@/components/ui/select";
 import { Voucher } from "./schema";
 import { useState, useEffect } from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "./components/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type VoucherFormProps = {
   voucher: Partial<Voucher>;
@@ -38,11 +47,15 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
 }) => {
   const [currentDiscountType, setCurrentDiscountType] = useState(voucher.discountType || "CASH");
   const [amountInput, setAmountInput] = useState(voucher.amount?.toString() || "0");
+  const [expiryDate, setExpiryDate] = useState<Date | undefined>(
+    voucher.expiryDate ? new Date(voucher.expiryDate) : undefined
+  );
 
   useEffect(() => {
     setCurrentDiscountType(voucher.discountType || "CASH");
     setAmountInput(voucher.amount?.toString() || "0");
-  }, [voucher.discountType, voucher.amount]);
+    setExpiryDate(voucher.expiryDate ? new Date(voucher.expiryDate) : undefined);
+  }, [voucher.discountType, voucher.amount, voucher.expiryDate]);
   const handleDiscountTypeChange = (value: "PERCENT" | "CASH") => {
     setCurrentDiscountType(value);
     onSelectChange("discountType", value);
@@ -54,39 +67,73 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
 
     // Convert empty string to 0, otherwise parse the number
     const numericValue = value === "" ? 0 : parseInt(value, 10);
-    
-    // Create a synthetic event to match the expected onChange interface
+
+    // Create a synthetic event with proper type casting
+    const target = {
+      name: "amount",
+      value: numericValue,
+      type: "number", 
+      checked: false,
+      valueAsNumber: numericValue
+    } as unknown as EventTarget & HTMLInputElement;
+
     const syntheticEvent = {
-      target: {
-        name: "amount",
-        value: numericValue, // Send as number
-        checked: false,
-        disabled: false,
-        readOnly: false,
-        // Add required EventTarget methods
-        addEventListener: () => {},
-        dispatchEvent: () => true,
-        removeEventListener: () => {},
-        // Add HTMLInputElement properties
-        type: "text",
-      },
-      currentTarget: {
-        name: "amount",
-        value: numericValue, // Send as number
-        checked: false,
-        disabled: false,
-        readOnly: false,
-        // Add required EventTarget methods
-        addEventListener: () => {},
-        dispatchEvent: () => true,
-        removeEventListener: () => {},
-        type: "text",
-      },
+      target,
+      currentTarget: target,
       nativeEvent: new Event('input'),
       bubbles: true,
       cancelable: true,
       defaultPrevented: false,
-      eventPhase: Event.AT_TARGET,
+      eventPhase: 0,
+      isTrusted: true,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+      isDefaultPrevented: () => false,
+      isPropagationStopped: () => false,
+      persist: () => {},
+      timeStamp: Date.now(),
+      type: 'change'
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    onInputChange(syntheticEvent);
+  };
+
+  const handleExpiryDateChange = (date: Date | undefined) => {
+    setExpiryDate(date);
+    
+    // Create a synthetic event for the date change
+    if (date) {
+      const syntheticEvent = {
+        target: {
+          name: "expiryDate",
+          value: date,
+          type: "date",
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
+      
+      onInputChange(syntheticEvent);
+    }
+  };
+
+  // Tambahkan fungsi khusus untuk menghapus tanggal
+  const clearExpiryDate = () => {
+    setExpiryDate(undefined);
+    // Create a synthetic event with proper type casting
+    const target = {
+      name: "expiryDate",
+      value: "",
+      type: "date",
+      checked: false
+    } as unknown as EventTarget & HTMLInputElement;
+
+    const syntheticEvent = {
+      target,
+      currentTarget: target,
+      nativeEvent: new Event('input'),
+      bubbles: true,
+      cancelable: true,
+      defaultPrevented: false,
+      eventPhase: 0,
       isTrusted: true,
       preventDefault: () => {},
       stopPropagation: () => {},
@@ -218,6 +265,87 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
             />
           </div>
         )}
+
+        <div>
+          <label htmlFor="expiryDate" className="block text-sm font-medium mb-2">
+            Expiry Date (Optional)
+          </label>
+          <Input
+            id="expiryDate"
+            name="expiryDate"
+            type="date"
+            min={new Date().toISOString().split('T')[0]}
+            value={expiryDate ? expiryDate.toISOString().split('T')[0] : ''}
+            onChange={(e) => {
+              const date = e.target.value ? new Date(e.target.value) : undefined;
+              setExpiryDate(date);
+              // Create a synthetic event
+              const syntheticEvent = {
+                target: {
+                  name: "expiryDate",
+                  value: date || null,
+                  type: "date",
+                },
+                currentTarget: {
+                  name: "expiryDate", 
+                  value: date || null,
+                  type: "date"
+                },
+                nativeEvent: new Event('change'),
+                bubbles: true,
+                cancelable: true,
+                defaultPrevented: false,
+                eventPhase: 0,
+                isTrusted: true,
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                timeStamp: Date.now(),
+                type: 'change'
+              } as unknown as React.ChangeEvent<HTMLInputElement>;
+              
+              onInputChange(syntheticEvent);
+            }}
+            className="w-full"
+          />
+          {expiryDate && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="mt-2"
+              onClick={() => {
+                setExpiryDate(undefined);
+                // Create a synthetic event
+                const syntheticEvent = {
+                  target: {
+                    name: "expiryDate",
+                    value: null,
+                    type: "date",
+                  },
+                  currentTarget: {
+                    name: "expiryDate",
+                    value: null, 
+                    type: "date"
+                  },
+                  nativeEvent: new Event('change'),
+                  bubbles: true,
+                  cancelable: true,
+                  defaultPrevented: false,
+                  eventPhase: 0,
+                  isTrusted: true,
+                  preventDefault: () => {},
+                  stopPropagation: () => {},
+                  timeStamp: Date.now(),
+                  type: 'change'
+                } as unknown as React.ChangeEvent<HTMLInputElement>;
+                
+                onInputChange(syntheticEvent);
+              }}
+              type="button"
+            >
+              Clear date
+            </Button>
+          )}
+        </div>
       </div>
 
       <SheetFooter className="flex justify-end gap-2">

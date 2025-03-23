@@ -277,10 +277,21 @@ model Voucher {
     referralCode  String?     // Optional referral code, only used for REFERRAL type
     amount        Int         // Amount of discount (in percentage or cash value)
     isActive      Boolean     @default(true)
+    expiryDate    DateTime?   // Optional expiry date for the voucher
     createdAt     DateTime    @default(now())
     updatedAt     DateTime    @updatedAt
 
     @@index([referralCode])
     @@index([type])
+}
+
+model Reward {
+    id        String   @id @default(cuid())
+    name      String
+    iconName  String
+    price     Int
+    stock     Int
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }
 

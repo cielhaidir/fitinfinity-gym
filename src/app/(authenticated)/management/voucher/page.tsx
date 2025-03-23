@@ -85,9 +85,10 @@ export default function VoucherPage() {
           maxClaim: Number(selectedVoucher.maxClaim),
           type: selectedVoucher.type,
           discountType: selectedVoucher.discountType,
-          referralCode: selectedVoucher.referralCode,
+          referralCode: selectedVoucher.referralCode ?? undefined,
           amount: Number(selectedVoucher.amount),
           isActive: selectedVoucher.isActive,
+          expiryDate: selectedVoucher.expiryDate ?? undefined,
         });
       } else {
         operation = createVoucherMutation.mutateAsync({
@@ -95,8 +96,9 @@ export default function VoucherPage() {
           maxClaim: Number(newVoucher.maxClaim),
           type: newVoucher.type!,
           discountType: newVoucher.discountType!,
-          referralCode: newVoucher.referralCode,
+          referralCode: newVoucher.referralCode ?? undefined,
           amount: Number(newVoucher.amount),
+          expiryDate: newVoucher.expiryDate ?? undefined,
         });
       }
 

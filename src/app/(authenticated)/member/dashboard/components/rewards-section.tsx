@@ -1,37 +1,70 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Shirt } from "lucide-react";
+import { api } from "@/trpc/react";
+import { toast } from "sonner";
 
 export function RewardsSection() {
+    const utils = api.useUtils();
+    const { data: rewardsData, isLoading } = api.reward.list.useQuery();
+    
+    const redeemReward = api.reward.redeem.useMutation({
+        onSuccess: () => {
+            utils.reward.list.invalidate();
+            toast.success("Reward redeemed successfully!");
+        },
+        onError: (error) => {
+            toast.error(error.message);
+        },
+    });
+
+    const handleRedeem = (rewardId: string) => {
+        redeemReward.mutate({ rewardId });
+    };
+
+    if (isLoading) {
+        return (
+            <Card className="p-6">
+                <h3 className="mb-4 text-lg font-semibold">Rewards</h3>
+                <div>Loading rewards...</div>
+            </Card>
+        );
+    }
+
     return (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card className="p-6">
                 <h3 className="mb-4 text-lg font-semibold">Rewards</h3>
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <ShoppingBag className="h-5 w-5" />
-                            <div>
-                                <p className="font-medium">Protein Shake</p>
-                                <p className="text-sm text-muted-foreground">100 points</p>
+                    {rewardsData?.items.map((reward) => (
+                        <div key={reward.id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <ShoppingBag className="h-5 w-5" />
+                                <div>
+                                    <p className="font-medium">{reward.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {reward.price} points
+                                    </p>
+                                </div>
                             </div>
+                            <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleRedeem(reward.id)}
+                                disabled={reward.stock <= 0}
+                            >
+                                {reward.stock > 0 ? 'Redeem' : 'Out of Stock'}
+                            </Button>
                         </div>
-                        <Button variant="outline" size="sm">
-                            Redeem
-                        </Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Shirt className="h-5 w-5" />
-                            <div>
-                                <p className="font-medium">Fitness T-Shirt</p>
-                                <p className="text-sm text-muted-foreground">200 points</p>
-                            </div>
-                        </div>
-                        <Button variant="outline" size="sm">
-                            Redeem
-                        </Button>
-                    </div>
+                    ))}
+
+                    {rewardsData?.items.length === 0 && (
+                        <p className="text-center text-muted-foreground">
+                            No rewards available at the moment.
+                        </p>
+                    )}
                 </div>
             </Card>
 

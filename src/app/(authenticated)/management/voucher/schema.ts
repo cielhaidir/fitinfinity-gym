@@ -9,6 +9,7 @@ export const voucherSchema = z.object({
   referralCode: z.string().nullable(),
   amount: z.number(),
   isActive: z.boolean(),
+  expiryDate: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
