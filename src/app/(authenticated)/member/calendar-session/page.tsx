@@ -36,13 +36,8 @@ export default function MemberSchedulePage() {
   return (
     <div className="p-6 relative">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Jadwal Latihan Anda</h1>
-        <p className="text-gray-400">Lihat jadwal latihan Anda dengan personal trainer</p>
-      </div>
-
-      <div className="bg-[#232323] p-4 rounded-lg mb-6">
-        <h2 className="text-xl font-semibold text-[#C9D953] mb-2">Jadwal Latihan</h2>
-        <p className="text-gray-400">Jadwal sesi latihan Anda dengan personal trainer</p>
+        <h1 className="text-2xl font-bold text-black dark:text-white">Jadwal Latihan Anda</h1>
+        <p className="text-gray-600 dark:text-gray-400">Lihat jadwal latihan Anda dengan personal trainer</p>
       </div>
 
       <MemberCalendar

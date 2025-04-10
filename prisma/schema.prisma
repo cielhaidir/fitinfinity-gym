@@ -90,6 +90,7 @@ model User {
     createdMemberships Membership[] @relation("MembershipCreator")
     createdAt          DateTime     @default(now())
     updatedAt          DateTime     @updatedAt
+    point              Int          @default(0)
 }
 model Class {
     id          String           @id @default(cuid())
@@ -98,6 +99,7 @@ model Class {
     trainerId   String
     schedule    DateTime
     duration    Int
+    price       Float           @default(0)
     createdAt   DateTime         @default(now())
     updatedAt   DateTime         @updatedAt
     trainer     PersonalTrainer  @relation(fields: [trainerId], references: [id])
@@ -236,12 +238,12 @@ model Package {
     id          String   @id @default(cuid())
     name        String
     description String?
-    price       Int
+    price       Float
+    point       Int     @default(0)  // Points yang akan didapat user ketika membeli paket
+    isActive    Boolean  @default(true)
     type        PackageType
     sessions    Int?        // only for PERSONAL_TRAINER type
     day         Int?        // only for GYM_MEMBERSHIP type
-    reward      Int? 
-    isActive    Boolean  @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
     subscription Subscription[]

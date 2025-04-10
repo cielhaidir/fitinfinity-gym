@@ -8,66 +8,63 @@ export const memberClassRouter = createTRPCRouter({
     list: protectedProcedure
         .input(z.object({
             page: z.number().min(1),
-            limit: z.number().min(1),
+            limit: z.number().min(1).max(100),
         }))
         .query(async ({ ctx, input }) => {
-            const { page, limit } = input
-            const skip = (page - 1) * limit
-
-            try {
-                console.log("Fetching classes with where condition:", {
+            const now = new Date();
+            
+            const items = await ctx.db.class.findMany({
+                where: {
                     schedule: {
-                        gte: new Date(),
-                    },
-                })
-
-                const [items, total] = await Promise.all([
-                    ctx.db.class.findMany({
-                        skip,
-                        take: limit,
+                        gt: now // Hanya ambil kelas yang jadwalnya lebih besar dari sekarang
+                    }
+                },
+                orderBy: {
+                    schedule: 'asc' // Urutkan berdasarkan jadwal terdekat
+                },
+                include: {
+                    trainer: {
                         include: {
-                            trainer: {
+                            user: true
+                        }
+                    },
+                    registeredMembers: {
+                        include: {
+                            member: {
                                 include: {
-                                    user: true,
-                                },
-                            },
-                            registeredMembers: {
+                                    user: true
+                                }
+                            }
+                        }
+                    },
+                    waitingList: {
+                        include: {
+                            member: {
                                 include: {
-                                    member: {
-                                        include: {
-                                            user: true,
-                                        },
-                                    },
-                                },
-                            },
-                            waitingList: {
-                                include: {
-                                    member: {
-                                        include: {
-                                            user: true,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        orderBy: { schedule: 'asc' },
-                    }),
-                    ctx.db.class.count(),
-                ])
+                                    user: true
+                                }
+                            }
+                        }
+                    }
+                },
+                skip: (input.page - 1) * input.limit,
+                take: input.limit,
+            });
 
-                console.log("Found items:", items.length)
-                console.log("First item:", items[0])
-
-                return {
-                    items,
-                    total,
-                    page,
-                    limit,
+            const total = await ctx.db.class.count({
+                where: {
+                    schedule: {
+                        gt: now
+                    }
                 }
-            } catch (error) {
-                console.error("Error fetching classes:", error)
-                throw new Error("Failed to fetch classes")
-            }
+            });
+
+            return {
+                items,
+                total,
+                page: input.page,
+                limit: input.limit,
+            };
         }),
 
     register: protectedProcedure

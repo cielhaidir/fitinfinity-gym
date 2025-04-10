@@ -24,10 +24,10 @@ export default function PackagePage() {
         name: "",
         description: "",
         price: 0,
+        point: 0,
         type: "GYM_MEMBERSHIP",
         sessions: null,
         day: null,
-        reward: null,
         isActive: true,
     });
 
@@ -48,7 +48,7 @@ export default function PackagePage() {
         
         // Convert numeric fields to numbers
         let updatedValue: string | number | null = value;
-        if (name === 'day' || name === 'sessions' || name === 'price' || name === 'reward') {
+        if (name === 'day' || name === 'sessions' || name === 'price' || name === 'point') {
             updatedValue = value === '' ? null : Number(value);
         }
 
@@ -79,8 +79,8 @@ export default function PackagePage() {
                 name: packageData.name,
                 description: packageData.description ?? '',
                 price: packageData.price === null ? null : Number(packageData.price),
+                point: packageData.point === null ? 0 : Number(packageData.point),
                 type: packageData.type,
-                reward: packageData.reward === null ? null : Number(packageData.reward),
                 isActive: packageData.isActive,
                 sessions: packageData.type === 'PERSONAL_TRAINER' ? 
                     (packageData.sessions === null ? null : Number(packageData.sessions)) : null,
@@ -90,25 +90,20 @@ export default function PackagePage() {
             if (isEditMode && selectedPackage?.id) {
                 await updatePackageMutation.mutateAsync({
                     id: selectedPackage.id,
-                    name: commonData.name,
-                    price: commonData.price ?? 0,
-                    reward: commonData.reward,
-                    type: commonData.type,
-                    day: commonData.day ?? undefined,
-                    sessions: commonData.sessions ?? undefined,
-                    description: commonData.description,
-                    isActive: commonData.isActive
+                    name: packageData.name,
+                    description: packageData.description ?? '',
+                    price: packageData.price,
+                    point: packageData.point === null ? 0 : packageData.point,
+                    type: packageData.type,
+                    isActive: packageData.isActive,
+                    sessions: packageData.type === 'PERSONAL_TRAINER' ? packageData.sessions : null,
+                    day: packageData.type === 'GYM_MEMBERSHIP' ? packageData.day : null
                 });
             } else {
                 await createPackageMutation.mutateAsync({
-                    name: commonData.name,
-                    price: commonData.price ?? 0,
-                    reward: commonData.reward,
-                    type: commonData.type,
-                    day: commonData.day ?? undefined,
-                    sessions: commonData.sessions ?? undefined,
-                    description: commonData.description,
-                    isActive: commonData.isActive
+                    ...commonData,
+                    reward: packageData.point === null ? 0 : packageData.point,
+                    price: packageData.price === null ? 0 : packageData.price // Ensure price is never null
                 });
             }
 

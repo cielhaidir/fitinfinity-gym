@@ -9,6 +9,7 @@ export const classRouter = createTRPCRouter({
     create: protectedProcedure
         .input(createClassSchema)
         .mutation(async ({ ctx, input }) => {
+            console.log("Creating class with input:", input); // Debug log
             try {
                 const newClass = await ctx.db.class.create({
                     data: {
@@ -17,6 +18,7 @@ export const classRouter = createTRPCRouter({
                         trainerId: input.trainerId,
                         schedule: input.schedule,
                         duration: input.duration,
+                        price: input.price,
                     },
                     include: {
                         trainer: {

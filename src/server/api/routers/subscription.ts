@@ -134,11 +134,20 @@ export const subscriptionRouter = createTRPCRouter({
                             user: {
                                 select: {
                                     name: true,
+                                    email: true,
                                 }
                             }
                         }
                     },
-                    package: true,
+                    package: {
+                        select: {
+                            id: true,
+                            name: true,
+                            price: true,
+                            type: true,
+                            point: true,
+                        }
+                    },
                     payments: true,
                 }
             });
@@ -171,11 +180,20 @@ export const subscriptionRouter = createTRPCRouter({
                             user: {
                                 select: {
                                     name: true,
+                                    email: true,
                                 }
                             }
                         }
                     },
-                    package: true,
+                    package: {
+                        select: {
+                            id: true,
+                            name: true,
+                            price: true,
+                            type: true,
+                            point: true,
+                        }
+                    },
                     payments: true,
                 }
             });
@@ -217,4 +235,78 @@ export const subscriptionRouter = createTRPCRouter({
                 },
             });
         }),
+
+    checkout: protectedProcedure
+        .input(z.object({
+            packageId: z.string(),
+            duration: z.number(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            try {
+                // Get the member first based on logged in user
+                const member = await ctx.db.membership.findFirst({
+                    where: { 
+                        userId: ctx.session.user.id,
+                        isActive: true 
+                    },
+                });
+
+                if (!member) {
+                    throw new Error("Active member not found. Please check your membership status.");
+                }
+
+                // Get the package
+                const packageData = await ctx.db.package.findUnique({
+                    where: { 
+                        id: input.packageId 
+                    }
+                });
+
+                if (!packageData) {
+                    throw new Error("Package not found");
+                }
+
+                // Create subscription
+                const subscription = await ctx.db.subscription.create({
+                    data: {
+                        memberId: member.id,
+                        packageId: packageData.id,
+                        startDate: new Date(),
+                        remainingSessions: input.duration
+                    },
+                });
+
+                // Create payment
+                await ctx.db.payment.create({
+                    data: {
+                        subscriptionId: subscription.id,
+                        status: "SUCCESS",
+                        method: "CASH",
+                        totalPayment: packageData.price * input.duration,
+                    }
+                });
+
+                // Update user's points based on package points
+                await ctx.db.user.update({
+                    where: { 
+                        id: ctx.session.user.id 
+                    },
+                    data: {
+                        point: {
+                            increment: packageData.point * input.duration,
+                        },
+                    },
+                });
+
+                return {
+                    success: true,
+                    subscription,
+                    message: `Checkout successful! You earned ${packageData.point * input.duration} points.`
+                };
+            } catch (error) {
+                console.error("Checkout error:", error);
+                throw error;
+            }
+        }),
 });
+

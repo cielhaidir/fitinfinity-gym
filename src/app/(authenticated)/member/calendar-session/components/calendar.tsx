@@ -1,147 +1,118 @@
 "use client";
 
 import React, { useState } from 'react';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isToday } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import SessionDetailModal from './session-detail-modal';
-
-// Generate time slots from 6am to 9pm
-const timeSlots = Array.from({ length: 16 }, (_, i) => {
-  const hour = i + 6; // Start from 6am
-  return {
-    label: `${hour < 12 ? hour : hour === 12 ? 12 : hour - 12}${hour < 12 ? 'am' : 'pm'}`,
-    hour
-  };
-});
+import { TrainerSession } from '@prisma/client';
 
 interface CalendarProps {
   currentDate: Date;
-  sessionsByDateTime: Record<string, any[]>;
+  sessionsByDateTime: Record<string, TrainerSession[]>;
   onNavigate: (direction: 'prev' | 'next') => void;
   onToday: () => void;
 }
 
-export default function MemberCalendar({
-  currentDate,
-  sessionsByDateTime,
-  onNavigate,
-  onToday,
-}: CalendarProps) {
-  const [selectedSession, setSelectedSession] = useState<any | null>(null);
-  const CELL_HEIGHT = 64;
+export default function MemberCalendar({ currentDate, sessionsByDateTime, onNavigate, onToday }: CalendarProps) {
+  const [selectedSession, setSelectedSession] = useState<TrainerSession | null>(null);
 
-  // Calculate ranges
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
-  const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const handleSessionClick = (e: React.MouseEvent, session: any) => {
-    e.stopPropagation();
+  const timeSlots = Array.from({ length: 14 }, (_, i) => {
+    const hour = i + 7; // Start from 7 AM
+    return `${hour.toString().padStart(2, '0')}:00`;
+  });
+
+  const handleSessionClick = (session: TrainerSession) => {
     setSelectedSession(session);
   };
 
   return (
-    <div>
-      <div className="flex justify-between mb-4">
-        <div className="bg-[#2a2a2a] text-white text-sm px-3 py-1 rounded-full">
-          {`${format(weekStart, 'dd MMMM')} - ${format(weekEnd, 'dd MMMM yyyy')}`}
+    <div className="rounded-lg overflow-hidden">
+      {/* Navigation */}
+      <div className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-[#232323] p-4 rounded-lg">
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => onNavigate('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={() => onNavigate('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={onToday}>Today</Button>
         </div>
+        <h3 className="text-lg font-semibold text-black dark:text-white">
+          {format(currentDate, 'MMMM yyyy', { locale: id })}
+        </h3>
       </div>
 
-      <div className="bg-[#232323] rounded-lg overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-[#2a2a2a]">
-          <div className="flex space-x-2">
-            <Button 
-              onClick={() => onNavigate('prev')} 
-              variant="outline" 
-              size="icon" 
-              className="h-8 w-8"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button 
-              onClick={() => onNavigate('next')} 
-              variant="outline" 
-              size="icon" 
-              className="h-8 w-8"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button onClick={onToday} variant="secondary" className="h-8 text-xs">today</Button>
+      {/* Calendar Grid */}
+      <div className="bg-gray-50 dark:bg-[#232323] rounded-lg overflow-hidden">
+        {/* Days header */}
+        <div className="grid grid-cols-8 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-2 text-center text-sm font-medium text-black dark:text-gray-400">
+            Waktu
           </div>
+          {days.map((day, index) => (
+            <div
+              key={index}
+              className={`p-2 text-center text-sm font-medium 
+                ${isSameDay(day, new Date()) 
+                  ? 'text-[#C9D953] dark:text-[#C9D953]' 
+                  : 'text-black dark:text-gray-400'}`}
+            >
+              <div>{format(day, 'EEEE', { locale: id })}</div>
+              <div>{format(day, 'd MMM')}</div>
+            </div>
+          ))}
         </div>
 
-        <div className="overflow-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="w-20 border-r border-[#2a2a2a] p-2"></th>
-                {days.map((day) => (
-                  <th 
-                    key={day.toString()} 
-                    className={`border-r border-[#2a2a2a] p-2 text-center ${
-                      isToday(day) ? 'bg-[#2a2a2a]' : ''
-                    }`}
+        {/* Time slots */}
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          {timeSlots.map((time) => (
+            <div key={time} className="grid grid-cols-8">
+              <div className="p-2 text-center text-sm text-black dark:text-gray-400 border-r border-gray-200 dark:border-gray-700">
+                {time}
+              </div>
+              {days.map((day, dayIndex) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const key = `${dateStr}-${time}`;
+                const sessions = sessionsByDateTime[key] || [];
+
+                return (
+                  <div
+                    key={dayIndex}
+                    className={`p-2 border-r border-gray-200 dark:border-gray-700 min-h-[60px] relative
+                      ${isSameDay(day, new Date()) ? 'bg-gray-100 dark:bg-gray-800/50' : ''}`}
                   >
-                    <div className="text-gray-400">{format(day, 'EEE', { locale: id })}</div>
-                    <div className={`text-lg ${isToday(day) ? 'text-[#C9D953] font-bold' : 'text-white'}`}>
-                      {format(day, 'd/M')}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map(({ label, hour }) => (
-                <tr key={label} className="border-t border-[#2a2a2a]">
-                  <td className="border-r border-[#2a2a2a] p-2 text-right font-medium text-gray-400 w-20">
-                    {label}
-                  </td>
-                  {days.map((day) => {
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const timeStr = `${hour.toString().padStart(2, '0')}:00`;
-                    const key = `${dateStr}-${timeStr}`;
-                    const sessions = sessionsByDateTime[key] || [];
-                    
-                    return (
-                      <td
-                        key={`${dateStr}-${hour}`}
-                        className={`
-                          border-r border-[#2a2a2a] p-1 
-                          relative
-                          ${isToday(day) ? 'bg-[#2a2a2a]/50' : ''}
-                        `}
-                        style={{ height: `${CELL_HEIGHT}px` }}
+                    {sessions.map((session, sessionIndex) => (
+                      <div
+                        key={sessionIndex}
+                        onClick={() => handleSessionClick(session)}
+                        className="cursor-pointer bg-[#C9D953] text-black p-1 rounded text-sm mb-1 hover:bg-[#d4e45e]"
                       >
-                        {sessions.map((session) => (
-                          <div
-                            key={session.id}
-                            className="bg-[#C9D953] text-black text-xs rounded-md p-2 cursor-pointer hover:bg-[#b8c748]"
-                            onClick={(e) => handleSessionClick(e, session)}
-                          >
-                            <div className="font-bold truncate">
-                              {session.trainer?.user?.name || 'Personal Trainer'}
-                            </div>
-                            <div className="text-xs opacity-75">
-                              {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
-                            </div>
-                          </div>
-                        ))}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        {session.trainerId || 'Personal Trainer'}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* Session Detail Modal */}
       {selectedSession && (
         <SessionDetailModal
-          session={selectedSession}
+          session={{
+            trainerId: selectedSession.trainerId,
+            startTime: selectedSession.startTime,
+            endTime: selectedSession.endTime,
+            description: selectedSession.description || undefined
+          }}
           onClose={() => setSelectedSession(null)}
         />
       )}

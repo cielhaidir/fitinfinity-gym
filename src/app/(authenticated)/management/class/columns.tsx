@@ -67,6 +67,17 @@ export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Class>[] 
         ),
     },
     {
+        accessorKey: "price",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Price" />
+        ),
+        cell: ({ row }) => (
+            <div className="hidden md:block">
+                Rp {row.getValue("price").toLocaleString('id-ID')}
+            </div>
+        ),
+    },
+    {
         id: "actions",
         cell: ({ row }) => {
             return (

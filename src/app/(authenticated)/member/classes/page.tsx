@@ -19,6 +19,13 @@ export default function MemberClassesPage() {
         }
     )
 
+    // Filter kelas yang belum lewat
+    const upcomingClasses = classes?.items.filter(class_ => {
+        const classDate = new Date(class_.schedule);
+        const now = new Date();
+        return classDate > now;
+    });
+
     const handleClassClick = (class_: Class) => {
         setSelectedClass(class_)
         setIsDialogOpen(true)
@@ -27,9 +34,9 @@ export default function MemberClassesPage() {
     return (
         <div className="container mx-auto p-4 md:p-8">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold">Available Classes</h1>
-                <p className="text-muted-foreground">
-                    Browse and register for fitness classes
+                <h1 className="text-2xl font-bold text-black dark:text-white">Available Classes</h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                    Browse and register for upcoming fitness classes
                 </p>
             </div>
 
@@ -37,13 +44,13 @@ export default function MemberClassesPage() {
                 <div className="flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-            ) : classes?.items.length === 0 ? (
-                <div className="text-center text-muted-foreground">
-                    No classes available at the moment
+            ) : upcomingClasses?.length === 0 ? (
+                <div className="text-center text-gray-600 dark:text-gray-400">
+                    No upcoming classes available at the moment
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {classes?.items.map((class_) => (
+                    {upcomingClasses?.map((class_) => (
                         <ClassCard
                             key={class_.id}
                             class_={class_}

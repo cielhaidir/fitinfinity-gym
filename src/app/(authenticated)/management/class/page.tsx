@@ -22,6 +22,7 @@ export default function ClassPage() {
         trainerId: "",
         schedule: new Date(),
         duration: 60,
+        price: 100000,
     })
 
     // Table state
@@ -55,6 +56,7 @@ export default function ClassPage() {
                 trainerId: selectedClass.trainerId,
                 schedule: new Date(selectedClass.schedule),
                 duration: selectedClass.duration,
+                price: selectedClass.price,
             })
         } else {
             setFormData({
@@ -63,6 +65,7 @@ export default function ClassPage() {
                 trainerId: "",
                 schedule: new Date(),
                 duration: 60,
+                price: 100000,
             })
         }
     }, [selectedClass])
@@ -88,8 +91,15 @@ export default function ClassPage() {
         setFormData(prev => ({ ...prev, duration }))
     }
 
+    const handlePriceChange = (price: number) => {
+        console.log("Price changed to:", price); // Debug log
+        setFormData(prev => ({ ...prev, price }))
+    }
+
     const handleCreateOrUpdateClass = async () => {
         try {
+            console.log("Submitting form data:", formData); // Debug log
+            
             if (isEditMode && selectedClass) {
                 await updateMutation.mutateAsync({
                     id: selectedClass.id!,
@@ -111,11 +121,13 @@ export default function ClassPage() {
                 trainerId: "",
                 schedule: new Date(),
                 duration: 60,
+                price: 100000,
             })
 
             // Refresh data
             await utils.class.list.invalidate()
         } catch (error) {
+            console.error("Error submitting form:", error); // Debug log
             toast.error(error instanceof Error ? error.message : "An error occurred")
         }
     }
@@ -186,6 +198,7 @@ export default function ClassPage() {
                             trainerId: "",
                             schedule: new Date(),
                             duration: 60,
+                            price: 100000,
                         })
                     }
                 }}
@@ -196,11 +209,13 @@ export default function ClassPage() {
                     trainerId={formData.trainerId}
                     schedule={formData.schedule}
                     duration={formData.duration}
+                    price={formData.price}
                     onNameChange={handleNameChange}
                     onLimitChange={handleLimitChange}
                     onTrainerChange={handleTrainerChange}
                     onScheduleChange={handleScheduleChange}
                     onDurationChange={handleDurationChange}
+                    onPriceChange={handlePriceChange}
                     onCreateOrUpdateClass={handleCreateOrUpdateClass}
                     isEditMode={isEditMode}
                 />

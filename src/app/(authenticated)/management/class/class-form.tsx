@@ -18,17 +18,49 @@ import {
 import { Input } from "@/components/ui/input"
 import { useEffect, useState } from "react"
 
+const CLASS_OPTIONS = [
+    "yoga",
+    "zumba",
+    "strengh",
+    "core",
+    "booty shaping",
+    "cardio dance",
+    "bachata",
+    "muaythai",
+    "poundfit",
+    "freestyle dance",
+    "kpop dance",
+    "circuit",
+    "thaiboxig",
+    "Trx",
+    "Airin yoga",
+    "Hatha yoga",
+    "bodycombat",
+    "mat pilates",
+    "vinyasa yoga",
+    "bootcamp",
+    "bodypump",
+    "HIIT",
+    "summit",
+    "balance",
+    "cardio u"
+] as const;
+
+type ClassName = typeof CLASS_OPTIONS[number];
+
 type ClassFormProps = {
-    name: string;
+    name: ClassName;
     limit: number | null;
     trainerId: string;
     schedule: Date;
     duration: number;
-    onNameChange: (name: string) => void;
+    price: number;
+    onNameChange: (name: ClassName) => void;
     onLimitChange: (limit: number | null) => void;
     onTrainerChange: (trainerId: string) => void;
     onScheduleChange: (schedule: Date) => void;
     onDurationChange: (duration: number) => void;
+    onPriceChange: (price: number) => void;
     onCreateOrUpdateClass: () => void;
     isEditMode: boolean;
 };
@@ -39,11 +71,13 @@ export const ClassForm = ({
     trainerId,
     schedule,
     duration,
+    price,
     onNameChange,
     onLimitChange,
     onTrainerChange,
     onScheduleChange,
     onDurationChange,
+    onPriceChange,
     onCreateOrUpdateClass,
     isEditMode,
 }: ClassFormProps) => {
@@ -53,6 +87,7 @@ export const ClassForm = ({
     const [localTrainerId, setLocalTrainerId] = useState(trainerId);
     const [localSchedule, setLocalSchedule] = useState(schedule);
     const [localDuration, setLocalDuration] = useState(duration);
+    const [localPrice, setLocalPrice] = useState(price);
 
     // Update local state when props change
     useEffect(() => {
@@ -61,10 +96,11 @@ export const ClassForm = ({
         setLocalTrainerId(trainerId);
         setLocalSchedule(schedule);
         setLocalDuration(duration);
-    }, [name, limit, trainerId, schedule, duration]);
+        setLocalPrice(price);
+    }, [name, limit, trainerId, schedule, duration, price]);
 
     // Handle local changes and propagate to parent
-    const handleNameChange = (value: string) => {
+    const handleNameChange = (value: ClassName) => {
         setLocalName(value);
         onNameChange(value);
     };
@@ -92,6 +128,19 @@ export const ClassForm = ({
         onDurationChange(newDuration);
     };
 
+    const handlePriceChange = (value: string) => {
+        // Pastikan value tidak kosong dan valid
+        if (value === "") {
+            setLocalPrice(0);
+            onPriceChange(0);
+            return;
+        }
+        
+        const newPrice = parseInt(value.replace(/[^0-9]/g, '')) || 0;
+        setLocalPrice(newPrice);
+        onPriceChange(newPrice);
+    };
+
     const { data: trainers } = api.personalTrainer.list.useQuery(
         { page: 1, limit: 100 },
         { 
@@ -113,12 +162,24 @@ export const ClassForm = ({
                     <label htmlFor="name" className="block text-sm font-medium">
                         Class Name
                     </label>
-                    <Input
-                        id="name"
+                    <Select
                         value={localName}
-                        onChange={(e) => handleNameChange(e.target.value)}
-                        placeholder="Enter class name"
-                    />
+                        onValueChange={handleNameChange}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CLASS_OPTIONS.map((className) => (
+                                <SelectItem
+                                    key={className}
+                                    value={className}
+                                >
+                                    {className.charAt(0).toUpperCase() + className.slice(1)}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div>
@@ -180,6 +241,25 @@ export const ClassForm = ({
                         value={localDuration}
                         onChange={(e) => handleDurationChange(e.target.value)}
                         placeholder="Enter class duration"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="price" className="block text-sm font-medium">
+                        Price (Rp)
+                    </label>
+                    <Input
+                        type="text"
+                        id="price"
+                        value={localPrice === 0 ? "" : localPrice.toLocaleString('id-ID')}
+                        onChange={(e) => handlePriceChange(e.target.value)}
+                        placeholder="Enter class price"
+                        onBlur={(e) => {
+                            const value = e.target.value.replace(/[^0-9]/g, '');
+                            const price = parseInt(value) || 0;
+                            setLocalPrice(price);
+                            onPriceChange(price);
+                        }}
                     />
                 </div>
             </div>

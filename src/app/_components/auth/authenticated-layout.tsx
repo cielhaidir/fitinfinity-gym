@@ -17,7 +17,7 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
   const router = useRouter()
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/login")
+    if (status === "unauthenticated") router.push("/auth/signin")
   }, [status, router])
 
   const isLoading = status === "loading"

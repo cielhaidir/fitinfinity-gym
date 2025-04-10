@@ -13,6 +13,7 @@ export const packageRouter = createTRPCRouter({
             name: z.string(),
             description: z.string().optional(),
             price: z.number(),
+            point: z.number(),
             type: packageType,
             sessions: z.number().nullish(),
             day: z.number().nullish(),
@@ -25,7 +26,7 @@ export const packageRouter = createTRPCRouter({
                     ...input,
                     sessions: input.sessions ?? null,
                     day: input.day ?? null,
-                    reward: input.reward ?? null,
+                    point: input.point,
                 }
             });
         }),
@@ -81,24 +82,29 @@ export const packageRouter = createTRPCRouter({
         .input(z.object({
             id: z.string(),
             name: z.string(),
-            description: z.string().optional(),
+            description: z.string(),
             price: z.number(),
-            type: packageType,
-            sessions: z.number().nullish(),
-            day: z.number().nullish(),
-            isActive: z.boolean().optional(),
-            reward: z.number().nullable(),
+            point: z.number(),
+            type: z.enum(['GYM_MEMBERSHIP', 'PERSONAL_TRAINER']),
+            sessions: z.number().nullable(),
+            day: z.number().nullable(),
+            isActive: z.boolean(),
         }))
         .mutation(async ({ ctx, input }) => {
             const { id, ...data } = input;
+            
             return ctx.db.package.update({
                 where: { id },
                 data: {
-                    ...data,
-                    sessions: data.sessions ?? null,
-                    day: data.day ?? null,
-                    reward: data.reward ?? null,
-                },
+                    name: data.name,
+                    description: data.description,
+                    price: data.price,
+                    point: data.point,
+                    type: data.type,
+                    sessions: data.sessions,
+                    day: data.day,
+                    isActive: data.isActive,
+                }
             });
         }),
 

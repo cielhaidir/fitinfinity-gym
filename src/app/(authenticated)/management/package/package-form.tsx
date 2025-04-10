@@ -137,20 +137,6 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                 )}
 
                 <div>
-                    <label htmlFor="reward" className="block text-sm font-medium">
-                        Reward
-                    </label>
-                    <Input
-                        id="reward"
-                        name="reward"
-                        placeholder="Point reward for this package"
-                        type="number"
-                        value={newPackage.reward ?? ""}
-                        onChange={onInputChange}
-                    />
-                </div>
-
-                <div>
                     <label htmlFor="price" className="block text-sm font-medium">
                         Price
                     </label>
@@ -160,6 +146,20 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                         placeholder="Price"
                         type="number"
                         value={newPackage.price}
+                        onChange={onInputChange}
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="point" className="block text-sm font-medium">
+                        Points
+                    </label>
+                    <Input
+                        id="point"
+                        name="point"
+                        placeholder="Points reward for this package"
+                        type="number"
+                        value={newPackage.point ?? 0}
                         onChange={onInputChange}
                     />
                 </div>
