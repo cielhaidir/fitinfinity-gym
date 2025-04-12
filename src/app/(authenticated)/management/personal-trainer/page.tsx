@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
@@ -13,6 +13,8 @@ import { api } from "@/trpc/react";
 import { UserPersonalTrainer } from "./schema";
 import { TrainerForm } from "./trainer-form";
 import { toast } from "sonner"
+import { SelectUserModal } from "./select-user-modal";
+import { User } from "@prisma/client";
 
 export default function PersonalTrainerPage() {
   const utils = api.useUtils();
@@ -31,6 +33,8 @@ export default function PersonalTrainerPage() {
   });
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
+  const [isSelectUserModalOpen, setIsSelectUserModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: trainers = { items: [], total: 0, page: 1, limit: 10 } } = api.personalTrainer.list.useQuery({ 
     page: 1, 
@@ -39,7 +43,15 @@ export default function PersonalTrainerPage() {
     searchColumn 
   });
   const createUserMutation = api.user.create.useMutation();
-  const createTrainerMutation = api.personalTrainer.create.useMutation();
+  const createTrainerMutation = api.personalTrainer.create.useMutation({
+    onSuccess: () => {
+      toast.success("Personal Trainer created successfully");
+      utils.personalTrainer.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
   const updateTrainerMutation = api.personalTrainer.update.useMutation();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,73 +77,75 @@ export default function PersonalTrainerPage() {
     }
   };
 
-
-
   const handleCreateOrUpdateTrainer = async () => {
     try {
       const promise = async () => {
-      if (isEditMode && selectedTrainer) {
-        await updateTrainerMutation.mutateAsync({
-          id: selectedTrainer.id ?? "",
-          user: {
-            name: selectedTrainer.user?.name || "",
-            email: selectedTrainer.user?.email || "",
-            address: selectedTrainer.user?.address ?? undefined,
-            phone: selectedTrainer.user?.phone ?? undefined,
-            birthDate: selectedTrainer.user?.birthDate ?? undefined,
-            idNumber: selectedTrainer.user?.idNumber ?? undefined,
-          }
-        });
+        if (isEditMode && selectedTrainer) {
+          await updateTrainerMutation.mutateAsync({
+            id: selectedTrainer.id ?? "",
+            user: {
+              name: selectedTrainer.user?.name || "",
+              email: selectedTrainer.user?.email || "",
+              address: selectedTrainer.user?.address ?? undefined,
+              phone: selectedTrainer.user?.phone ?? undefined,
+              birthDate: selectedTrainer.user?.birthDate ?? undefined,
+              idNumber: selectedTrainer.user?.idNumber ?? undefined,
+            }
+          });
 
-        await utils.personalTrainer.list.invalidate();
-        setIsSheetOpen(false);
-        setIsEditMode(false);
-        setSelectedTrainer(null);
+          await utils.personalTrainer.list.invalidate();
+          setIsSheetOpen(false);
+          setIsEditMode(false);
+          setSelectedTrainer(null);
+        } else if (selectedUserId) {
+          await createTrainerMutation.mutateAsync({
+            userId: selectedUserId,
+            isActive: true,
+            createdBy: selectedUserId,
+          });
 
-      } else {
-        
-        const user = await createUserMutation.mutateAsync({
-          name: newTrainer.name,
-          email: newTrainer.email,
-          address: newTrainer.address,
-          phone: newTrainer.phone,
-          birthDate: newTrainer.birthDate,
-          idNumber: newTrainer.idNumber,
-        });
+          await utils.personalTrainer.list.invalidate();
+          setSelectedUserId(null);
+          setIsSheetOpen(false);
+        } else {
+          const user = await createUserMutation.mutateAsync({
+            name: newTrainer.name,
+            email: newTrainer.email,
+            address: newTrainer.address,
+            phone: newTrainer.phone,
+            birthDate: newTrainer.birthDate,
+            idNumber: newTrainer.idNumber,
+          });
 
-        
-        await createTrainerMutation.mutateAsync({
-          userId: user.id,
-          isActive: true,
-          createdBy: user.id,
-        });
+          await createTrainerMutation.mutateAsync({
+            userId: user.id,
+            isActive: true,
+            createdBy: user.id,
+          });
 
-        await utils.personalTrainer.list.invalidate();
-        
-        setNewTrainer({
-          name: "",
-          email: "",
-          address: "",
-          phone: "",
-          birthDate: new Date(),
-          idNumber: "",
-        });
+          await utils.personalTrainer.list.invalidate();
+          setNewTrainer({
+            name: "",
+            email: "",
+            address: "",
+            phone: "",
+            birthDate: new Date(),
+            idNumber: "",
+          });
+          setIsSheetOpen(false);
+        }
+      };
 
-        setIsSheetOpen(false);
-      }
-    }
-    toast.promise(promise, {
-      loading: 'Loading...',
-      success: 'Trainer has been created/updated successfully!',
-      error: (error) => error instanceof Error ? error.message : String(error),
-    });
+      toast.promise(promise, {
+        loading: 'Loading...',
+        success: 'Trainer has been created/updated successfully!',
+        error: (error) => error instanceof Error ? error.message : String(error),
+      });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error))
+      toast.error(error instanceof Error ? error.message : String(error));
       console.error("Error creating trainer:", error);
     }
   };
-
-
 
   const handleEditTrainer = (trainer: UserPersonalTrainer) => {
     console.log("Editing trainer:", trainer);
@@ -163,6 +177,26 @@ export default function PersonalTrainerPage() {
 
   const columns = createColumns({ onEditMember: handleEditTrainer, onDeleteMember: handleDeleteTrainer })
   
+  const handleSelectUser = async (user: User) => {
+    try {
+      // Create PT with selected user
+      await createTrainerMutation.mutateAsync({
+        userId: user.id,
+        isActive: true,
+        createdBy: user.id,
+      });
+
+      setIsSelectUserModalOpen(false);
+    } catch (error) {
+      console.error("Error creating personal trainer:", error);
+    }
+  };
+
+  const handleAddNew = () => {
+    setIsSelectUserModalOpen(false);
+    setIsSheetOpen(true);
+  };
+
   return (
     <>
       <Sheet 
@@ -185,11 +219,12 @@ export default function PersonalTrainerPage() {
                 Here&apos;s a list of Fit Infinity Personal Trainers!
               </p>
             </div>
-            <SheetTrigger asChild>
-              <Button className="bg-infinity w-full md:w-auto">
-                <Plus className="mr-2 h-4 w-4" /> Add Personal Trainer
-              </Button>
-            </SheetTrigger>
+            <Button 
+              className="bg-infinity w-full md:w-auto"
+              onClick={() => setIsSelectUserModalOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add Personal Trainer
+            </Button>
           </div>
           <div className="rounded-md">
             <DataTable
@@ -212,13 +247,21 @@ export default function PersonalTrainerPage() {
             />
           </div>
         </div>
-        <TrainerForm
-          newTrainer={selectedTrainer || newTrainer}
-          onCreateOrUpdateTrainer={handleCreateOrUpdateTrainer}
-          onInputChange={handleInputChange}
-          isEditMode={isEditMode}
-        />
+        <SheetContent side="right" className="w-full overflow-y-auto">
+          <TrainerForm
+            newTrainer={selectedTrainer || newTrainer}
+            onCreateOrUpdateTrainer={handleCreateOrUpdateTrainer}
+            onInputChange={handleInputChange}
+            isEditMode={isEditMode}
+          />
+        </SheetContent>
       </Sheet>
+      <SelectUserModal
+        isOpen={isSelectUserModalOpen}
+        onClose={() => setIsSelectUserModalOpen(false)}
+        onSelectUser={handleSelectUser}
+        onAddNew={handleAddNew}
+      />
     </>
   );
 }

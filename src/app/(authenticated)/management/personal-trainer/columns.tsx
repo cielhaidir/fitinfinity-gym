@@ -70,7 +70,10 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
     ),
     cell: ({ row }) => (
       <div className="w-[100px]">
-        <Badge variant={row.getValue("isActive") ? "default" : "secondary"}>
+        <Badge 
+          variant={row.getValue("isActive") ? "default" : "secondary"}
+          className={row.getValue("isActive") ? "bg-[#C9D953] hover:bg-[#B8C84A]" : ""}
+        >
           {row.getValue("isActive") ? "Active" : "Inactive"}
         </Badge>
       </div>

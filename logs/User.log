@@ -27,3 +27,4 @@ Invalid `ctx.db.user.create()` invocation in
 → 773     const user = await ctx.db.user.create(
 Unique constraint failed on the fields: (`email`)
 [2025-03-13 11:15:46] INFO: User Muh Rezki (cm86r3bvf00061t7wk17npeod) successfully created a user at 2025-03-13T03:15:46.702Z: {"id":"cm86s13t8000j1t7wyevru3um","name":"windah basudara","email":"windaaah@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-03-13T03:15:46.701Z","updatedAt":"2025-03-13T03:15:46.701Z"}
+[2025-04-13 01:06:14] INFO: User Muh Rezki (cm7ychmgh0003jjjtxb0lwz79) successfully created a user at 2025-04-12T17:06:14.766Z: {"id":"cm9egwne30004d319g4a35pzm","name":"yanto","email":"yanto@gmail.com","emailVerified":null,"address":null,"phone":null,"birthDate":null,"idNumber":null,"image":null,"createdBy":null,"createdAt":"2025-04-12T17:06:14.763Z","updatedAt":"2025-04-12T17:06:14.763Z","point":0}

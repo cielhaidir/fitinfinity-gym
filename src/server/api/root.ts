@@ -14,6 +14,7 @@ import { memberUcRouter } from "./routers/member-uc";
 import { trainerSessionRouter } from "./routers/trainerSession";
 import { voucherRouter } from "./routers/voucher";
 import { rewardRouter } from "./routers/reward";
+import { employeeRouter } from "./routers/employee";
 
 /**
  * This is the primary router for your server.
@@ -36,6 +37,7 @@ export const appRouter = createTRPCRouter({
   trainerSession: trainerSessionRouter,
   voucher: voucherRouter,
   reward: rewardRouter,
+  employee: employeeRouter,
 });
 
 // export type definition of API

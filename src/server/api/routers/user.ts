@@ -147,4 +147,40 @@ export const userRouter = createTRPCRouter({
             return await ctx.db.user.findMany();
         }),
 
+    list: protectedProcedure
+        .input(
+            z.object({
+                page: z.number().min(1),
+                limit: z.number().min(1).max(100),
+                search: z.string().optional(),
+                searchColumn: z.string().optional(),
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            const whereClause = input.search
+                ? {
+                    [input.searchColumn ?? ""]: {
+                        contains: input.search,
+                        mode: "insensitive" as const
+                    }
+                }
+                : {};
+
+            const items = await ctx.db.user.findMany({
+                skip: (input.page - 1) * input.limit,
+                take: input.limit,
+                where: whereClause,
+                orderBy: { createdAt: "desc" },
+            });
+
+            const total = await ctx.db.user.count({ where: whereClause });
+
+            return {
+                items,
+                total,
+                page: input.page,
+                limit: input.limit,
+            };
+        }),
+
 });
