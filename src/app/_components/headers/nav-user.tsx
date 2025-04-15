@@ -1,12 +1,12 @@
 "use client"
 
 import {
-    BadgeCheck,
-    Bell,
-    ChevronsUpDown,
-    CreditCard,
     LogOut,
-    Sparkles,
+    User,
+    Settings,
+    Dumbbell,
+    Bell,
+    LayoutDashboard
 } from "lucide-react"
 
 import {
@@ -24,7 +24,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { signOut } from "next-auth/react"
-
+import Link from "next/link"
 
 export function NavUser({
     user,
@@ -35,55 +35,94 @@ export function NavUser({
         image: string
     }
 }) {
-    console.log(user)
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger >
-                <Avatar className="h-8 w-8 rounded-sm">
+            <DropdownMenuTrigger className="outline-none">
+                <Avatar className="h-10 w-10 border-2 border-[#BFFF00] hover:border-[#9FDF00] transition-colors">
                     <AvatarImage src={user?.image} alt={user?.name} />
-                    <AvatarFallback className="rounded-sm">CN</AvatarFallback>
+                    <AvatarFallback className="bg-[#BFFF00] text-black font-semibold">
+                        {user?.name?.charAt(0)}
+                    </AvatarFallback>
                 </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side={"bottom"}
-                align="start"
-                sideOffset={4}
+                className="w-64 bg-black border border-[#BFFF00] text-white"
+                side="bottom"
+                align="end"
+                sideOffset={8}
             >
-                <DropdownMenuLabel className="p-0 font-normal">
-                    <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                        <Avatar className="h-8 w-8 rounded-sm">
+                <DropdownMenuLabel className="p-0">
+                    <div className="flex items-center gap-3 p-4">
+                        <Avatar className="h-10 w-10 border-2 border-[#BFFF00]">
                             <AvatarImage src={user?.image} alt={user?.name} />
-                            <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                            <AvatarFallback className="bg-[#BFFF00] text-black font-semibold">
+                                {user?.name?.charAt(0)}
+                            </AvatarFallback>
                         </Avatar>
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-semibold">{user?.name}</span>
-                            <span className="truncate text-xs">{user?.email}</span>
+                        <div className="flex flex-col">
+                            <span className="font-semibold text-[#BFFF00]">{user?.name}</span>
+                            <span className="text-xs text-gray-400">{user?.email}</span>
                         </div>
                     </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                        <BadgeCheck />
-                        Account
+                <DropdownMenuSeparator className="bg-gray-800" />
+                <DropdownMenuGroup className="p-1">
+                    <DropdownMenuItem asChild>
+                        <Link 
+                            href="/member/dashboard"
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800 cursor-pointer text-[#BFFF00] hover:text-[#9FDF00] w-full"
+                        >
+                            <LayoutDashboard size={18} />
+                            Dashboard
+                        </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                        <CreditCard />
-                        Billing
+                    <DropdownMenuItem asChild>
+                        <Link 
+                            href="/profile"
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 hover:text-[#BFFF00] w-full"
+                        >
+                            <User size={18} />
+                            Profile
+                        </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                        <Bell />
-                        Notifications
+                    <DropdownMenuItem asChild>
+                        <Link 
+                            href="/workouts"
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 hover:text-[#BFFF00] w-full"
+                        >
+                            <Dumbbell size={18} />
+                            My Workouts
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link 
+                            href="/notifications"
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 hover:text-[#BFFF00] w-full"
+                        >
+                            <Bell size={18} />
+                            Notifications
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link 
+                            href="/settings"
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 hover:text-[#BFFF00] w-full"
+                        >
+                            <Settings size={18} />
+                            Settings
+                        </Link>
                     </DropdownMenuItem>
                 </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={async () => {
-                    signOut();
-                }}>
-                    <LogOut />
-                    Log out
-                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-gray-800" />
+                <div className="p-1">
+                    <DropdownMenuItem 
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800 cursor-pointer text-red-500 hover:text-red-400"
+                        onClick={() => signOut()}
+                    >
+                        <LogOut size={18} />
+                        Log out
+                    </DropdownMenuItem>
+                </div>
             </DropdownMenuContent>
         </DropdownMenu>
     )

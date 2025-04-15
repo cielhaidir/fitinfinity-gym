@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Sheet } from "@/components/ui/sheet";
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/datatable/data-table";
 import { api } from "@/trpc/react";
@@ -11,11 +11,14 @@ import { EmployeeForm } from "./employee-form";
 import { UserEmployee } from "./schema";
 import { getColumns } from "./columns";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { SelectUserModal } from "./select-user-modal";
 
 export default function EmployeePage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<UserEmployee | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
     const [page, setPage] = useState(1);
@@ -24,6 +27,18 @@ export default function EmployeePage() {
 
     const utils = api.useUtils();
 
+    const [newEmployee, setNewEmployee] = useState<UserEmployee>({
+        name: "",
+        email: "",
+        password: "",
+        position: "",
+        department: "",
+        address: "",
+        phone: "",
+        birthDate: new Date(),
+        idNumber: "",
+    });
+
     const { data: employees = { items: [], total: 0, page: 1, limit: 10 } } = api.employee.list.useQuery({
         page,
         limit,
@@ -31,18 +46,23 @@ export default function EmployeePage() {
         searchColumn,
     });
 
-    const createEmployeeMutation = api.employee.create.useMutation({
-        onError: (error) => {
-            if (error.message.includes("Unique constraint failed")) {
-                toast.error("This user is already registered as an employee");
-            } else {
-                toast.error(error.message);
-            }
+    const createUserMutation = api.user.create.useMutation({
+        onSuccess: () => {
+            toast.success("User created successfully");
+            utils.user.list.invalidate();
         },
+        onError: (error) => {
+            toast.error(`Error creating user: ${error.message}`);
+        },
+    });
+
+    const createEmployeeMutation = api.employee.create.useMutation({
         onSuccess: () => {
             toast.success("Employee created successfully");
             utils.employee.list.invalidate();
-            setIsSheetOpen(false);
+        },
+        onError: (error) => {
+            toast.error(`Error creating employee: ${error.message}`);
         },
     });
 
@@ -50,10 +70,9 @@ export default function EmployeePage() {
         onSuccess: () => {
             toast.success("Employee updated successfully");
             utils.employee.list.invalidate();
-            setIsSheetOpen(false);
         },
         onError: (error) => {
-            toast.error(error.message);
+            toast.error(`Error updating employee: ${error.message}`);
         },
     });
 
@@ -67,44 +86,114 @@ export default function EmployeePage() {
         },
     });
 
-    const handleCreateOrUpdateEmployee = async () => {
-        if (!selectedEmployee) return;
-
-        try {
-            if (isEditMode) {
-                await updateEmployeeMutation.mutateAsync({
-                    id: selectedEmployee.id!,
-                    position: selectedEmployee.position,
-                    department: selectedEmployee.department,
-                    image: selectedEmployee.image,
-                    isActive: selectedEmployee.isActive,
-                });
-            } else {
-                await createEmployeeMutation.mutateAsync({
-                    userId: selectedEmployee.userId,
-                    position: selectedEmployee.position,
-                    department: selectedEmployee.department,
-                    image: selectedEmployee.image,
-                    isActive: selectedEmployee.isActive,
-                });
-            }
-        } catch (error) {
-            console.error("Error creating/updating employee:", error);
-        }
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setNewEmployee((prev) => ({
+            ...prev,
+            [name]: name === 'birthDate' ? new Date(value) : value,
+        }));
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!selectedEmployee) return;
+    const handleCreateOrUpdateEmployee = async () => {
+        try {
+            const promise = async () => {
+                if (isEditMode && selectedEmployee) {
+                    await updateEmployeeMutation.mutateAsync({
+                        id: selectedEmployee.id!,
+                        position: newEmployee.position,
+                        department: newEmployee.department,
+                    });
+                } else if (selectedUserId) {
+                    // Create employee for selected user
+                    await createEmployeeMutation.mutateAsync({
+                        userId: selectedUserId,
+                        position: newEmployee.position,
+                        department: newEmployee.department,
+                        isActive: true,
+                        id: selectedUserId, // Using userId as employee id
+                        image: "", // Empty string for image
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        user: {
+                            name: newEmployee.name,
+                            email: newEmployee.email,
+                            address: newEmployee.address,
+                            phone: newEmployee.phone,
+                            birthDate: newEmployee.birthDate,
+                            idNumber: newEmployee.idNumber,
+                        }
+                    });
+                } else {
+                    // Create new user and employee
+                    const user = await createUserMutation.mutateAsync({
+                        name: newEmployee.name,
+                        email: newEmployee.email,
+                        password: newEmployee.password,
+                        address: newEmployee.address,
+                        phone: newEmployee.phone,
+                        birthDate: newEmployee.birthDate,
+                        idNumber: newEmployee.idNumber,
+                    });
 
-        const { name, value } = e.target;
-        setSelectedEmployee({
-            ...selectedEmployee,
-            [name]: value,
-        });
+                    await createEmployeeMutation.mutateAsync({
+                        userId: user.id,
+                        position: newEmployee.position,
+                        department: newEmployee.department,
+                        isActive: true,
+                        id: user.id, // Using user.id as employee id
+                        image: "", // Empty string for image
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        user: {
+                            name: user.name,
+                            email: user.email,
+                            address: user.address,
+                            phone: user.phone,
+                            birthDate: user.birthDate,
+                            idNumber: user.idNumber,
+                        }
+                    });
+                }
+
+                // Reset form
+                setNewEmployee({
+                    name: "",
+                    email: "",
+                    password: "",
+                    position: "",
+                    department: "",
+                    address: "",
+                    phone: "",
+                    birthDate: new Date(),
+                    idNumber: "",
+                });
+                setIsSheetOpen(false);
+                setSelectedUserId(null);
+            };
+
+            toast.promise(promise, {
+                loading: 'Loading...',
+                success: 'Employee has been created/updated successfully!',
+                error: (error) => error instanceof Error ? error.message : String(error),
+            });
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : String(error));
+        }
     };
 
     const handleEdit = (employee: UserEmployee) => {
         setSelectedEmployee(employee);
+        setNewEmployee({
+            name: employee.user?.name ?? "",
+            email: employee.user?.email ?? "",
+            password: "",
+            position: employee.position ?? "",
+            department: employee.department ?? "",
+            address: employee.user?.address ?? "",
+            phone: employee.user?.phone ?? "",
+            birthDate: employee.user?.birthDate ?? new Date(),
+            idNumber: employee.user?.idNumber ?? "",
+        });
         setIsEditMode(true);
         setIsSheetOpen(true);
     };
@@ -128,12 +217,19 @@ export default function EmployeePage() {
         setLimit(newLimit);
     };
 
-    const handleSelectUser = (userId: string) => {
-        if (!selectedEmployee) return;
-        setSelectedEmployee({
-            ...selectedEmployee,
-            userId,
-        });
+    const handleSelectUser = (user: any) => {
+        setSelectedUserId(user.id);
+        setNewEmployee((prev) => ({
+            ...prev,
+            name: user.name,
+            email: user.email,
+            address: user.address,
+            phone: user.phone,
+            birthDate: user.birthDate,
+            idNumber: user.idNumber,
+        }));
+        setIsModalOpen(false);
+        setIsSheetOpen(true);
     };
 
     const columns = getColumns({ 
@@ -152,81 +248,39 @@ export default function EmployeePage() {
     });
 
     return (
-        <>
-            <Sheet 
-                open={isSheetOpen} 
-                onOpenChange={(open) => {
-                    setIsSheetOpen(open);
-                    if (!open) {
-                        setIsEditMode(false);
-                        setSelectedEmployee(null);
-                    }
+        <div className="container mx-auto py-10">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">Employee Management</h1>
+                <Button onClick={() => setIsModalOpen(true)}>
+                    + Add New Employee
+                </Button>
+            </div>
+
+            <DataTable
+                data={{
+                    items: employees.items,
+                    total: employees.total,
+                    page: employees.page,
+                    limit: employees.limit,
                 }}
-            >
-                <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-                        <div className="space-y-1">
-                            <h2 className="text-2xl font-bold tracking-tight">
-                                Employee Management
-                            </h2>
-                            <p className="text-muted-foreground">
-                                Here&apos;s a list of Fit Infinity Employees!
-                            </p>
-                        </div>
-                        <Button 
-                            className="bg-infinity w-full md:w-auto"
-                            onClick={() => {
-                                setSelectedEmployee({
-                                    user: {
-                                        id: "",
-                                        name: "",
-                                        email: "",
-                                    },
-                                    userId: "",
-                                    position: "",
-                                    department: "",
-                                    image: "",
-                                    isActive: true,
-                                });
-                                setIsEditMode(false);
-                                setIsSheetOpen(true);
-                            }}
-                        >
-                            <Plus className="mr-2 h-4 w-4" /> Add Employee
-                        </Button>
-                    </div>
-                    <div className="rounded-md">
-                        <DataTable
-                            data={{
-                                items: employees.items,
-                                total: employees.total,
-                                page: employees.page,
-                                limit: employees.limit
-                            }}
-                            columns={columns}
-                            onPaginationChange={handlePaginationChange}
-                            searchColumns={[
-                                { id: "user.name", placeholder: "Search by name..." },
-                                { id: "user.email", placeholder: "Search by email..." },
-                            ]}
-                            onSearch={(value, column) => {
-                                setSearch(value);
-                                setSearchColumn(column);
-                            }}
-                        />
-                    </div>
-                </div>
+                columns={columns}
+            />
+
+            <SelectUserModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSelectUser={handleSelectUser}
+                onAddNew={() => {
+                    setIsModalOpen(false);
+                    setIsSheetOpen(true);
+                }}
+            />
+
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <EmployeeForm
-                    newEmployee={selectedEmployee || {
-                        userId: "",
-                        position: "",
-                        department: "",
-                        image: "",
-                        isActive: true,
-                    }}
-                    onCreateOrUpdateEmployee={handleCreateOrUpdateEmployee}
+                    newEmployee={newEmployee}
                     onInputChange={handleInputChange}
-                    onSelectUser={handleSelectUser}
+                    onCreateOrUpdateEmployee={handleCreateOrUpdateEmployee}
                     isEditMode={isEditMode}
                 />
             </Sheet>
@@ -247,6 +301,6 @@ export default function EmployeePage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </>
+        </div>
     );
 } 

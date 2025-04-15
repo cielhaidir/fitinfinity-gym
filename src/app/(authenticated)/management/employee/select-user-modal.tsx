@@ -7,6 +7,7 @@ import { DataTable } from "@/components/datatable/data-table";
 import { api } from "@/trpc/react";
 import { User } from "@prisma/client";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 type SelectUserModalProps = {
     isOpen: boolean;
@@ -18,6 +19,8 @@ type SelectUserModalProps = {
 export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: SelectUserModalProps) => {
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
+    const [position, setPosition] = useState("");
+    const [department, setDepartment] = useState("");
     const utils = api.useUtils();
 
     const createEmployeeMutation = api.employee.create.useMutation({
@@ -31,70 +34,37 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
         },
     });
 
-    const createTrainerMutation = api.personalTrainer.create.useMutation({
-        onSuccess: () => {
-            toast.success("Personal Trainer created successfully");
-            utils.personalTrainer.list.invalidate();
-        },
-        onError: (error) => {
-            toast.error(`Error creating trainer: ${error.message}`);
-            console.error("Trainer creation error:", error);
-        },
-    });
-
     const handleUserSelect = async (user: User) => {
-        try {
-            let employeeCreated = false;
-            
-            try {
-                // Create employee record first with all required fields
-                await createEmployeeMutation.mutateAsync({
-                    id: user.id,  // Use user.id as employee id
-                    userId: user.id,
-                    position: "Personal Trainer",
-                    department: "Fitness",
-                    isActive: true,
-                    image: "",
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    user: user, // Include the full user object
-                });
-                employeeCreated = true;
-            } catch (employeeError: any) {
-                // If error is not about duplicate entry, throw it
-                if (!employeeError.message.includes("Unique constraint")) {
-                    throw employeeError;
-                }
-                // If it's duplicate entry, we can proceed
-                employeeCreated = true;
-            }
+        if (!position || !department) {
+            toast.error("Please fill in position and department");
+            return;
+        }
 
-            if (employeeCreated) {
-                try {
-                    // Create personal trainer record
-                    await createTrainerMutation.mutateAsync({
-                        userId: user.id,
-                        isActive: true,
-                        createdBy: user.id,
-                        description: "",
-                    });
-                    
-                    toast.success("Successfully created Personal Trainer");
-                    await utils.personalTrainer.list.invalidate();
-                    await utils.employee.list.invalidate();
-                    onClose();
-                } catch (trainerError: any) {
-                    console.error("Trainer creation error:", trainerError);
-                    if (trainerError.message.includes("Unique constraint")) {
-                        toast.error("This user is already a Personal Trainer");
-                    } else {
-                        toast.error("Failed to create Personal Trainer: " + trainerError.message);
-                    }
+        try {
+            await createEmployeeMutation.mutateAsync({
+                userId: user.id,
+                position,
+                department,
+                isActive: true,
+                id: user.id,
+                image: "",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                user: {
+                    name: user.name,
+                    email: user.email,
+                    address: user.address || "",
+                    phone: user.phone || "",
+                    birthDate: user.birthDate || new Date(),
+                    idNumber: user.idNumber || "",
                 }
-            }
-        } catch (error: any) {
+            });
+
+            onSelectUser(user);
+            onClose();
+        } catch (error) {
             console.error("Error in handleUserSelect:", error);
-            toast.error("Failed to process: " + error.message);
+            toast.error("Failed to create employee record");
         }
     };
 
@@ -131,11 +101,39 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[800px]">
+            <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Select User</DialogTitle>
                 </DialogHeader>
-                <div className="py-4">
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="position" className="block text-sm font-medium mb-1">
+                                Position
+                            </label>
+                            <Input
+                                id="position"
+                                type="text"
+                                value={position}
+                                onChange={(e) => setPosition(e.target.value)}
+                                className="w-full"
+                                placeholder="Enter position"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="department" className="block text-sm font-medium mb-1">
+                                Department
+                            </label>
+                            <Input
+                                id="department"
+                                type="text"
+                                value={department}
+                                onChange={(e) => setDepartment(e.target.value)}
+                                className="w-full"
+                                placeholder="Enter department"
+                            />
+                        </div>
+                    </div>
                     <DataTable
                         data={{
                             items: users.items,

@@ -4,24 +4,12 @@ import { UserEmployee } from "./schema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/trpc/react";
 import { useState } from "react";
-
-type User = {
-    id: string;
-    name: string;
-    email: string;
-    address?: string;
-    phone?: string;
-    birthDate?: Date;
-    idNumber?: string;
-};
 
 type EmployeeFormProps = {
     newEmployee: UserEmployee;
     onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onSelectUser: (userId: string) => void;
     onCreateOrUpdateEmployee: () => void;
     isEditMode: boolean;
 };
@@ -29,22 +17,16 @@ type EmployeeFormProps = {
 export const EmployeeForm: React.FC<EmployeeFormProps> = ({
     newEmployee,
     onInputChange,
-    onSelectUser,
     onCreateOrUpdateEmployee,
     isEditMode,
 }) => {
-    const [search, setSearch] = useState("");
-    const [searchColumn, setSearchColumn] = useState("");
-
-    const { data: users = [] } = api.user.list.useQuery({
-        page: 1,
-        limit: 100,
-        search,
-        searchColumn,
-    });
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onInputChange(e);
+    // Helper function to format date for input
+    const formatDateForInput = (date: Date | string | null | undefined) => {
+        if (!date) return "";
+        if (typeof date === 'string') {
+            return date.split('T')[0];
+        }
+        return date.toISOString().split('T')[0];
     };
 
     return (
@@ -57,25 +39,44 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
 
             <div className="flex flex-col gap-4 py-8">
                 <div>
-                    <label htmlFor="user" className="block text-sm font-medium">
-                        User
+                    <label htmlFor="name" className="block text-sm font-medium">
+                        Name
                     </label>
-                    <Select
-                        value={newEmployee.userId}
-                        onValueChange={onSelectUser}
-                        disabled={isEditMode}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a user" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {users.items?.map((user: User) => (
-                                <SelectItem key={user.id} value={user.id}>
-                                    {user.name || 'Unnamed'} - {user.email || 'No email'}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Input
+                        id="name"
+                        name="name"
+                        value={newEmployee.name}
+                        onChange={onInputChange}
+                        placeholder="Enter name"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="email" className="block text-sm font-medium">
+                        Email
+                    </label>
+                    <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={newEmployee.email}
+                        onChange={onInputChange}
+                        placeholder="Enter email"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="password" className="block text-sm font-medium">
+                        Password
+                    </label>
+                    <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        value={newEmployee.password}
+                        onChange={onInputChange}
+                        placeholder="Enter password"
+                    />
                 </div>
 
                 <div>
@@ -86,7 +87,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         id="position"
                         name="position"
                         value={newEmployee.position || ""}
-                        onChange={handleInputChange}
+                        onChange={onInputChange}
                         placeholder="Enter position"
                     />
                 </div>
@@ -99,21 +100,60 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         id="department"
                         name="department"
                         value={newEmployee.department || ""}
-                        onChange={handleInputChange}
+                        onChange={onInputChange}
                         placeholder="Enter department"
                     />
                 </div>
 
                 <div>
-                    <label htmlFor="image" className="block text-sm font-medium">
-                        Image URL
+                    <label htmlFor="address" className="block text-sm font-medium">
+                        Address
                     </label>
                     <Input
-                        id="image"
-                        name="image"
-                        value={newEmployee.image || ""}
-                        onChange={handleInputChange}
-                        placeholder="Enter image URL"
+                        id="address"
+                        name="address"
+                        value={newEmployee.address || ""}
+                        onChange={onInputChange}
+                        placeholder="Enter address"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="phone" className="block text-sm font-medium">
+                        Phone
+                    </label>
+                    <Input
+                        id="phone"
+                        name="phone"
+                        value={newEmployee.phone || ""}
+                        onChange={onInputChange}
+                        placeholder="Enter phone"
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="birthDate" className="block text-sm font-medium">
+                        Birth Date
+                    </label>
+                    <Input
+                        id="birthDate"
+                        name="birthDate"
+                        type="date"
+                        value={formatDateForInput(newEmployee.birthDate)}
+                        onChange={onInputChange}
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="idNumber" className="block text-sm font-medium">
+                        ID Number
+                    </label>
+                    <Input
+                        id="idNumber"
+                        name="idNumber"
+                        value={newEmployee.idNumber || ""}
+                        onChange={onInputChange}
+                        placeholder="Enter ID number"
                     />
                 </div>
             </div>
@@ -123,7 +163,6 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                     type="button"
                     onClick={onCreateOrUpdateEmployee}
                     className="bg-infinity"
-                    disabled={!newEmployee.userId}
                 >
                     {isEditMode ? "Update" : "Create"} Employee
                 </Button>

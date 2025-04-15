@@ -23,13 +23,14 @@ export default function PersonalTrainerPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState<UserPersonalTrainer | null>(null);
   const [newTrainer, setNewTrainer] = useState<UserPersonalTrainer>({
-   
     name: "",
     email: "",
     address: "",
     phone: "",
     birthDate: new Date(),
     idNumber: "",
+    password: "",
+    description: "",
   });
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
@@ -53,6 +54,21 @@ export default function PersonalTrainerPage() {
     },
   });
   const updateTrainerMutation = api.personalTrainer.update.useMutation();
+  const createEmployeeMutation = api.employee.create.useMutation({
+    onSuccess: (data) => {
+      console.log("Employee creation success:", data);
+      toast.success("Employee record created successfully");
+      utils.employee.list.invalidate();
+    },
+    onError: (error) => {
+      console.error("Employee creation error details:", {
+        message: error.message,
+        data: error.data,
+        shape: error.shape,
+      });
+      toast.error(`Error creating employee: ${error.message}`);
+    },
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -98,16 +114,46 @@ export default function PersonalTrainerPage() {
           setIsEditMode(false);
           setSelectedTrainer(null);
         } else if (selectedUserId) {
-          await createTrainerMutation.mutateAsync({
+          console.log("Starting creation process with selected user:", selectedUserId);
+          
+          // Create personal trainer first
+          const trainer = await createTrainerMutation.mutateAsync({
             userId: selectedUserId,
             isActive: true,
             createdBy: selectedUserId,
           });
 
+          console.log("Trainer created successfully:", trainer);
+
+          // Then create employee record
+          try {
+            console.log("Attempting to create employee record...");
+            const employee = await createEmployeeMutation.mutateAsync({
+              userId: selectedUserId,
+              position: "Personal Trainer",
+              department: "Fitness",
+              isActive: true,
+            });
+            console.log("Employee created successfully:", employee);
+          } catch (employeeError) {
+            console.error("Detailed employee creation error:", {
+              error: employeeError,
+              message: employeeError.message,
+              stack: employeeError.stack,
+            });
+            // If employee creation fails, we should rollback the trainer creation
+            await utils.personalTrainer.remove.mutateAsync({ id: trainer.id });
+            throw employeeError;
+          }
+
           await utils.personalTrainer.list.invalidate();
+          await utils.employee.list.invalidate();
           setSelectedUserId(null);
           setIsSheetOpen(false);
         } else {
+          console.log("Starting creation process with new user");
+          
+          // Create new user with password
           const user = await createUserMutation.mutateAsync({
             name: newTrainer.name,
             email: newTrainer.email,
@@ -115,15 +161,44 @@ export default function PersonalTrainerPage() {
             phone: newTrainer.phone,
             birthDate: newTrainer.birthDate,
             idNumber: newTrainer.idNumber,
+            password: newTrainer.password,
           });
 
-          await createTrainerMutation.mutateAsync({
+          console.log("User created successfully:", user);
+
+          // Create employee record first
+          try {
+            console.log("Attempting to create employee record...");
+            const employee = await createEmployeeMutation.mutateAsync({
+              id: user.id,
+              userId: user.id,
+              position: "Personal Trainer",
+              department: "Fitness",
+              isActive: true,
+              image: "",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              user: user,
+            });
+            console.log("Employee created successfully:", employee);
+          } catch (employeeError) {
+            console.error("Employee creation error:", employeeError);
+            // If employee creation fails, we should rollback user creation
+            await utils.user.remove.mutateAsync({ id: user.id });
+            throw employeeError;
+          }
+
+          // Create personal trainer
+          const trainer = await createTrainerMutation.mutateAsync({
             userId: user.id,
             isActive: true,
             createdBy: user.id,
           });
 
+          console.log("Trainer created successfully:", trainer);
+
           await utils.personalTrainer.list.invalidate();
+          await utils.employee.list.invalidate();
           setNewTrainer({
             name: "",
             email: "",
@@ -131,6 +206,8 @@ export default function PersonalTrainerPage() {
             phone: "",
             birthDate: new Date(),
             idNumber: "",
+            password: "",
+            description: "",
           });
           setIsSheetOpen(false);
         }
@@ -142,8 +219,12 @@ export default function PersonalTrainerPage() {
         error: (error) => error instanceof Error ? error.message : String(error),
       });
     } catch (error) {
+      console.error("Detailed error in handleCreateOrUpdateTrainer:", {
+        error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       toast.error(error instanceof Error ? error.message : String(error));
-      console.error("Error creating trainer:", error);
     }
   };
 

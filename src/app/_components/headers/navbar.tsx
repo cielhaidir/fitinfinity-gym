@@ -1,12 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-// import { Drawer, DrawerContent, DrawerClose } from "";
 import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
 import { ModeToggle } from "../mode-toggle";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { NavUser } from "./nav-user";
+import Image from "next/image";
+import { LayoutDashboard } from "lucide-react";
 
 export default function Navbar({ user }: { user?: any; }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -34,96 +35,125 @@ export default function Navbar({ user }: { user?: any; }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
+  // Base navigation links
+  const baseNavLinks = [
+    { name: "Home", href: "/" },
+    { name: "Program", href: "#program" },
+    { name: "Pricing", href: "#pricing" },
+  ];
+
+  // Add dashboard link if user is logged in
+  const navLinks = user 
+    ? [...baseNavLinks, { name: "Dashboard", href: "/dashboard" }]
+    : baseNavLinks;
+
   return (
     <nav
-      className={`fixed top-0 z-50 w-full bg-white p-4 shadow-md transition-transform duration-300 dark:bg-slate-900 ${isVisible ? "translate-y-0 transform" : "-translate-y-full transform"
-        }`}
+      className={`fixed top-0 z-50 w-full transition-transform duration-300 ${
+        isVisible ? "translate-y-0" : "-translate-y-full"
+      }`}
     >
-      <div className="container mx-auto flex items-center justify-between">
-        <div className="text-xl font-bold text-gray-600 dark:text-gray-200">
-          <a href="/">FIT INFINITY</a>
-        </div>
+      <div className="container mx-auto px-6">
+        <div className="flex h-20 items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center space-x-2">
+              <span className="text-xl font-bold text-[#BFFF00]">FIT INFINITY</span>
+            </Link>
+          </div>
 
-        <div className="hidden space-x-8 md:flex">
-          <a
-            href="#services"
-            className="text-gray-600 hover:text-blue-800 dark:text-gray-200 dark:hover:text-blue-800"
-          >
-            Layanan
-          </a>
-          
-          {
-            user && (
-              <a
-                href="admin/dashboard"
-                className="text-gray-600 hover:text-blue-800 dark:text-gray-200 dark:hover:text-blue-800"
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={`text-white hover:text-[#BFFF00] transition-colors flex items-center gap-2
+                  ${link.name === "Dashboard" ? "bg-[#BFFF00] text-black px-4 py-2 rounded-lg hover:bg-[#9FDF00] hover:text-black" : ""}`}
               >
-                Dashboard
-              </a>
-            ) 
-          }
-        </div>
+                {link.name === "Dashboard" && <LayoutDashboard size={18} />}
+                {link.name}
+              </Link>
+            ))}
+          </div>
 
-        <div className="hidden items-center space-x-4 md:flex">
-          {user ? <NavUser user={user} /> : (
-            <Button
-              className="rounded border border-gray-300 text-gray-100"
-              asChild
-            >
-              {/* <Link href="/login">Login</Link> */}
-              <Link href="/api/auth/signin">Login</Link>
+          {/* Auth Buttons */}
+          <div className="hidden md:flex items-center space-x-4">
+            {user ? (
+              <NavUser user={user} />
+            ) : (
+              <div className="flex space-x-4">
+                <Button
+                  variant="outline"
+                  className="border-[#BFFF00] text-[#BFFF00] hover:bg-[#BFFF00] hover:text-black"
+                  asChild
+                >
+                  <Link href="/api/auth/signin">Log in</Link>
+                </Button>
+                <Button
+                  className="bg-[#BFFF00] text-black hover:bg-[#9FDF00]"
+                  asChild
+                >
+                  <Link href="/register">Register</Link>
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center space-x-4">
+            {user && (
+              <Link
+                href="/dashboard"
+                className="bg-[#BFFF00] text-black p-2 rounded-lg hover:bg-[#9FDF00]"
+              >
+                <LayoutDashboard size={20} />
+              </Link>
+            )}
+            <Button onClick={toggleDrawer} variant="ghost" className="text-white">
+              ☰
             </Button>
-          )}
-          <ModeToggle />
-        </div>
-
-        <div className="md:hidden flex items-center space-x-4">
-          <Button onClick={toggleDrawer} variant="ghost">
-            ☰
-          </Button>
-          <NavUser user={user} />
+          </div>
         </div>
       </div>
 
+      {/* Mobile Drawer */}
       <Drawer open={isDrawerOpen} onClose={toggleDrawer}>
-        <DrawerContent>
-          <div className="flex items-center justify-between p-4">
-            <div className="text-xl font-bold">Menu</div>
-            <DrawerClose onClick={toggleDrawer}>&times;</DrawerClose>
+        <DrawerContent className="bg-black p-6">
+          <div className="flex items-center justify-between mb-8">
+            <span className="text-xl font-bold text-[#BFFF00]">Menu</span>
+            <DrawerClose onClick={toggleDrawer} className="text-white">&times;</DrawerClose>
           </div>
-          <div className="space-y-4 p-4">
-            <a
-              href="/layanan"
-              className="block text-gray-600 hover:text-gray-800"
-            >
-              Layanan
-            </a>
-            <a
-              href="/konsultan"
-              className="block text-gray-600 hover:text-gray-800"
-            >
-              Konsultan
-            </a>
-            <a
-              href="/artikel"
-              className="block text-gray-600 hover:text-gray-800"
-            >
-              Artikel
-            </a>
-            <a
-              href="/kontak"
-              className="block text-gray-600 hover:text-gray-800"
-            >
-              Kontak
-            </a>
-            {user ? <></> : (
-            <Button
-              className="rounded border border-gray-300 text-gray-100"
-              asChild
-            >
-              <Link href="/auth/sign-in">Login</Link>
-            </Button>
-          )}
+          <div className="flex flex-col space-y-4">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={`flex items-center gap-2 text-white hover:text-[#BFFF00] transition-colors py-2
+                  ${link.name === "Dashboard" ? "bg-[#BFFF00] text-black px-4 rounded-lg hover:bg-[#9FDF00] hover:text-black" : ""}`}
+                onClick={toggleDrawer}
+              >
+                {link.name === "Dashboard" && <LayoutDashboard size={18} />}
+                {link.name}
+              </Link>
+            ))}
+            {!user && (
+              <div className="flex flex-col space-y-4 pt-4">
+                <Button
+                  variant="outline"
+                  className="border-[#BFFF00] text-[#BFFF00] hover:bg-[#BFFF00] hover:text-black w-full"
+                  asChild
+                >
+                  <Link href="/api/auth/signin">Log in</Link>
+                </Button>
+                <Button
+                  className="bg-[#BFFF00] text-black hover:bg-[#9FDF00] w-full"
+                  asChild
+                >
+                  <Link href="/register">Register</Link>
+                </Button>
+              </div>
+            )}
           </div>
         </DrawerContent>
       </Drawer>

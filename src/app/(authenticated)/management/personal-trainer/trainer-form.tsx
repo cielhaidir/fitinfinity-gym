@@ -80,6 +80,18 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
                             />
                         </div>
                         <div>
+                            <label htmlFor="password" className="block text-sm font-medium">
+                                Password
+                            </label>
+                            <Input
+                                id="password"
+                                name="password"
+                                type="password"
+                                value={newTrainer.password}
+                                onChange={onInputChange}
+                            />
+                        </div>
+                        <div>
                             <label htmlFor="address" className="block text-sm font-medium">
                                 Address
                             </label>
