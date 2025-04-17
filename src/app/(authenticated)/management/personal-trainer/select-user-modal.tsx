@@ -131,11 +131,11 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[800px]">
+            <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Select User</DialogTitle>
                 </DialogHeader>
-                <div className="py-4">
+                <div className="py-2">
                     <DataTable
                         data={{
                             items: users.items,

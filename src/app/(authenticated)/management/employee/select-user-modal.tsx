@@ -101,11 +101,11 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Select User</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div className="space-y-4 py-2">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="position" className="block text-sm font-medium mb-1">

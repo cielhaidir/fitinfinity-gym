@@ -305,7 +305,23 @@ model Employee {
     isActive    Boolean   @default(true)
     createdAt   DateTime  @default(now())
     updatedAt   DateTime  @updatedAt
+    attendances Attendance[]
 
     user        User      @relation("EmployeeToUser", fields: [userId], references: [id])
+}
+
+model Attendance {
+    id          String    @id @default(cuid())
+    employeeId  String
+    checkIn     DateTime
+    checkOut    DateTime?
+    date        DateTime  @default(now())
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    employee    Employee  @relation(fields: [employeeId], references: [id])
+
+    @@index([date])
+    @@index([employeeId])
 }
 
