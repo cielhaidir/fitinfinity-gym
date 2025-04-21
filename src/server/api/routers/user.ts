@@ -9,82 +9,52 @@ import {
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { uploadProfileImage } from "@/utils/minio";
 import { createModelLogger } from "@/utils/logger";
-import { add } from "winston";
+import { hash } from "bcryptjs";
 
 const userLogger = createModelLogger("User");
 
+const createUserSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    birthDate: z.date().optional(),
+});
 
 export const userRouter = createTRPCRouter({
     
-    create: protectedProcedure
-    .input(z.object({ 
-        name: z.string().min(1),
-        email: z.string().email(),
-        file: z.string().optional(), // File tetap opsional
-        address: z.string().optional(),
-        phone: z.string().optional(),
-        birthDate: z.date().optional(),
-        idNumber: z.string().optional(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-        const sessionUserId = ctx.session.user.id;
-        const sessionUserName = ctx.session.user.name;
+    create: publicProcedure
+        .input(createUserSchema)
+        .mutation(async ({ ctx, input }) => {
+            const { name, email, password, address, phone, birthDate } = input;
 
-        let image = null; // Default tanpa file
+            // Check if user already exists
+            const existingUser = await ctx.db.user.findUnique({
+                where: { email },
+            });
 
-        if (input.file) {
-            // Validasi format file hanya jika file ada
-            if (!input.file.startsWith("data:") || !input.file.includes(";base64,")) {
-                throw new Error("Invalid file format");
+            if (existingUser) {
+                throw new Error("User with this email already exists");
             }
 
-            const [fileType, fileContent] = input.file.split(",");
-            const mimeTypeMatch = fileType?.match(/data:(.*?);base64/);
-            if (!mimeTypeMatch) {
-                throw new Error("Invalid file type");
-            }
+            // Hash password
+            const hashedPassword = await hash(password, 12);
 
-            const mimeType = mimeTypeMatch[1];
-            if (!mimeType) {
-                throw new Error("Mime type is undefined");
-            }
-
-            const fileName = `${input.name}-${Date.now()}.${mimeType.split("/")[1]}`;
-
-            try {
-                image = await uploadProfileImage(sessionUserId, fileName, fileContent);
-            } catch (error) {
-                userLogger.error(
-                    `User ${sessionUserName} (${sessionUserId}) encountered an error while uploading image: ${(error as Error).message}`
-                );
-                throw new Error(`Failed to upload image: ${(error as Error).message}`);
-            }
-        }
-
-        try {
-            // Buat user tanpa atau dengan gambar
+            // Create user
             const user = await ctx.db.user.create({
                 data: {
-                    name: input.name,
-                    email: input.email,
-                    image, // Jika `image` tetap null, kolom akan tetap kosong
+                    name,
+                    email,
+                    password: hashedPassword,
+                    address,
+                    phone,
+                    birthDate,
                 },
             });
 
-            userLogger.info(
-                `User ${sessionUserName} (${sessionUserId}) successfully created a user at ${new Date().toISOString()}: ${JSON.stringify(user)}`
-            );
-
             return user;
-        } catch (error) {
-            userLogger.error(
-                `User ${sessionUserName} (${sessionUserId}) encountered an error while creating a user: ${(error as Error).message}`
-            );
-            throw new Error(`Failed to create user: ${(error as Error).message}`);
-        }
-    }),
-
-
+        }),
 
     read: publicProcedure
         .input(z.object({ id: z.string() }))

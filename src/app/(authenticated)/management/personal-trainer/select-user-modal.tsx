@@ -18,6 +18,8 @@ type SelectUserModalProps = {
 export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: SelectUserModalProps) => {
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
     const utils = api.useUtils();
 
     const createEmployeeMutation = api.employee.create.useMutation({
@@ -99,11 +101,22 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
     };
 
     const { data: users = { items: [], total: 0, page: 1, limit: 10 } } = api.user.list.useQuery({
-        page: 1,
-        limit: 10,
+        page,
+        limit,
         search,
         searchColumn,
+    }, {
+        keepPreviousData: true
     });
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage);
+    };
+
+    const handleLimitChange = (newLimit: number) => {
+        setLimit(newLimit);
+        setPage(1); // Reset to first page when changing limit
+    };
 
     const columns = [
         {
@@ -116,7 +129,7 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
         },
         {
             id: "actions",
-            cell: ({ row }) => {
+            cell: ({ row }: { row: { original: User } }) => {
                 return (
                     <Button
                         variant="outline"
@@ -151,7 +164,11 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
                         onSearch={(value, column) => {
                             setSearch(value);
                             setSearchColumn(column);
+                            setPage(1);
                         }}
+                        onPageChange={handlePageChange}
+                        onLimitChange={handleLimitChange}
+                        pageSizeOptions={[10, 20, 50, 100]}
                     />
                 </div>
                 <div className="flex justify-end mt-4">
@@ -166,4 +183,4 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
             </DialogContent>
         </Dialog>
     );
-}; 
+};

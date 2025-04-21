@@ -1,17 +1,44 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/trpc/react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    name: "",
     email: "",
     password: "",
     confirmPassword: "",
+    address: "",
+    phone: "",
+    birthDate: new Date().toISOString().split('T')[0], // Set initial value to today's date
   });
   const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  useEffect(() => {
+    if (formData.confirmPassword && formData.password !== formData.confirmPassword) {
+      setPasswordError("Passwords do not match");
+    } else {
+      setPasswordError("");
+    }
+  }, [formData.password, formData.confirmPassword]);
+
+  const createUserMutation = api.user.create.useMutation({
+    onSuccess: () => {
+      toast.success("Account created successfully! Please sign in.");
+      router.push("/auth/signin");
+    },
+    onError: (error) => {
+      setError(error.message);
+      toast.error(error.message);
+    },
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -22,26 +49,27 @@ export default function SignUpPage() {
     setError(""); // Clear error when user types
   };
 
-  const validatePassword = (password: string) => {
-    const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
-    return regex.test(password);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validatePassword(formData.password)) {
-      setError("Password must be at least 8 characters with a mix of letters, numbers, and symbols.");
-      return;
-    }
-
+    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match. Please try again.");
+      setError("Passwords do not match");
       return;
     }
 
-    // Handle form submission
-    // Add your signup logic here
+    try {
+      await createUserMutation.mutateAsync({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        address: formData.address,
+        phone: formData.phone,
+        birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
+      });
+    } catch (error) {
+      console.error("Signup error:", error);
+    }
   };
 
   const handleGoogleSignUp = () => {
@@ -76,34 +104,19 @@ export default function SignUpPage() {
                     <p className="text-sm text-red-500">{error}</p>
                   )}
                   
-                  {/* First Name and Last Name */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                        First Name
-                      </label>
-                      <input
-                        type="text"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        placeholder="First Name"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                        Last Name
-                      </label>
-                      <input
-                        type="text"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        placeholder="Last Name"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
-                      />
-                    </div>
+                  {/* Name Field */}
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Name
+                    </label>
+                    <Input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="Full Name"
+                      required
+                    />
                   </div>
 
                   {/* Email Field */}
@@ -111,13 +124,13 @@ export default function SignUpPage() {
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                       Email
                     </label>
-                    <input
+                    <Input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="example@example.com"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
+                      required
                     />
                   </div>
 
@@ -126,13 +139,13 @@ export default function SignUpPage() {
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                       Password
                     </label>
-                    <input
+                    <Input
                       type="password"
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="********"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
+                      required
                     />
                   </div>
 
@@ -141,17 +154,60 @@ export default function SignUpPage() {
                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                       Confirm Password
                     </label>
-                    <input
+                    <Input
                       type="password"
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       placeholder="********"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
+                      required
+                      className={passwordError ? "border-red-500 focus-visible:ring-red-500" : ""}
                     />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      It must be a combination of minimum 8 letters, numbers, and symbols.
-                    </p>
+                    {passwordError && (
+                      <p className="text-sm text-red-500 mt-1">{passwordError}</p>
+                    )}
+                  </div>
+
+                  {/* Address Field */}
+                  <div>
+                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Address
+                    </label>
+                    <Input
+                      type="text"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      placeholder="Address"
+                    />
+                  </div>
+
+                  {/* Phone Field */}
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Phone
+                    </label>
+                    <Input
+                      type="text"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="Phone Number"
+                    />
+                  </div>
+
+                  {/* Birth Date Field */}
+                  <div>
+                    <label htmlFor="birthDate" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      Birth Date
+                    </label>
+                    <Input
+                      type="date"
+                      name="birthDate"
+                      value={formData.birthDate}
+                      onChange={handleChange}
+                      className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    />
                   </div>
 
                   {/* Sign Up Button */}
