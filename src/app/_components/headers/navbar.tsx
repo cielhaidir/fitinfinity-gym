@@ -42,11 +42,6 @@ export default function Navbar({ user }: { user?: any; }) {
     { name: "Pricing", href: "#pricing" },
   ];
 
-  // Add dashboard link if user is logged in
-  const navLinks = user 
-    ? [...baseNavLinks, { name: "Dashboard", href: "/dashboard" }]
-    : baseNavLinks;
-
   return (
     <nav
       className={`fixed top-0 z-50 w-full transition-transform duration-300 ${
@@ -64,14 +59,12 @@ export default function Navbar({ user }: { user?: any; }) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
+            {baseNavLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-white hover:text-[#BFFF00] transition-colors flex items-center gap-2
-                  ${link.name === "Dashboard" ? "bg-[#BFFF00] text-black px-4 py-2 rounded-lg hover:bg-[#9FDF00] hover:text-black" : ""}`}
+                className="text-white hover:text-[#BFFF00] transition-colors"
               >
-                {link.name === "Dashboard" && <LayoutDashboard size={18} />}
                 {link.name}
               </Link>
             ))}
@@ -104,7 +97,7 @@ export default function Navbar({ user }: { user?: any; }) {
           <div className="md:hidden flex items-center space-x-4">
             {user && (
               <Link
-                href="/dashboard"
+                href="/member/dashboard"
                 className="bg-[#BFFF00] text-black p-2 rounded-lg hover:bg-[#9FDF00]"
               >
                 <LayoutDashboard size={20} />
@@ -125,15 +118,13 @@ export default function Navbar({ user }: { user?: any; }) {
             <DrawerClose onClick={toggleDrawer} className="text-white">&times;</DrawerClose>
           </div>
           <div className="flex flex-col space-y-4">
-            {navLinks.map((link) => (
+            {baseNavLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`flex items-center gap-2 text-white hover:text-[#BFFF00] transition-colors py-2
-                  ${link.name === "Dashboard" ? "bg-[#BFFF00] text-black px-4 rounded-lg hover:bg-[#9FDF00] hover:text-black" : ""}`}
+                className="text-white hover:text-[#BFFF00] transition-colors py-2"
                 onClick={toggleDrawer}
               >
-                {link.name === "Dashboard" && <LayoutDashboard size={18} />}
                 {link.name}
               </Link>
             ))}

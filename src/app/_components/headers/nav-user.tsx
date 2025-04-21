@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { signOut } from "next-auth/react"
 import Link from "next/link"
+import { api } from "@/trpc/react"
 
 export function NavUser({
     user,
@@ -35,11 +36,15 @@ export function NavUser({
         image: string
     }
 }) {
+    const { data: profile } = api.profile.get.useQuery(undefined, {
+        enabled: !!user,
+    })
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger className="outline-none">
                 <Avatar className="h-10 w-10 border-2 border-[#BFFF00] hover:border-[#9FDF00] transition-colors">
-                    <AvatarImage src={user?.image} alt={user?.name} />
+                    <AvatarImage src={profile?.image || user?.image} alt={user?.name} />
                     <AvatarFallback className="bg-[#BFFF00] text-black font-semibold">
                         {user?.name?.charAt(0)}
                     </AvatarFallback>
@@ -54,7 +59,7 @@ export function NavUser({
                 <DropdownMenuLabel className="p-0">
                     <div className="flex items-center gap-3 p-4">
                         <Avatar className="h-10 w-10 border-2 border-[#BFFF00]">
-                            <AvatarImage src={user?.image} alt={user?.name} />
+                            <AvatarImage src={profile?.image || user?.image} alt={user?.name} />
                             <AvatarFallback className="bg-[#BFFF00] text-black font-semibold">
                                 {user?.name?.charAt(0)}
                             </AvatarFallback>
@@ -78,7 +83,7 @@ export function NavUser({
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <Link 
-                            href="/profile"
+                            href="/member/profile"
                             className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 hover:text-[#BFFF00] w-full"
                         >
                             <User size={18} />

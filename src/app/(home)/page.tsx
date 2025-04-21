@@ -4,7 +4,6 @@ import { HydrateClient } from "@/trpc/server";
 import Navbar from "@/components/headers/navbar";
 import Hero from "./hero";
 import Classes from "./clasess";
-import Trainers from "./trainers";
 import Facilities from "./facilities";
 import Footer from "@/components/footer/footer";
 
@@ -17,7 +16,6 @@ export default async function Home() {
         <Navbar user={session?.user ?? undefined}/>
         <Hero />
         <Classes />
-        <Trainers />
         <Facilities />
         <Footer />
       </main>
