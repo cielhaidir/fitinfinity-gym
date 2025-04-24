@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { format } from "date-fns"
 import { Camera } from "lucide-react"
+import { ChangePasswordDialog } from "./change-password-dialog"
 
 export default function ProfilePage() {
   const { data: session } = useSession()
@@ -225,6 +226,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             </form>
+            <ChangePasswordDialog />
           </div>
         </CardContent>
       </Card>

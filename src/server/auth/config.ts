@@ -3,6 +3,7 @@ import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { uploadProfileImage } from "@/utils/minio";
+import bcrypt from "bcryptjs";
 
 import { db } from "@/server/db";
 
@@ -56,13 +57,18 @@ export const authConfig = {
         if (!user) {
           throw new Error("No user found with the given email");
         }
-        // if (!isPasswordValid) {
-        //   throw new Error("Invalid password");
-        // }
-        
+        // Validate password
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password as string,
+          user.password as string
+        );
+        if (!isPasswordValid) {
+          throw new Error("Invalid password");
+        }
         return {
           id: user.id,
           name: user.name,
+          email: user.email,
         };
       }
     }),

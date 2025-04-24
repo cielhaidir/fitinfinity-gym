@@ -51,7 +51,14 @@ export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Class>[] 
         ),
         cell: ({ row }) => (
             <div className="hidden md:block">
-                {new Date(row.getValue("schedule")).toLocaleString()}
+                {new Date(row.getValue("schedule")).toLocaleString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })}
             </div>
         ),
     },

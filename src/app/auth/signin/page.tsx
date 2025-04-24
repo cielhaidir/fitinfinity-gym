@@ -14,17 +14,45 @@ export default function SignInPage() {
     e.preventDefault();
     setError("");
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    // Validasi dasar
+    if (!email || !password) {
+      setError("Email dan password harus diisi");
+      return;
+    }
 
-    if (result?.error) {
-      setError("Invalid email or password. Please try again.");
-    } else {
-      // Redirect to home page on successful login
-      router.push("/");
+    // Validasi format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Format email tidak valid");
+      return;
+    }
+
+    // Validasi panjang password minimal
+    if (password.length < 6) {
+      setError("Password minimal 6 karakter");
+      return;
+    }
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Email atau password salah. Silakan coba lagi.");
+        return;
+      }
+
+      if (result?.ok) {
+        router.push("/");
+        router.refresh();
+      }
+
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("Terjadi kesalahan saat login. Silakan coba lagi.");
     }
   };
 

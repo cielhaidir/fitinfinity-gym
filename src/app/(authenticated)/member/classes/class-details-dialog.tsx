@@ -14,20 +14,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/trpc/react"
 import { toast } from "sonner"
 import type { Class } from "./types"
+import { useRouter } from "next/navigation"
 
 interface ClassDetailsDialogProps {
     class_: Class | null
     open: boolean
     onOpenChange: (open: boolean) => void
+    hasValidSubscription: boolean
 }
 
 export function ClassDetailsDialog({
     class_,
     open,
     onOpenChange,
+    hasValidSubscription,
 }: ClassDetailsDialogProps) {
     const [activeTab, setActiveTab] = useState("details")
     const utils = api.useUtils()
+    const router = useRouter()
 
     const registerMutation = api.memberClass.register.useMutation({
         onSuccess: () => {
@@ -65,6 +69,18 @@ export function ClassDetailsDialog({
         (member) => member.member.user.name === class_.trainer.user.name
     )
 
+    const handleRegister = () => {
+        if (!hasValidSubscription) {
+            // Redirect to payment page
+            router.push(`/checkout/class/${class_.id}`)
+            return
+        }
+        
+        if (class_?.id) {
+            registerMutation.mutate({ classId: class_.id })
+        }
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
@@ -91,8 +107,18 @@ export function ClassDetailsDialog({
                             <p><strong>Duration:</strong> {class_.duration} minutes</p>
                             <p><strong>Capacity:</strong> {class_.limit ?? "Unlimited"}</p>
                             <p><strong>Available Spots:</strong> {class_.limit ? class_.limit - registeredCount : "∞"}</p>
-                            <p><strong>Schedule:</strong> {new Date(class_.schedule).toLocaleString()}</p>
+                            <p><strong>Schedule:</strong> {new Date(class_.schedule).toLocaleString('id-ID', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}</p>
                             <p><strong>Waiting List:</strong> {waitlistCount} members</p>
+                            {!hasValidSubscription && (
+                                <p><strong>Price:</strong> Rp {class_.price.toLocaleString('id-ID')}</p>
+                            )}
                         </div>
                     </TabsContent>
 
@@ -135,15 +161,11 @@ export function ClassDetailsDialog({
                         </Button>
                     ) : (
                         <Button
-                            onClick={() => {
-                                if (class_?.id) {
-                                    registerMutation.mutate({ classId: class_.id })
-                                }
-                            }}
+                            onClick={handleRegister}
                             disabled={registerMutation.isPending}
                             className="bg-infinity"
                         >
-                            Register for Class
+                            {hasValidSubscription ? "Register for Class" : "Pay & Register"}
                         </Button>
                     )}
                 </DialogFooter>

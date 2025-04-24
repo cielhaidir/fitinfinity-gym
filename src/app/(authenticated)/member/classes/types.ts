@@ -5,6 +5,7 @@ export interface Class {
     trainerId: string
     schedule: Date
     duration: number
+    price: number
     trainer: {
         id: string
         userId: string

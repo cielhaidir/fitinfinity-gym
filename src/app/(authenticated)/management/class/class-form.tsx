@@ -116,10 +116,9 @@ export const ClassForm = ({
         onTrainerChange(value);
     };
 
-    const handleScheduleChange = (value: string) => {
-        const newSchedule = new Date(value);
-        setLocalSchedule(newSchedule);
-        onScheduleChange(newSchedule);
+    const handleScheduleChange = (value: Date) => {
+        setLocalSchedule(value);
+        onScheduleChange(value);
     };
 
     const handleDurationChange = (value: string) => {
@@ -227,7 +226,12 @@ export const ClassForm = ({
                         type="datetime-local"
                         id="schedule"
                         value={localSchedule.toISOString().slice(0, 16)}
-                        onChange={(e) => handleScheduleChange(e.target.value)}
+                        onChange={(e) => {
+                            const date = new Date(e.target.value);
+                            // Adjust for timezone offset
+                            const adjustedDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+                            handleScheduleChange(adjustedDate);
+                        }}
                     />
                 </div>
 

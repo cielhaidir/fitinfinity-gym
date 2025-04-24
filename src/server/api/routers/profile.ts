@@ -2,6 +2,7 @@ import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
 import { uploadFile } from "@/lib/upload"
+import bcrypt from "bcryptjs"
 
 export const profileRouter = createTRPCRouter({
   get: protectedProcedure
@@ -71,5 +72,51 @@ export const profileRouter = createTRPCRouter({
           message: "Failed to upload image",
         })
       }
+    }),
+
+  changePassword: protectedProcedure
+    .input(
+      z.object({
+        currentPassword: z.string().min(1, "Current password is required"),
+        newPassword: z.string().min(6, "New password must be at least 6 characters"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+      });
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // Verify current password
+      const isPasswordValid = await bcrypt.compare(
+        input.currentPassword,
+        user.password as string
+      );
+
+      if (!isPasswordValid) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Current password is incorrect",
+        });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(input.newPassword, 10);
+
+      // Update password
+      await ctx.db.user.update({
+        where: { id: ctx.session.user.id },
+        data: {
+          password: hashedPassword,
+        },
+      });
+
+      return { success: true };
     }),
 }) 
