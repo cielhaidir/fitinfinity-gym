@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +18,19 @@ interface AppointmentFormProps {
 }
 
 export default function AppointmentForm({ selectedDate, onClose }: AppointmentFormProps) {
+  const { data: session } = useSession();
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [time, setTime] = useState('09:00');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState('60'); // Default 60 minutes
   const [formattedDate, setFormattedDate] = useState('');
 
-  const { data: members, isLoading: isMembersLoading } = api.member.getAll.useQuery();
+  const { data: members, isLoading: isMembersLoading } = api.personalTrainer.getMembers.useQuery(undefined, {
+    enabled: !!session,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0,
+  });
   
   const utils = api.useUtils();
   
@@ -32,6 +39,7 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       toast.success("Jadwal berhasil ditambahkan");
       // Refresh data
       utils.trainerSession.getAll.invalidate();
+      utils.personalTrainer.getMembers.invalidate(); // Refresh member list to update remaining sessions
       // Reset form
       setSelectedMemberId('');
       setDescription('');
@@ -54,6 +62,13 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
     
     if (!selectedDate || !selectedMemberId) {
       toast.error("Mohon isi semua field yang diperlukan");
+      return;
+    }
+
+    // Check if member has remaining sessions
+    const selectedMember = members?.find(member => member.id === selectedMemberId);
+    if (selectedMember && selectedMember.remainingSessions <= 0) {
+      toast.error("Member tidak memiliki sisa sesi yang tersedia");
       return;
     }
 
@@ -149,7 +164,7 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
             ) : (
               members?.map((member) => (
                 <SelectItem key={member.id} value={member.id}>
-                  {member.user.name}
+                  {member.name}
                 </SelectItem>
               ))
             )}

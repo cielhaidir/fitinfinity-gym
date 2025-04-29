@@ -142,4 +142,62 @@ export const personalTrainerRouter = createTRPCRouter({
                 }
             });
         }),
+
+    getMembers: protectedProcedure
+        .query(async ({ ctx }) => {
+            console.log('Getting members for trainer');
+            
+            // Get the personal trainer's ID
+            const personalTrainer = await ctx.db.personalTrainer.findFirst({
+                where: {
+                    userId: ctx.session.user.id,
+                    isActive: true,
+                },
+            });
+
+            if (!personalTrainer) {
+                console.log('No active trainer found');
+                return [];
+            }
+
+            console.log('Found trainer:', personalTrainer.id);
+
+            // Get all subscriptions for this personal trainer
+            const subscriptions = await ctx.db.subscription.findMany({
+                where: {
+                    trainerId: personalTrainer.id,
+                },
+                orderBy: {
+                    remainingSessions: 'desc'
+                },
+                include: {
+                    member: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                    email: true,
+                                    phone: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            console.log('Found subscriptions:', subscriptions.map(s => ({
+                memberId: s.memberId,
+                remainingSessions: s.remainingSessions
+            })));
+
+            // Transform the data to match the frontend interface
+            return subscriptions.map((subscription) => ({
+                id: subscription.member.id,
+                name: subscription.member.user.name || "",
+                email: subscription.member.user.email || "",
+                phone: subscription.member.user.phone || "",
+                remainingSessions: subscription.remainingSessions || 0,
+                subscriptionEndDate: subscription.endDate?.toISOString() || "",
+            }));
+        }),
 }); 

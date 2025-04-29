@@ -93,6 +93,8 @@ model User {
     updatedAt          DateTime     @updatedAt
     point              Int          @default(0)
     employee           Employee?    @relation("EmployeeToUser")
+    memberRewards      MemberReward[]
+    voucherClaims      VoucherClaim[]
 }
 
 model Class {
@@ -282,9 +284,34 @@ model Voucher {
     expiryDate    DateTime?   // Optional expiry date for the voucher
     createdAt     DateTime    @default(now())
     updatedAt     DateTime    @updatedAt
+    claims        VoucherClaim[]
 
     @@index([referralCode])
     @@index([type])
+}
+
+model VoucherClaim {
+    id        String   @id @default(cuid())
+    memberId  String
+    voucherId String
+    claimedAt DateTime @default(now())
+    member    User     @relation(fields: [memberId], references: [id])
+    voucher   Voucher  @relation(fields: [voucherId], references: [id])
+
+    @@index([memberId])
+    @@index([voucherId])
+}
+
+model MemberReward {
+    id        String   @id @default(cuid())
+    memberId  String
+    rewardId  String
+    claimedAt DateTime @default(now())
+    member    User     @relation(fields: [memberId], references: [id])
+    reward    Reward   @relation(fields: [rewardId], references: [id])
+
+    @@index([memberId])
+    @@index([rewardId])
 }
 
 model Reward {
@@ -295,6 +322,7 @@ model Reward {
     stock     Int
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+    memberRewards MemberReward[]
 }
 
 model Employee {

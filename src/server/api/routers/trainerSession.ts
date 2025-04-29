@@ -12,6 +12,8 @@ export const trainerSessionRouter = createTRPCRouter({
             description: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
+            console.log('Creating session for member:', input.memberId);
+            
             // Get the trainer ID for the current user
             const trainer = await ctx.db.personalTrainer.findFirst({
                 where: { 
@@ -21,22 +23,84 @@ export const trainerSessionRouter = createTRPCRouter({
             });
 
             if (!trainer) {
+                console.log('Trainer not found or not active');
                 throw new TRPCError({
                     code: 'NOT_FOUND',
                     message: 'Trainer not found or not active'
                 });
             }
 
-            // Create the training session
-            return ctx.db.trainerSession.create({
-                data: {
-                    trainerId: trainer.id,
+            console.log('Found trainer:', trainer.id);
+
+            // Get the member's subscription
+            const subscription = await ctx.db.subscription.findFirst({
+                where: {
                     memberId: input.memberId,
-                    date: input.date,
-                    startTime: input.startTime,
-                    endTime: input.endTime,
-                    description: input.description,
+                    trainerId: trainer.id,
+                },
+                orderBy: {
+                    remainingSessions: 'desc'
                 }
+            });
+
+            if (!subscription) {
+                console.log('No subscription found for member');
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Member does not have a subscription with this trainer'
+                });
+            }
+
+            console.log('Found subscription:', {
+                id: subscription.id,
+                remainingSessions: subscription.remainingSessions,
+                endDate: subscription.endDate
+            });
+
+            if (!subscription.remainingSessions || subscription.remainingSessions <= 0) {
+                console.log('No remaining sessions:', subscription.remainingSessions);
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Member tidak memiliki sisa sesi yang tersedia'
+                });
+            }
+
+            // Create the training session and decrement remaining sessions in a transaction
+            return ctx.db.$transaction(async (tx) => {
+                console.log('Starting transaction');
+                
+                // Create the session
+                const session = await tx.trainerSession.create({
+                    data: {
+                        trainerId: trainer.id,
+                        memberId: input.memberId,
+                        date: input.date,
+                        startTime: input.startTime,
+                        endTime: input.endTime,
+                        description: input.description,
+                    }
+                });
+
+                console.log('Session created:', session.id);
+
+                // Decrement remaining sessions
+                const updatedSubscription = await tx.subscription.update({
+                    where: {
+                        id: subscription.id
+                    },
+                    data: {
+                        remainingSessions: {
+                            decrement: 1
+                        }
+                    }
+                });
+
+                console.log('Updated subscription:', {
+                    id: updatedSubscription.id,
+                    remainingSessions: updatedSubscription.remainingSessions
+                });
+
+                return session;
             });
         }),
 

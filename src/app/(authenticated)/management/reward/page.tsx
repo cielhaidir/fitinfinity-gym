@@ -10,6 +10,8 @@ import { RewardForm } from "./reward-form";
 import { Reward } from "./schema";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
+import { RewardDialog } from "./reward-dialog";
+import { Loader2 } from "lucide-react";
 
 export default function RewardPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -20,9 +22,16 @@ export default function RewardPage() {
     price: 0,
     stock: 0,
   });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const utils = api.useUtils();
-  const { data, isLoading } = api.reward.list.useQuery();
+  const { data, isLoading, error } = api.reward.list.useQuery(
+    { page: 1, limit: 100 },
+    {
+      staleTime: 5000,
+      refetchOnWindowFocus: false
+    }
+  );
   
   const createReward = api.reward.create.useMutation({
     onSuccess: () => {
@@ -95,6 +104,36 @@ export default function RewardPage() {
     }
   };
 
+  const handlePaginationChange = (page: number, limit: number) => {
+    // Handle pagination if needed
+  };
+
+  const handleCreate = () => {
+    setSelectedReward(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setSelectedReward(null);
+    setIsSheetOpen(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-red-500">
+        Error loading rewards: {error.message}
+      </div>
+    );
+  }
+
   const columns = createColumns({
     onEditReward: handleEdit,
     onDeleteReward: (reward) => handleDelete(reward.id),
@@ -108,7 +147,7 @@ export default function RewardPage() {
             Reward Management
           </h2>
           <p className="text-muted-foreground">
-            Manage your rewards and redemption items here
+            Manage rewards that members can claim with their points
           </p>
         </div>
         <Sheet 
@@ -121,7 +160,7 @@ export default function RewardPage() {
           }}
         >
           <SheetTrigger asChild>
-            <Button className="bg-infinity w-full md:w-auto">
+            <Button className="bg-infinity w-full md:w-auto" onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" /> Add Reward
             </Button>
           </SheetTrigger>
@@ -135,31 +174,17 @@ export default function RewardPage() {
         </Sheet>
       </div>
       
-      {isLoading ? (
-        <div>Loading...</div>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={{
-            items: data?.items ?? [],
-            total: data?.total ?? 0,
-            page: data?.page ?? 1,
-            limit: data?.limit ?? 10,
-          }}
-          searchColumns={[
-            { id: "name", placeholder: "Search by name..." },
-            { id: "iconName", placeholder: "Search by icon..." },
-          ]}
-          onSearch={(value, column) => {
-            // Implement search functionality if needed
-            console.log("Search:", value, "Column:", column);
-          }}
-          onPaginationChange={(page, limit) => {
-            // Implement pagination if needed
-            console.log("Page:", page, "Limit:", limit);
-          }}
-        />
-      )}
+      <DataTable
+        columns={columns}
+        data={data || { items: [], total: 0, page: 1, limit: 10 }}
+        onPaginationChange={handlePaginationChange}
+      />
+
+      <RewardDialog
+        open={isDialogOpen}
+        onOpenChange={handleCloseDialog}
+        reward={selectedReward}
+      />
     </div>
   );
 } 

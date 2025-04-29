@@ -14,9 +14,11 @@ import { memberUcRouter } from "./routers/member-uc";
 import { trainerSessionRouter } from "./routers/trainerSession";
 import { voucherRouter } from "./routers/voucher";
 import { rewardRouter } from "./routers/reward";
+import { memberRewardRouter } from "./routers/memberReward";
 import { employeeRouter } from "./routers/employee";
 import { attendanceRouter } from "./routers/attendance";
 import { profileRouter } from "./routers/profile";
+
 
 /**
  * This is the primary router for your server.
@@ -39,6 +41,7 @@ export const appRouter = createTRPCRouter({
   trainerSession: trainerSessionRouter,
   voucher: voucherRouter,
   reward: rewardRouter,
+  memberReward: memberRewardRouter,
   employee: employeeRouter,
   attendance: attendanceRouter,
   profile: profileRouter,

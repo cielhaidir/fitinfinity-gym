@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import * as LucideIcons from "lucide-react";
+import { DataTableRowActions } from "@/components/datatable/data-table-row-actions";
+import { Badge } from "@/components/ui/badge";
 
 type ColumnsProps = {
   onEditReward: (reward: Reward) => void;
@@ -48,10 +50,12 @@ export const createColumns = ({
   {
     accessorKey: "price",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Price" />
+      <DataTableColumnHeader column={column} title="Points Required" />
     ),
     cell: ({ row }) => (
-      <div>{new Intl.NumberFormat("id-ID").format(row.getValue("price"))} Points</div>
+      <Badge variant="outline">
+        {row.getValue("price")} points
+      </Badge>
     ),
   },
   {
@@ -59,7 +63,11 @@ export const createColumns = ({
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Stock" />
     ),
-    cell: ({ row }) => <div>{row.getValue("stock")}</div>,
+    cell: ({ row }) => (
+      <Badge variant={row.getValue("stock") > 0 ? "success" : "destructive"}>
+        {row.getValue("stock")} available
+      </Badge>
+    ),
   },
   {
     id: "actions",
@@ -67,24 +75,15 @@ export const createColumns = ({
       const reward = row.original;
 
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEditReward(reward)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDeleteReward(reward)}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <DataTableRowActions
+          row={row}
+          actions={[
+            {
+              label: "Edit",
+              onClick: () => onEditReward(reward),
+            },
+          ]}
+        />
       );
     },
   },
