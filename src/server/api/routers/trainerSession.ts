@@ -106,7 +106,7 @@ export const trainerSessionRouter = createTRPCRouter({
 
     getAll: protectedProcedure
         .query(async ({ ctx }) => {
-            // Get the trainer ID for the current user
+            // Check if user is a trainer
             const trainer = await ctx.db.personalTrainer.findFirst({
                 where: { 
                     userId: ctx.session.user.id,
@@ -114,17 +114,68 @@ export const trainerSessionRouter = createTRPCRouter({
                 }
             });
 
-            if (!trainer) {
+            if (trainer) {
+                // If user is a trainer, get all their sessions
+                return ctx.db.trainerSession.findMany({
+                    where: {
+                        trainerId: trainer.id,
+                    },
+                    include: {
+                        member: {
+                            include: {
+                                user: {
+                                    select: {
+                                        name: true,
+                                        email: true,
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: {
+                        date: 'asc',
+                    }
+                });
+            }
+
+            // If not a trainer, check if user is a member
+            const member = await ctx.db.membership.findFirst({
+                where: { 
+                    userId: ctx.session.user.id
+                }
+            });
+
+            if (!member) {
                 return [];
             }
 
-            // Get all sessions for this trainer
+            // Get all active subscriptions for this member
+            const subscriptions = await ctx.db.subscription.findMany({
+                where: {
+                    memberId: member.id,
+                    remainingSessions: {
+                        gt: 0
+                    }
+                },
+                select: {
+                    trainerId: true
+                }
+            });
+
+            if (subscriptions.length === 0) {
+                return [];
+            }
+
+            // Get all sessions for this member from their subscribed trainers
             return ctx.db.trainerSession.findMany({
                 where: {
-                    trainerId: trainer.id,
+                    memberId: member.id,
+                    trainerId: {
+                        in: subscriptions.map(sub => sub.trainerId).filter((id): id is string => id !== null)
+                    }
                 },
                 include: {
-                    member: {
+                    trainer: {
                         include: {
                             user: {
                                 select: {
