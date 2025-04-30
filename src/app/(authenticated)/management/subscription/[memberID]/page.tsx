@@ -73,4 +73,3 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
         </div>
     )
 }
-

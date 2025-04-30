@@ -15,11 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/trpc/react"
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"
-
-const vouchers = [
-    { id: "voucher-1", code: "WELCOME10", discount: 10 },
-    { id: "voucher-2", code: "SUMMER20", discount: 20 },
-]
+import { VoucherModal } from "@/app/(authenticated)/management/subscription/voucherModal";
 
 export default function SubscriptionPage({ params }: { params: Promise<{ memberID: string }> }) {
     const { memberID } = use(params)
@@ -36,28 +32,23 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
     const [selectedPackage, setSelectedPackage] = useState("")
     const [selectedTrainer, setSelectedTrainer] = useState("")
     const [paymentMethod, setPaymentMethod] = useState("qris")
-    const [voucher, setVoucher] = useState("")
-    const [voucherCode, setVoucherCode] = useState("")
+    const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
+    const [selectedVoucher, setSelectedVoucher] = useState<{ id: string; name: string; amount: number; discountType: "PERCENT" | "CASH" } | null>(null);
 
     const selectedPackageDetails = subscriptionType === "gym" ? gymPackages?.find((p) => p.id === selectedPackage) : trainerPackages?.find((p) => p.id === selectedPackage);
-
-    const selectedVoucher = vouchers.find((v) => v.id === voucher)
 
     const calculateTotal = () => {
         if (!selectedPackageDetails) return 0
 
         let total = selectedPackageDetails.price
         if (selectedVoucher) {
-            total = total - (total * selectedVoucher.discount) / 100
+            if (selectedVoucher.discountType === "PERCENT") {
+                total = total - (total * selectedVoucher.amount) / 100
+            } else {
+                total = total - selectedVoucher.amount
+            }
         }
         return total
-    }
-
-    const applyVoucher = () => {
-        const foundVoucher = vouchers.find((v) => v.code === voucherCode)
-        if (foundVoucher) {
-            setVoucher(foundVoucher.id)
-        }
     }
 
     const handleSubmit = async () => {
@@ -220,22 +211,26 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
 
                             <div>
                                 <h3 className="text-lg font-medium mb-3">Voucher</h3>
-                                <div className="flex space-x-2">
-                                    <Input
-                                        placeholder="Enter voucher code"
-                                        value={voucherCode}
-                                        onChange={(e) => setVoucherCode(e.target.value)}
-                                    />
-                                    <Button variant="outline" onClick={applyVoucher}>
-                                        Apply
-                                    </Button>
-                                </div>
-                                {selectedVoucher && (
-                                    <div className="mt-2 flex items-center text-sm text-green-600">
-                                        <Check className="mr-1 h-4 w-4" />
-                                        {selectedVoucher.code} applied ({selectedVoucher.discount}% off)
-                                    </div>
-                                )}
+                                <Button
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => setIsVoucherModalOpen(true)}
+                                >
+                                    {selectedVoucher ? (
+                                        <div className="flex items-center justify-between w-full">
+                                            <span>
+                                                {selectedVoucher.name} (
+                                                {selectedVoucher.discountType === "PERCENT" 
+                                                    ? `${selectedVoucher.amount}% off` 
+                                                    : `Rp ${selectedVoucher.amount.toLocaleString()} off`}
+                                                )
+                                            </span>
+                                            <span className="text-green-600">Applied</span>
+                                        </div>
+                                    ) : (
+                                        "Apply Voucher"
+                                    )}
+                                </Button>
                             </div>
 
                             <div>
@@ -268,7 +263,11 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                             {selectedVoucher && (
                                                 <div className="flex justify-between text-green-600">
                                                     <span>Discount:</span>
-                                                    <span>-Rp {((selectedPackageDetails.price * selectedVoucher.discount) / 100).toLocaleString('id-ID')}</span>
+                                                    <span>
+                                                        {selectedVoucher.discountType === "PERCENT" 
+                                                            ? `${selectedVoucher.amount}%` 
+                                                            : `Rp ${selectedVoucher.amount.toLocaleString()}`}
+                                                    </span>
                                                 </div>
                                             )}
 
@@ -297,7 +296,13 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                     </Card>
                 </div>
             </div>
+
+            <VoucherModal
+                isOpen={isVoucherModalOpen}
+                onClose={() => setIsVoucherModalOpen(false)}
+                onVoucherApplied={(voucher) => setSelectedVoucher(voucher.id ? voucher : null)}
+                currentVoucher={selectedVoucher || undefined}
+            />
         </div>
     )
 }
-

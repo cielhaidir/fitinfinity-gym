@@ -1,131 +1,114 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { VoucherType } from "@prisma/client";
 
 export const voucherRouter = createTRPCRouter({
   list: protectedProcedure
     .input(
       z.object({
-        page: z.number().min(1),
-        limit: z.number().min(1),
+        type: z.nativeEnum(VoucherType).optional(),
+        isActive: z.boolean().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { page, limit } = input;
-      const skip = (page - 1) * limit;
-
-      const [vouchers, total] = await Promise.all([
-        ctx.db.voucher.findMany({
-          where: {
-            isActive: true,
-            OR: [
-              { expiryDate: null },
-              { expiryDate: { gt: new Date() } },
-            ],
+      return ctx.db.voucher.findMany({
+        where: {
+          type: input.type,
+          isActive: input.isActive,
+          expiryDate: {
+            gt: new Date(),
           },
-          skip,
-          take: limit,
-          orderBy: {
-            createdAt: "desc",
-          },
-        }),
-        ctx.db.voucher.count({
-          where: {
-            isActive: true,
-            OR: [
-              { expiryDate: null },
-              { expiryDate: { gt: new Date() } },
-            ],
-          },
-        }),
-      ]);
-
-      return {
-        items: vouchers,
-        total,
-        page,
-        limit,
-      };
+        },
+      });
     }),
 
   claim: protectedProcedure
     .input(
       z.object({
-        voucherId: z.string(),
+        voucherId: z.string().optional(),
+        referralCode: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { voucherId } = input;
-      const userId = ctx.session.user.id;
+      const { voucherId, referralCode } = input;
 
-      // Get the voucher
-      const voucher = await ctx.db.voucher.findUnique({
-        where: { id: voucherId },
+      // Find the voucher
+      const voucher = await ctx.db.voucher.findFirst({
+        where: {
+          OR: [
+            { id: voucherId },
+            { referralCode: referralCode, type: VoucherType.REFERRAL }
+          ],
+          isActive: true,
+          expiryDate: {
+            gt: new Date(),
+          },
+        },
+        include: {
+          claims: true,
+        },
       });
 
       if (!voucher) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Voucher not found",
+          message: "Voucher tidak ditemukan atau sudah tidak aktif",
         });
       }
 
-      if (!voucher.isActive) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Voucher is not active",
-        });
-      }
-
-      if (voucher.expiryDate && new Date(voucher.expiryDate) < new Date()) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Voucher has expired",
-        });
-      }
-
-      // Check if user has already claimed this voucher
+      // Check if voucher has been claimed by this member
       const existingClaim = await ctx.db.voucherClaim.findFirst({
         where: {
-          memberId: userId,
-          voucherId: voucherId,
+          memberId: ctx.session.user.id,
+          voucherId: voucher.id,
         },
       });
 
       if (existingClaim) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "You have already claimed this voucher",
+          message: "Voucher sudah pernah diklaim",
         });
       }
 
-      // Check if voucher has reached max claims
-      if (voucher.maxClaim <= 0) {
+      // Check if voucher has reached max claim
+      if (voucher.claims.length >= voucher.maxClaim) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Voucher has reached maximum claims",
+          message: "Voucher sudah mencapai batas klaim maksimum",
         });
       }
 
-      // Create the claim record and decrement maxClaim in a transaction
-      const [claim] = await ctx.db.$transaction([
-        ctx.db.voucherClaim.create({
+      // Use transaction to ensure both operations succeed or fail together
+      const result = await ctx.db.$transaction(async (tx) => {
+        // Create voucher claim
+        await tx.voucherClaim.create({
           data: {
-            memberId: userId,
-            voucherId: voucherId,
+            memberId: ctx.session.user.id,
+            voucherId: voucher.id,
           },
-        }),
-        ctx.db.voucher.update({
-          where: { id: voucherId },
+        });
+
+        // Decrement maxClaim
+        const updatedVoucher = await tx.voucher.update({
+          where: { id: voucher.id },
           data: {
             maxClaim: {
               decrement: 1
             }
-          }
-        })
-      ]);
+          },
+        });
 
-      return claim;
+        return updatedVoucher;
+      });
+
+      return {
+        id: result.id,
+        name: result.name,
+        amount: result.amount,
+        discountType: result.discountType,
+      };
     }),
 
   getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -182,6 +165,22 @@ export const voucherRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.voucher.delete({
         where: { id: input.id },
+      });
+    }),
+
+  getGeneralVouchers: protectedProcedure
+    .query(async ({ ctx }) => {
+      return ctx.db.voucher.findMany({
+        where: {
+          type: "GENERAL",
+          isActive: true,
+        },
+        select: {
+          id: true,
+          code: true,
+          discount: true,
+          type: true,
+        },
       });
     }),
 }); 
