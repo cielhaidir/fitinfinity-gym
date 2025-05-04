@@ -2,7 +2,6 @@
 
 import { Input } from "@/components/ui/input";
 import {
-    Sheet,
     SheetClose,
     SheetContent,
     SheetDescription,
@@ -16,7 +15,6 @@ import { UserPersonalTrainer } from "./schema";
 import { Button } from "@/components/ui/button";
 
 import { useEffect } from "react";
-
 
 type TrainerFormProps = {
     newTrainer: UserPersonalTrainer;
@@ -41,18 +39,21 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
         <SheetContent side="right" className="w-full overflow-y-auto">
             <SheetHeader>
                 <SheetTitle>
-                    {isEditMode ? "Edit Trainer" : selectedUserId ? "Create New Trainer" : "Create New User & Trainer"}
+                    {isEditMode 
+                        ? "Edit Trainer" 
+                        : selectedUserId 
+                            ? "Create New Trainer" 
+                            : "Create New User & Trainer"}
                 </SheetTitle>
                 <SheetDescription>
                     {isEditMode 
                         ? "Edit the trainer details." 
                         : selectedUserId 
                             ? "Create a new trainer with the selected user."
-                            : "Add a new user and trainer to the system."
-                    }
+                            : "Add a new user and trainer to the system."}
                 </SheetDescription>
             </SheetHeader>
-            <div className="flex flex-col gap-4 py-8 sm:px-0 px-4">
+            <div className="flex flex-col gap-4 py-8">
                 {!selectedUserId && (
                     <>
                         <div>
@@ -160,7 +161,7 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
                     />
                 </div>
             </div>
-            <SheetFooter className="flex justify-end gap-2">
+            <SheetFooter>
                 <Button onClick={onCreateOrUpdateTrainer} className="bg-infinity">
                     {isEditMode ? "Update Trainer" : "Create Trainer"}
                 </Button>

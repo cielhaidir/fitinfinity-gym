@@ -28,6 +28,43 @@ declare module "next-auth" {
   // }
 }
 
+// Helper function to create membership
+async function createUserMembership(userId: string | undefined) {
+  if (!userId) {
+    console.error("Cannot create membership: User ID is undefined");
+    return;
+  }
+
+  console.log("Starting membership creation for user:", userId);
+
+  try {
+    // Check if membership already exists
+    const existingMembership = await db.membership.findUnique({
+      where: { userId },
+    });
+
+    if (existingMembership) {
+      console.log("Membership already exists for user:", userId);
+      return existingMembership;
+    }
+
+    // Create membership
+    const membership = await db.membership.create({
+      data: {
+        userId,
+        registerDate: new Date(),
+        isActive: true,
+      },
+    });
+
+    console.log("Created membership:", membership.id);
+    return membership;
+  } catch (error) {
+    console.error("Error creating user membership:", error);
+    throw error;
+  }
+}
+
 /**
  * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.
  *
@@ -101,8 +138,77 @@ export const authConfig = {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
+
+        // Check and create membership if it doesn't exist
+        try {
+          const membership = await createUserMembership(token.id as string);
+          if (membership) {
+            console.log("Membership check/creation completed for user:", token.id);
+          }
+        } catch (error) {
+          console.error("Error checking/creating membership in session callback:", error);
+        }
       }
       return session;
+    },
+
+    async signIn({ user, account, profile }) {
+      console.log("Starting signIn callback for provider:", account?.provider);
+      
+      try {
+        if (account?.provider === "google") {
+          console.log("Processing Google sign in for email:", user.email);
+          
+          // Check if user already exists
+          const existingUser = await db.user.findUnique({
+            where: { email: user.email as string },
+            include: {
+              accounts: true,
+            },
+          });
+
+          if (existingUser) {
+            console.log("Found existing user:", existingUser.id);
+            
+            // If user exists but doesn't have a Google account linked
+            if (!existingUser.accounts.some(acc => acc.provider === "google")) {
+              console.log("Linking Google account to existing user");
+              
+              // Link the Google account to existing user
+              await db.account.create({
+                data: {
+                  userId: existingUser.id,
+                  type: account.type,
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                  access_token: account.access_token as string | null,
+                  token_type: account.token_type as string | null,
+                  scope: account.scope as string | null,
+                  id_token: account.id_token as string | null,
+                  session_state: account.session_state as string | null,
+                },
+              });
+            }
+          } else {
+            console.log("Creating new user for Google sign in");
+            
+            // Create new user
+            const newUser = await db.user.create({
+              data: {
+                email: user.email as string,
+                name: user.name as string,
+                image: user.image as string,
+              },
+            });
+
+            console.log("Created new user:", newUser.id);
+          }
+        }
+        return true;
+      } catch (error) {
+        console.error("Error in signIn callback:", error);
+        return false;
+      }
     },
 
     async redirect({ url, baseUrl }) {
@@ -115,31 +221,10 @@ export const authConfig = {
   },
   events: {
     async createUser({ user }) {
+      console.log("createUser event triggered for user:", user.id);
       try {
-        // Cari role Member
-        const memberRole = await db.role.findUnique({
-          where: { name: "Member" },
-        });
-
-        if (memberRole) {
-          await db.user.update({
-            where: { id: user.id },
-            data: {
-              roles: {
-                connect: { id: memberRole.id },
-              },
-            },
-          });
-
-          // Create a new member
-          await db.membership.create({
-            data: {
-              userId: user.id as string,
-              registerDate: new Date(),
-            },
-          });
-          
-        }
+        const result = await createUserMembership(user.id);
+        console.log("Membership creation result from event:", result);
       } catch (error) {
         console.error("Error in createUser event:", error);
       }

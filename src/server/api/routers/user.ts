@@ -41,19 +41,50 @@ export const userRouter = createTRPCRouter({
             // Hash password
             const hashedPassword = await hash(password, 12);
 
-            // Create user
-            const user = await ctx.db.user.create({
-                data: {
-                    name,
-                    email,
-                    password: hashedPassword,
-                    address,
-                    phone,
-                    birthDate,
-                },
+            // Create user and membership in a transaction
+            const result = await ctx.db.$transaction(async (tx) => {
+                // Create user
+                const user = await tx.user.create({
+                    data: {
+                        name,
+                        email,
+                        password: hashedPassword,
+                        address,
+                        phone,
+                        birthDate,
+                    },
+                });
+
+                // Find Member role
+                const memberRole = await tx.role.findUnique({
+                    where: { name: "Member" },
+                });
+
+                if (memberRole) {
+                    // Assign Member role
+                    await tx.user.update({
+                        where: { id: user.id },
+                        data: {
+                            roles: {
+                                connect: { id: memberRole.id },
+                            },
+                        },
+                    });
+                }
+
+                // Create membership
+                await tx.membership.create({
+                    data: {
+                        userId: user.id,
+                        registerDate: new Date(),
+                        isActive: true,
+                    },
+                });
+
+                return user;
             });
 
-            return user;
+            return result;
         }),
 
     read: publicProcedure

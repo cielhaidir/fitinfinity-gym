@@ -18,7 +18,6 @@ export const packageRouter = createTRPCRouter({
             sessions: z.number().nullish(),
             day: z.number().nullish(),
             isActive: z.boolean().optional(),
-            reward: z.number().nullable(),
         }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.package.create({

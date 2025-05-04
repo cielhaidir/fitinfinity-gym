@@ -102,7 +102,6 @@ export default function PackagePage() {
             } else {
                 await createPackageMutation.mutateAsync({
                     ...commonData,
-                    reward: packageData.point === null ? 0 : packageData.point,
                     price: packageData.price === null ? 0 : packageData.price // Ensure price is never null
                 });
             }

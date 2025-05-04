@@ -27,16 +27,44 @@ export default function VoucherPage() {
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
 
-    const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 } } = api.voucher.list.useQuery({
-    page: 1,
-    limit: 10,
-    search,
-    searchColumn,
+  const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 } } = api.voucher.list.useQuery({
+    type: undefined,
+    isActive: undefined,
   });
 
-  const createVoucherMutation = api.voucher.create.useMutation();
-  const updateVoucherMutation = api.voucher.update.useMutation();
-  const deleteVoucherMutation = api.voucher.remove.useMutation();
+  console.log('Vouchers data:', vouchers);
+
+  const createVoucherMutation = api.voucher.create.useMutation({
+    onSuccess: () => {
+      void utils.voucher.list.invalidate();
+      setIsSheetOpen(false);
+      setIsEditMode(false);
+      setSelectedVoucher(null);
+      setNewVoucher({
+        name: "",
+        maxClaim: 1,
+        type: "GENERAL",
+        discountType: "CASH",
+        amount: 0,
+        isActive: true,
+      });
+    }
+  });
+
+  const updateVoucherMutation = api.voucher.update.useMutation({
+    onSuccess: () => {
+      void utils.voucher.list.invalidate();
+      setIsSheetOpen(false);
+      setIsEditMode(false);
+      setSelectedVoucher(null);
+    }
+  });
+
+  const deleteVoucherMutation = api.voucher.remove.useMutation({
+    onSuccess: () => {
+      void utils.voucher.list.invalidate();
+    }
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
@@ -109,19 +137,6 @@ export default function VoucherPage() {
       });
 
       await operation;
-      await utils.voucher.list.invalidate();
-      
-      setIsSheetOpen(false);
-      setIsEditMode(false);
-      setSelectedVoucher(null);
-      setNewVoucher({
-        name: "",
-        maxClaim: 1,
-        type: "GENERAL",
-        discountType: "CASH",
-        amount: 0,
-        isActive: true,
-      });
     } catch (error) {
       console.error('Error:', error);
       // Don't show toast here since toast.promise will handle errors
@@ -143,10 +158,9 @@ export default function VoucherPage() {
       error: (error) => error instanceof Error ? error.message : String(error),
     });
     await promise;
-    await utils.voucher.getAll.invalidate();
   };
   const handlePaginationChange = (page: number, limit: number) => {
-    void utils.voucher.getAll.invalidate();
+    void utils.voucher.list.invalidate();
   };
 
   const columns = createColumns({
@@ -185,10 +199,10 @@ export default function VoucherPage() {
           <div className="rounded-md">
             <DataTable
               data={{
-                items: vouchers.items,
-                total: vouchers.total,
-                page: vouchers.page,
-                limit: vouchers.limit,
+                items: Array.isArray(vouchers) ? vouchers : [],
+                total: Array.isArray(vouchers) ? vouchers.length : 0,
+                page: 1,
+                limit: 10,
               }}
               columns={columns}
               onPaginationChange={handlePaginationChange}

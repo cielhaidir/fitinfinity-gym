@@ -20,14 +20,30 @@ export const memberRouter = createTRPCRouter({
             revokedAt: z.date().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
+            // Get the user data first
+            const user = await ctx.db.user.findUnique({
+                where: { id: input.userId },
+            });
+
+            if (!user) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'User not found',
+                });
+            }
+
+            // Create membership with user data
             return ctx.db.membership.create({
                 data: {
                     userId: input.userId,
                     registerDate: input.registerDate,
-                    rfidNumber: input.rfidNumber,
-                    isActive: input.isActive ?? true,
+                    rfidNumber: input.rfidNumber ?? null, // Allow null for rfidNumber
+                    isActive: true, // Always set to true by default
                     createdBy: input.createdBy ?? ctx.session.user.id,
                     revokedAt: input.revokedAt,
+                },
+                include: {
+                    user: true, // Include user data in response
                 },
             });
         }),
@@ -157,23 +173,40 @@ export const memberRouter = createTRPCRouter({
             }).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
+            // Get the membership first
+            const membership = await ctx.db.membership.findUnique({
+                where: { id: input.id },
+                include: { user: true },
+            });
+
+            if (!membership) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Membership not found',
+                });
+            }
+
+            // Update membership and user data
             return ctx.db.membership.update({
                 where: { id: input.id },
                 data: {
                     registerDate: input.registerDate,
-                    rfidNumber: input.rfidNumber,
-                    isActive: input.isActive,
+                    rfidNumber: input.rfidNumber ?? null, // Allow null for rfidNumber
+                    isActive: input.isActive ?? true, // Default to true if not specified
                     revokedAt: input.revokedAt,
-                    user: {
+                    user: input.user ? {
                         update: {
-                            name: input.user?.name,
-                            email: input.user?.email,
-                            address: input.user?.address,
-                            phone: input.user?.phone,
-                            birthDate: input.user?.birthDate,
-                            idNumber: input.user?.idNumber,
+                            name: input.user.name,
+                            email: input.user.email,
+                            address: input.user.address ?? null,
+                            phone: input.user.phone ?? null,
+                            birthDate: input.user.birthDate ?? null,
+                            idNumber: input.user.idNumber ?? null,
                         },
-                    },
+                    } : undefined,
+                },
+                include: {
+                    user: true, // Include user data in response
                 },
             });
         }),
