@@ -31,6 +31,12 @@ enum DiscountType {
     CASH
 }
 
+enum FlowType {
+    income
+    outcome
+    both
+}
+
 model File {
     id           String   @id @default(uuid())
     bucket       String
@@ -352,5 +358,39 @@ model Attendance {
 
     @@index([date])
     @@index([employeeId])
+}
+
+model BalanceAccount {
+    id               Int           @id @default(autoincrement())
+    name             String
+    account_number   String
+    bankTransactions Transaction[] @relation("BankTransactions")
+}
+
+model ChartAccount {
+    id                   Int           @id @default(autoincrement())
+    reff                 String
+    name                 String
+    type                 String
+    flow                 FlowType
+    accountTransactions  Transaction[] @relation("AccountTransactions")
+}
+
+model Transaction {
+    id                 Int             @id @default(autoincrement())
+    admin_id           Int
+    bank_id            Int
+    account_id         Int
+    type               String
+    file               String
+    description        String
+    transaction_date   DateTime
+    transaction_number String
+    amount             Float
+    closed_at          DateTime?
+
+    // Relations
+    bank     BalanceAccount @relation("BankTransactions", fields: [bank_id], references: [id])
+    account  ChartAccount   @relation("AccountTransactions", fields: [account_id], references: [id])
 }
 

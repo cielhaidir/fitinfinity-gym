@@ -34,12 +34,14 @@ export default function PersonalTrainerPage() {
   });
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [isSelectUserModalOpen, setIsSelectUserModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: trainers = { items: [], total: 0, page: 1, limit: 10 } } = api.personalTrainer.list.useQuery({ 
-    page: 1, 
-    limit: 10,
+    page, 
+    limit,
     search,
     searchColumn 
   });
@@ -252,8 +254,9 @@ export default function PersonalTrainerPage() {
     await utils.personalTrainer.list.invalidate();
   };
 
-  const handlePaginationChange = (page: number, limit: number) => {
-    utils.personalTrainer.list.invalidate({ page, limit });
+  const handlePaginationChange = (newPage: number, newLimit: number) => {
+    setPage(newPage);
+    setLimit(newLimit);
   };
 
   const columns = createColumns({ onEditMember: handleEditTrainer, onDeleteMember: handleDeleteTrainer })
@@ -324,6 +327,7 @@ export default function PersonalTrainerPage() {
               onSearch={(value, column) => {
                 setSearch(value);
                 setSearchColumn(column);
+                setPage(1); // Reset to first page when searching
               }}
             />
           </div>

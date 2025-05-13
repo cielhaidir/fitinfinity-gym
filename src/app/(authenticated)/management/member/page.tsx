@@ -34,12 +34,14 @@ export default function MemberPage() {
   });
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const isSelectingForSubscription = searchParams.get('action') === 'select-for-subscription';
 
   const { data: member = { items: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ 
-    page: 1, 
-    limit: 10,
+    page, 
+    limit,
     search,
     searchColumn 
   });
@@ -170,8 +172,9 @@ export default function MemberPage() {
     await utils.member.list.invalidate();
   };
 
-  const handlePaginationChange = (page: number, limit: number) => {
-    utils.member.list.invalidate({ page, limit });
+  const handlePaginationChange = (newPage: number, newLimit: number) => {
+    setPage(newPage);
+    setLimit(newLimit);
   };
 
   const directToSubs = (member: Member) => {

@@ -33,10 +33,12 @@ export default function PackagePage() {
 
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
 
     const { data: packageData = { items: [], total: 0, page: 1, limit: 10 } } = api.package.list.useQuery({
-        page: 1,
-        limit: 10,
+        page,
+        limit,
         search
     });
 
@@ -143,8 +145,9 @@ export default function PackagePage() {
         await utils.package.list.invalidate();
     };
 
-    const handlePaginationChange = (page: number, limit: number) => {
-        utils.package.list.invalidate({ page, limit });
+    const handlePaginationChange = (newPage: number, newLimit: number) => {
+        setPage(newPage);
+        setLimit(newLimit);
     };
 
     const columns = createColumns({ onEditModel: handleEditPackage, onDeleteModel: handlePackageDelete })
@@ -190,7 +193,9 @@ export default function PackagePage() {
                         onSearch={(value, column) => {
                             setSearch(value);
                             setSearchColumn(column);
+                            setPage(1); // Reset to first page when searching
                         }}
+                        pageSizeOptions={[10, 20, 50, 100]}
                     />
                 </div>
             </Sheet>

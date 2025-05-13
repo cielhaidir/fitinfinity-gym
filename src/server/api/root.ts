@@ -19,6 +19,8 @@ import { employeeRouter } from "./routers/employee";
 import { attendanceRouter } from "./routers/attendance";
 import { profileRouter } from "./routers/profile";
 import { memberCalendarRouter } from "@/server/api/routers/memberCalendar";
+import { balanceAccountRouter } from "./routers/balanceAccount";
+import { chartAccountRouter } from "./routers/chartAccount";
 
 
 /**
@@ -47,6 +49,8 @@ export const appRouter = createTRPCRouter({
   attendance: attendanceRouter,
   profile: profileRouter,
   memberCalendar: memberCalendarRouter,
+  balanceAccount: balanceAccountRouter,
+  chartAccount: chartAccountRouter,
 });
 
 // export type definition of API
