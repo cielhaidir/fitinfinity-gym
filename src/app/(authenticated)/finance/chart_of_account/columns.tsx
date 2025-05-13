@@ -29,7 +29,7 @@ export const columns: ColumnDef<ChartAccount>[] = [
   },
   {
     accessorKey: "type",
-    header: "Account Type",
+    header: "Type",
   },
   {
     accessorKey: "flow",
@@ -42,9 +42,10 @@ export const columns: ColumnDef<ChartAccount>[] = [
   {
     id: "actions",
     cell: ({ row }) => {
-      const chartAccount = row.original;
+      const account = row.original;
       const utils = api.useUtils();
-      const deleteMutation = api.chartAccount.delete.useMutation({
+
+      const deleteAccount = api.chartAccount.delete.useMutation({
         onSuccess: () => {
           toast.success("Chart account deleted successfully");
           utils.chartAccount.getAll.invalidate();
@@ -54,30 +55,30 @@ export const columns: ColumnDef<ChartAccount>[] = [
         },
       });
 
-      const handleDelete = () => {
-        if (confirm("Are you sure you want to delete this account?")) {
-          deleteMutation.mutate({ id: chartAccount.id });
-        }
+      const handleEdit = () => {
+        const event = new CustomEvent("editChartAccount", {
+          detail: { id: account.id }
+        });
+        window.dispatchEvent(event);
       };
 
       return (
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => {
-              const event = new CustomEvent("editChartAccount", {
-                detail: chartAccount.id,
-              });
-              window.dispatchEvent(event);
-            }}
+            onClick={handleEdit}
           >
             <Pencil className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleDelete}
+            onClick={() => {
+              if (confirm("Are you sure you want to delete this account?")) {
+                deleteAccount.mutate({ id: account.id });
+              }
+            }}
           >
             <Trash2 className="h-4 w-4" />
           </Button>

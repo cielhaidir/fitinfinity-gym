@@ -6,26 +6,21 @@ import {
     Sheet,
     SheetContent,
     SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-  SheetClose,
+    SheetTitle,
+    SheetDescription,
+    SheetFooter,
+    SheetClose,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
+import type { ChartAccount } from "./schema";
 
 interface ChartAccountFormProps {
   open: boolean;
   onClose: () => void;
-  account: {
-    id: number;
-    reff: string;
-    name: string;
-    type: string;
-    flow: "income" | "outcome" | "both";
-  } | null;
+  account: ChartAccount | null;
 }
 
 export function ChartAccountForm({
@@ -41,10 +36,17 @@ export function ChartAccountForm({
   const [errors, setErrors] = useState<{ reff?: string; name?: string; type?: string; flow?: string }>({});
 
   useEffect(() => {
-    setReff(account?.reff ?? "");
-    setName(account?.name ?? "");
-    setType(account?.type ?? "");
-    setFlow(account?.flow ?? "income");
+    if (account) {
+      setReff(account.reff);
+      setName(account.name);
+      setType(account.type);
+      setFlow(account.flow);
+    } else {
+      setReff("");
+      setName("");
+      setType("");
+      setFlow("income");
+    }
     setErrors({});
   }, [account, open]);
 

@@ -4,29 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { columns } from "./columns";
 import { api } from "@/trpc/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChartAccountForm } from "./chart-account-form";
 import { DataTable } from "@/app/_components/datatable/data-table";
+import type { ChartAccount } from "./schema";
 
 export default function ChartAccountPage() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<{
-    id: number;
-    reff: string;
-    name: string;
-    type: string;
-    flow: "income" | "outcome" | "both";
-  } | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<ChartAccount | null>(null);
 
   const { data: chartAccounts, refetch } = api.chartAccount.getAll.useQuery();
 
-  const handleEdit = (id: number) => {
-    const account = chartAccounts?.find(acc => acc.id === id);
-    if (account) {
-      setSelectedAccount(account);
-      setIsOpen(true);
-    }
-  };
+  useEffect(() => {
+    const handleEdit = (event: CustomEvent<{ id: number }>) => {
+      const account = chartAccounts?.find(acc => acc.id === event.detail.id);
+      if (account) {
+        setSelectedAccount(account);
+        setIsOpen(true);
+      }
+    };
+
+    window.addEventListener("editChartAccount", handleEdit as EventListener);
+    return () => {
+      window.removeEventListener("editChartAccount", handleEdit as EventListener);
+    };
+  }, [chartAccounts]);
 
   const handleAdd = () => {
     setSelectedAccount(null);
