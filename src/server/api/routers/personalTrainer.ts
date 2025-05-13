@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
     createTRPCRouter,
     protectedProcedure,
+    publicProcedure,
 } from "@/server/api/trpc";
 
 export const personalTrainerRouter = createTRPCRouter({
@@ -10,12 +11,18 @@ export const personalTrainerRouter = createTRPCRouter({
             userId: z.string(),
             isActive: z.boolean().optional(),
             createdBy: z.string().optional(),
+            description: z.string().optional(),
+            expertise: z.string().optional(),
+            slogan: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.personalTrainer.create({
                 data: {
                     userId: input.userId,
                     isActive: input.isActive ?? true,
+                    description: input.description,
+                    expertise: input.expertise,
+                    slogan: input.slogan,
                 },
             });
         }),
@@ -23,22 +30,33 @@ export const personalTrainerRouter = createTRPCRouter({
     update: protectedProcedure
         .input(z.object({
             id: z.string(),
-            user: z.object({
-                name: z.string().min(1),
-                email: z.string().email(),
-                address: z.string().optional(),
-                phone: z.string().optional(),
-                birthDate: z.date().optional(),
-                idNumber: z.string().optional(),
-            }),
+            description: z.string().optional(),
+            expertise: z.string().optional(),
+            slogan: z.string().optional(),
+            isActive: z.boolean().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.personalTrainer.update({
                 where: { id: input.id },
                 data: {
-                    user: {
-                        update: input.user,
-                    },
+                    description: input.description,
+                    expertise: input.expertise,
+                    slogan: input.slogan,
+                    isActive: input.isActive,
+                },
+            });
+        }),
+
+    getById: protectedProcedure
+        .input(z.object({ id: z.string() }))
+        .query(async ({ ctx, input }) => {
+            return ctx.db.personalTrainer.findFirst({
+                where: { 
+                    userId: input.id,
+                    isActive: true
+                },
+                include: {
+                    user: true,
                 },
             });
         }),
@@ -199,5 +217,26 @@ export const personalTrainerRouter = createTRPCRouter({
                 remainingSessions: subscription.remainingSessions || 0,
                 subscriptionEndDate: subscription.endDate?.toISOString() || "",
             }));
+        }),
+
+    // Public endpoint to get active trainers for landing page
+    getActiveTrainers: publicProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.personalTrainer.findMany({
+                where: {
+                    isActive: true,
+                },
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            image: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+            });
         }),
 }); 

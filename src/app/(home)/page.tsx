@@ -5,7 +5,8 @@ import Navbar from "@/components/headers/navbar";
 import Hero from "./hero";
 import Classes from "./clasess";
 import Facilities from "./facilities";
-import Footer from "@/components/footer/footer";
+import Trainers from "./trainers";
+//import Footer from "@/components/footer/footer";
 
 export default async function Home() {
   const session = await auth();
@@ -16,8 +17,10 @@ export default async function Home() {
         <Navbar user={session?.user ?? undefined}/>
         <Hero />
         <Classes />
+        <Trainers />
         <Facilities />
-        <Footer />
+        
+        
       </main>
     </HydrateClient>
   );

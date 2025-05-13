@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
-import { uploadFile } from "@/lib/upload"
+import { uploadFile, uploadPTPhoto } from "@/lib/upload"
 import bcrypt from "bcryptjs"
 
 export const profileRouter = createTRPCRouter({
@@ -70,6 +70,39 @@ export const profileRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to upload image",
+        })
+      }
+    }),
+
+  uploadPTPhoto: protectedProcedure
+    .input(z.object({ file: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Check if user is a PT
+        const pt = await ctx.db.personalTrainer.findFirst({
+          where: { 
+            userId: ctx.session.user.id,
+            isActive: true
+          }
+        })
+
+        if (!pt) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Only personal trainers can upload PT photos",
+          })
+        }
+
+        const imageUrl = await uploadPTPhoto(input.file)
+        await ctx.db.personalTrainer.update({
+          where: { id: pt.id },
+          data: { image: imageUrl },
+        })
+        return { imageUrl }
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to upload PT photo",
         })
       }
     }),

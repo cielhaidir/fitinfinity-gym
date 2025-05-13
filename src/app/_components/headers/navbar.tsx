@@ -44,7 +44,7 @@ export default function Navbar({ user }: { user?: any; }) {
 
   return (
     <nav
-      className={`fixed top-0 z-50 w-full transition-transform duration-300 ${
+      className={`fixed top-0 z-50 w-full transition-transform duration-300 bg-gradient-to-b from-black to-transparent ${
         isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
@@ -53,7 +53,13 @@ export default function Navbar({ user }: { user?: any; }) {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="text-xl font-bold text-[#BFFF00]">FIT INFINITY</span>
+              <Image
+                src="/assets/fitinfinity-lime.png"
+                alt="FIT INFINITY"
+                width={120}
+                height={40}
+                className="object-contain"
+              />
             </Link>
           </div>
 
@@ -63,7 +69,7 @@ export default function Navbar({ user }: { user?: any; }) {
               <Link
                 key={link.name}
                 href={link.href}
-                className="text-white hover:text-[#BFFF00] transition-colors"
+                className="text-white hover:text-[#BFFF00] transition-colors font-semibold"
               >
                 {link.name}
               </Link>

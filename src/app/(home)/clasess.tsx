@@ -7,22 +7,22 @@ const Classes = () => {
     {
       title: "Regular Gym",
       description: "Join our dream body and the powerful strength",
-      image: "/images/regular-gym.jpg"
+      image: "/assets/class/regular.png"
     },
     {
       title: "Zumba Class",
       description: "Join our dream body and the powerful strength",
-      image: "/images/zumba-class.jpg"
+      image: "/assets/class/zumba.png"
     },
     {
-      title: "Pilates Class",
+      title: "Yoga Class",
       description: "Join our dream body and the powerful strength",
-      image: "/images/pilates-class.jpg"
+      image: "/assets/class/yoga.png"
     },
     {
       title: "Regular Gym",
       description: "Join our dream body and the powerful strength",
-      image: "/images/regular-gym-2.jpg"
+      image: "/assets/class/regular.png"
     }
   ];
 

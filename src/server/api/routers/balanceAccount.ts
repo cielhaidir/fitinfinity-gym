@@ -3,13 +3,47 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const balanceAccountRouter = createTRPCRouter({
-  getAll: protectedProcedure.query(async ({ ctx }) => {
-    return await ctx.db.balanceAccount.findMany({
-      orderBy: {
-        id: "desc",
-      },
-    });
-  }),
+  getAll: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().default(1),
+        limit: z.number().default(10),
+        search: z.string().optional(),
+        searchColumn: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, limit, search, searchColumn } = input;
+      const skip = (page - 1) * limit;
+
+      const where = search && searchColumn
+        ? {
+            [searchColumn]: {
+              contains: search,
+              mode: "insensitive",
+            },
+          }
+        : {};
+
+      const [items, total] = await Promise.all([
+        ctx.db.balanceAccount.findMany({
+          where,
+          orderBy: {
+            id: "desc",
+          },
+          skip,
+          take: limit,
+        }),
+        ctx.db.balanceAccount.count({ where }),
+      ]);
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))

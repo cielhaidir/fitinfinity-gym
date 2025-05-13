@@ -212,11 +212,12 @@ model PersonalTrainer {
     id          String     @id @default(cuid())
     userId      String     @unique
     description String?
-    image     String?
+    expertise   String?
+    image       String?
     isActive    Boolean    @default(true)
     createdAt   DateTime   @default(now())
     updatedAt   DateTime   @updatedAt
-    class Class[]
+    class       Class[]
     
     user        User       @relation("PersonalTrainerToUser", fields: [userId], references: [id])
     subscriptions Subscription[]

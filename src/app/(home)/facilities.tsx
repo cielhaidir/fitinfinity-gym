@@ -7,22 +7,22 @@ const Facilities = () => {
     {
       name: "Cardio Area",
       description: "Stronger every day, one rep at a time.",
-      image: "/images/cardio-area.jpg"
+      image: "/assets/facilities/cardio.png"
     },
     {
       name: "Shower Room",
       description: "Stronger every day, one rep at a time.",
-      image: "/images/shower-room.jpg"
+      image: "/assets/facilities/shower.png"
     },
     {
       name: "Secure Locker Room",
       description: "Stronger every day, one rep at a time.",
-      image: "/images/locker-room.jpg"
+      image: "/assets/facilities/securelock.png"
     },
     {
       name: "Free Weight Room",
       description: "Stronger every day, one rep at a time.",
-      image: "/images/weight-room.jpg"
+      image: "/assets/facilities/weight.png"
     }
   ];
 

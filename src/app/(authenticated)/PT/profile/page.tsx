@@ -1,0 +1,296 @@
+"use client"
+
+import { api } from "@/trpc/react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useEffect, useState, useRef } from "react"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { format } from "date-fns"
+import { Camera } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { ChangePasswordDialog } from "@/app/(authenticated)/member/profile/change-password-dialog"
+
+export default function PTProfilePage() {
+  const { data: session } = useSession()
+  const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    birthDate: "",
+    image: "",
+    description: "",
+  })
+
+  // Get user profile data
+  const { data: profile, isLoading: isProfileLoading } = api.profile.get.useQuery(undefined, {
+    enabled: !!session?.user.id,
+  })
+
+  // Get personal trainer data
+  const { data: ptData, isLoading: isPTLoading } = api.personalTrainer.getById.useQuery(
+    { id: session?.user.id ?? "" },
+    { enabled: !!session?.user.id }
+  )
+
+  const updateProfile = api.profile.update.useMutation({
+    onSuccess: () => {
+      toast.success("Profile updated successfully")
+      setIsEditing(false)
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const updatePT = api.personalTrainer.update.useMutation({
+    onSuccess: () => {
+      toast.success("Trainer profile updated successfully")
+      setIsEditing(false)
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const uploadPTPhoto = api.profile.uploadPTPhoto.useMutation({
+    onSuccess: (data) => {
+      setFormData({ ...formData, image: data.imageUrl })
+      toast.success("Profile photo updated successfully")
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  useEffect(() => {
+    if (profile) {
+      setFormData(prev => ({
+        ...prev,
+        name: profile.name ?? "",
+        phone: profile.phone ?? "",
+        address: profile.address ?? "",
+        birthDate: profile.birthDate ? format(profile.birthDate, "yyyy-MM-dd") : "",
+        image: profile.image ?? "",
+      }))
+    }
+    if (ptData) {
+      setFormData(prev => ({
+        ...prev,
+        description: ptData.description ?? "",
+        image: ptData.image ?? prev.image,
+      }))
+    }
+  }, [profile, ptData])
+
+  // Check if user is logged in
+  if (!session) {
+    router.push("/auth/signin")
+    return null
+  }
+
+  // Show loading state while fetching data
+  if (isProfileLoading || isPTLoading) {
+    return <div>Loading...</div>
+  }
+
+  // Check if user is an active personal trainer
+  if (!ptData || !ptData.isActive) {
+    toast.error("You are not authorized to access this page")
+    router.push("/member/profile")
+    return null
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Update user profile
+    const userData = {
+      name: formData.name,
+      phone: formData.phone,
+      address: formData.address,
+      birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
+      image: formData.image,
+    }
+    updateProfile.mutate(userData)
+
+    // Update PT profile
+    const ptProfileData = {
+      id: ptData.id,
+      description: formData.description,
+    }
+    updatePT.mutate(ptProfileData)
+  }
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Check file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file")
+      return
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size should be less than 5MB")
+      return
+    }
+
+    try {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        uploadPTPhoto.mutate({ file: base64String })
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      toast.error("Failed to process image")
+    }
+  }
+
+  return (
+    <div className="container mx-auto py-8">
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <Avatar className="h-16 w-16 border-2 border-[#BFFF00]">
+                <AvatarImage 
+                  src={formData.image || session.user.image || ""} 
+                  alt={profile?.name || "Trainer"} 
+                />
+                <AvatarFallback className="bg-[#BFFF00] text-black font-semibold">
+                  {profile?.name?.charAt(0) || "T"}
+                </AvatarFallback>
+              </Avatar>
+              {isEditing && (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-background"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-[#BFFF00]">{profile?.name || "Trainer"}</h2>
+              <p className="text-muted-foreground">{session.user.email}</p>
+            </div>
+          </div>
+          {!isEditing ? (
+            <Button 
+              onClick={() => setIsEditing(true)}
+              className="bg-[#C9D953] hover:bg-[#C9D953]/90"
+            >
+              Edit Profile
+            </Button>
+          ) : (
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+              <Button 
+                form="profile-form" 
+                type="submit" 
+                disabled={updateProfile.isPending || updatePT.isPending}
+                className="bg-[#C9D953] hover:bg-[#C9D953]/90"
+              >
+                {updateProfile.isPending || updatePT.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Member Since</p>
+                <p>{profile?.createdAt ? format(profile.createdAt, "MMMM d, yyyy") : "N/A"}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Points</p>
+                <p>{profile?.point || 0}</p>
+              </div>
+            </div>
+
+            <form id="profile-form" onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="birthDate">Birth Date</Label>
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    disabled={!isEditing}
+                    placeholder="Tell us about yourself..."
+                    className="min-h-[150px]"
+                  />
+                </div>
+              </div>
+            </form>
+            <ChangePasswordDialog />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
