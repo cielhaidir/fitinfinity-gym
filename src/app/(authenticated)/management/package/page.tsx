@@ -4,6 +4,7 @@ import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import { ProtectedRoute } from "@/components/auth/protected-route";
 
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
@@ -37,9 +38,9 @@ export default function PackagePage() {
     const [limit, setLimit] = useState(10);
 
     const { data: packageData = { items: [], total: 0, page: 1, limit: 10 } } = api.package.list.useQuery({
-        page,
-        limit,
-        search
+        page: 1,
+        limit: 10,
+        search,
     });
 
     const createPackageMutation = api.package.create.useMutation();
@@ -153,7 +154,7 @@ export default function PackagePage() {
     const columns = createColumns({ onEditModel: handleEditPackage, onDeleteModel: handlePackageDelete })
 
     return (
-        <>
+        <ProtectedRoute requiredPermissions={["list:packages"]}>
             <Sheet open={isSheetOpen} onOpenChange={(open) => {
                 setIsSheetOpen(open);
                 if (!open) {
@@ -199,6 +200,6 @@ export default function PackagePage() {
                     />
                 </div>
             </Sheet>
-        </>
+        </ProtectedRoute>
     );
 }

@@ -22,6 +22,8 @@ const createUserSchema = z.object({
     birthDate: z.date().optional(),
 });
 
+// Add this query to your existing user router
+
 export const userRouter = createTRPCRouter({
     
     create: publicProcedure
@@ -96,7 +98,16 @@ export const userRouter = createTRPCRouter({
         }),
 
     update: protectedProcedure
-        .input(z.object({ id: z.string(), name: z.string().optional(), email: z.string().email().optional() }))
+        .input(z.object({ 
+            id: z.string(), 
+            name: z.string().optional(), 
+            email: z.string().email().optional(),
+            address: z.string().optional(),
+            phone: z.string().optional(),
+            birthDate: z.date().optional(),
+            idNumber: z.string().optional(),
+            roleIds: z.array(z.string()).optional()
+        }))
         .mutation(async ({ ctx, input }) => {
             const sessionUserId = ctx.session.user.id;
             const sessionUserName = ctx.session.user.name;
@@ -107,6 +118,14 @@ export const userRouter = createTRPCRouter({
                     data: {
                         name: input.name,
                         email: input.email,
+                        address: input.address,
+                        phone: input.phone,
+                        birthDate: input.birthDate,
+                        idNumber: input.idNumber,
+                        roles: input.roleIds ? {
+                            set: [], // First disconnect all roles
+                            connect: input.roleIds.map(id => ({ id })) // Then connect new roles
+                        } : undefined
                     },
                 });
                 userLogger.info(
@@ -166,12 +185,16 @@ export const userRouter = createTRPCRouter({
                     }
                 }
                 : {};
+                
 
             const items = await ctx.db.user.findMany({
                 skip: (input.page - 1) * input.limit,
                 take: input.limit,
                 where: whereClause,
                 orderBy: { createdAt: "desc" },
+                include: {
+                    roles: true
+                }
             });
 
             const total = await ctx.db.user.count({ where: whereClause });
@@ -183,5 +206,26 @@ export const userRouter = createTRPCRouter({
                 limit: input.limit,
             };
         }),
-
+    getUserWithRoles: protectedProcedure
+        .query(async ({ ctx }) => {
+            const userId = ctx.session.user.id;
+            
+            const user = await ctx.db.user.findUnique({
+                where: { id: userId },
+                include: {
+                    roles: {
+                        include: {
+                            permissions: {
+                                include: {
+                                  permission: true,
+                                }
+                            }
+                        }
+                    }
+                },
+            }
+            );
+            
+            return user;
+        }),
 });

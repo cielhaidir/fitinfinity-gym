@@ -264,6 +264,7 @@ export default function EmployeePage() {
                     limit: employees.limit,
                 }}
                 columns={columns}
+                onPaginationChange={handlePaginationChange}
             />
 
             <SelectUserModal

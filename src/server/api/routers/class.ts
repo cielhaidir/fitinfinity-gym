@@ -2,11 +2,13 @@ import { z } from "zod"
 import {
     createTRPCRouter,
     protectedProcedure,
+    permissionProtectedProcedure
 } from "@/server/api/trpc"
 import { createClassSchema } from "@/app/(authenticated)/management/class/schema"
 
 export const classRouter = createTRPCRouter({
-    create: protectedProcedure
+
+    create: permissionProtectedProcedure(['create:classes'])
         .input(createClassSchema)
         .mutation(async ({ ctx, input }) => {
             console.log("Creating class with input:", input); // Debug log
@@ -34,7 +36,7 @@ export const classRouter = createTRPCRouter({
             }
         }),
 
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:classes'])
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1),
@@ -77,7 +79,7 @@ export const classRouter = createTRPCRouter({
             }
         }),
 
-    update: protectedProcedure
+    update: permissionProtectedProcedure(['edit:classes'])
         .input(createClassSchema.extend({
             id: z.string(),
         }))
@@ -107,7 +109,7 @@ export const classRouter = createTRPCRouter({
             }
         }),
 
-    remove: protectedProcedure
+    remove: permissionProtectedProcedure(['delete:classes'])
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             try {

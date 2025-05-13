@@ -20,15 +20,24 @@ export default function PermissionPage() {
         name: ""
     });
     const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
 
     const { data: permissions = { items: [], total: 0, page: 1, limit: 10 } } = api.permission.list.useQuery({
-        page: 1,
-        limit: 10
+        page,
+        limit,
+        search,
     });
+
+    const handlePaginationChange = (newPage: number, newLimit: number) => {
+        setPage(newPage);
+        setLimit(newLimit);
+    };
 
     const createPermissionMutation = api.permission.create.useMutation();
     const updatePermissionMutation = api.permission.update.useMutation();
     const deletePermissionMutation = api.permission.remove.useMutation();
+    const createSinglePermissionMutation = api.permission.createSingle.useMutation();
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -45,7 +54,7 @@ export default function PermissionPage() {
         }
     };
 
-    const handleCreateOrUpdatePermission = async () => {
+    const handleCreateOrUpdatePermission = async (isSingle: boolean) => {
         try {
             const promise = async () => {
                 if (isEditMode && selectedPermission) {
@@ -54,9 +63,15 @@ export default function PermissionPage() {
                         name: selectedPermission.name,
                     });
                 } else {
-                    await createPermissionMutation.mutateAsync({
-                        name: newPermission.name.toLowerCase(),
-                    });
+                    if (isSingle) {
+                        await createSinglePermissionMutation.mutateAsync({
+                            name: newPermission.name.toLowerCase(),
+                        });
+                    } else {
+                        await createPermissionMutation.mutateAsync({
+                            name: newPermission.name.toLowerCase(),
+                        });
+                    }
                 }
 
                 await utils.permission.list.invalidate();
@@ -70,7 +85,7 @@ export default function PermissionPage() {
                 loading: 'Loading...',
                 success: isEditMode 
                     ? 'Permission updated successfully!'
-                    : 'CRUD permissions created successfully!',
+                    : (isSingle ? 'Permission created successfully!' : 'CRUD permissions created successfully!'),
                 error: (error) => error instanceof Error ? error.message : String(error),
             });
         } catch (error) {
@@ -100,10 +115,6 @@ export default function PermissionPage() {
         } catch (error) {
             console.error("Error deleting permission:", error);
         }
-    };
-
-    const handlePaginationChange = (page: number, limit: number) => {
-        utils.permission.list.invalidate({ page, limit });
     };
 
     const columns = permissionColumns({

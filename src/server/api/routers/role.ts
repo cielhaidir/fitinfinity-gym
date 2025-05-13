@@ -31,6 +31,28 @@ export const roleRouter = createTRPCRouter({
             });
         }),
 
+    listAll: protectedProcedure
+        .input(z.object({
+            search: z.string().optional(),
+        }))
+        .query(async ({ ctx, input }) => {
+            const whereClause = input.search
+                ? {
+                    name: {
+                        contains: input.search,
+                        mode: "insensitive" as const
+                    }
+                }
+                : {};
+
+            const items = await ctx.db.role.findMany({
+                where: whereClause,
+                orderBy: { name: "asc" },
+            });
+
+            return items;
+        }),
+
     list: protectedProcedure
         .input(z.object({
             page: z.number().min(1),

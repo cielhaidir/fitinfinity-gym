@@ -1,7 +1,20 @@
-import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard } from 'lucide-react';
-import { title } from 'process';
+import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 
-export const Menu = {
+interface MenuItem {
+  title: string;
+  url: string;
+  icon?: LucideIcon;
+  requiredPermission?: string;
+}
+
+interface MenuGroup {
+  title: string;
+  url: string;
+  items: MenuItem[];
+}
+
+export const Menu: { navMain: MenuGroup[] } = {
     navMain: [
         {
             title: "Management",
@@ -10,52 +23,68 @@ export const Menu = {
                 {
                     title: "Personal Trainer",
                     url: "/management/personal-trainer",
-                    icon: Users,
+                    icon: Contact,
+                    requiredPermission: "list:trainers"
                 },
-                // {
-                //     title: "Role",
-                //     url: "#",
-                //     icon: UserCog,
-                // },
                 {
                     title: "Package",
                     url: "/management/package",
                     icon: Package,
+                    requiredPermission: "list:packages"
                 },
-                // {
-                //     title: "User",
-                //     url: "#",
-                //     icon: User,
-                // },
                 {
                     title: "Member",
                     url: "/management/member",
                     icon: UserPlus,
+                    requiredPermission: "list:members"
                 },
                 {
                     title: "Class",
                     url: "/management/class",
                     icon: Dumbbell,
+                    requiredPermission: "list:classes"
                 },
                 {
-                    title: "Role Permission",
-                    url: "/management/role-permission",
-                    icon: Users,
+                    title: "Employee",
+                    url: "/management/employee",
+                    icon: ContactRound,
+                    requiredPermission: "list:employees"
+                },
+                {
+                    title: "Users",
+                    url: "/management/user",
+                    icon: Dumbbell,
+                    requiredPermission: "list:users"
                 },
                 {
                     title: "Voucher",
                     url: "/management/voucher",
                     icon: Users,
+                    requiredPermission: "list:vouchers"
+                },
+                {
+                    title: "Role Permission",
+                    url: "/management/role-permission",
+                    icon: Users,
+                    // requiredPermission: "list:roles"
+                },
+                {
+                    title: "Permission",
+                    url: "/management/permission",
+                    icon: Users,
+                    // requiredPermission: "list:roles"
                 },
                 {
                     title: "Role",
                     url: "/management/role",
                     icon: Users,
+                    // requiredPermission: "list:roles"
                 },
                 {
                     title: 'Subscription',
                     url: '/management/subscription',
                     icon: CreditCard,
+                    requiredPermission: "list:subscriptions"
                 }
             ],
         },
@@ -66,6 +95,7 @@ export const Menu = {
                 {
                     title: "Dashboard",
                     url: "/admin/dashboard",
+                    requiredPermission: "read:dashboard-admin"
                 },
                 {
                     title: "Settings",

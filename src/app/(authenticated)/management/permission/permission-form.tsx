@@ -11,11 +11,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Permission } from "./schema";
+import { Switch } from "@/components/ui/switch";
+
+import { useState } from "react";
 
 type PermissionFormProps = {
     permission: Permission;
     onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onCreateOrUpdatePermission: () => void;
+    onCreateOrUpdatePermission: (isSingle: boolean) => void;
     isEditMode: boolean;
 };
 
@@ -25,6 +28,8 @@ export const PermissionForm: React.FC<PermissionFormProps> = ({
     onCreateOrUpdatePermission,
     isEditMode,
 }) => {
+    const [isSinglePermission, setIsSinglePermission] = useState(false);
+
     return (
         <SheetContent side="right" className="w-full overflow-y-auto">
             <SheetHeader>
@@ -34,34 +39,51 @@ export const PermissionForm: React.FC<PermissionFormProps> = ({
                 <SheetDescription>
                     {isEditMode
                         ? "Edit the permission name."
-                        : "Enter a base name to create CRUD permissions (create_[name], edit_[name], delete_[name], list_[name])."}
+                        : "Create a single permission or CRUD permission set"}
                 </SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-4 py-8 sm:px-0 px-4">
+                {!isEditMode && (
+                    <div className="flex items-center space-x-2">
+                        <Switch
+                            id="single-permission"
+                            checked={isSinglePermission}
+                            onCheckedChange={setIsSinglePermission}
+                        />
+                        <label htmlFor="single-permission" className="text-sm font-medium">
+                            Create single permission
+                        </label>
+                    </div>
+                )}
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium">
-                        {isEditMode ? "Permission Name" : "Base Permission Name"}
+                        {isEditMode ? "Permission Name" : (isSinglePermission ? "Permission Name" : "Base Permission Name")}
                     </label>
                     <Input
                         id="name"
                         name="name"
-                        placeholder={isEditMode ? "Permission Name" : "e.g., member"}
+                        placeholder={isEditMode ? "Permission Name" : (isSinglePermission ? "e.g., manage:users" : "e.g., member")}
                         value={permission.name}
                         onChange={onInputChange}
                     />
-                    {!isEditMode && (
+                    {!isEditMode && !isSinglePermission && (
                         <p className="mt-2 text-sm text-muted-foreground">
-                            This will create: create_{permission.name || '[name]'}, 
-                            edit_{permission.name || '[name]'}, 
-                            delete_{permission.name || '[name]'}, 
-                            list_{permission.name || '[name]'}
+                            This will create: create:{permission.name || '[name]'}, 
+                            edit:{permission.name || '[name]'}, 
+                            delete:{permission.name || '[name]'}, 
+                            list:{permission.name || '[name]'}
                         </p>
                     )}
                 </div>
             </div>
             <SheetFooter className="flex justify-end gap-2">
-                <Button onClick={onCreateOrUpdatePermission} className="bg-infinity">
-                    {isEditMode ? "Update Permission" : "Create CRUD Permissions"}
+                <Button 
+                    onClick={() => onCreateOrUpdatePermission(isSinglePermission)} 
+                    className="bg-infinity"
+                >
+                    {isEditMode 
+                        ? "Update Permission" 
+                        : (isSinglePermission ? "Create Permission" : "Create CRUD Permissions")}
                 </Button>
                 <SheetClose asChild>
                     <Button variant="outline">Cancel</Button>
@@ -70,3 +92,4 @@ export const PermissionForm: React.FC<PermissionFormProps> = ({
         </SheetContent>
     );
 };
+

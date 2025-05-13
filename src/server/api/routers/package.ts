@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
     createTRPCRouter,
     protectedProcedure,
+    permissionProtectedProcedure
 } from "@/server/api/trpc";
 
 const packageType = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER"]);
@@ -30,7 +31,7 @@ export const packageRouter = createTRPCRouter({
             });
         }),
 
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:packages'])
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
@@ -56,9 +57,6 @@ export const packageRouter = createTRPCRouter({
                 where,
                 orderBy: { createdAt: "desc" },
             });
-
-            
-
             const total = await ctx.db.package.count({ where });
 
             return {
@@ -69,7 +67,7 @@ export const packageRouter = createTRPCRouter({
             };
         }),
 
-    detail: protectedProcedure
+    detail: permissionProtectedProcedure(['list:packages'])
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             return ctx.db.package.findUnique({
@@ -77,7 +75,7 @@ export const packageRouter = createTRPCRouter({
             });
         }),
 
-    update: protectedProcedure
+    update: permissionProtectedProcedure(['edit:packages'])
         .input(z.object({
             id: z.string(),
             name: z.string(),
@@ -107,7 +105,7 @@ export const packageRouter = createTRPCRouter({
             });
         }),
 
-    remove: protectedProcedure
+    remove: permissionProtectedProcedure(['delete:packages'])
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.package.delete({
@@ -115,14 +113,14 @@ export const packageRouter = createTRPCRouter({
             });
         }),
 
-    listActive: protectedProcedure
+    listActive: permissionProtectedProcedure(['list:packages'])
         .query(async ({ ctx }) => {
             return ctx.db.package.findMany({
                 where: { isActive: true },
             });
         }),
 
-    listByType: protectedProcedure
+    listByType: permissionProtectedProcedure(['list:packages'])
         .input(z.object({ type: packageType }))
         .query(async ({ ctx, input }) => {
             return ctx.db.package.findMany({

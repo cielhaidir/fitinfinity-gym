@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
 import { employeeSchema } from "@/app/(authenticated)/management/employee/schema";
 
 export const employeeRouter = createTRPCRouter({
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:employees'])
         .input(
             z.object({
                 page: z.number().min(1),
@@ -45,7 +45,7 @@ export const employeeRouter = createTRPCRouter({
             };
         }),
 
-    create: protectedProcedure
+    create: permissionProtectedProcedure(['create:employees'])
         .input(employeeSchema)
         .mutation(async ({ ctx, input }) => {
             const { userId, position, department, image, isActive } = input;
@@ -61,7 +61,7 @@ export const employeeRouter = createTRPCRouter({
             });
         }),
 
-    update: protectedProcedure
+    update: permissionProtectedProcedure(['edit:employees'])
         .input(
             z.object({
                 id: z.string(),
@@ -80,7 +80,7 @@ export const employeeRouter = createTRPCRouter({
             });
         }),
 
-    delete: protectedProcedure
+    delete: permissionProtectedProcedure(['delete:employees'])
         .input(z.string())
         .mutation(async ({ ctx, input }) => {
             return ctx.db.employee.delete({

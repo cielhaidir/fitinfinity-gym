@@ -1,0 +1,669 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+<additional_info>
+
+</additional_info>
+
+</file_summary>
+
+<directory_structure>
+columns.tsx
+page.tsx
+permission-form.tsx
+schema.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="columns.tsx">
+"use client"
+
+import { ColumnDef } from "@tanstack/react-table"
+
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+
+import { PersonalTrainer } from "./schema"
+import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
+import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
+import { Role } from "./schema"
+import { Permission } from "./schema"
+
+interface ColumnsProps {
+  onEditMember: (member: any) => void,
+  onDeleteMember: (member: any) => void,
+  onEdit: (role: Role) => void,
+  onDelete: (role: Role) => void,
+  onEditPermission: (permission: Permission) => void,
+  onDeletePermission: (permission: Permission) => void,
+}
+
+export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }: ColumnsProps): ColumnDef<PersonalTrainer>[] => [
+  {
+    id: "select", 
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+        className="translate-y-[2px] ring-offset-background ring-black"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+        className="translate-y-[2px] ring-infinity"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },  
+  {
+    accessorKey: "user.name",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Trainer Name" />
+    ),
+    cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
+  },
+  {
+    id: "email",
+    accessorKey: "user.email",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Email" />
+    ),
+  },
+  {
+    accessorKey: "description",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Description" />
+    ),
+  },
+  {
+    accessorKey: "isActive",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
+    cell: ({ row }) => (
+      <div className="w-[100px]">
+        <Badge variant={row.getValue("isActive") ? "default" : "secondary"}>
+          {row.getValue("isActive") ? "Active" : "Inactive"}
+        </Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "createdAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Created At" />
+    ),
+    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
+  },
+  {
+    accessorKey: "updatedAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Updated At" />
+    ),
+    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEditMember} onDelete={onDeleteMember} />,
+  },
+]
+
+export const roleColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Role>[] => [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "name",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Role Name" />
+    ),
+  },
+  {
+    id: "permissions",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Permissions" />
+    ),
+    cell: ({ row }) => {
+      const permissions = row.original.permissions?.map(p => p.permission.name).join(", ") ?? "";
+      return <div className="max-w-[300px] truncate">{permissions}</div>;
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} onDelete={onDelete} />,
+  },
+]
+
+interface ColumnsProps {
+    onEdit: (role: { name: string; id?: string; permissions?: { permission: { id: string; name: string } }[] }) => void;
+    onDelete: (role: { name: string; id?: string; permissions?: { permission: { id: string; name: string } }[] }) => void;
+}
+
+export const permissionColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Permission>[] => [
+    {
+        id: "select",
+        header: ({ table }) => (
+            <Checkbox
+                checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                aria-label="Select all"
+            />
+        ),
+        cell: ({ row }) => (
+            <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+            />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+    },
+    {
+        accessorKey: "name",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Permission Name" />
+        ),
+    },
+    {
+        id: "actions",
+        cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} onDelete={onDelete} />,
+    },
+]
+</file>
+
+<file path="page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import { DataTable } from "@/components/datatable/data-table";
+import { permissionColumns } from "./columns";
+import { api } from "@/trpc/react";
+import { Permission } from "./schema";
+import { PermissionForm } from "./permission-form";
+import { toast } from "sonner";
+
+export default function PermissionPage() {
+    const utils = api.useUtils();
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [selectedPermission, setSelectedPermission] = useState<Permission | null>(null);
+    const [newPermission, setNewPermission] = useState<Permission>({
+        name: ""
+    });
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
+
+    const { data: permissions = { items: [], total: 0, page: 1, limit: 10 } } = api.permission.list.useQuery({
+        page,
+        limit,
+    });
+
+    const handlePaginationChange = (newPage: number, newLimit: number) => {
+        setPage(newPage);
+        setLimit(newLimit);
+    };
+
+    const createPermissionMutation = api.permission.create.useMutation();
+    const updatePermissionMutation = api.permission.update.useMutation();
+    const deletePermissionMutation = api.permission.remove.useMutation();
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        if (isEditMode && selectedPermission) {
+            setSelectedPermission(prev => ({
+                ...prev!,
+                [name]: value,
+            }));
+        } else {
+            setNewPermission(prev => ({
+                ...prev,
+                [name]: value,
+            }));
+        }
+    };
+
+    const handleCreateOrUpdatePermission = async () => {
+        try {
+            const promise = async () => {
+                if (isEditMode && selectedPermission) {
+                    await updatePermissionMutation.mutateAsync({
+                        id: selectedPermission.id!,
+                        name: selectedPermission.name,
+                    });
+                } else {
+                    await createPermissionMutation.mutateAsync({
+                        name: newPermission.name.toLowerCase(),
+                    });
+                }
+
+                await utils.permission.list.invalidate();
+                setIsSheetOpen(false);
+                setIsEditMode(false);
+                setSelectedPermission(null);
+                setNewPermission({ name: "" });
+            };
+
+            await toast.promise(promise(), {
+                loading: 'Loading...',
+                success: isEditMode 
+                    ? 'Permission updated successfully!'
+                    : 'CRUD permissions created successfully!',
+                error: (error) => error instanceof Error ? error.message : String(error),
+            });
+        } catch (error) {
+            console.error("Error handling permission:", error);
+        }
+    };
+
+    const handleEditPermission = (permission: Permission) => {
+        setSelectedPermission(permission);
+        setIsEditMode(true);
+        setIsSheetOpen(true);
+    };
+
+    const handleDeletePermission = async (permission: Permission) => {
+        if (!permission.id) return;
+
+        try {
+            const promise = deletePermissionMutation.mutateAsync({ id: permission.id });
+
+            await toast.promise(promise, {
+                loading: 'Deleting permission...',
+                success: 'Permission deleted successfully!',
+                error: (error) => error instanceof Error ? error.message : String(error),
+            });
+
+            await utils.permission.list.invalidate();
+        } catch (error) {
+            console.error("Error deleting permission:", error);
+        }
+    };
+
+    const columns = permissionColumns({
+        onEdit: handleEditPermission,
+        onDelete: handleDeletePermission,
+        onEditMember: () => {},
+        onDeleteMember: () => {},
+        onEditPermission: () => {},
+        onDeletePermission: () => {},
+    });
+
+    return (
+        <>
+            <Sheet
+                open={isSheetOpen}
+                onOpenChange={(open) => {
+                    setIsSheetOpen(open);
+                    if (!open) {
+                        setIsEditMode(false);
+                        setSelectedPermission(null);
+                        setNewPermission({ name: "" });
+                    }
+                }}
+            >
+                <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
+                    <div className="flex items-center justify-between space-y-2">
+                        <div>
+                            <h2 className="text-2xl font-bold tracking-tight">
+                                Permission Management
+                            </h2>
+                            <p className="text-muted-foreground">
+                                Manage system permissions here
+                            </p>
+                        </div>
+                        <SheetTrigger asChild>
+                            <Button className="mb-4 bg-infinity">
+                                <Plus className="mr-2 h-4 w-4" /> Add Permission
+                            </Button>
+                        </SheetTrigger>
+                    </div>
+                    <DataTable
+                        columns={columns}
+                        data={permissions}
+                        onPaginationChange={handlePaginationChange}
+                        searchColumns={[
+                            { id: "name", placeholder: "Search by permission name..." },
+                        ]}
+                        onSearch={(value) => setSearch(value)}
+                    />
+                </div>
+                <PermissionForm
+                    permission={selectedPermission || newPermission}
+                    onCreateOrUpdatePermission={handleCreateOrUpdatePermission}
+                    onInputChange={handleInputChange}
+                    isEditMode={isEditMode}
+                />
+            </Sheet>
+        </>
+    );
+}
+</file>
+
+<file path="permission-form.tsx">
+"use client";
+
+import {
+    SheetClose,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetFooter,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Permission } from "./schema";
+
+type PermissionFormProps = {
+    permission: Permission;
+    onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onCreateOrUpdatePermission: () => void;
+    isEditMode: boolean;
+};
+
+export const PermissionForm: React.FC<PermissionFormProps> = ({
+    permission,
+    onInputChange,
+    onCreateOrUpdatePermission,
+    isEditMode,
+}) => {
+    return (
+        <SheetContent side="right" className="w-full overflow-y-auto">
+            <SheetHeader>
+                <SheetTitle>
+                    {isEditMode ? "Edit Permission" : "Create New Permissions"}
+                </SheetTitle>
+                <SheetDescription>
+                    {isEditMode
+                        ? "Edit the permission name."
+                        : "Enter a base name to create CRUD permissions (create:[name], edit:[name], delete:[name], list:[name])"}
+                </SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 py-8 sm:px-0 px-4">
+                <div>
+                    <label htmlFor="name" className="block text-sm font-medium">
+                        {isEditMode ? "Permission Name" : "Base Permission Name"}
+                    </label>
+                    <Input
+                        id="name"
+                        name="name"
+                        placeholder={isEditMode ? "Permission Name" : "e.g., member"}
+                        value={permission.name}
+                        onChange={onInputChange}
+                    />
+                    {!isEditMode && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            This will create: create:{permission.name || '[name]'}, 
+                            edit:{permission.name || '[name]'}, 
+                            delete:{permission.name || '[name]'}, 
+                            list:{permission.name || '[name]'}
+                        </p>
+                    )}
+                </div>
+            </div>
+            <SheetFooter className="flex justify-end gap-2">
+                <Button onClick={onCreateOrUpdatePermission} className="bg-infinity">
+                    {isEditMode ? "Update Permission" : "Create CRUD Permissions"}
+                </Button>
+                <SheetClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                </SheetClose>
+            </SheetFooter>
+        </SheetContent>
+    );
+};
+</file>
+
+<file path="schema.ts">
+import { z } from "zod"
+
+export const personalTrainerSchema = z.object({
+    id: z.string(),
+    userId: z.string(),
+    user: z.object({
+        name: z.string().nullable(),
+        email: z.string().nullable(),
+        address: z.string().nullable(),
+        phone: z.string().nullable(),
+        birthDate: z.date().nullable(),
+        idNumber: z.string().nullable(),
+    }),
+    description: z.string().nullable(),
+    isActive: z.boolean().default(true),
+    createdAt: z.date(),
+    updatedAt: z.date(),
+})
+
+export const UserPersonalTrainerSchema = z.object({
+    id: z.string().optional(),
+    name: z.string(),
+    email: z.string().email(),
+    address: z.string(),
+    phone: z.string(),
+    birthDate: z.date(),
+    idNumber: z.string(),
+    description: z.string().optional(),
+    user: z.object({
+        name: z.string().nullable(),
+        email: z.string().nullable(),
+        address: z.string().nullable(),
+        phone: z.string().nullable(),
+        birthDate: z.date().nullable(),
+        idNumber: z.string().nullable(),
+    }).optional(),
+})
+
+export type UserPersonalTrainer = z.infer<typeof UserPersonalTrainerSchema>
+export type PersonalTrainer = z.infer<typeof personalTrainerSchema>
+
+export const roleSchema = z.object({
+    id: z.string().optional(),
+    name: z.string(),
+    permissions: z.array(z.object({
+        permission: z.object({
+            id: z.string(),
+            name: z.string()
+        })
+    })).optional()
+})
+
+export type Role = z.infer<typeof roleSchema>
+
+export const permissionSchema = z.object({
+    id: z.string().optional(),
+    name: z.string(),
+})
+
+export type Permission = z.infer<typeof permissionSchema>
+</file>
+
+<file path="permissioni.ts">
+import { z } from "zod";
+import {
+    createTRPCRouter,
+    protectedProcedure,
+} from "@/server/api/trpc";
+
+export const permissionRouter = createTRPCRouter({
+    create: protectedProcedure
+        .input(z.object({
+            name: z.string(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const actions = ['create', 'edit', 'delete', 'list'];
+            const permissions = await Promise.all(
+                actions.map(action => 
+                    ctx.db.permission.create({
+                        data: {
+                            name: `${action}:${input.name}`,
+                        },
+                        include: {
+                            roles: {
+                                include: {
+                                    role: true
+                                }
+                            }
+                        }
+                    })
+                )
+            );
+            
+            return permissions;
+        }),
+
+    update: protectedProcedure
+        .input(z.object({
+            id: z.string(),
+            name: z.string(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            return ctx.db.permission.update({
+                where: { id: input.id },
+                data: {
+                    name: input.name,
+                },
+                include: {
+                    roles: {
+                        include: {
+                            role: true
+                        }
+                    }
+                }
+            });
+        }),
+
+    list: protectedProcedure
+        .input(z.object({
+            page: z.number().min(1),
+            limit: z.number().min(1).max(100),
+        }))
+        .query(async ({ ctx, input }) => {
+            const items = await ctx.db.permission.findMany({
+                skip: (input.page - 1) * input.limit,
+                take: input.limit,
+                orderBy: { name: "asc" },
+            });
+
+            const total = await ctx.db.permission.count();
+
+            return {
+                items,
+                total,
+                page: input.page,
+                limit: input.limit,
+            };
+        }),
+
+    getAllRoles: protectedProcedure
+        .query(async ({ ctx }) => {
+            return ctx.db.role.findMany({
+                orderBy: { name: "asc" },
+                select: {
+                    id: true,
+                    name: true
+                }
+            });
+        }),
+
+    getById: protectedProcedure
+        .input(z.object({ id: z.string() }))
+        .query(async ({ ctx, input }) => {
+            return ctx.db.permission.findUnique({
+                where: { id: input.id },
+                include: {
+                    roles: {
+                        include: {
+                            role: true
+                        }
+                    }
+                }
+            });
+        }),
+
+    remove: protectedProcedure
+        .input(z.object({ id: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            return ctx.db.permission.delete({
+                where: { id: input.id },
+            });
+        }),
+
+    getAll: protectedProcedure
+        .query(async ({ ctx }) => {
+            const permissions = await ctx.db.permission.findMany({
+                orderBy: {
+                    name: 'asc'
+                }
+            });
+            return permissions;
+        }),
+});
+
+</file>
+</files>

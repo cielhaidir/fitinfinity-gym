@@ -131,3 +131,64 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+// Add this middleware to your existing TRPC setup
+
+export const enforcePermissionMiddleware = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.session || !ctx.session.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  const userId = ctx.session.user.id;
+  
+  const user = await ctx.db.user.findUnique({
+    where: { id: userId },
+    include: {
+      roles: {
+        include: {
+          permissions: {
+            include: {
+              permission: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  // Add user permissions to the context
+  const permissions = user.roles.flatMap(role => 
+    role.permissions.map(p => p.permission.name)
+  );
+
+  return next({
+    ctx: {
+      ...ctx,
+      user,
+      permissions,
+    },
+  });
+});
+
+// Create a procedure that requires specific permissions
+export const permissionProtectedProcedure = (requiredPermissions: string[]) => 
+  protectedProcedure
+    .use(enforcePermissionMiddleware)
+    .use(({ ctx, next }) => {
+      const hasPermission = requiredPermissions.some(permission => 
+        ctx.permissions.includes(permission)
+      );
+      
+      if (!hasPermission) {
+        throw new TRPCError({ 
+          code: "FORBIDDEN", 
+          message: "You don't have permission to perform this action" 
+        });
+      }
+      
+      return next({ ctx });
+    });

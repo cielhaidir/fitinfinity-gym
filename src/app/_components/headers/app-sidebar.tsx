@@ -4,12 +4,12 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { SearchForm } from "./search-form";
-import { VersionSwitcher } from "./version-switcher";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useState, useCallback, useEffect } from "react";
 import { Menu as data } from "@/lib/menu";
 import { useRouter } from "next/navigation"
+import { useRBAC } from "@/hooks/useRBAC";
 
 import {
   Sidebar,
@@ -24,7 +24,6 @@ import {
   SidebarRail,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { title } from "process";
 
 import {
   Command,
@@ -36,13 +35,13 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-// This is sample data.
-
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const { hasPermission } = useRBAC();
+  
   const handleLogout = () => {
     signOut();
   };
@@ -64,6 +63,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     command();
   }, []);
 
+  // Filter menu items based on permissions
+  const filteredNavMain = data.navMain.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      // If the item has a permission requirement, check if user has it
+      if (item.requiredPermission) {
+        return hasPermission(item.requiredPermission);
+      }
+      // If no permission specified, show the item
+      return true;
+    })
+  })).filter(group => group.items.length > 0); // Only show groups with visible items
+
   return (
     <>
     <Sidebar {...props}>
@@ -78,15 +90,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             />
           </a>
         </div>
-        {/* <VersionSwitcher versions={data.versions} defaultVersion={data.versions[0] || "1.0.0"} /> */}
-        {/* <SearchForm /> */}
 
         <SearchForm setOpen={setOpen} />
 
       </SidebarHeader>
       <SidebarContent className="ps-4 pe-2">
         {/* We create a SidebarGroup for each parent. */}
-        {data.navMain.map((item) => (
+        {filteredNavMain.map((item) => (
           <SidebarGroup key={item.title}>
             <SidebarGroupLabel className="text-gray-400">
               {item.title}
@@ -127,7 +137,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <CommandInput placeholder="Type a command or search..." />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
-          {data.navMain.map((group) => (
+          {filteredNavMain.map((group) => (
             <div key={group.title}>
             <CommandGroup key={group.title} heading={group.title} className="py-4">
               {group.items.map((item) => (

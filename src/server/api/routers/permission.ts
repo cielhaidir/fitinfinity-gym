@@ -5,6 +5,25 @@ import {
 } from "@/server/api/trpc";
 
 export const permissionRouter = createTRPCRouter({
+    createSingle: protectedProcedure
+        .input(z.object({
+            name: z.string(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            return ctx.db.permission.create({
+                data: {
+                    name: input.name,
+                },
+                include: {
+                    roles: {
+                        include: {
+                            role: true
+                        }
+                    }
+                }
+            });
+        }),
+
     create: protectedProcedure
         .input(z.object({
             name: z.string(),
@@ -15,7 +34,7 @@ export const permissionRouter = createTRPCRouter({
                 actions.map(action => 
                     ctx.db.permission.create({
                         data: {
-                            name: `${action}_${input.name}`,
+                            name: `${action}:${input.name}`,
                         },
                         include: {
                             roles: {
@@ -56,11 +75,24 @@ export const permissionRouter = createTRPCRouter({
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
+            search: z.string().optional(),
+            searchColumn: z.string().optional(),
         }))
         .query(async ({ ctx, input }) => {
+            const where = {
+                AND: [
+                    input.search ? {
+                        OR: [
+                            { name: { contains: input.search, mode: "insensitive" as const } }
+                        ],
+                    } : {},
+                ],
+            };
+
             const items = await ctx.db.permission.findMany({
                 skip: (input.page - 1) * input.limit,
                 take: input.limit,
+                where,
                 orderBy: { name: "asc" },
             });
 
