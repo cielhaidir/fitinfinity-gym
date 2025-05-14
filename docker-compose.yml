@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:15
+    container_name: fitinfinity-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: P@ssw0rd_db_f1n1t3
+      POSTGRES_DB: fitinfinity
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    image: fitinfinity
+    container_name: fitinfinity-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    ports:
+      - "3099:3000"
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:

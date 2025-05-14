@@ -11,6 +11,7 @@ const config = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
