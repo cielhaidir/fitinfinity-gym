@@ -27,6 +27,7 @@ import { signOut } from "next-auth/react"
 import Link from "next/link"
 import { api } from "@/trpc/react"
 
+
 export function NavUser({
     user,
 }: {

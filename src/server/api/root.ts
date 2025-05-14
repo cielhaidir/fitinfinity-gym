@@ -21,6 +21,7 @@ import { profileRouter } from "./routers/profile";
 import { memberCalendarRouter } from "@/server/api/routers/memberCalendar";
 import { balanceAccountRouter } from "./routers/balanceAccount";
 import { chartAccountRouter } from "./routers/chartAccount";
+import { paymentValidationRouter } from "./routers/paymentValidation";
 
 
 /**
@@ -51,6 +52,7 @@ export const appRouter = createTRPCRouter({
   memberCalendar: memberCalendarRouter,
   balanceAccount: balanceAccountRouter,
   chartAccount: chartAccountRouter,
+  paymentValidation: paymentValidationRouter,
 });
 
 // export type definition of API

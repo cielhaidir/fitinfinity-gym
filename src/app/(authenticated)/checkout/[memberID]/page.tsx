@@ -48,7 +48,8 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                 total = total - selectedVoucher.amount
             }
         }
-        return total
+        // Ensure total is not negative
+        return Math.max(0, total);
     }
 
     const handleSubmit = async () => {
@@ -189,10 +190,10 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                         <RadioGroupItem value="qris" id="qris" />
                                         <Label htmlFor="qris" className="flex items-center gap-2">
                                             <QrCode className="h-4 w-4" />
-                                            QRIS
+                                            Pembayaran Langsung
                                         </Label>
                                     </div>
-                                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                                    {/* <div className="flex items-center space-x-2 rounded-md border p-3">
                                         <RadioGroupItem value="bankA" id="bankA" />
                                         <Label htmlFor="bankA" className="flex items-center gap-2">
                                             <CreditCard className="h-4 w-4" />
@@ -205,7 +206,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                             <CreditCard className="h-4 w-4" />
                                             Bank B
                                         </Label>
-                                    </div>
+                                    </div> */}
                                 </RadioGroup>
                             </div>
 
