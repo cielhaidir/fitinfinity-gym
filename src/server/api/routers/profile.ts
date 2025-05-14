@@ -20,6 +20,9 @@ export const profileRouter = createTRPCRouter({
           point: true,
           createdAt: true,
           updatedAt: true,
+          height: true,
+          weight: true,
+          gender: true,
         },
       })
 
@@ -41,6 +44,9 @@ export const profileRouter = createTRPCRouter({
         address: z.string().optional(),
         birthDate: z.date().optional(),
         image: z.string().optional(),
+        height: z.number().optional(),
+        weight: z.number().optional(),
+        gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -52,6 +58,9 @@ export const profileRouter = createTRPCRouter({
           address: input.address,
           birthDate: input.birthDate,
           image: input.image,
+          height: input.height,
+          weight: input.weight,
+          gender: input.gender,
         },
       })
     }),

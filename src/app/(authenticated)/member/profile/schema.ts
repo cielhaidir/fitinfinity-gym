@@ -11,6 +11,9 @@ export const userProfileSchema = z.object({
     idNumber: z.string().nullable(),
     createdAt: z.date(),
     updatedAt: z.date(),
+    height: z.number().nullable().optional(),
+    weight: z.number().nullable().optional(),
+    gender: z.enum(["MALE", "FEMALE", "OTHER"]).nullable().optional(),
 })
 
 export const updateProfileSchema = z.object({
@@ -20,6 +23,9 @@ export const updateProfileSchema = z.object({
     phone: z.string().optional(),
     birthDate: z.date().optional(),
     idNumber: z.string().optional(),
+    height: z.number().optional(),
+    weight: z.number().optional(),
+    gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
 })
 
 export type UserProfile = z.infer<typeof userProfileSchema>

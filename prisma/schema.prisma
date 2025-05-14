@@ -37,6 +37,12 @@ enum FlowType {
     both
 }
 
+enum Gender {
+    MALE
+    FEMALE
+    OTHER
+}
+
 model File {
     id           String   @id @default(uuid())
     bucket       String
@@ -101,6 +107,9 @@ model User {
     employee           Employee?    @relation("EmployeeToUser")
     memberRewards      MemberReward[]
     voucherClaims      VoucherClaim[]
+    height             Float?
+    weight             Float?
+    gender             Gender?
 }
 
 model Class {

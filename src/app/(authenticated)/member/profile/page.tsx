@@ -25,6 +25,9 @@ export default function ProfilePage() {
     address: "",
     birthDate: "",
     image: "",
+    height: "",
+    weight: "",
+    gender: "",
   })
 
   const { data: profile, isLoading } = api.profile.get.useQuery(undefined, {
@@ -59,6 +62,9 @@ export default function ProfilePage() {
         address: profile.address ?? "",
         birthDate: profile.birthDate ? format(profile.birthDate, "yyyy-MM-dd") : "",
         image: profile.image ?? "",
+        height: profile.height?.toString() ?? "",
+        weight: profile.weight?.toString() ?? "",
+        gender: profile.gender ?? "",
       })
     }
   }, [profile])
@@ -77,6 +83,9 @@ export default function ProfilePage() {
     const data = {
       ...formData,
       birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
+      height: formData.height ? parseFloat(formData.height) : undefined,
+      weight: formData.weight ? parseFloat(formData.weight) : undefined,
+      gender: formData.gender || undefined,
     }
     updateProfile.mutate(data)
   }
@@ -183,6 +192,10 @@ export default function ProfilePage() {
                 <p className="text-sm text-muted-foreground">Points</p>
                 <p>{profile?.point || 0}</p>
               </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Age</p>
+                <p>{profile?.birthDate ? Math.floor((new Date().getTime() - new Date(profile.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : "N/A"}</p>
+              </div>
             </div>
 
             <form id="profile-form" onSubmit={handleSubmit} className="space-y-4">
@@ -223,6 +236,43 @@ export default function ProfilePage() {
                     onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
                     disabled={!isEditing}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="height">Height (cm)</Label>
+                  <Input
+                    id="height"
+                    type="number"
+                    value={formData.height}
+                    onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                    disabled={!isEditing}
+                    min={0}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight (kg)</Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    value={formData.weight}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                    disabled={!isEditing}
+                    min={0}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <select
+                    id="gender"
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    disabled={!isEditing}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
                 </div>
               </div>
             </form>
