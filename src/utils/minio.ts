@@ -2,7 +2,6 @@ import * as Minio from 'minio'
 import fs from 'fs'
 import mime from 'mime-types' 
 import { env } from '@/env.js'
-import { db } from '@/server/db'
 import { v4 as uuidv4 } from 'uuid'
 
 export const s3Client = new Minio.Client({

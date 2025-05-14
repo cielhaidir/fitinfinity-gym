@@ -81,6 +81,12 @@ export const Menu: { navMain: MenuGroup[] } = {
                     // requiredPermission: "list:roles"
                 },
                 {
+                    title: "Users",
+                    url: "/management/user",
+                    icon: UserCog,
+                    // requiredPermission: "list:roles"
+                },
+                {
                     title: 'Subscription',
                     url: '/management/subscription',
                     icon: CreditCard,
@@ -184,12 +190,12 @@ export const Menu: { navMain: MenuGroup[] } = {
                     url: "/finance/dashboard",
                 },
                 {
-                    title: "Payroll",
-                    url: "/finance/payroll",
+                    title: "Balance Account",
+                    url: "/finance/balance-account",
                 },
                 {
-                    title: "Invoice",
-                    url: "/finance/invoice",
+                    title: "Chart Of Account",
+                    url: "/finance/chart-of-account",
                 },
                 {
                     title: "Transaction",
@@ -198,10 +204,6 @@ export const Menu: { navMain: MenuGroup[] } = {
                 {
                     title: "Report",
                     url: "/finance/report",
-                },
-                {
-                    title: "Settings",
-                    url: "/finance/settings",
                 },
             ],
         },

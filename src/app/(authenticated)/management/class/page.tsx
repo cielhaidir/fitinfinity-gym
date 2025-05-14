@@ -103,11 +103,23 @@ export default function ClassPage() {
             if (isEditMode && selectedClass) {
                 await updateMutation.mutateAsync({
                     id: selectedClass.id!,
-                    ...formData,
+                    name: formData.name as "yoga" | "zumba" | "strengh" | "core" | "booty shaping" | "cardio dance" | "bachata" | "muaythai" | "poundfit" | "freestyle dance" | "kpop dance" | "circuit" | "thaiboxig" | "cardio u",
+                    limit: formData.limit,
+                    trainerId: formData.trainerId,
+                    schedule: formData.schedule,
+                    duration: formData.duration,
+                    price: formData.price,
                 })
                 toast.success("Class updated successfully!")
             } else {
-                await createMutation.mutateAsync(formData)
+                await createMutation.mutateAsync({
+                    name: formData.name as "yoga" | "zumba" | "strengh" | "core" | "booty shaping" | "cardio dance" | "bachata" | "muaythai" | "poundfit" | "freestyle dance" | "kpop dance" | "circuit" | "thaiboxig" | "cardio u",
+                    limit: formData.limit,
+                    trainerId: formData.trainerId,
+                    schedule: formData.schedule,
+                    duration: formData.duration,
+                    price: formData.price,
+                })
                 toast.success("Class created successfully!")
             }
 
@@ -173,7 +185,7 @@ export default function ClassPage() {
                         onEdit: handleEdit,
                         onDelete: handleDelete,
                     })}
-                    data={classes ?? { items: [], total: 0, page: 1, limit: 10 }}
+                    data={classes as { items: Class[], total: number, page: number, limit: number } ?? { items: [], total: 0, page: 1, limit: 10 }}
                     onPaginationChange={(newPage, newLimit) => {
                         setPage(newPage)
                         setPageSize(newLimit)
@@ -204,7 +216,7 @@ export default function ClassPage() {
                 }}
             >
                 <ClassForm
-                    name={formData.name}
+                    name={formData.name as "yoga" | "zumba" | "strengh" | "core" | "booty shaping" | "cardio dance" | "bachata" | "muaythai" | "poundfit" | "freestyle dance" | "kpop dance" | "circuit" | "thaiboxig" | "cardio u"}
                     limit={formData.limit}
                     trainerId={formData.trainerId}
                     schedule={formData.schedule}

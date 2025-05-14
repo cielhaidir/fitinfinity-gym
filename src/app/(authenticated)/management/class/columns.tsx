@@ -80,7 +80,7 @@ export const columns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Class>[] 
         ),
         cell: ({ row }) => (
             <div className="hidden md:block">
-                Rp {row.getValue("price").toLocaleString('id-ID')}
+                Rp {((row.getValue("price") as number) || 0).toLocaleString('id-ID')}
             </div>
         ),
     },

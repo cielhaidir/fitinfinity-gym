@@ -4,8 +4,6 @@ export const balanceAccountSchema = z.object({
   id: z.number(),
   name: z.string(),
   account_number: z.string(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
 })
 
 export const balanceAccountListSchema = z.object({

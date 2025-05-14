@@ -9,6 +9,7 @@ const rewardInputSchema = z.object({
 });
 
 export const rewardRouter = createTRPCRouter({
+  
   list: protectedProcedure.query(async ({ ctx }) => {
     const items = await ctx.db.reward.findMany({
       orderBy: { createdAt: 'desc' },

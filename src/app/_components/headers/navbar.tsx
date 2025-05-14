@@ -37,9 +37,11 @@ export default function Navbar({ user }: { user?: any; }) {
 
   // Base navigation links
   const baseNavLinks = [
-    { name: "Home", href: "/" },
-    { name: "Program", href: "#program" },
-    { name: "Pricing", href: "#pricing" },
+    { name: "Home", href: "#home" },
+    { name: "About", href: "#about" },
+    { name: "Classes", href: "#classes" },
+    { name: "Trainers", href: "#trainers" },
+    { name: "Contact", href: "#contact" },
   ];
 
   return (

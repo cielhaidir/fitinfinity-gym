@@ -44,7 +44,7 @@ export const UserForm: React.FC<UserFormProps> = ({
                 password: "",
                 address: user.address || "",
                 phone: user.phone || "",
-                birthDate: user.birthDate ? new Date(user.birthDate).toISOString().split('T')[0] : "",
+                birthDate: (user.birthDate ? new Date(user.birthDate).toISOString().split('T')[0] : "") || "",
                 idNumber: user.idNumber || "",
                 roleIds: user.roles?.map((role: any) => role.id) || [],
             });

@@ -37,10 +37,7 @@ export default function RewardPage() {
     page: 1,
     limit: 100,
   });
-  const { data: rewards, isLoading: isLoadingRewards } = api.reward.list.useQuery({
-    page: 1,
-    limit: 100,
-  });
+  const { data: rewards, isLoading: isLoadingRewards } = api.reward.list.useQuery();
   const { data: memberRewards, isLoading: isLoadingMemberRewards } = api.memberReward.list.useQuery({
     page: 1,
     limit: 10,

@@ -36,6 +36,7 @@ interface DataTableProps<TData, TValue> {
   }>
   onSearch?: (value: string, column: string) => void;
   onRowClick?: ((row: TData) => void) | null;
+  isLoading?: boolean;
 }
 
 export function DataTable<TData, TValue>({ 
@@ -44,7 +45,8 @@ export function DataTable<TData, TValue>({
   onPaginationChange, 
   searchColumns,
   onSearch,
-  onRowClick 
+  onRowClick,
+  isLoading 
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -111,7 +113,13 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row, rowIndex) => (
                 <TableRow
                   onClick={() => onRowClick?.(row.original)}

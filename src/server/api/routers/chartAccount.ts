@@ -1,5 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { createChartAccountSchema, updateChartAccountSchema } from "@/app/(authenticated)/finance/chart_of_account/schema";
+import { createChartAccountSchema, updateChartAccountSchema } from "@/app/(authenticated)/finance/chart-of-account/schema";
 
 export const chartAccountRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
