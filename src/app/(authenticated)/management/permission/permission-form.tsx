@@ -71,7 +71,8 @@ export const PermissionForm: React.FC<PermissionFormProps> = ({
                             This will create: create:{permission.name || '[name]'}, 
                             edit:{permission.name || '[name]'}, 
                             delete:{permission.name || '[name]'}, 
-                            list:{permission.name || '[name]'}
+                            list:{permission.name || '[name]'},
+                            show:{permission.name || '[name]'}
                         </p>
                     )}
                 </div>

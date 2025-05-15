@@ -168,6 +168,7 @@ model Membership {
     waitingClasses    ClassWaitingList[]
     trainerSessions   TrainerSession[]
     paymentValidations PaymentValidation[]
+    attendanceMembers AttendanceMember[] @relation("AttendanceMemberToMembership")
 }
 
 model Role {
@@ -437,4 +438,14 @@ model Transaction {
     // Relations
     bank    BalanceAccount @relation("BankTransactions", fields: [bank_id], references: [id])
     account ChartAccount   @relation("AccountTransactions", fields: [account_id], references: [id])
+}
+
+model AttendanceMember {
+    id        String     @id @default(cuid())
+    memberId  String
+    checkin   DateTime
+
+    member    Membership @relation("AttendanceMemberToMembership", fields: [memberId], references: [id])
+
+    @@index([memberId])
 }

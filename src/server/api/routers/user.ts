@@ -228,4 +228,28 @@ export const userRouter = createTRPCRouter({
             
             return user;
         }),
+    getById: protectedProcedure
+        .input(z.object({
+            id: z.string(),
+        }))
+        .query(async ({ ctx, input }) => {
+            const user = await ctx.db.user.findUnique({
+                where: {
+                    id: input.id,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    point: true,
+                    image: true,
+                },
+            });
+
+            if (!user) {
+                throw new Error("User not found");
+            }
+
+            return user;
+        }),
 });
