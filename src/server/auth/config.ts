@@ -17,6 +17,8 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
+      permissions: string[];
+      roles: string[];
       // ...other properties
       // role: UserRole;
     } & DefaultSession["user"];
@@ -75,13 +77,13 @@ export const authConfig = {
     // DiscordProvider,
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
@@ -97,7 +99,7 @@ export const authConfig = {
         // Validate password
         const isPasswordValid = await bcrypt.compare(
           credentials.password as string,
-          user.password as string
+          user.password as string,
         );
         if (!isPasswordValid) {
           throw new Error("Invalid password");
@@ -107,7 +109,7 @@ export const authConfig = {
           name: user.name,
           email: user.email,
         };
-      }
+      },
     }),
     /**
      * ...add more providers here.
@@ -138,15 +140,43 @@ export const authConfig = {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
         session.user.email = token.email as string;
+        // Fetch user's roles and permissions
+        const user = await db.user.findUnique({
+          where: { id: token.id as string },
+          include: {
+            roles: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        });
 
+        if (user && session.user) {
+          const permissions = user.roles.flatMap((role) =>
+            role.permissions.map((p) => p.permission.name),
+          );
+          session.user.permissions = [...new Set(permissions)];
+          session.user.roles = user.roles.map((role) => role.name);
+        }
         // Check and create membership if it doesn't exist
         try {
           const membership = await createUserMembership(token.id as string);
           if (membership) {
-            console.log("Membership check/creation completed for user:", token.id);
+            console.log(
+              "Membership check/creation completed for user:",
+              token.id,
+            );
           }
         } catch (error) {
-          console.error("Error checking/creating membership in session callback:", error);
+          console.error(
+            "Error checking/creating membership in session callback:",
+            error,
+          );
         }
       }
       return session;
@@ -154,54 +184,32 @@ export const authConfig = {
 
     async signIn({ user, account, profile }) {
       console.log("Starting signIn callback for provider:", account?.provider);
-      
       try {
         if (account?.provider === "google") {
           console.log("Processing Google sign in for email:", user.email);
-          
-          // Check if user already exists
+
           const existingUser = await db.user.findUnique({
             where: { email: user.email as string },
-            include: {
-              accounts: true,
-            },
+            include: { accounts: true, roles: true },
           });
-
-          if (existingUser) {
-            console.log("Found existing user:", existingUser.id);
-            
-            // If user exists but doesn't have a Google account linked
-            if (!existingUser.accounts.some(acc => acc.provider === "google")) {
-              console.log("Linking Google account to existing user");
-              
-              // Link the Google account to existing user
-              await db.account.create({
-                data: {
-                  userId: existingUser.id,
-                  type: account.type,
-                  provider: account.provider,
-                  providerAccountId: account.providerAccountId,
-                  access_token: account.access_token as string | null,
-                  token_type: account.token_type as string | null,
-                  scope: account.scope as string | null,
-                  id_token: account.id_token as string | null,
-                  session_state: account.session_state as string | null,
-                },
-              });
-            }
-          } else {
-            console.log("Creating new user for Google sign in");
-            
-            // Create new user
-            const newUser = await db.user.create({
+          if (!existingUser) {
+            console.error("User record not found after OAuth signup");
+            return false;
+          }
+          if (!existingUser.accounts.some((acc) => acc.provider === "google")) {
+            await db.account.create({
               data: {
-                email: user.email as string,
-                name: user.name as string,
-                image: user.image as string,
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                access_token: account.access_token as string | null,
+                token_type: account.token_type as string | null,
+                scope: account.scope as string | null,
+                id_token: account.id_token as string | null,
+                session_state: account.session_state as string | null,
               },
             });
-
-            console.log("Created new user:", newUser.id);
           }
         }
         return true;
@@ -210,31 +218,35 @@ export const authConfig = {
         return false;
       }
     },
-
-    async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
-      if (url.startsWith("/")) return `${baseUrl}${url}`
-      // Allows callback URLs on the same origin
-      else if (new URL(url).origin === baseUrl) return url
-      return baseUrl
-    },
   },
   events: {
     async createUser({ user }) {
       console.log("createUser event triggered for user:", user.id);
       try {
-        const result = await createUserMembership(user.id);
-        console.log("Membership creation result from event:", result);
+        const membership = await createUserMembership(user.id);
+        console.log("Membership creation result from event:", membership);
+
+        // Assign Member role only during initial user creation
+        const memberRole = await db.role.findUnique({
+          where: { name: "Member" },
+        });
+        if (memberRole) {
+          await db.user.update({
+            where: { id: user.id },
+            data: { roles: { connect: { id: memberRole.id } } },
+          });
+          console.log("Assigned Member role to user:", user.id);
+        }
       } catch (error) {
         console.error("Error in createUser event:", error);
       }
     },
   },
   pages: {
-    signIn: '/auth/signin',
-    signOut: '/auth/signin',
-    error: '/auth/error', // Error code passed in query string as ?error=
-    verifyRequest: '/auth/verify-request', // (used for check email message)
-    newUser: '/auth/new-user' // New users will be directed here on first sign in (leave the property out if not of interest)
+    signIn: "/auth/signin",
+    signOut: "/auth/signin",
+    error: "/auth/error", // Error code passed in query string as ?error=
+    verifyRequest: "/auth/verify-request", // (used for check email message)
+    newUser: "/auth/new-user", // New users will be directed here on first sign in (leave the property out if not of interest)
   },
 } satisfies NextAuthConfig;

@@ -22,6 +22,7 @@ interface BalanceAccountFormProps {
     id: number;
     name: string;
     account_number: string;
+    initialBalance?: number;
   } | null;
 }
 
@@ -33,11 +34,17 @@ export function BalanceAccountForm({
   const utils = api.useUtils();
   const [name, setName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [errors, setErrors] = useState<{ name?: string; account_number?: string }>({});
+  const [initialBalance, setInitialBalance] = useState("0");
+  const [errors, setErrors] = useState<{ 
+    name?: string; 
+    account_number?: string;
+    initialBalance?: string;
+  }>({});
 
   useEffect(() => {
     setName(account?.name ?? "");
     setAccountNumber(account?.account_number ?? "");
+    setInitialBalance(account?.initialBalance?.toString() ?? "0");
     setErrors({});
   }, [account, open]);
 
@@ -48,6 +55,7 @@ export function BalanceAccountForm({
       onClose();
       setName("");
       setAccountNumber("");
+      setInitialBalance("0");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -61,6 +69,7 @@ export function BalanceAccountForm({
       onClose();
       setName("");
       setAccountNumber("");
+      setInitialBalance("0");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -68,9 +77,20 @@ export function BalanceAccountForm({
   });
 
   const validate = () => {
-    const newErrors: { name?: string; account_number?: string } = {};
+    const newErrors: { 
+      name?: string; 
+      account_number?: string;
+      initialBalance?: string;
+    } = {};
+    
     if (!name.trim()) newErrors.name = "Name is required";
     if (!accountNumber.trim()) newErrors.account_number = "Account number is required";
+    
+    const balanceValue = parseFloat(initialBalance);
+    if (isNaN(balanceValue)) {
+      newErrors.initialBalance = "Initial balance must be a valid number";
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -78,16 +98,21 @@ export function BalanceAccountForm({
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    
+    const balanceValue = parseFloat(initialBalance);
+    
     if (account) {
       updateAccount.mutate({
         id: account.id,
         name,
         account_number: accountNumber,
+        initialBalance: balanceValue,
       });
     } else {
       createAccount.mutate({
         name,
         account_number: accountNumber,
+        initialBalance: balanceValue,
       });
     }
   };
@@ -122,6 +147,16 @@ export function BalanceAccountForm({
             />
             {errors.account_number && <p className="text-sm text-red-500 mt-1">{errors.account_number}</p>}
           </div>
+          <div>
+            <label className="block text-sm font-medium">Initial Balance</label>
+            <Input
+              type="number"
+              placeholder="Enter initial balance"
+              value={initialBalance}
+              onChange={e => setInitialBalance(e.target.value)}
+            />
+            {errors.initialBalance && <p className="text-sm text-red-500 mt-1">{errors.initialBalance}</p>}
+          </div>
         </form>
         <SheetFooter className="flex justify-end gap-2">
           <Button onClick={onSubmit} className="bg-infinity">
@@ -134,4 +169,4 @@ export function BalanceAccountForm({
       </SheetContent>
     </Sheet>
   );
-} 
+}

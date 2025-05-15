@@ -22,6 +22,11 @@ export const createColumns = ({ onEditAccount, onDeleteAccount }: ColumnOptions)
     cell: ({ row }) => <div>{row.getValue("account_number")}</div>,
   },
   {
+    accessorKey: "initialBalance",
+    header: "Account Number",
+    cell: ({ row }) => <div>{row.getValue("initialBalance")}</div>,
+  },
+  {
     id: "actions",
     cell: ({ row }) => {
       const account = row.original;

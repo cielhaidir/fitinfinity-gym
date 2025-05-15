@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
 
 export const memberCalendarRouter = createTRPCRouter({
-    getAll: protectedProcedure.query(async ({ ctx }) => {
+    getAll: permissionProtectedProcedure(['list:session']).query(async ({ ctx }) => {
         const member = await ctx.db.membership.findUnique({
             where: {
                 userId: ctx.session.user.id,

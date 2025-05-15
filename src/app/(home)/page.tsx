@@ -54,7 +54,7 @@ export default async function Home() {
    
     <section id="home" className="hero-image pt-24 flex items-center justify-center">
         <div className="container mx-auto px-6 text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">FORCE YOUR <span className="text-infinity">LEGACY</span></h1>
+            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">FORGE YOUR <span className="text-infinity">LEGACY</span></h1>
             <p className="text-xl text-white mb-8 max-w-2xl mx-auto">Join our gym and transform your body with our professional trainers and state-of-the-art equipment.</p>
             <div className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-6">
                 <button className="bg-infinity text-white px-8 py-3 rounded-full font-semibold hover:bg-opacity-90 transition duration-300 pulse">GET STARTED</button>
@@ -261,7 +261,7 @@ export default async function Home() {
 
     <section className="py-20 bg-infinity text-white">
         <div className="container mx-auto px-6 text-center">
-            <h2 className="text-3xl font-bold mb-6">READY TO FORCE YOUR LEGACY?</h2>
+            <h2 className="text-3xl font-bold mb-6">READY TO FORGE YOUR LEGACY?</h2>
             <p className="text-xl mb-8 max-w-2xl mx-auto">Join Infinity Gym today and start your fitness journey with our expert guidance and supportive community.</p>
             <button className="bg-white text-infinity px-8 py-3 rounded-full font-semibold hover:bg-opacity-90 transition duration-300 pulse">SIGN UP NOW</button>
         </div>
@@ -339,7 +339,7 @@ export default async function Home() {
                     <div className="flex items-center mb-4">
                         <span className="text-2xl font-bold text-infinity">FIT INFINITY</span>
                     </div>
-                    <p className="text-gray-400">Force your legacy at the largest mega gym in Makassar, equipped with state-of-the-art facilities and expert trainers dedicated to your transformation.</p>
+                    <p className="text-gray-400">Forge your legacy at the largest mega gym in Makassar, equipped with state-of-the-art facilities and expert trainers dedicated to your transformation.</p>
                 </div>
                 
                 <div>

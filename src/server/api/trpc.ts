@@ -160,16 +160,26 @@ export const enforcePermissionMiddleware = t.middleware(async ({ ctx, next }) =>
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  // Add user permissions to the context
+  // Add user permissions to both context and session
   const permissions = user.roles.flatMap(role => 
     role.permissions.map(p => p.permission.name)
   );
+
+  // Update the session with permissions
+  ctx.session.user.permissions = permissions;
 
   return next({
     ctx: {
       ...ctx,
       user,
       permissions,
+      session: {
+        ...ctx.session,
+        user: {
+          ...ctx.session.user,
+          permissions
+        }
+      }
     },
   });
 });
@@ -190,5 +200,12 @@ export const permissionProtectedProcedure = (requiredPermissions: string[]) =>
         });
       }
       
-      return next({ ctx });
+      // Since we're using protectedProcedure and enforcePermissionMiddleware,
+      // ctx.session is guaranteed to be non-null at this point
+      return next({ 
+        ctx: {
+          ...ctx,
+          session: ctx.session!
+        } 
+      });
     });

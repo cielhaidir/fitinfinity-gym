@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 
 const rewardInputSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -10,7 +10,7 @@ const rewardInputSchema = z.object({
 
 export const rewardRouter = createTRPCRouter({
   
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: permissionProtectedProcedure(['list:reward']).query(async ({ ctx }) => {
     const items = await ctx.db.reward.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -23,7 +23,7 @@ export const rewardRouter = createTRPCRouter({
     };
   }),
 
-  create: protectedProcedure
+  create: permissionProtectedProcedure(['create:reward'])
     .input(rewardInputSchema)
     .mutation(async ({ ctx, input }) => {
       try {
@@ -41,7 +41,7 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(['edit:reward'])
     .input(z.object({
       id: z.string(),
       ...rewardInputSchema.shape
@@ -64,7 +64,7 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  delete: protectedProcedure
+  delete: permissionProtectedProcedure(['list:reward'])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -77,7 +77,7 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  redeem: protectedProcedure
+  redeem: permissionProtectedProcedure(['list:reward'])
     .input(z.object({
       rewardId: z.string(),
       memberId: z.string(),
@@ -141,7 +141,7 @@ export const rewardRouter = createTRPCRouter({
     }),
 
   // Get member rewards
-  getMemberRewards: protectedProcedure
+  getMemberRewards: permissionProtectedProcedure(['list:reward'])
     .input(z.object({
       memberId: z.string().optional(),
     }))

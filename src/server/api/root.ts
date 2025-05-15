@@ -21,8 +21,8 @@ import { profileRouter } from "./routers/profile";
 import { memberCalendarRouter } from "@/server/api/routers/memberCalendar";
 import { balanceAccountRouter } from "./routers/balanceAccount";
 import { chartAccountRouter } from "./routers/chartAccount";
-
-
+import { transactionRouter } from "./routers/transaction";
+import { whatsappRouter } from "./routers/whatsapp";
 /**
  * This is the primary router for your server.
  *
@@ -51,6 +51,8 @@ export const appRouter = createTRPCRouter({
   memberCalendar: memberCalendarRouter,
   balanceAccount: balanceAccountRouter,
   chartAccount: chartAccountRouter,
+  transaction: transactionRouter,
+  whatsapp: whatsappRouter,
 });
 
 // export type definition of API

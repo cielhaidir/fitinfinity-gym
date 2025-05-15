@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const balanceAccountRouter = createTRPCRouter({
-  getAll: protectedProcedure
+  getAll: permissionProtectedProcedure(['list:balances'])
     .input(
       z.object({
         page: z.number().default(1),
@@ -45,7 +45,7 @@ export const balanceAccountRouter = createTRPCRouter({
       };
     }),
 
-  getById: protectedProcedure
+  getById: permissionProtectedProcedure(['show:balances'])
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
       const account = await ctx.db.balanceAccount.findUnique({
@@ -62,11 +62,12 @@ export const balanceAccountRouter = createTRPCRouter({
       return account;
     }),
 
-  create: protectedProcedure
+  create: permissionProtectedProcedure(['create:balances'])
     .input(
       z.object({
         name: z.string().min(1, "Name is required"),
         account_number: z.string().min(1, "Account number is required"),
+        initialBalance: z.number().default(0),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -74,16 +75,18 @@ export const balanceAccountRouter = createTRPCRouter({
         data: {
           name: input.name,
           account_number: input.account_number,
+          initialBalance: input.initialBalance,
         },
       });
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(['edit:balances'])
     .input(
       z.object({
         id: z.number(),
         name: z.string().min(1, "Name is required"),
         account_number: z.string().min(1, "Account number is required"),
+        initialBalance: z.number().default(0),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -103,11 +106,12 @@ export const balanceAccountRouter = createTRPCRouter({
         data: {
           name: input.name,
           account_number: input.account_number,
+          initialBalance: input.initialBalance,
         },
       });
     }),
 
-  delete: protectedProcedure
+  delete: permissionProtectedProcedure(['delete:balances'])
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const account = await ctx.db.balanceAccount.findUnique({
