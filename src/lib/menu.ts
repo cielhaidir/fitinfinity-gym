@@ -54,7 +54,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Users",
                     url: "/management/user",
                     icon: Dumbbell,
-                    requiredPermission: "list:users"
+                    //requiredPermission: "list:users"
                 },
                 {
                     title: "Voucher",
@@ -80,12 +80,12 @@ export const Menu: { navMain: MenuGroup[] } = {
                     icon: Users,
                     // requiredPermission: "list:roles"
                 },
-                {
-                    title: "Users",
-                    url: "/management/user",
-                    icon: UserCog,
-                    // requiredPermission: "list:roles"
-                },
+                // {
+                //     title: "Users",
+                //     url: "/management/user",
+                //     icon: UserCog,
+                //     // requiredPermission: "list:roles"
+                // },
                 {
                     title: 'Subscription',
                     url: '/management/subscription',

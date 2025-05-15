@@ -2,10 +2,13 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Member } from "./schema"
+
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
 import { Badge } from "@/components/ui/badge"
+import { Edit } from "lucide-react"
 
-export const columns: ColumnDef<Member>[] = [
+export const getColumns = (onEdit: (member: Member) => void): ColumnDef<Member>[] => [
+
     {
         accessorKey: "name",
         header: ({ column }) => (
@@ -28,6 +31,26 @@ export const columns: ColumnDef<Member>[] = [
         cell: ({ row }) => <div className="hidden md:block">{row.getValue("phone")}</div>,
     },
     {
+        accessorKey: "birthDate",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Age" />
+        ),
+        cell: ({ row }) => {
+            const birthDateString = row.getValue("birthDate") as string | null;
+            if (!birthDateString) {
+                return <div className="w-[80px]">-</div>;
+            }
+            const birthDate = new Date(birthDateString);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            return <div className="w-[80px]">{age}</div>;
+        },
+    },
+    {
         accessorKey: "remainingSessions",
         header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Remaining Sessions" />
@@ -44,6 +67,20 @@ export const columns: ColumnDef<Member>[] = [
                 {new Date(row.getValue("subscriptionEndDate")).toLocaleDateString()}
             </div>
         ),
+    },
+    {
+        accessorKey: "height",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Height (cm)" />
+        ),
+        cell: ({ row }) => <div className="w-[100px]">{row.getValue("height") ? `${row.getValue("height")} cm` : "-"}</div>,
+    },
+    {
+        accessorKey: "weight",
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Weight (kg)" />
+        ),
+        cell: ({ row }) => <div className="w-[100px]">{row.getValue("weight") ? `${row.getValue("weight")} kg` : "-"}</div>,
     },
     {
         accessorKey: "status",
@@ -63,5 +100,21 @@ export const columns: ColumnDef<Member>[] = [
                 </div>
             );
         },
+        
     },
+    {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex gap-2">
+            <button
+              className="p-2 text-white flex items-center justify-center"
+              onClick={() => onEdit(row.original)}
+              title="Edit"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+          </div>
+        ),
+      },
 ]; 

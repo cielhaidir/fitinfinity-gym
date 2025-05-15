@@ -4,6 +4,7 @@ import {
     permissionProtectedProcedure,
     publicProcedure,
 } from "@/server/api/trpc";
+import { memberSchema } from "@/app/(authenticated)/PT/member_list/schema";
 
 export const personalTrainerRouter = createTRPCRouter({
     create: permissionProtectedProcedure(['create:trainers'])
@@ -13,7 +14,6 @@ export const personalTrainerRouter = createTRPCRouter({
             createdBy: z.string().optional(),
             description: z.string().optional(),
             expertise: z.string().optional(),
-            slogan: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.personalTrainer.create({
@@ -22,7 +22,6 @@ export const personalTrainerRouter = createTRPCRouter({
                     isActive: input.isActive ?? true,
                     description: input.description,
                     expertise: input.expertise,
-                    // slogan: input.slogan,
                 },
             });
         }),
@@ -32,7 +31,6 @@ export const personalTrainerRouter = createTRPCRouter({
             id: z.string(),
             description: z.string().optional(),
             expertise: z.string().optional(),
-            slogan: z.string().optional(),
             isActive: z.boolean().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
@@ -41,7 +39,6 @@ export const personalTrainerRouter = createTRPCRouter({
                 data: {
                     description: input.description,
                     expertise: input.expertise,
-                    // slogan: input.slogan,
                     isActive: input.isActive,
                 },
             });
@@ -193,9 +190,13 @@ export const personalTrainerRouter = createTRPCRouter({
                         include: {
                             user: {
                                 select: {
+                                    id: true,
                                     name: true,
                                     email: true,
                                     phone: true,
+                                    height: true,
+                                    weight: true,
+                                    birthDate: true,
                                 },
                             },
                         },
@@ -205,18 +206,91 @@ export const personalTrainerRouter = createTRPCRouter({
 
             console.log('Found subscriptions:', subscriptions.map(s => ({
                 memberId: s.memberId,
-                remainingSessions: s.remainingSessions
+                remainingSessions: s.remainingSessions,
+                userId: s.member.userId
             })));
 
             // Transform the data to match the frontend interface
             return subscriptions.map((subscription) => ({
-                id: subscription.member.id,
+                id: subscription.member.userId,
+                membershipId: subscription.memberId,
                 name: subscription.member.user.name || "",
                 email: subscription.member.user.email || "",
                 phone: subscription.member.user.phone || "",
+                height: subscription.member.user.height ?? null,
+                weight: subscription.member.user.weight ?? null,
+                birthDate: subscription.member.user.birthDate?.toISOString() ?? null,
                 remainingSessions: subscription.remainingSessions || 0,
                 subscriptionEndDate: subscription.endDate?.toISOString() || "",
             }));
+        }),
+
+    updateMember: protectedProcedure
+        .input(memberSchema)
+        .mutation(async ({ ctx, input }) => {
+            const trainer = await ctx.db.personalTrainer.findFirst({
+                where: { 
+                    userId: ctx.session.user.id,
+                    isActive: true
+                }
+            });
+
+            if (!trainer) {
+                throw new Error("Trainer not found or not active.");
+            }
+
+            return ctx.db.$transaction(async (prisma) => {
+                // Update User details
+                await prisma.user.update({
+                    where: { id: input.id },
+                    data: {
+                        name: input.name,
+                        email: input.email,
+                        phone: input.phone,
+                        height: input.height,
+                        weight: input.weight,
+                    },
+                });
+
+                // Find Membership record using User.id
+                const membership = await prisma.membership.findUnique({
+                    where: {
+                        userId: input.id,
+                    },
+                    select: {
+                        id: true,
+                    }
+                });
+
+                if (!membership) {
+                    throw new Error("Membership not found for this user.");
+                }
+
+                // Update Subscription details
+                // We need to find the specific subscription for this member (Membership.id) with this trainer
+                const subscription = await prisma.subscription.findFirst({
+                    where: {
+                        memberId: membership.id,
+                        trainerId: trainer.id,
+                    },
+                });
+
+                if (!subscription) {
+                    throw new Error("Subscription not found for this member with the current trainer.");
+                }
+                
+                await prisma.subscription.update({
+                    where: {
+                        id: subscription.id,
+                    },
+                    data: {
+                        remainingSessions: input.remainingSessions,
+                        endDate: new Date(input.subscriptionEndDate),
+                    },
+                });
+
+                return { success: true, message: "Member updated successfully" };
+            });
         }),
 
     // Public endpoint to get active trainers for landing page

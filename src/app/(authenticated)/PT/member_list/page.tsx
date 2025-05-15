@@ -1,14 +1,19 @@
 "use client";
 
+import React, { useState } from "react";
+
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { DataTable } from "@/components/datatable/data-table";
-import { columns } from "./columns";
+import ModalEdit from "./modaledit";
+
+import { getColumns } from "./columns";
 import { Member } from "./schema";
+
 
 export default function MemberListPage() {
   const { data: session } = useSession();
-  const { data: members, isLoading } = api.personalTrainer.getMembers.useQuery(undefined, {
+  const { data: members, isLoading, refetch: refetchMembers } = api.personalTrainer.getMembers.useQuery(undefined, {
     enabled: !!session,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -27,12 +32,43 @@ export default function MemberListPage() {
       name: member.name || "",
       email: member.email || "",
       phone: member.phone || "",
+      height: member.height ?? null,
+      weight: member.weight ?? null,
+      birthDate: member.birthDate ?? null,
       remainingSessions: member.remainingSessions || 0,
       subscriptionEndDate: member.subscriptionEndDate || new Date().toISOString(),
     })) ?? [],
     total: members?.length || 0,
     page: 1,
     limit: 10,
+  };
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+
+  const updateMemberMutation = api.personalTrainer.updateMember.useMutation();
+
+  const handleEdit = (member: Member) => {
+    setSelectedMember(member);
+    setModalOpen(true);
+  };
+
+  const handleClose = () => {
+    setModalOpen(false);
+    setSelectedMember(null);
+  };
+
+  const handleSave = async (updated: Member) => {
+    try {
+      await updateMemberMutation.mutateAsync(updated);
+      refetchMembers(); // Refetch data after successful update
+      // TODO: Add success toast/notification
+    } catch (error) {
+      console.error("Failed to update member:", error);
+      // TODO: Add error toast/notification
+    }
+    setModalOpen(false);
+    setSelectedMember(null);
   };
 
   return (
@@ -47,8 +83,8 @@ export default function MemberListPage() {
       </div>
 
       <div className="rounded-md">
-        <DataTable
-          columns={columns}
+      <DataTable
+          columns={getColumns(handleEdit)}
           data={formattedData}
           searchColumns={[
             { id: "name", placeholder: "Search by member name..." },
@@ -57,6 +93,12 @@ export default function MemberListPage() {
           isLoading={isLoading}
         />
       </div>
+      <ModalEdit
+        open={modalOpen}
+        onClose={handleClose}
+        member={selectedMember}
+        onSave={handleSave}
+      />
     </div>
   );
 } 

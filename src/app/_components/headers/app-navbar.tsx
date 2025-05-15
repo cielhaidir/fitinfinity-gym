@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "../ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import { NavUser } from "./nav-user"
 
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
@@ -10,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { DynamicBreadcrumb } from "./dynamic-breadcrumb";
 
 import { ModeToggle } from "../mode-toggle";
+
 
 export default function AppNavbar() {
   const { data: session } = useSession();
@@ -30,11 +32,14 @@ export default function AppNavbar() {
       <DynamicBreadcrumb />
       {/* Login/Logout Button */}
       <div className="ml-auto flex space-x-4">
-        <div className="hidden md:block">
+        {/* Tampilkan NavUser jika user login */}
+        {session?.user ? (
+          <NavUser user={session.user} />
+        ) : (
           <Button onClick={handleLogout} className="bg-infinity rounded border">
             Logout
           </Button>
-        </div>
+        )}
         <ModeToggle />
       </div>
     </header>

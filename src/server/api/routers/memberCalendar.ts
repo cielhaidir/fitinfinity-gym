@@ -8,18 +8,6 @@ export const memberCalendarRouter = createTRPCRouter({
             where: {
                 userId: ctx.session.user.id,
             },
-            include: {
-                subscriptions: {
-                    where: {
-                        endDate: {
-                            gt: new Date(),
-                        },
-                        remainingSessions: {
-                            gt: 0,
-                        },
-                    },
-                },
-            },
         });
 
         if (!member) {
@@ -29,9 +17,6 @@ export const memberCalendarRouter = createTRPCRouter({
         const sessions = await ctx.db.trainerSession.findMany({
             where: {
                 memberId: member.id,
-                date: {
-                    gte: new Date(),
-                },
             },
             include: {
                 trainer: {

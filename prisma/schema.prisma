@@ -31,6 +31,12 @@ enum DiscountType {
     CASH
 }
 
+enum PaymentValidationStatus {
+    WAITING
+    ACCEPTED
+    DECLINED
+}
+
 enum FlowType {
     income
     outcome
@@ -161,6 +167,7 @@ model Membership {
     registeredClasses ClassMember[]
     waitingClasses    ClassWaitingList[]
     trainerSessions   TrainerSession[]
+    paymentValidations PaymentValidation[]
 }
 
 model Role {
@@ -231,6 +238,7 @@ model PersonalTrainer {
     user          User             @relation("PersonalTrainerToUser", fields: [userId], references: [id])
     subscriptions Subscription[]
     sessions      TrainerSession[]
+    paymentValidations PaymentValidation[]
 }
 
 enum MembershipStatus {
@@ -264,6 +272,7 @@ model Package {
     createdAt    DateTime       @default(now())
     updatedAt    DateTime       @updatedAt
     subscription Subscription[]
+    paymentValidations PaymentValidation[]
 }
 
 enum PackageType {
@@ -316,6 +325,29 @@ model VoucherClaim {
 
     @@index([memberId])
     @@index([voucherId])
+}
+
+model PaymentValidation {
+    id             String                  @id @default(cuid())
+    memberId       String
+    packageId      String
+    trainerId      String?
+    subsType       String // "gym" or "trainer"
+    duration       Int    // days for gym, sessions for trainer
+    totalPayment   Float
+    paymentMethod  String // e.g., "direct_payment"
+    filePath       String? // Path to the uploaded proof of payment
+    paymentStatus  PaymentValidationStatus @default(WAITING)
+    createdAt      DateTime                @default(now())
+    updatedAt      DateTime                @updatedAt
+    balanceId      Int?                    
+    
+    balanceAccount BalanceAccount?         @relation(fields: [balanceId], references: [id], onDelete: SetNull)
+    member         Membership              @relation(fields: [memberId], references: [id])
+    package        Package                 @relation(fields: [packageId], references: [id])
+    trainer        PersonalTrainer?        @relation(fields: [trainerId], references: [id])
+    @@index([memberId])
+    @@index([paymentStatus])
 }
 
 model MemberReward {
@@ -378,6 +410,7 @@ model BalanceAccount {
     lastBalance      Float         @default(0)
     totalTransaction Float         @default(0)
     bankTransactions Transaction[] @relation("BankTransactions")
+    paymentValidations PaymentValidation[]
 }
 
 model ChartAccount {

@@ -7,6 +7,9 @@ export const memberSchema = z.object({
     phone: z.string().min(1),
     remainingSessions: z.number().min(0),
     subscriptionEndDate: z.string().datetime(),
+    height: z.number().optional().nullable(),
+    weight: z.number().optional().nullable(),
+    birthDate: z.string().optional().nullable(),
 });
 
 export type Member = z.infer<typeof memberSchema>; 
