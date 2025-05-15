@@ -3,6 +3,7 @@ import {
     createTRPCRouter,
     permissionProtectedProcedure,
     publicProcedure,
+    protectedProcedure
 } from "@/server/api/trpc";
 import { memberSchema } from "@/app/(authenticated)/PT/member_list/schema";
 
