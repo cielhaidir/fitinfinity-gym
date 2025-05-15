@@ -79,8 +79,15 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
 
+    // Get the membership ID from the selected member
+    const membershipId = selectedMember?.membershipId;
+    if (!membershipId) {
+      toast.error("Data member tidak valid");
+      return;
+    }
+
     createSession.mutate({
-      memberId: selectedMemberId,
+      memberId: membershipId,
       date: selectedDate,
       startTime: startTime,
       endTime: endTime,
@@ -164,7 +171,7 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
             ) : (
               members?.map((member) => (
                 <SelectItem key={member.id} value={member.id}>
-                  {member.name}
+                  {member.name} ({member.remainingSessions} sesi tersisa)
                 </SelectItem>
               ))
             )}

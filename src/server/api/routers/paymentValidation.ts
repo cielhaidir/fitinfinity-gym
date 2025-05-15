@@ -227,4 +227,34 @@ export const paymentValidationRouter = createTRPCRouter({
                 data: { paymentStatus: PaymentValidationStatus.DECLINED, updatedAt: new Date() },
             });
         }),
+
+    listAll: protectedProcedure
+        .input(z.object({
+            page: z.number().min(1).default(1),
+            limit: z.number().min(1).max(100).default(10),
+        }))
+        .query(async ({ ctx, input }) => {
+            const { page, limit } = input;
+
+            const items = await ctx.db.paymentValidation.findMany({
+                skip: (page - 1) * limit,
+                take: limit,
+                orderBy: { createdAt: "desc" },
+                include: {
+                    member: {
+                        include: {
+                            user: true,
+                        }
+                    },
+                    package: true,
+                    trainer: {
+                        include: {
+                            user: true
+                        }
+                    }
+                },
+            });
+            const total = await ctx.db.paymentValidation.count();
+            return { items, total, page, limit };
+        }),
 }); 

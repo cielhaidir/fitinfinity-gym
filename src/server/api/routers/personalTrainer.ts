@@ -213,6 +213,7 @@ export const personalTrainerRouter = createTRPCRouter({
             // Transform the data to match the frontend interface
             return subscriptions.map((subscription) => ({
                 id: subscription.member.userId,
+                membershipId: subscription.memberId,
                 name: subscription.member.user.name || "",
                 email: subscription.member.user.email || "",
                 phone: subscription.member.user.phone || "",
