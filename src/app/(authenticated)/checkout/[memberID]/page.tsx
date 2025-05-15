@@ -53,31 +53,75 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
     }
 
     const handleSubmit = async () => {
-        if (!selectedPackageDetails || (subscriptionType === "trainer" && !selectedTrainer)) {
-            return
+        if (!selectedPackageDetails) {
+            toast.error("Please select a package.");
+            return;
+        }
+        if (subscriptionType === "trainer" && !selectedTrainer) {
+            toast.error("Please select a personal trainer.");
+            return;
         }
 
-        const promise = async () => {
-            await createSubscriptionMutation.mutateAsync({
+        if (paymentMethod === "qris") {
+            const queryParams = new URLSearchParams({
                 memberId: memberID,
                 packageId: selectedPackage,
-                trainerId: selectedTrainer,
-                startDate: new Date(),
-                subsType: subscriptionType,
-                duration: subscriptionType === "gym" ? selectedPackageDetails.day ?? 0 : selectedPackageDetails.sessions ?? 0,
-                paymentMethod,
-                totalPayment: calculateTotal(),
+                packageName: selectedPackageDetails.name,
+                packagePrice: selectedPackageDetails.price.toString(),
+                packageType: subscriptionType,
+                duration: (subscriptionType === "gym" ? selectedPackageDetails.day ?? 0 : selectedPackageDetails.sessions ?? 0).toString(),
+                totalPayment: calculateTotal().toString(),
+                paymentMethod: paymentMethod,
             });
 
-            await utils.subs.getByIdMember.invalidate({ memberId: memberID });
-            router.push(`/management/subscription/${memberID}`);
-        };
+            if (subscriptionType === "trainer" && selectedTrainer) {
+                queryParams.set("trainerId", selectedTrainer);
+                const trainerInfo = trainers?.find(t => t.id === selectedTrainer);
+                if (trainerInfo?.user?.name) {
+                    queryParams.set("trainerName", trainerInfo.user.name);
+                }
+            }
 
-        toast.promise(promise, {
-            loading: 'Loading...',
-            success: 'Subscription has been created successfully!',
-            error: (error) => error instanceof Error ? error.message : String(error),
-        });
+            if (selectedVoucher) {
+                queryParams.set("voucherId", selectedVoucher.id);
+                queryParams.set("voucherName", selectedVoucher.name);
+                queryParams.set("voucherAmount", selectedVoucher.amount.toString());
+                queryParams.set("voucherDiscountType", selectedVoucher.discountType);
+            }
+            
+            toast.info("Proceeding to payment validation...");
+            router.push(`/checkout/validate/${memberID}?${queryParams.toString()}`);
+
+        } else {
+            // This block handles other payment methods, if any are added in the future,
+            // or if the current "qris"-only setup is temporary.
+            // For now, it would effectively be the old direct subscription creation logic.
+            // If "qris" is the *only* method that will ever exist, this else might be redundant
+            // or adapted to show an error if an unknown payment method is somehow selected.
+
+            const promise = async () => {
+                await createSubscriptionMutation.mutateAsync({
+                    memberId: memberID,
+                    packageId: selectedPackage,
+                    trainerId: subscriptionType === "trainer" ? selectedTrainer : undefined,
+                    startDate: new Date(),
+                    subsType: subscriptionType,
+                    duration: subscriptionType === "gym" ? selectedPackageDetails.day ?? 0 : selectedPackageDetails.sessions ?? 0,
+                    paymentMethod,
+                    totalPayment: calculateTotal(),
+                    // Consider adding voucher details if createSubscriptionMutation supports it
+                });
+
+                await utils.subs.getByIdMember.invalidate({ memberId: memberID });
+                router.push(`/management/subscription/${memberID}`);
+            };
+
+            toast.promise(promise, {
+                loading: 'Processing subscription...',
+                success: 'Subscription has been created successfully!',
+                error: (error) => error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     return (
@@ -291,7 +335,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                 disabled={!selectedPackageDetails || (subscriptionType === "trainer" && !selectedTrainer)}
                                 onClick={handleSubmit}
                             >
-                                Complete Checkout
+                                {paymentMethod === "qris" ? "Proceed to Upload Bukti Bayar" : "Complete Checkout"}
                             </Button>
                         </CardFooter>
                     </Card>

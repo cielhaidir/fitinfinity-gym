@@ -340,11 +340,12 @@ model PaymentValidation {
     paymentStatus  PaymentValidationStatus @default(WAITING)
     createdAt      DateTime                @default(now())
     updatedAt      DateTime                @updatedAt
-
+    balanceId      Int?                    
+    
+    balanceAccount BalanceAccount?         @relation(fields: [balanceId], references: [id], onDelete: SetNull)
     member         Membership              @relation(fields: [memberId], references: [id])
     package        Package                 @relation(fields: [packageId], references: [id])
     trainer        PersonalTrainer?        @relation(fields: [trainerId], references: [id])
-
     @@index([memberId])
     @@index([paymentStatus])
 }
@@ -406,6 +407,7 @@ model BalanceAccount {
     name             String
     account_number   String
     bankTransactions Transaction[] @relation("BankTransactions")
+    paymentValidations PaymentValidation[]
 }
 
 model ChartAccount {
