@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { format, startOfWeek, addDays, isSameDay, isSameMonth, isBefore, addHours, subMonths, addMonths } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday, 
+         startOfMonth, endOfMonth, isSameMonth, addWeeks, subWeeks } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -20,18 +21,33 @@ interface CalendarProps {
   sessionsByDateTime: Record<string, SessionWithTrainer[]>;
 }
 
+// Generate time slots from 6am to 9pm
+const timeSlots = Array.from({ length: 16 }, (_, i) => {
+  const hour = i + 6; // Start from 6am
+  return {
+    label: `${hour < 12 ? hour : hour === 12 ? 12 : hour - 12}${hour < 12 ? 'am' : 'pm'}`,
+    hour
+  };
+});
+
 export default function Calendar({ sessionsByDateTime }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSession, setSelectedSession] = useState<SessionWithTrainer | null>(null);
 
-  const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const hours = Array.from({ length: 12 }, (_, i) => i + 7);
+  const handlePrevWeek = () => {
+    setCurrentDate(subWeeks(currentDate, 1));
+  };
 
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
+  const handleNextWeek = () => {
+    setCurrentDate(addWeeks(currentDate, 1));
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
   };
 
   const handleSessionClick = (session: SessionWithTrainer) => {
@@ -42,84 +58,96 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
     setSelectedSession(null);
   };
 
-  const handlePrevMonth = () => {
-    setCurrentDate(subMonths(currentDate, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(addMonths(currentDate, 1));
-  };
-
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-      <div className="flex justify-between items-center mb-6">
-        <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="hover:bg-gray-100 dark:hover:bg-gray-700">
-          <ChevronLeft className="h-5 w-5 text-gray-800 dark:text-gray-200" />
-        </Button>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-          {format(currentDate, 'MMMM yyyy', { locale: id })}
-        </h2>
-        <Button variant="ghost" size="icon" onClick={handleNextMonth} className="hover:bg-gray-100 dark:hover:bg-gray-700">
-          <ChevronRight className="h-5 w-5 text-gray-800 dark:text-gray-200" />
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-8 gap-1 mb-2">
-        <div className="col-span-1"></div>
-        {days.map((day) => (
-          <div
-            key={`day-header-${day.toISOString()}`}
-            className={`text-center p-3 rounded-lg ${
-              isSameMonth(day, currentDate) 
-                ? isSameDay(day, new Date()) 
-                  ? 'bg-[#C9D953] text-white' 
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-                : 'bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500'
-            }`}
+    <div className="bg-[#232323] rounded-lg overflow-hidden">
+      <div className="flex justify-between items-center p-4 border-b border-[#2a2a2a]">
+        <div className="flex space-x-2">
+          <Button 
+            onClick={handlePrevWeek} 
+            variant="outline" 
+            size="icon" 
+            className="h-8 w-8"
           >
-            <div className="font-medium">{format(day, 'EEE', { locale: id })}</div>
-            <div className="text-lg font-bold">{format(day, 'd')}</div>
-          </div>
-        ))}
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button 
+            onClick={handleNextWeek} 
+            variant="outline" 
+            size="icon" 
+            className="h-8 w-8"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button onClick={handleToday} variant="secondary" className="h-8 text-xs">today</Button>
+        </div>
+        
+        <div className="bg-[#2a2a2a] text-white text-sm px-3 py-1 rounded-full">
+          {format(weekStart, 'dd MMMM', { locale: id })} - {format(weekEnd, 'dd MMMM yyyy', { locale: id })}
+        </div>
       </div>
 
-      <div className="grid grid-cols-8 gap-1">
-        {hours.map((hour) => (
-          <React.Fragment key={`hour-${hour}`}>
-            <div className="text-right p-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
-              {format(addHours(new Date().setHours(0, 0, 0, 0), hour), 'HH:mm')}
-            </div>
-            {days.map((day) => {
-              const dateTimeKey = format(day, 'yyyy-MM-dd') + 'T' + format(addHours(new Date().setHours(0, 0, 0, 0), hour), 'HH:mm');
-              const sessions = sessionsByDateTime[dateTimeKey] || [];
-              const isPast = isBefore(day, new Date()) && hour < new Date().getHours();
-
-              return (
-                <div
-                  key={`cell-${day.toISOString()}-${hour}`}
-                  className={`p-2 min-h-[80px] border border-gray-200 dark:border-gray-700 rounded-lg ${
-                    isPast ? 'bg-gray-50 dark:bg-gray-900' : 'bg-white dark:bg-gray-800'
+      <div className="overflow-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="w-20 border-r border-[#2a2a2a] p-2"></th>
+              {days.map((day) => (
+                <th 
+                  key={day.toString()} 
+                  className={`border-r border-[#2a2a2a] p-2 text-center ${
+                    isToday(day) ? 'bg-[#2a2a2a]' : ''
                   }`}
                 >
-                  {sessions.map((session) => (
-                    <div
-                      key={`session-${session.id}`}
-                      className="bg-[#C9D953] text-black p-2 rounded-lg mb-2 cursor-pointer hover:bg-[#d4e45e] transition-colors"
-                      onClick={() => handleSessionClick(session)}
+                  <div className="text-gray-400">{format(day, 'EEE', { locale: id })}</div>
+                  <div className={`text-lg ${isToday(day) ? 'text-[#C9D953] font-bold' : 'text-white'}`}>
+                    {format(day, 'd/M')}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {timeSlots.map(({ label, hour }) => (
+              <tr key={label} className="border-t border-[#2a2a2a]">
+                <td className="border-r border-[#2a2a2a] p-2 text-right font-medium text-gray-400 w-20">
+                  {label}
+                </td>
+                {days.map((day) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+                  const key = `${dateStr}T${timeStr}`;
+                  const sessions = sessionsByDateTime[key] || [];
+                  
+                  return (
+                    <td
+                      key={`${dateStr}-${hour}`}
+                      className={`
+                        border-r border-[#2a2a2a] p-1 
+                        h-[64px] align-top 
+                        ${isToday(day) ? 'bg-[#2a2a2a]/50' : ''}
+                      `}
                     >
-                      <div className="text-sm font-semibold">
-                        {session.trainer?.user?.name || 'Personal Trainer'}
-                      </div>
-                      <div className="text-xs">
-                        {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </React.Fragment>
-        ))}
+                      {sessions.map((session) => (
+                        <div
+                          key={session.id}
+                          className="bg-[#C9D953] text-black p-1.5 rounded cursor-pointer hover:bg-[#b8c748] transition-colors"
+                          onClick={() => handleSessionClick(session)}
+                        >
+                          <div className="font-medium">
+                            {format(new Date(session.startTime), 'HH:mm')}
+                          </div>
+                          <div className="truncate">
+                            {session.trainer?.user?.name || 'Personal Trainer'}
+                          </div>
+                        </div>
+                      ))}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <SessionDetailModal

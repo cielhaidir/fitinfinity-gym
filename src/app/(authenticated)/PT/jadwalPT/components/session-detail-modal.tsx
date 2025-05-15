@@ -8,6 +8,9 @@ interface SessionDetailModalProps {
     member: {
       user: {
         name: string;
+        weight?: number | null;
+        height?: number | null;
+        gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
       };
     };
     startTime: Date;
@@ -22,6 +25,16 @@ export default function SessionDetailModal({ session, onClose, onDelete }: Sessi
   const handleDelete = () => {
     if (window.confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
       onDelete(session.id);
+    }
+  };
+
+  const formatGender = (gender: string | null | undefined) => {
+    if (!gender) return '-';
+    switch (gender) {
+      case 'MALE': return 'Laki-laki';
+      case 'FEMALE': return 'Perempuan';
+      case 'OTHER': return 'Lainnya';
+      default: return '-';
     }
   };
 
@@ -45,6 +58,21 @@ export default function SessionDetailModal({ session, onClose, onDelete }: Sessi
           <div>
             <label className="text-gray-400 block mb-1">Member</label>
             <p className="text-white font-semibold">{session.member.user.name}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-gray-400 block mb-1">Berat Badan</label>
+              <p className="text-white">{session.member.user.weight ? `${session.member.user.weight} kg` : '-'}</p>
+            </div>
+            <div>
+              <label className="text-gray-400 block mb-1">Tinggi Badan</label>
+              <p className="text-white">{session.member.user.height ? `${session.member.user.height} cm` : '-'}</p>
+            </div>
+            <div>
+              <label className="text-gray-400 block mb-1">Jenis Kelamin</label>
+              <p className="text-white">{formatGender(session.member.user.gender)}</p>
+            </div>
           </div>
 
           <div>
