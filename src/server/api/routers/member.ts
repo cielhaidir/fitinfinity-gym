@@ -229,6 +229,25 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
+    getAttendanceCount: protectedProcedure
+        .input(z.object({ memberId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+            const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
+
+            const count = await ctx.db.attendanceMember.count({
+                where: {
+                    memberId: input.memberId,
+                    checkin: {
+                        gte: startOfYear,
+                        lte: endOfYear,
+                    },
+                },
+            });
+
+            return { count };
+        }),
+
     getAll: protectedProcedure
         .query(async ({ ctx }) => {
             return ctx.db.membership.findMany({

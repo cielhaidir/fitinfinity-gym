@@ -5,6 +5,7 @@ import { PaymentValidationStatus, PaymentStatus } from "@prisma/client";
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { TRPCError } from "@trpc/server";
 
 export const paymentValidationRouter = createTRPCRouter({
     uploadFile: protectedProcedure
@@ -256,5 +257,69 @@ export const paymentValidationRouter = createTRPCRouter({
             });
             const total = await ctx.db.paymentValidation.count();
             return { items, total, page, limit };
+        }),
+
+    getMemberPayments: protectedProcedure
+        .input(
+            z.object({
+                page: z.number().min(1).default(1),
+                limit: z.number().min(1).max(100).default(10),
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            const { page, limit } = input;
+            const skip = (page - 1) * limit;
+
+            // Get the member ID from the user's session
+            const member = await ctx.db.membership.findFirst({
+                where: {
+                    userId: ctx.session.user.id,
+                },
+            });
+
+            if (!member) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Member not found",
+                });
+            }
+
+            // Get total count
+            const total = await ctx.db.paymentValidation.count({
+                where: {
+                    memberId: member.id,
+                },
+            });
+
+            // Get paginated payments
+            const items = await ctx.db.paymentValidation.findMany({
+                where: {
+                    memberId: member.id,
+                },
+                include: {
+                    package: true,
+                    trainer: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                },
+                            },
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+                skip,
+                take: limit,
+            });
+
+            return {
+                items,
+                total,
+                page,
+                limit,
+            };
         }),
 }); 
