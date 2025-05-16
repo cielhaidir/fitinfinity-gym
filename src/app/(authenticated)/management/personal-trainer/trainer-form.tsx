@@ -54,7 +54,7 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
                 </SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-4 py-8">
-                {!selectedUserId && (
+                {!selectedUserId && !isEditMode && (
                     <>
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium">
@@ -64,7 +64,7 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
                                 id="name"
                                 name="name"
                                 placeholder="Name"
-                                value={isEditMode ? newTrainer.user?.name ?? "" : newTrainer.name ?? ""}
+                                value={newTrainer.name ?? ""}
                                 onChange={onInputChange}
                             />
                         </div>
@@ -76,7 +76,7 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
                                 id="email"
                                 name="email"
                                 placeholder="Email"
-                                value={isEditMode ? newTrainer.user?.email ?? "" : newTrainer.email }
+                                value={newTrainer.email}
                                 onChange={onInputChange}
                             />
                         </div>
@@ -100,7 +100,59 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
                                 id="address"
                                 name="address"
                                 placeholder="Address"
-                                value={isEditMode ? newTrainer.user?.address ?? "" : newTrainer.address}
+                                value={newTrainer.address}
+                                onChange={onInputChange}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="phone" className="block text-sm font-medium">
+                                Phone
+                            </label>
+                            <Input
+                                id="phone"
+                                name="phone"
+                                placeholder="Phone"
+                                value={newTrainer.phone}
+                                onChange={onInputChange}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="birthDate" className="block text-sm font-medium">
+                                Birth Date
+                            </label>
+                            <Input
+                                id="birthDate"
+                                name="birthDate"
+                                type="date"
+                                value={newTrainer.birthDate instanceof Date ? newTrainer.birthDate.toISOString().split("T")[0] : ""}
+                                onChange={onInputChange}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="idNumber" className="block text-sm font-medium">
+                                ID Number
+                            </label>
+                            <Input
+                                id="idNumber"
+                                name="idNumber"
+                                placeholder="ID Number"
+                                value={newTrainer.idNumber}
+                                onChange={onInputChange}
+                            />
+                        </div>
+                    </>
+                )}
+                {(isEditMode || selectedUserId) && (
+                    <>
+                        <div>
+                            <label htmlFor="name" className="block text-sm font-medium">
+                                Name
+                            </label>
+                            <Input
+                                id="name"
+                                name="name"
+                                placeholder="Name"
+                                value={isEditMode ? newTrainer.user?.name ?? "" : newTrainer.name ?? ""}
                                 onChange={onInputChange}
                             />
                         </div>
@@ -113,24 +165,6 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
                                 name="phone"
                                 placeholder="Phone"
                                 value={isEditMode ? newTrainer.user?.phone ?? "" : newTrainer.phone}
-                                onChange={onInputChange}
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="birthDate" className="block text-sm font-medium">
-                                Birth Date
-                            </label>
-                            <Input
-                                id="birthDate"
-                                name="birthDate"
-                                type="date"
-                                value={
-                                (isEditMode ? newTrainer.user?.birthDate : newTrainer.birthDate) instanceof Date
-                                    ? ((isEditMode ? newTrainer.user?.birthDate : newTrainer.birthDate) instanceof Date 
-                                        ? (isEditMode ? newTrainer.user?.birthDate : newTrainer.birthDate)?.toISOString().split("T")[0] 
-                                        : "")
-                                    : ""
-                                }
                                 onChange={onInputChange}
                             />
                         </div>

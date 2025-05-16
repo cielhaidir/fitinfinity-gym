@@ -112,7 +112,7 @@ export default function UserPage() {
                 <h1 className="text-2xl font-bold">User Management</h1>
                 <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                     <SheetTrigger asChild>
-                        <Button>
+                        <Button className="bg-[#C9D953] hover:bg-[#B8C84A]">
                             <Plus className="mr-2 h-4 w-4" /> Add New User
                         </Button>
                     </SheetTrigger>

@@ -16,9 +16,10 @@ export const voucherRouter = createTRPCRouter({
         where: {
           type: input.type,
           isActive: input.isActive,
-          expiryDate: {
-            gt: new Date(),
-          },
+          OR: [
+            { expiryDate: null },
+            { expiryDate: { gt: new Date() } }
+          ],
         },
       });
     }),
@@ -126,7 +127,7 @@ export const voucherRouter = createTRPCRouter({
         discountType: z.enum(["PERCENT", "CASH"]),
         referralCode: z.string().optional(),
         amount: z.number().min(1, "Amount must be at least 1"),
-        expiryDate: z.date().optional(),
+        expiryDate: z.date().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -149,7 +150,7 @@ export const voucherRouter = createTRPCRouter({
         referralCode: z.string().optional(),
         amount: z.number().min(1, "Amount must be at least 1"),
         isActive: z.boolean(),
-        expiryDate: z.date().optional(),
+        expiryDate: z.date().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

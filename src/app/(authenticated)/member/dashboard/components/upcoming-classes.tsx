@@ -3,62 +3,25 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, Waves, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
-// Type definition based on Prisma Class model
-type Class = {
-    id: string;
-    name: string;
-    limit: number | null;
-    schedule: Date;
-    duration: number;
-    trainer: {
-        user: {
-            name: string;
-        };
-    };
-    registeredMembers: {
-        id: string;
-        memberId: string;
-    }[];
-    _count: {
-        registeredMembers: number;
-    };
-};
-
-const getClassIcon = (className: string) => {
-    switch (className.toLowerCase()) {
-        case 'zumba':
-            return <Dumbbell className="h-5 w-5" />;
-        case 'yoga':
-            return <Dumbbell className="h-5 w-5" />;
-        case 'pilates':
-            return <Dumbbell className="h-5 w-5" />;
-        default:
-            return <Dumbbell className="h-5 w-5" />;
-    }
-};
-
-const formatSchedule = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-        weekday: 'long',
-        hour: '2-digit',
-        minute: '2-digit',
-    }).format(date);
-};
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 export function UpcomingClasses() {
     const router = useRouter();
     const { data: session } = useSession();
-    const { data: classes, isLoading } = api.memberUc.list.useQuery({
-        memberId: session?.user?.id ?? "",
-        limit: 3
-    }, {
-        enabled: !!session?.user?.id,
-    });
+    
+    // Get upcoming trainer sessions
+    const { data: trainerSessions, isLoading } = api.memberCalendar.getAll.useQuery(
+        undefined,
+        {
+            enabled: !!session?.user,
+            refetchOnWindowFocus: true,
+        }
+    );
 
     if (isLoading) {
         return (
@@ -73,35 +36,48 @@ export function UpcomingClasses() {
         );
     }
 
+    // Filter and sort upcoming sessions
+    const upcomingSessions = trainerSessions
+        ?.filter(session => new Date(session.startTime) > new Date())
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+        .slice(0, 3); // Show only 3 upcoming sessions
+
     return (
         <Card className="col-span-1 p-6">
             <h3 className="mb-4 text-lg font-semibold">Upcoming Classes</h3>
             <div className="space-y-4">
-                {classes?.map((classItem) => (
-                    <div 
-                        key={classItem.id}
-                        className="flex items-center justify-between rounded-lg bg-secondary p-3"
-                    >
-                        <div className="flex items-center gap-3">
-                            {getClassIcon(classItem.name)}
-                            <div>
-                                <p className="font-medium">{classItem.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    {formatSchedule(classItem.schedule)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    Trainer: {classItem.trainer.user.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {classItem._count.registeredMembers}/{classItem.limit} Members
-                                </p>
+                {upcomingSessions && upcomingSessions.length > 0 ? (
+                    upcomingSessions.map((session) => (
+                        <div 
+                            key={session.id}
+                            className="flex items-center justify-between rounded-lg bg-secondary p-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div>
+                                    <p className="font-medium">Personal Training</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {format(new Date(session.startTime), "EEEE, d MMMM yyyy HH:mm", { locale: id })}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Trainer: {session.trainer?.user?.name || 'Personal Trainer'}
+                                    </p>
+                                    {session.description && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {session.description}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
+                            <Badge variant="secondary">
+                                Scheduled
+                            </Badge>
                         </div>
-                        <Badge variant="secondary">
-                            {classItem.registeredMembers.length > 0 ? "Registered" : "Free"}
-                        </Badge>
-                    </div>
-                ))}
+                    ))
+                ) : (
+                    <p className="text-center text-muted-foreground">
+                        No upcoming training sessions scheduled.
+                    </p>
+                )}
 
                 <Button 
                     className="w-full mt-4 bg-[#C9D953] hover:bg-[#b8c748] text-black"

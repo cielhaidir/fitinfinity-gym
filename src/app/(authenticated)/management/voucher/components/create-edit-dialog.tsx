@@ -1,6 +1,8 @@
 "use client";
+"use client";
 
 import { useEffect } from "react";
+import type { UseFormReturn } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -37,6 +39,7 @@ const formSchema = z.object({
   discountType: z.enum(["PERCENT", "CASH"]),
   referralCode: z.string().optional(),
   amount: z.number().min(1, "Jumlah diskon harus lebih dari 0"),
+  expiryDate: z.date().nullable().optional(),
 });
 
 interface CreateEditVoucherDialogProps {
@@ -86,6 +89,7 @@ export default function CreateEditVoucherDialog({
         discountType: voucher.discountType,
         referralCode: voucher.referralCode,
         amount: voucher.amount,
+        expiryDate: voucher.expiryDate,
       });
     } else {
       form.reset({
@@ -100,14 +104,19 @@ export default function CreateEditVoucherDialog({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      const formData = {
+        ...values,
+        expiryDate: values.expiryDate === undefined ? null : values.expiryDate,
+      };
+
       if (voucher) {
         await updateVoucher.mutateAsync({
-          ...values,
+          ...formData,
           id: voucher.id,
           isActive: voucher.isActive,
         });
       } else {
-        await createVoucher.mutateAsync(values);
+        await createVoucher.mutateAsync(formData);
       }
     } catch (error) {
       toast.error(

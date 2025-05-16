@@ -29,6 +29,21 @@ export default function SignUpPage() {
     }
   }, [formData.password, formData.confirmPassword]);
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Remove any non-digit characters
+    const numbersOnly = value.replace(/\D/g, '');
+    
+    // If the value starts with 62, remove it as we'll add it as prefix
+    const cleanNumber = numbersOnly.startsWith('62') ? numbersOnly.slice(2) : numbersOnly;
+    
+    setFormData(prev => ({
+      ...prev,
+      phone: cleanNumber
+    }));
+    setError("");
+  };
+
   const createUserMutation = api.user.create.useMutation({
     onSuccess: () => {
       toast.success("Account created successfully! Please sign in.");
@@ -187,13 +202,20 @@ export default function SignUpPage() {
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                       Phone
                     </label>
-                    <Input
-                      type="text"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="Phone Number"
-                    />
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <span className="text-gray-500">+62</span>
+                      </div>
+                      <Input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handlePhoneChange}
+                        placeholder="82xxxxx"
+                        className="pl-12"
+                        maxLength={12}
+                      />
+                    </div>
                   </div>
 
                   {/* Birth Date Field */}

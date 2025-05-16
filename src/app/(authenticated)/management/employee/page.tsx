@@ -251,7 +251,7 @@ export default function EmployeePage() {
         <div className="container mx-auto py-10">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Employee Management</h1>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => setIsModalOpen(true)} className="bg-[#C9D953] hover:bg-[#B8C84A]">
                     + Add New Employee
                 </Button>
             </div>
