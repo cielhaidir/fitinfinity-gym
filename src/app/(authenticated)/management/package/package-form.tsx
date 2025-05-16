@@ -140,14 +140,18 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                     <label htmlFor="price" className="block text-sm font-medium">
                         Price
                     </label>
-                    <Input
-                        id="price"
-                        name="price"
-                        placeholder="Price"
-                        type="number"
-                        value={newPackage.price}
-                        onChange={onInputChange}
-                    />
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Rp</span>
+                        <Input
+                            id="price"
+                            name="price"
+                            placeholder="Price"
+                            type="number"
+                            value={newPackage.price}
+                            onChange={onInputChange}
+                            className="pl-8"
+                        />
+                    </div>
                 </div>
 
                 <div>
