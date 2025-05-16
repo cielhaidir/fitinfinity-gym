@@ -49,7 +49,11 @@ export default function PTProfilePage() {
       setIsEditing(false)
     },
     onError: (error) => {
-      toast.error(error.message)
+      if (error.message.includes("phone")) {
+        toast.error("Phone number is already registered")
+      } else {
+        toast.error(error.message)
+      }
     },
   })
 
@@ -72,6 +76,11 @@ export default function PTProfilePage() {
       toast.error(error.message)
     },
   })
+
+  const { refetch: checkPhone } = api.profile.checkPhone.useQuery(
+    { phone: formData.phone },
+    { enabled: false } // Disable automatic query
+  )
 
   useEffect(() => {
     if (profile) {
@@ -114,11 +123,35 @@ export default function PTProfilePage() {
     return null
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Update user profile
-    const genderValue = ["MALE", "FEMALE", "OTHER"].includes(formData.gender) ? formData.gender : undefined;
+    // Validate phone number format
+    if (formData.phone && formData.phone.length < 10) {
+      toast.error("Phone number must be at least 10 digits")
+      return
+    }
+
+    // Validate if phone number is different from current user's phone
+    if (formData.phone !== profile?.phone) {
+      try {
+        // Check if phone number is already registered
+        const { data: phoneExists } = await checkPhone()
+        if (phoneExists) {
+          toast.error("Phone number is already registered")
+          return
+        }
+      } catch (error) {
+        console.error("Phone check error:", error)
+        return
+      }
+    }
+
+    // If phone is not registered or hasn't changed, proceed with update
+    const genderValue = formData.gender === "MALE" || formData.gender === "FEMALE" || formData.gender === "OTHER" 
+      ? formData.gender 
+      : undefined;
+
     const userData = {
       name: formData.name,
       phone: formData.phone,
@@ -165,6 +198,22 @@ export default function PTProfilePage() {
     } catch (error) {
       toast.error("Failed to process image")
     }
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '') // Remove non-digits
+    
+    // Remove 62 prefix if it exists
+    if (value.startsWith('62')) {
+      value = value.substring(2)
+    }
+    
+    // Add 62 prefix if not empty
+    if (value) {
+      value = '62' + value
+    }
+    
+    setFormData({ ...formData, phone: value })
   }
 
   return (
@@ -263,8 +312,9 @@ export default function PTProfilePage() {
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={handlePhoneChange}
                     disabled={!isEditing}
+                    placeholder="62xxxxxxxxxx"
                   />
                 </div>
                 <div className="space-y-2">

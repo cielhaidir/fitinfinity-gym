@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc"
+import { createTRPCRouter, permissionProtectedProcedure, publicProcedure } from "@/server/api/trpc"
 import { uploadFile, uploadPTPhoto } from "@/lib/upload"
 import bcrypt from "bcryptjs"
 
@@ -160,5 +160,18 @@ export const profileRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  checkPhone: publicProcedure
+    .input(z.object({ 
+      phone: z.string()
+        .min(10, "Phone number must be at least 10 digits")
+        .regex(/^\d+$/, "Phone number must contain only digits")
+    }))
+    .query(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findFirst({
+        where: { phone: input.phone },
+      })
+      return !!user
     }),
 }) 

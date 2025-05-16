@@ -37,11 +37,20 @@ export default function SignUpPage() {
     // If the value starts with 62, remove it as we'll add it as prefix
     const cleanNumber = numbersOnly.startsWith('62') ? numbersOnly.slice(2) : numbersOnly;
     
+    // Validate length before adding prefix
+    if (cleanNumber.length > 0 && cleanNumber.length < 10) {
+      setError("Phone number must be at least 10 digits");
+    } else {
+      setError("");
+    }
+    
+    // Add 62 prefix if not empty
+    const finalNumber = cleanNumber ? '62' + cleanNumber : '';
+    
     setFormData(prev => ({
       ...prev,
-      phone: cleanNumber
+      phone: finalNumber
     }));
-    setError("");
   };
 
   const createUserMutation = api.user.create.useMutation({
@@ -54,6 +63,11 @@ export default function SignUpPage() {
       toast.error(error.message);
     },
   });
+
+  const { refetch: checkPhone } = api.profile.checkPhone.useQuery(
+    { phone: formData.phone },
+    { enabled: false } // Disable automatic query
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -73,7 +87,21 @@ export default function SignUpPage() {
       return;
     }
 
+    // Validate phone number format (excluding the 62 prefix)
+    const numberWithoutPrefix = formData.phone.replace('62', '');
+    if (numberWithoutPrefix.length < 10) {
+      setError("Phone number must be at least 10 digits");
+      return;
+    }
+
     try {
+      // Check if phone number is already registered
+      const { data: phoneExists } = await checkPhone();
+      if (phoneExists) {
+        setError("Phone number is already registered");
+        return;
+      }
+
       await createUserMutation.mutateAsync({
         name: formData.name,
         email: formData.email,
@@ -209,9 +237,9 @@ export default function SignUpPage() {
                       <Input
                         type="tel"
                         name="phone"
-                        value={formData.phone}
+                        value={formData.phone.replace('62', '')}
                         onChange={handlePhoneChange}
-                        placeholder="82xxxxx"
+                        placeholder="8xxxxxxxxxx"
                         className="pl-12"
                         maxLength={12}
                       />

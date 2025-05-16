@@ -93,7 +93,7 @@ model User {
     emailVerified      DateTime?
     password           String?
     address            String?
-    phone              String?
+    phone              String?           @unique
     birthDate          DateTime?
     idNumber           String?
     image              String?
