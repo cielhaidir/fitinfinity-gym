@@ -1,14 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/trpc/react";
 
 export default function WhatsappVerificationPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Use the new sendResetPasswordLink procedure
+  const resetMutation = api.whatsapp.sendResetPasswordLink.useMutation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Implement verification code sending logic
-    console.log("Sending verification code to:", whatsappNumber);
+    setStatus("sending");
+    try {
+      await resetMutation.mutateAsync({ phone: whatsappNumber });
+      setStatus("sent");
+    } catch (err) {
+      console.error(err);
+      setStatus("error");
+    }
   };
 
   return (
@@ -44,20 +55,25 @@ export default function WhatsappVerificationPage() {
                   id="whatsappNumber"
                   value={whatsappNumber}
                   onChange={(e) => setWhatsappNumber(e.target.value)}
-                  placeholder="+62 823 **** ****"
+                  placeholder="+6281234567890"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
                   required
                   pattern="^\+?[1-9]\d{1,14}$"
                 />
               </div>
 
-              {/* Send Verification Code Button */}
+              {/* Send Reset Link Button */}
               <button
                 type="submit"
-                className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] text-center font-bold rounded-md dark:text-gray-900"
+                disabled={status === "sending"}
+                className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] font-bold rounded-md dark:text-gray-900"
               >
-                Send Verification Code
+                {status === "sending" ? "Sending…" : "Send Reset Link"}
               </button>
+
+              {/* Feedback */}
+              {status === "sent" && <p className="text-green-600">Link sent via WhatsApp!</p>}
+              {status === "error" && <p className="text-red-600">Failed to send link. Please try again.</p>}
             </div>
           </form>
         </div>

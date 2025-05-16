@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
 
 export const memberRewardRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: permissionProtectedProcedure(['list:reward'])
     .input(
       z.object({
         page: z.number().optional().default(1),
@@ -48,7 +48,7 @@ export const memberRewardRouter = createTRPCRouter({
       };
     }),
 
-  create: protectedProcedure
+  create: permissionProtectedProcedure(['claim:reward'])
     .input(z.object({
       rewardId: z.string(),
       memberId: z.string(),

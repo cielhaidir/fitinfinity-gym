@@ -1,9 +1,9 @@
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "../trpc";
 import { getUpcomingClassesSchema, getActivePackageSchema } from "@/app/(authenticated)/member/dashboard/schema";
 import { PackageType } from "@prisma/client";
 
 export const memberUcRouter = createTRPCRouter({
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:classes'])
         .input(getUpcomingClassesSchema)
         .query(async ({ ctx, input }) => {
             const now = new Date();
@@ -42,7 +42,7 @@ export const memberUcRouter = createTRPCRouter({
             });
         }),
 
-    getActivePackage: protectedProcedure
+    getActivePackage: permissionProtectedProcedure(['list:packages'])
         .input(getActivePackageSchema)
         .query(async ({ ctx, input }) => {
             const now = new Date();

@@ -2,10 +2,11 @@ import { z } from "zod"
 import {
     createTRPCRouter,
     protectedProcedure,
+    permissionProtectedProcedure
 } from "@/server/api/trpc"
 
 export const memberClassRouter = createTRPCRouter({
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:classes'])
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
@@ -67,7 +68,7 @@ export const memberClassRouter = createTRPCRouter({
             };
         }),
 
-    register: protectedProcedure
+    register: permissionProtectedProcedure(['regist:classes'])
         .input(z.object({ classId: z.string() }))
         .mutation(async ({ ctx, input }) => {
             const membership = await ctx.db.membership.findUnique({
@@ -132,7 +133,7 @@ export const memberClassRouter = createTRPCRouter({
             })
         }),
 
-    joinWaitlist: protectedProcedure
+    joinWaitlist: permissionProtectedProcedure(['regist:classes'])
         .input(z.object({ classId: z.string() }))
         .mutation(async ({ ctx, input }) => {
             const membership = await ctx.db.membership.findUnique({
@@ -202,7 +203,7 @@ export const memberClassRouter = createTRPCRouter({
             })
         }),
 
-    myClasses: protectedProcedure
+    myClasses: permissionProtectedProcedure(['list:classes'])
         .query(async ({ ctx }) => {
             const membership = await ctx.db.membership.findUnique({
                 where: { userId: ctx.session.user.id },

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 export const attendanceRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: permissionProtectedProcedure(['list:attedance'])
     .input(
       z.object({
         page: z.number().default(1),

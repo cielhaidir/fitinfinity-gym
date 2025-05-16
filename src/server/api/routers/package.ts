@@ -9,7 +9,7 @@ const packageType = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER"]);
 
 export const packageRouter = createTRPCRouter({
 
-    create: protectedProcedure
+    create: permissionProtectedProcedure(['create:packages'])
         .input(z.object({
             name: z.string(),
             description: z.string().optional(),
@@ -67,7 +67,7 @@ export const packageRouter = createTRPCRouter({
             };
         }),
 
-    detail: permissionProtectedProcedure(['list:packages'])
+    detail: permissionProtectedProcedure(['show:packages'])
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             return ctx.db.package.findUnique({

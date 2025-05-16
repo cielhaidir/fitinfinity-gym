@@ -29,7 +29,7 @@ export const permissionRouter = createTRPCRouter({
             name: z.string(),
         }))
         .mutation(async ({ ctx, input }) => {
-            const actions = ['create', 'edit', 'delete', 'list'];
+            const actions = ['create', 'edit', 'delete', 'list', 'show'];
             const permissions = await Promise.all(
                 actions.map(action => 
                     ctx.db.permission.create({

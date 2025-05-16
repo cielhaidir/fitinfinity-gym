@@ -1,11 +1,11 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc"
 import { uploadFile, uploadPTPhoto } from "@/lib/upload"
 import bcrypt from "bcryptjs"
 
 export const profileRouter = createTRPCRouter({
-  get: protectedProcedure
+  get: permissionProtectedProcedure(['list:profile'])
     .query(async ({ ctx }) => {
       const user = await ctx.db.user.findUnique({
         where: { id: ctx.session.user.id },
@@ -36,7 +36,7 @@ export const profileRouter = createTRPCRouter({
       return user
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(['edit:profile'])
     .input(
       z.object({
         name: z.string().min(1).optional(),
@@ -65,7 +65,7 @@ export const profileRouter = createTRPCRouter({
       })
     }),
 
-  uploadImage: protectedProcedure
+  uploadImage: permissionProtectedProcedure(['edit:profile'])
     .input(z.object({ file: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -83,7 +83,7 @@ export const profileRouter = createTRPCRouter({
       }
     }),
 
-  uploadPTPhoto: protectedProcedure
+  uploadPTPhoto: permissionProtectedProcedure(['edit:profile'])
     .input(z.object({ file: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -116,7 +116,7 @@ export const profileRouter = createTRPCRouter({
       }
     }),
 
-  changePassword: protectedProcedure
+  changePassword: permissionProtectedProcedure(['edit:profile'])
     .input(
       z.object({
         currentPassword: z.string().min(1, "Current password is required"),

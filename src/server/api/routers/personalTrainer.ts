@@ -1,13 +1,14 @@
 import { z } from "zod";
 import {
     createTRPCRouter,
-    protectedProcedure,
+    permissionProtectedProcedure,
     publicProcedure,
+    protectedProcedure
 } from "@/server/api/trpc";
 import { memberSchema } from "@/app/(authenticated)/PT/member_list/schema";
 
 export const personalTrainerRouter = createTRPCRouter({
-    create: protectedProcedure
+    create: permissionProtectedProcedure(['create:trainers'])
         .input(z.object({
             userId: z.string(),
             isActive: z.boolean().optional(),
@@ -26,7 +27,7 @@ export const personalTrainerRouter = createTRPCRouter({
             });
         }),
 
-    update: protectedProcedure
+    update: permissionProtectedProcedure(['edit:trainers'])
         .input(z.object({
             id: z.string(),
             description: z.string().optional(),
@@ -44,7 +45,7 @@ export const personalTrainerRouter = createTRPCRouter({
             });
         }),
 
-    getById: protectedProcedure
+    getById: permissionProtectedProcedure(['show:trainers'])
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             return ctx.db.personalTrainer.findFirst({
@@ -58,7 +59,7 @@ export const personalTrainerRouter = createTRPCRouter({
             });
         }),
 
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:trainers'])
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
@@ -104,7 +105,7 @@ export const personalTrainerRouter = createTRPCRouter({
             };
         }),
 
-    remove: protectedProcedure
+    remove: permissionProtectedProcedure(['remove:trainers'])
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.personalTrainer.delete({
@@ -112,7 +113,7 @@ export const personalTrainerRouter = createTRPCRouter({
             });
         }),
 
-    listAll: protectedProcedure
+    listAll: permissionProtectedProcedure(['list:trainers'])
         .query(async ({ ctx }) => {
             return ctx.db.personalTrainer.findMany({
                 include: {
@@ -121,7 +122,7 @@ export const personalTrainerRouter = createTRPCRouter({
             });
         }),
 
-    createSession: protectedProcedure
+    createSession: permissionProtectedProcedure(['create:session'])
         .input(z.object({
             memberId: z.string(),
             date: z.date(),
@@ -158,7 +159,7 @@ export const personalTrainerRouter = createTRPCRouter({
             });
         }),
 
-    getMembers: protectedProcedure
+    getMembers: permissionProtectedProcedure(['list:trainers'])
         .query(async ({ ctx }) => {
             console.log('Getting members for trainer');
             

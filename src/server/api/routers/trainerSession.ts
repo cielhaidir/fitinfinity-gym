@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 
 export const trainerSessionRouter = createTRPCRouter({
-    create: protectedProcedure
+    create: permissionProtectedProcedure(['create:session'])
         .input(z.object({
             memberId: z.string(),
             date: z.date(),
@@ -104,7 +104,7 @@ export const trainerSessionRouter = createTRPCRouter({
             });
         }),
 
-    getAll: protectedProcedure
+    getAll: permissionProtectedProcedure(['list:session'])
         .query(async ({ ctx }) => {
             // Check if user is a trainer
             const trainer = await ctx.db.personalTrainer.findFirst({
@@ -192,7 +192,7 @@ export const trainerSessionRouter = createTRPCRouter({
             });
         }),
 
-    getByDate: protectedProcedure
+    getByDate: permissionProtectedProcedure(['list:session'])
         .input(z.object({
             date: z.date(),
         }))
@@ -236,7 +236,7 @@ export const trainerSessionRouter = createTRPCRouter({
             });
         }),
 
-    delete: protectedProcedure
+    delete: permissionProtectedProcedure(['delete:session'])
         .input(z.object({
             id: z.string(),
         }))
@@ -279,7 +279,7 @@ export const trainerSessionRouter = createTRPCRouter({
             });
         }),
 
-    update: protectedProcedure
+    update: permissionProtectedProcedure(['edit:session'])
         .input(z.object({
             id: z.string(),
             date: z.date(),

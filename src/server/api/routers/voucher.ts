@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { VoucherType } from "@prisma/client";
 
 export const voucherRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: permissionProtectedProcedure(['list:voucher'])
     .input(
       z.object({
         type: z.nativeEnum(VoucherType).optional(),
@@ -24,7 +24,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  claim: protectedProcedure
+  claim: permissionProtectedProcedure(['claim:voucher'])
     .input(
       z.object({
         voucherId: z.string().optional(),
@@ -61,7 +61,7 @@ export const voucherRouter = createTRPCRouter({
       // Check if voucher has been claimed by this member
       const existingClaim = await ctx.db.voucherClaim.findFirst({
         where: {
-          memberId: ctx.session.user.id,
+          memberId: ctx.user.id,
           voucherId: voucher.id,
         },
       });
@@ -86,7 +86,7 @@ export const voucherRouter = createTRPCRouter({
         // Create voucher claim
         await tx.voucherClaim.create({
           data: {
-            memberId: ctx.session.user.id,
+            memberId: ctx.user.id,
             voucherId: voucher.id,
           },
         });
@@ -112,13 +112,13 @@ export const voucherRouter = createTRPCRouter({
       };
     }),
 
-  getAll: protectedProcedure.query(async ({ ctx }) => {
+  getAll: permissionProtectedProcedure(['list:voucher']).query(async ({ ctx }) => {
     return ctx.db.voucher.findMany({
       orderBy: { createdAt: "desc" },
     });
   }),
 
-  create: protectedProcedure
+  create: permissionProtectedProcedure(['create:voucher'])
     .input(
       z.object({
         name: z.string().min(1, "Name is required"),
@@ -139,7 +139,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(['edit:voucher'])
     .input(
       z.object({
         id: z.string(),
@@ -161,7 +161,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  remove: protectedProcedure
+  remove: permissionProtectedProcedure(['delete:voucher'])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.voucher.delete({
@@ -169,18 +169,12 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  getGeneralVouchers: protectedProcedure
+  getGeneralVouchers: permissionProtectedProcedure(['list:voucher'])
     .query(async ({ ctx }) => {
       return ctx.db.voucher.findMany({
         where: {
           type: "GENERAL",
           isActive: true,
-        },
-        select: {
-          id: true,
-          code: true,
-          discount: true,
-          type: true,
         },
       });
     }),

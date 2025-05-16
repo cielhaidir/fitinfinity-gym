@@ -5,12 +5,13 @@ import {
     createTRPCRouter,
     protectedProcedure,
     publicProcedure,
+    permissionProtectedProcedure
 } from "@/server/api/trpc";
 
 export const memberRouter = createTRPCRouter({
 
 
-    create: protectedProcedure
+    create: permissionProtectedProcedure(['create:member'])
         .input(z.object({
             userId: z.string(),
             registerDate: z.date(),
@@ -48,7 +49,7 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
-    edit: protectedProcedure
+    edit: permissionProtectedProcedure(['edit:member'])
         .input(z.object({
             id: z.string(),
             userId: z.string().optional(),
@@ -72,7 +73,7 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
-    detail: protectedProcedure
+    detail: permissionProtectedProcedure(['show:member'])
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             console.log('id', input.id);
@@ -95,7 +96,7 @@ export const memberRouter = createTRPCRouter({
             return member;
         }),
 
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:member'])
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
@@ -141,7 +142,7 @@ export const memberRouter = createTRPCRouter({
             };
         }),
 
-    getById: protectedProcedure
+    getById: permissionProtectedProcedure(['show:member'])
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             return ctx.db.membership.findUnique({
@@ -156,7 +157,7 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
-    update: protectedProcedure
+    update: permissionProtectedProcedure(['edit:member'])
         .input(z.object({
             id: z.string(),
             registerDate: z.date().optional(),
@@ -211,7 +212,7 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
-    remove: protectedProcedure
+    remove: permissionProtectedProcedure(['delete:member'])
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.membership.delete({
@@ -219,7 +220,7 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
-    getMembership: protectedProcedure
+    getMembership: permissionProtectedProcedure(['list:member'])
         .query(async ({ ctx }) => {
             return await ctx.db.membership.findFirst({
                 where: {
@@ -248,7 +249,7 @@ export const memberRouter = createTRPCRouter({
             return { count };
         }),
 
-    getAll: protectedProcedure
+    getAll: permissionProtectedProcedure(['list:member'])
         .query(async ({ ctx }) => {
             return ctx.db.membership.findMany({
                 include: {
@@ -264,7 +265,7 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
-    createSession: protectedProcedure
+    createSession: permissionProtectedProcedure(['create:session'])
         .input(z.object({
             memberId: z.string(),
             date: z.date(),

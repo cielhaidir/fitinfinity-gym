@@ -1,5 +1,5 @@
-import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound } from 'lucide-react';
-import { LucideIcon } from 'lucide-react';
+import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound, DollarSign } from 'lucide-react';
+import { LucideIcon, HandCoins } from 'lucide-react';
 
 interface MenuItem {
   title: string;
@@ -91,52 +91,60 @@ export const Menu: { navMain: MenuGroup[] } = {
                     url: '/management/subscription',
                     icon: CreditCard,
                     requiredPermission: "list:subscriptions"
+                },
+                {
+                    title: 'Rewards',
+                    url: '/admin/reward',
+                    icon: CreditCard,
+                    requiredPermission: "list:reward"
                 }
             ],
         },
-        {
-            title: "Administration",
-            url: "/admin/dashboard",
-            items: [
-                {
-                    title: "Dashboard",
-                    url: "/admin/dashboard",
-                    requiredPermission: "read:dashboard-admin"
-                },
-                {
-                    title: "Settings",
-                    url: "/admin/settings",
-                },
-            ],
-        },
+        // {
+        //     title: "Administration",
+        //     url: "/admin/dashboard",
+        //     items: [
+        //         {
+        //             title: "Dashboard",
+        //             url: "/admin/dashboard",
+        //             requiredPermission: "read:dashboard-admin"
+        //         },
+        //         {
+        //             title: "Settings",
+        //             url: "/admin/settings",
+        //         },
+        //     ],
+        // },
         {
             title: "Membership",
             url: "/member/dashboard",
             items: [
                 {
                     title: "Dashboard",
-                    url: "/member/dashboard",
+                    url: "/member",
                 },
                 {
                     title: "Classes",
                     url: "/member/classes",
+                    requiredPermission: "list:classes"
                 },
                 {
                     title: "Schedule",
                     url: "/member/schedule",
+                    requiredPermission: "list:session"
                 },
-                {
-                    title: "Avalaible Package",
-                    url: "/member/package",
-                },
-                {
-                    title: "Vouchers",
-                    url: "/member/vouchers",
-                },
-                {
-                    title: "Point",
-                    url: "/member/point-reward",
-                },
+                // {
+                //     title: "Avalaible Package",
+                //     url: "/member/package",
+                // },
+                // {
+                //     title: "Vouchers",
+                //     url: "/member/vouchers",
+                // },
+                // {
+                //     title: "Point",
+                //     url: "/member/point-reward",
+                // },
                 {
                     title: "Payment History",
                     url: "/member/payment",
@@ -145,10 +153,10 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Profile",
                     url: "/member/profile",
                 },
-                {
-                    title: "Settings",
-                    url: "/member/settings",
-                },
+                // {
+                //     title: "Settings",
+                //     url: "/member/settings",
+                // },
             ],
         },
         {
@@ -164,10 +172,6 @@ export const Menu: { navMain: MenuGroup[] } = {
                     url: "/instructor/profile",
                 },
                 {
-                    title: "Settings",
-                    url: "/instructor/settings",
-                },
-                {
                     title: "Classes",
                     url: "/instructor/classes",
                 },
@@ -175,10 +179,10 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Schedule",
                     url: "/instructor/jadwalPT",
                 },
-                {
-                    title: "Payment",
-                    url: "/instructor/payment",
-                },
+                // {
+                //     title: "Payment",
+                //     url: "/instructor/payment",
+                // },
             ],
         },
         {
@@ -192,14 +196,18 @@ export const Menu: { navMain: MenuGroup[] } = {
                 {
                     title: "Balance Account",
                     url: "/finance/balance-account",
+                    icon: CreditCard,
                 },
                 {
                     title: "Chart Of Account",
                     url: "/finance/chart-of-account",
+                    icon: HandCoins,
                 },
                 {
-                    title: "Transaction",
-                    url: "/finance/transaction",
+                    title: "Transactions",
+                    url: "/management/transaction",
+                    icon: DollarSign,
+                    // requiredPermission: "manage:transactions"
                 },
                 {
                     title: "Report",
@@ -207,27 +215,6 @@ export const Menu: { navMain: MenuGroup[] } = {
                 },
             ],
         },
-        {
-            title: "Employment",
-            url: "/employment/dashboard",
-            items: [
-                {
-                    title: "Dashboard",
-                    url: "/employment/dashboard",
-                },
-                {
-                    title: "Leave Management",
-                    url: "/employment/leave-notice",
-                },
-                {
-                    title: "Attedance Tracking",
-                    url: "/employment/attedance",
-                },
-                {
-                    title: "Settings",
-                    url: "/employment/settings",
-                },
-            ],
-        }
+     
     ],
 };

@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
     createTRPCRouter,
-    protectedProcedure,
+    permissionProtectedProcedure,
 } from "@/server/api/trpc";
 
 export const subscriptionRouter = createTRPCRouter({
-    create: protectedProcedure
+    create: permissionProtectedProcedure(['create:subscription'])
         .input(z.object({
             memberId: z.string(),
             startDate: z.date(),
@@ -68,7 +68,7 @@ export const subscriptionRouter = createTRPCRouter({
             return subscription;
         }),
 
-    edit: protectedProcedure
+    edit: permissionProtectedProcedure(['edit:subscription'])
         .input(z.object({
             id: z.string(),
             memberId: z.string().optional(),
@@ -86,7 +86,7 @@ export const subscriptionRouter = createTRPCRouter({
             });
         }),
 
-    detail: protectedProcedure
+    detail: permissionProtectedProcedure(['show:subscription'])
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             return ctx.db.subscription.findUnique({
@@ -94,7 +94,7 @@ export const subscriptionRouter = createTRPCRouter({
             });
         }),
 
-    list: protectedProcedure
+    list: permissionProtectedProcedure(['list:subscription'])
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
@@ -162,7 +162,7 @@ export const subscriptionRouter = createTRPCRouter({
             };
         }),
 
-    getByIdMember: protectedProcedure
+    getByIdMember: permissionProtectedProcedure(['list:subscription'])
         .input(z.object({
             memberId: z.string(),
             page: z.number().min(1),
@@ -210,7 +210,7 @@ export const subscriptionRouter = createTRPCRouter({
             };
         }),
 
-    getById: protectedProcedure
+    getById: permissionProtectedProcedure(['show:subscription'])
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
             return ctx.db.subscription.findUnique({
@@ -218,7 +218,7 @@ export const subscriptionRouter = createTRPCRouter({
             });
         }),
 
-    update: protectedProcedure
+    update: permissionProtectedProcedure(['edit:subscription'])
         .input(z.object({
             id: z.string(),
             memberId: z.string().optional(),
@@ -236,7 +236,7 @@ export const subscriptionRouter = createTRPCRouter({
             });
         }),
 
-    checkout: protectedProcedure
+    checkout: permissionProtectedProcedure(['create:subscription'])
         .input(z.object({
             packageId: z.string(),
             duration: z.number(),
