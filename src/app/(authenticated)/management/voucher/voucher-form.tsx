@@ -98,7 +98,8 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
     onInputChange(syntheticEvent);
   };
 
-  const handleExpiryDateChange = (date: Date | undefined) => {
+  const handleExpiryDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const date = e.target.value ? new Date(e.target.value) : undefined;
     setExpiryDate(date);
     
     // Create a synthetic event for the date change
@@ -229,21 +230,30 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
           <label htmlFor="amount" className="block text-sm font-medium mb-2">
             {currentDiscountType === "PERCENT" ? "Discount Percentage (%)" : "Discount Amount (Rp)"}
           </label>
-          <Input
-            id="amount"
-            name="amount"
-            type="number"
-            min={0}
-            max={currentDiscountType === "PERCENT" ? 100 : undefined}
-            placeholder={
-              currentDiscountType === "PERCENT"
-                ? "Enter percentage (0-100)"
-                : "Enter amount in Rupiah"
-            }
-            value={amountInput}
-            onChange={handleAmountChange}
-            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
+          <div className="relative">
+            {currentDiscountType === "CASH" && (
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                Rp
+              </span>
+            )}
+            <Input
+              id="amount"
+              name="amount"
+              type="number"
+              min={0}
+              max={currentDiscountType === "PERCENT" ? 100 : undefined}
+              placeholder={
+                currentDiscountType === "PERCENT"
+                  ? "Enter percentage (0-100)"
+                  : "Enter amount in Rupiah"
+              }
+              value={amountInput}
+              onChange={handleAmountChange}
+              className={`[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                currentDiscountType === "CASH" ? "pl-8" : ""
+              }`}
+            />
+          </div>
           {currentDiscountType === "PERCENT" && (
             <p className="text-sm text-muted-foreground mt-1">
               Maximum discount percentage is 100%
