@@ -16,7 +16,8 @@ export default async function Home() {
       
       <main className="bg-black text-white">
         <Navbar user={session?.user ?? undefined}/>
-        {/* <Hero />
+        
+        {/* 
         <Classes />
         <Trainers />
         <Facilities />
@@ -51,8 +52,8 @@ export default async function Home() {
         </div>
     </nav> */}
     
-   
-    <section id="home" className="hero-image pt-24 flex items-center justify-center">
+    <Hero />
+    {/* <section id="home" className="hero-image pt-24 flex items-center justify-center">
         <div className="container mx-auto px-6 text-center">
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">FORGE YOUR <span className="text-infinity">LEGACY</span></h1>
             <p className="text-xl text-white mb-8 max-w-2xl mx-auto">Join our gym and transform your body with our professional trainers and state-of-the-art equipment.</p>
@@ -61,7 +62,7 @@ export default async function Home() {
                 <button className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-gray-800 transition duration-300">LEARN MORE</button>
             </div>
         </div>
-    </section>
+    </section> */}
   
     <section id="about" className="py-20">
         <div className="container mx-auto px-6">

@@ -71,7 +71,7 @@ export default function Navbar({ user }: { user?: any; }) {
               <Link
                 key={link.name}
                 href={link.href}
-                className="text-white hover:text-[#BFFF00] transition-colors font-semibold"
+                className="text-white hover:text-[#BFFF00] transition-colors font-medium"
               >
                 {link.name}
               </Link>
@@ -84,19 +84,30 @@ export default function Navbar({ user }: { user?: any; }) {
               <NavUser user={user} />
             ) : (
               <div className="flex space-x-4">
-                <Button
-                  variant="outline"
-                  className="border-[#BFFF00] text-[#BFFF00] hover:bg-[#BFFF00] hover:text-black"
-                  asChild
-                >
-                  <Link href="/api/auth/signin">Log in</Link>
-                </Button>
-                <Button
-                  className="bg-[#BFFF00] text-black hover:bg-[#9FDF00]"
-                  asChild
-                >
-                  <Link href="/register">Register</Link>
-                </Button>
+                {/* Login Button */}
+                <div className="relative flex items-center">
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]" />
+                  <Button
+                    variant="outline"
+                    className="border-2 border-[#C9D953] text-[#C9D953] px-5 py-3 rounded-md font-bold bg-transparent transition duration-200 transform hover:scale-105 hover:shadow-xl overflow-hidden hover:border-[#b6c940] hover:text-[#b6c940] relative"
+                    asChild
+                  >
+                    <Link href="/api/auth/signin" className="relative z-10">Log in</Link>
+                  </Button>
+                  <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
+                </div>
+                {/* Register Button */}
+                <div className="relative flex items-center">
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]" />
+                  <Button
+                    variant="outline"
+                    className="border-2 border-[#C9D953] text-[#C9D953] px-5 py-3 rounded-md font-bold bg-transparent transition duration-200 transform hover:scale-105 hover:shadow-xl overflow-hidden hover:border-[#b6c940] hover:text-[#b6c940] relative"
+                    asChild
+                  >
+                    <Link href="/register" className="relative z-10">Register</Link>
+                  </Button>
+                  <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
+                </div>
               </div>
             )}
           </div>

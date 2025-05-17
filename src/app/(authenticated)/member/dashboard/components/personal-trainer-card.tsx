@@ -1,13 +1,17 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function PersonalTrainerCard() {
     return (
         <Card className="col-span-1 p-6">
             <div className="relative h-[200px] overflow-hidden rounded-lg">
-                <img
-                    src="/assets/ptDashboard.png"
-                    alt="Personal Trainer"
+                <video
+                    src="/assets/dashboard/vid.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
                     className="h-full w-full object-cover"
                 />
             </div>
@@ -16,9 +20,11 @@ export function PersonalTrainerCard() {
                 <p className="text-sm text-muted-foreground">
                     Get fit with intensive training from professional trainers
                 </p>
-                <Button className="mt-4 w-full bg-[#CDDE11] text-black hover:bg-[#CDDE11]/90">
-                    See Personal Trainer
-                </Button>
+                <Link href="/member/personal-trainer">
+                    <Button className="mt-4 w-full bg-[#CDDE11] text-black hover:bg-[#CDDE11]/90">
+                        See Personal Trainer
+                    </Button>
+                </Link>
             </div>
         </Card>
     );
