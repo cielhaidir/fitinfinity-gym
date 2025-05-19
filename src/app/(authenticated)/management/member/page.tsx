@@ -21,17 +21,7 @@ export default function MemberPage() {
   const searchParams = useSearchParams();
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedMember, setSelectedMember] = useState<UserMember | null>(null);
-  const [newMember, setNewMember] = useState<UserMember>({
-    rfidNumber: "",
-    name: "",
-    email: "",
-    address: "",
-    phone: "",
-    birthDate: new Date(),
-    idNumber: "",
-  });
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
   const [page, setPage] = useState(1);
@@ -46,30 +36,19 @@ export default function MemberPage() {
     searchColumn 
   });
 
-  const createUserMutation = api.user.create.useMutation();
-  const createMembershipMutation = api.member.create.useMutation();
   const updateMemberMutation = api.member.update.useMutation();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const updatedValue = name === 'birthDate' ? new Date(value) : value;
     
-    if (isEditMode && selectedMember) {
+    if (selectedMember) {
       setSelectedMember(prev => {
         if (!prev) return null;
         return {
           ...prev,
-          user: {
-            ...prev.user,
-            [name]: updatedValue,
-          } as UserMember['user'],
+          [name]: value,
         };
       });
-    } else {
-      setNewMember(prev => ({
-        ...prev,
-        [name]: updatedValue,
-      }));
     }
   };
 
@@ -77,81 +56,34 @@ export default function MemberPage() {
     console.log("Scanning RFID...");
   };
 
-
-  const handleCreateOrUpdateMember = async () => {
+  const handleUpdateMember = async () => {
     try {
       const promise = async () => {
-      if (isEditMode && selectedMember) {
-        await updateMemberMutation.mutateAsync({
-          id: selectedMember.id ?? "",
-          rfidNumber: selectedMember.rfidNumber ?? undefined,
-          user: {
-            name: selectedMember.user?.name || "",
-            email: selectedMember.user?.email || "",
-            address: selectedMember.user?.address ?? undefined,
-            phone: selectedMember.user?.phone ?? undefined,
-            birthDate: selectedMember.user?.birthDate ?? undefined,
-            idNumber: selectedMember.user?.idNumber ?? undefined,
-          }
-        });
+        if (selectedMember) {
+          await updateMemberMutation.mutateAsync({
+            id: selectedMember.id ?? "",
+            rfidNumber: selectedMember.rfidNumber ?? undefined,
+          });
 
-        await utils.member.list.invalidate();
-        setIsSheetOpen(false);
-        setIsEditMode(false);
-        setSelectedMember(null);
-
-      } else {
-        
-        const user = await createUserMutation.mutateAsync({
-          name: newMember.name,
-          email: newMember.email,
-          address: newMember.address,
-          phone: newMember.phone,
-          birthDate: newMember.birthDate,
-          idNumber: newMember.idNumber,
-        });
-
-        
-        await createMembershipMutation.mutateAsync({
-          userId: user.id,
-          registerDate: new Date(),
-          rfidNumber: newMember.rfidNumber ?? "",
-          isActive: true,
-          createdBy: user.id,
-        });
-
-        await utils.member.list.invalidate();
-        
-        setNewMember({
-          rfidNumber: "",
-          name: "",
-          email: "",
-          address: "",
-          phone: "",
-          birthDate: new Date(),
-          idNumber: "",
-        });
-
-        setIsSheetOpen(false);
+          await utils.member.list.invalidate();
+          setIsSheetOpen(false);
+          setSelectedMember(null);
+        }
       }
-    }
-    toast.promise(promise, {
-      loading: 'Loading...',
-      success: 'Member has been created/updated successfully!',
-      error: (error) => error instanceof Error ? error.message : String(error),
-    });
+      toast.promise(promise, {
+        loading: 'Loading...',
+        success: 'Member RFID has been updated successfully!',
+        error: (error) => error instanceof Error ? error.message : String(error),
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
-      console.error("Error creating member:", error);
+      console.error("Error updating member:", error);
     }
   };
-
-
 
   const handleEditMember = (member: UserMember) => {
     console.log("Editing member:", member);
     setSelectedMember(member);
-    setIsEditMode(true);
     setIsSheetOpen(true);
   };
 
@@ -178,7 +110,7 @@ export default function MemberPage() {
   };
 
   const directToSubs = (member: Member) => {
-    router.push(`/management/subscription/${member.id}`);  // Make sure this matches your folder structure
+    router.push(`/management/subscription/${member.id}`);
   };
 
   const directToLogs = (member: Member) => {
@@ -207,7 +139,6 @@ export default function MemberPage() {
       <Sheet open={isSheetOpen} onOpenChange={(open) => {
         setIsSheetOpen(open);
         if (!open) {
-          setIsEditMode(false);
           setSelectedMember(null);
         }
       }}>
@@ -221,11 +152,6 @@ export default function MemberPage() {
                 Here&apos;s a list of Fit Infinity Member!
               </p>
             </div>
-            <SheetTrigger asChild>
-              <Button className="mb-4 bg-infinity">
-                <Plus className="mr-2 h-4 w-4" /> Create Member
-              </Button>
-            </SheetTrigger>
           </div>
           {isSelectingForSubscription && (
             <div className="mb-4">
@@ -234,11 +160,11 @@ export default function MemberPage() {
             </div>
           )}
           <MemberForm
-            newMember={selectedMember || newMember}
+            newMember={selectedMember}
             onScanRFID={handleScanRFID}
-            onCreateOrUpdateMember={handleCreateOrUpdateMember}
+            onCreateOrUpdateMember={handleUpdateMember}
             onInputChange={handleInputChange}
-            isEditMode={isEditMode}
+            isEditMode={true}
           />
           <DataTable
             data={member}
