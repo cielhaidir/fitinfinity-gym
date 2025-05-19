@@ -75,20 +75,23 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
       </Badge>
     ),
   },
-  // {
-  //   accessorKey: "createdAt",
-  //   header: ({ column }) => (
-  //     <DataTableColumnHeader column={column} title="Created At" />
-  //   ),
-  //   cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
-  // },
-  // {
-  //   accessorKey: "updatedAt",
-  //   header: ({ column }) => (
-  //     <DataTableColumnHeader column={column} title="Updated At" />
-  //   ),
-  //   cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
-  // },
+  {
+    id: "rfidNumber",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="RFID" />
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center justify-center">
+        <Badge
+          variant="outline"
+          className="cursor-pointer hover:bg-infinity hover:text-white transition-colors"
+          onClick={() => onEditMember(row.original)}
+        >
+          Assign RFID
+        </Badge>
+      </div>
+    ),
+  },
   {
     id: "actions",
     cell: ({ row }) => (
@@ -96,7 +99,8 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
         row={row}
         onEdit={onEditMember}
         onDelete={onDeleteMember}
-        customActions={customActions} // Pass customActions to DataTableRowActions
+        customActions={customActions}
+        showEdit={false}
       />
     ),
   },
