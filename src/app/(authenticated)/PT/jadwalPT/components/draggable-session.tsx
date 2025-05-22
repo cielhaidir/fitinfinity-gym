@@ -5,7 +5,16 @@ import { GripVertical } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface DraggableSessionProps {
-  session: any;
+  session: {
+    id: string;
+    member: {
+      user: {
+        name: string;
+      };
+    };
+    startTime: Date;
+    endTime: Date;
+  };
   onClick: (e: React.MouseEvent) => void;
   onResize: (sessionId: string, startHour: number, endHour: number) => void;
   cellHeight: number;

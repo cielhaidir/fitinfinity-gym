@@ -49,8 +49,14 @@ export default function JadwalPTPage() {
       sessionsByDate[dateStr] = [];
     }
     
-    sessionsByDateTime[key].push(session);
-    sessionsByDate[dateStr].push(session);
+    sessionsByDateTime[key].push({
+      ...session,
+      key: `session-${session.id}` // Add a unique key to each session
+    });
+    sessionsByDate[dateStr].push({
+      ...session,
+      key: `session-${session.id}` // Add a unique key to each session
+    });
   });
 
   const handleNavigate = (direction: 'prev' | 'next') => {

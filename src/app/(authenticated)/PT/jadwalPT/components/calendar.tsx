@@ -296,7 +296,7 @@ export default function Calendar({
                 </thead>
                 <tbody>
                   {timeSlots.map(({ label, hour }) => (
-                    <tr key={label} className="border-t border-[#2a2a2a]">
+                    <tr key={`time-${hour}`} className="border-t border-[#2a2a2a]">
                       <td className="border-r border-[#2a2a2a] p-2 text-right font-medium text-gray-400 w-20">
                         {label}
                       </td>
@@ -318,7 +318,7 @@ export default function Calendar({
                             isFirstHourOfSession={isFirstHourOfSession}
                             className={`
                               border-r border-[#2a2a2a] p-1 
-                              h-[${CELL_HEIGHT}px] align-top 
+                              h-[64px] align-top 
                               cursor-pointer hover:bg-[#2a2a2a] 
                               ${isToday(day) ? 'bg-[#2a2a2a]/50' : ''}
                             `}
@@ -326,7 +326,7 @@ export default function Calendar({
                           >
                             {isFirstHourOfSession && sessions.map((session) => (
                               <DraggableSession
-                                key={session.id}
+                                key={`session-${session.id}`}
                                 session={session}
                                 onClick={(e) => handleSessionClick(e, session)}
                                 onResize={handleResize}
@@ -352,14 +352,14 @@ export default function Calendar({
                   </div>
                 ))}
                 
-                {monthDays.map((day, i) => {
+                {monthDays.map((day) => {
                   const dateStr = format(day, 'yyyy-MM-dd');
                   const sessions = sessionsByDate[dateStr] || [];
                   const isCurrentMonth = isSameMonth(day, currentDate);
                   
                   return (
                     <div
-                      key={i}
+                      key={`month-${dateStr}`}
                       className={`
                         min-h-[100px] p-2 border border-[#2a2a2a] rounded-md
                         ${!isCurrentMonth ? 'opacity-40' : ''}
@@ -375,7 +375,7 @@ export default function Calendar({
                       <div className="mt-1 space-y-1 max-h-[80px] overflow-y-auto">
                         {sessions.slice(0, 3).map((session) => (
                           <div 
-                            key={session.id} 
+                            key={`month-session-${session.id}`}
                             className="p-1 bg-[#C9D953] text-black text-xs rounded cursor-pointer hover:bg-[#b8c748]"
                             onClick={(e) => handleSessionClick(e, session)}
                           >
@@ -385,7 +385,7 @@ export default function Calendar({
                         ))}
                         
                         {sessions.length > 3 && (
-                          <div className="text-xs text-gray-400 text-center">
+                          <div key={`more-${dateStr}`} className="text-xs text-gray-400 text-center">
                             +{sessions.length - 3} more
                           </div>
                         )}
