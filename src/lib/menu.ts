@@ -183,10 +183,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Member List",
                     url: "/PT/member_list",
                 },
-                // {
-                //     title: "Payment",
-                //     url: "/instructor/payment",
-                // },
+                
             ],
         },
         {
