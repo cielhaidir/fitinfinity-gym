@@ -5,6 +5,15 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
 import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
 import { Transaction } from "./schema"
+import { Button } from "@/components/ui/button"
+import { Eye } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { useState } from "react"
 
 interface ColumnsProps {
   onEdit: (transaction: Transaction) => void,
@@ -76,6 +85,45 @@ export const transactionColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDe
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Description" />
     ),
+  },
+  {
+    accessorKey: "file",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Transaction Proof" />
+    ),
+    cell: ({ row }) => {
+      const file = row.getValue("file") as string;
+      const [isOpen, setIsOpen] = useState(false);
+      
+      if (!file) return <div>No file</div>;
+      
+      return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Badge variant="outline" className="cursor-pointer hover:bg-gray-100">
+              <Eye className="h-4 w-4 mr-1" />
+              Lihat Bukti
+            </Badge>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl">
+            <div className="relative w-full h-[500px]">
+              {file && (
+                <img 
+                  src={file} 
+                  alt="Transaction Proof" 
+                  className="object-contain w-full h-full"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = '/placeholder-image.png'; // Add a placeholder image
+                  }}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    },
   },
   {
     id: "actions",

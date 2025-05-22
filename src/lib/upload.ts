@@ -1,60 +1,56 @@
 import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
+import path from "path"
+import { v4 as uuidv4 } from "uuid"
 
-export async function uploadFile(base64String: string): Promise<string> {
+export async function uploadFile(base64Data: string, fileName: string): Promise<string> {
   try {
-    // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-    const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "")
+    // Remove data URL prefix if present
+    const base64String = base64Data.replace(/^data:.*?;base64,/, "")
+    const buffer = Buffer.from(base64String, "base64")
+
+    // Generate a unique filename
+    const extension = path.extname(fileName)
+    const uniqueFilename = `${uuidv4()}${extension}`
     
-    // Convert base64 to buffer
-    const buffer = Buffer.from(base64Data, "base64")
-    
-    // Generate unique filename
-    const timestamp = Date.now()
-    const filename = `profile-${timestamp}.jpg`
-    
-    // Define the path where the file will be saved
-    const publicDir = join(process.cwd(), "public", "assets", "profile")
-    const filePath = join(publicDir, filename)
-    
+    // Construct the path relative to the public directory
+    const relativeUploadDir = path.join("assets", "management", "transaction")
+    const uploadDir = path.join(process.cwd(), "public", relativeUploadDir)
+    const filePath = path.join("/", relativeUploadDir, uniqueFilename)
+
     // Create directory if it doesn't exist
-    await mkdir(publicDir, { recursive: true })
-    
+    await mkdir(uploadDir, { recursive: true })
+
     // Write the file
-    await writeFile(filePath, buffer)
-    
-    // Return the public URL path
-    return `/assets/profile/${filename}`
+    await writeFile(path.join(uploadDir, uniqueFilename), buffer)
+
+    return filePath
   } catch (error) {
     console.error("Upload error:", error)
     throw error
   }
 }
 
-export async function uploadPTPhoto(base64String: string): Promise<string> {
+export async function uploadPTPhoto(base64Data: string): Promise<string> {
   try {
-    // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-    const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "")
+    // Remove data URL prefix if present
+    const base64String = base64Data.replace(/^data:.*?;base64,/, "")
+    const buffer = Buffer.from(base64String, "base64")
+
+    // Generate a unique filename
+    const uniqueFilename = `${uuidv4()}.jpg`
     
-    // Convert base64 to buffer
-    const buffer = Buffer.from(base64Data, "base64")
-    
-    // Generate unique filename
-    const timestamp = Date.now()
-    const filename = `pt-${timestamp}.jpg`
-    
-    // Define the path where the file will be saved
-    const publicDir = join(process.cwd(), "public", "assets", "PT")
-    const filePath = join(publicDir, filename)
-    
+    // Construct the path relative to the public directory
+    const relativeUploadDir = path.join("assets", "pt")
+    const uploadDir = path.join(process.cwd(), "public", relativeUploadDir)
+    const filePath = path.join("/", relativeUploadDir, uniqueFilename)
+
     // Create directory if it doesn't exist
-    await mkdir(publicDir, { recursive: true })
-    
+    await mkdir(uploadDir, { recursive: true })
+
     // Write the file
-    await writeFile(filePath, buffer)
-    
-    // Return the public URL path
-    return `/assets/PT/${filename}`
+    await writeFile(path.join(uploadDir, uniqueFilename), buffer)
+
+    return filePath
   } catch (error) {
     console.error("Upload error:", error)
     throw error

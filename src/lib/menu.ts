@@ -165,19 +165,23 @@ export const Menu: { navMain: MenuGroup[] } = {
             items: [
                 {
                     title: "Dashboard",
-                    url: "/instructor/dashboard",
+                    url: "/PT",
                 },
                 {
                     title: "Profile",
-                    url: "/instructor/profile",
+                    url: "/PT/profile",
                 },
-                {
-                    title: "Classes",
-                    url: "/instructor/classes",
-                },
+                // {
+                //     title: "Classes",
+                //     url: "/PT/classes",
+                // },
                 {
                     title: "Schedule",
-                    url: "/instructor/jadwalPT",
+                    url: "/PT/jadwalPT",
+                },
+                {
+                    title: "Member List",
+                    url: "/PT/member_list",
                 },
                 // {
                 //     title: "Payment",

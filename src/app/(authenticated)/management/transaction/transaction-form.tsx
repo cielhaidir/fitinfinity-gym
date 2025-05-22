@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
     DialogContent,
     DialogDescription,
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api } from "@/trpc/react";
 import { Transaction } from "./schema";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 type TransactionFormProps = {
     transaction: Transaction;
@@ -30,6 +31,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     isEditMode,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [amount, setAmount] = useState("");
 
     const { data: bankAccounts = [] } = api.balanceAccount.getAll.useQuery({
         page: 1,
@@ -41,6 +44,46 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         limit: 100,
     });
 
+    const uploadFileMutation = api.transaction.uploadFile.useMutation();
+
+    const formatRupiah = (value: string) => {
+        // Remove all non-digit characters
+        const number = value.replace(/\D/g, '');
+        
+        // If empty, return empty string
+        if (!number) return "";
+        
+        // Format as Rupiah
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(Number(number));
+    };
+
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        // Remove currency symbol and formatting
+        const cleanValue = value.replace(/[^\d]/g, '');
+        
+        // Format the value
+        const formattedValue = formatRupiah(cleanValue);
+        setAmount(formattedValue);
+        
+        // Convert to number for the actual value
+        const numericValue = Number(cleanValue);
+        onInputChange("amount", numericValue);
+    };
+
+    useEffect(() => {
+        if (transaction) {
+            setAmount(transaction.amount ? formatRupiah(transaction.amount.toString()) : "");
+        } else {
+            setAmount("");
+        }
+    }, [transaction]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         onInputChange(name, value);
@@ -50,14 +93,44 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         onInputChange(name, value);
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
-        if (files && files.length > 0) {
-            const file = files[0];
-            // For simplicity, just storing the file name
-            // In a real app, you'd upload the file and store the file URL or ID
-            // onInputChange("file", file.name);
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        setIsUploading(true);
+
+        try {
+            // Convert file to base64
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            
+            reader.onload = async () => {
+                const base64Data = reader.result as string;
+                
+                // Upload file
+                const result = await uploadFileMutation.mutateAsync({
+                    fileData: base64Data,
+                    fileName: file.name
+                });
+
+                // Update transaction with file path
+                onInputChange("file", result.filePath);
+                toast.success("File uploaded successfully");
+            };
+        } catch (error) {
+            console.error("Error uploading file:", error);
+            toast.error("Failed to upload file");
+        } finally {
+            setIsUploading(false);
         }
+    };
+
+    const getFileNameFromPath = (path: string) => {
+        if (!path) return "";
+        // Get the last part of the path after the last slash
+        const parts = path.split('/');
+        return parts[parts.length - 1];
     };
 
     return (
@@ -73,20 +146,22 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
-             
-
                 <div>
                     <label htmlFor="type" className="block text-sm font-medium">
                         Type
                     </label>
-                    <Input
-                        id="type"
-                        name="type"
-                        placeholder="Transaction Type"
+                    <Select
                         value={transaction.type || ""}
-                        onChange={handleChange}
-                        required
-                    />
+                        onValueChange={(value) => handleSelectChange("type", value)}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select transaction type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="income">Income</SelectItem>
+                            <SelectItem value="expenses">Expenses</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div>
@@ -138,10 +213,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                     <Input
                         id="amount"
                         name="amount"
-                        type="number"
-                        placeholder="Amount"
-                        value={transaction.amount || ""}
-                        onChange={(e) => handleSelectChange("amount", parseFloat(e.target.value))}
+                        placeholder="Rp 0"
+                        value={amount}
+                        onChange={handleAmountChange}
                         required
                     />
                 </div>
@@ -174,16 +248,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                             type="file"
                             onChange={handleFileChange}
                             className="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png"
                         />
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
                         >
-                            Choose File
+                            {isUploading ? "Uploading..." : "Choose File"}
                         </Button>
                         <span className="text-sm truncate max-w-[300px]">
-                            {transaction.file ? transaction.file : "No file chosen"}
+                            {transaction.file ? getFileNameFromPath(transaction.file) : "No file chosen"}
                         </span>
                     </div>
                 </div>
@@ -204,10 +280,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 </div>
             </div>
             <DialogFooter className="flex justify-end gap-2">
-                <Button onClick={onSubmit} className="bg-infinity">
+                <Button onClick={onSubmit} className="bg-infinity" disabled={isUploading}>
                     {isEditMode ? "Update Transaction" : "Create Transaction"}
                 </Button>
-                <Button variant="outline" onClick={() => onInputChange("isModalOpen", false)}>
+                <Button variant="outline" onClick={() => onInputChange("isModalOpen", false)} disabled={isUploading}>
                     Cancel
                 </Button>
             </DialogFooter>

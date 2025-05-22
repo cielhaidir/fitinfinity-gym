@@ -30,9 +30,16 @@ interface DataTableRowActionsProps<TData> {
   onEdit?: ((item: TData) => void) | null
   onDelete?: ((item: TData) => void) | null
   customActions?: { label: string, action: (item: TData) => void }[] // Support multiple custom actions
+  showEdit?: boolean
 }
 
-export function DataTableRowActions<TData>({ row, onEdit, onDelete, customActions }: DataTableRowActionsProps<TData>) {
+export function DataTableRowActions<TData>({ 
+  row, 
+  onEdit, 
+  onDelete, 
+  customActions,
+  showEdit = true 
+}: DataTableRowActionsProps<TData>) {
   const [isAlertOpen, setIsAlertOpen] = useState(false)
 
   useEffect(() => {
@@ -63,8 +70,9 @@ export function DataTableRowActions<TData>({ row, onEdit, onDelete, customAction
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuItem onClick={() => onEdit?.(row.original)}>Edit</DropdownMenuItem>
-          {/* <DropdownMenuSeparator /> */}
+          {showEdit && onEdit && (
+            <DropdownMenuItem onClick={() => onEdit(row.original)}>Edit</DropdownMenuItem>
+          )}
         
           {customActions && customActions.map((customAction, index) => (
             <div key={index}>
