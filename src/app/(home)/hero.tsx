@@ -79,12 +79,12 @@ const Hero = () => {
         </div>
         {/* Feature Bar Mobile: di bawah content, tidak overlap, tidak menutupi video */}
         <div className="w-full mt-10">
-          <div className="bg-white/80 dark:bg-neutral-900/80 flex flex-col items-center py-6 gap-14 shadow-md w-full px-4">
-            <div className="text-gray-900 dark:text-white text-center w-full">
+          <div className="bg-white flex flex-col items-center py-6 gap-14 shadow-md w-full px-4">
+            <div className="text-gray-900 text-center w-full">
               <div className="font-medium text-2xl">Full Access</div>
               <div className="text-xs text-gray-500 text-center mt-1">Untuk Semua Kelas</div>
             </div>
-            <div className="text-gray-900 dark:text-white text-center w-full">
+            <div className="text-gray-900 text-center w-full">
               <div className="font-medium text-2xl">Free Towel</div>
               <div className="text-xs text-gray-500 text-center mt-1">Bersih & Nyaman</div>
             </div>
@@ -173,17 +173,17 @@ const Hero = () => {
       {/* Feature Bar Desktop: tetap seperti sebelumnya */}
       <div className="relative z-30 w-full hidden md:block">
         <div
-          className="bg-white dark:bg-neutral-900 flex flex-col md:flex-row items-center py-10 gap-8 shadow-md pl-10"
+          className="bg-white flex flex-col md:flex-row items-center py-10 gap-8 shadow-md pl-10"
           style={{
             width: '50.5%',
             clipPath: "polygon(0 0, 90% 0%, 100% 100%, 0% 100%)"
           }}
         >
-          <div className="text-gray-900 dark:text-white text-left md:pr-12 border-b md:border-b-0 md:border-r border-gray-300 pb-4 md:pb-0 flex flex-col pl-10">
+          <div className="text-gray-900 text-left md:pr-12 border-b md:border-b-0 md:border-r border-gray-300 pb-4 md:pb-0 flex flex-col pl-10">
             <div className="font-medium text-2xl md:text-3xl">Full Access</div>
             <div className="text-xs text-gray-500 text-center mt-1">Untuk Semua Kelas</div>
           </div>
-          <div className="text-gray-900 dark:text-white text-left md:pl-12 flex flex-col pl-10">
+          <div className="text-gray-900 text-left md:pl-12 flex flex-col pl-10">
             <div className="font-medium text-2xl md:text-3xl">Free Towel</div>
             <div className="text-xs text-gray-500 text-center mt-1">Bersih & Nyaman</div>
           </div>
