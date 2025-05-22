@@ -17,13 +17,13 @@ import { toast } from "sonner"
 interface RewardDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    reward: {
+    reward: Partial<{
         id: string
         name: string
         iconName: string
         price: number
         stock: number
-    } | null
+    }> | null
 }
 
 export function RewardDialog({ open, onOpenChange, reward }: RewardDialogProps) {
@@ -61,10 +61,10 @@ export function RewardDialog({ open, onOpenChange, reward }: RewardDialogProps) 
     useEffect(() => {
         if (reward) {
             setFormData({
-                name: reward.name,
-                iconName: reward.iconName,
-                price: reward.price,
-                stock: reward.stock
+                name: reward.name || "",
+                iconName: reward.iconName || "",
+                price: reward.price || 0,
+                stock: reward.stock || 0
             })
         } else {
             setFormData({
@@ -79,7 +79,7 @@ export function RewardDialog({ open, onOpenChange, reward }: RewardDialogProps) 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         
-        if (reward) {
+        if (reward?.id) {
             updateReward.mutate({
                 id: reward.id,
                 ...formData

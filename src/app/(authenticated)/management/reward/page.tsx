@@ -25,13 +25,10 @@ export default function RewardPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const utils = api.useUtils();
-  const { data, isLoading, error } = api.reward.list.useQuery(
-    { page: 1, limit: 100 },
-    {
-      staleTime: 5000,
-      refetchOnWindowFocus: false
-    }
-  );
+  const { data, isLoading, error } = api.reward.list.useQuery(undefined, {
+    staleTime: 5000,
+    refetchOnWindowFocus: false
+  });
   
   const createReward = api.reward.create.useMutation({
     onSuccess: () => {
@@ -56,6 +53,9 @@ export default function RewardPage() {
       utils.reward.list.invalidate();
       toast.success("Reward deleted successfully");
     },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete reward");
+    }
   });
 
   const resetForm = () => {
@@ -98,9 +98,16 @@ export default function RewardPage() {
     setIsSheetOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (reward: Reward) => {
     if (confirm("Are you sure you want to delete this reward?")) {
-      deleteReward.mutate({ id });
+      deleteReward.mutate(
+        { id: reward.id },
+        {
+          onError: (error) => {
+            toast.error(error.message || "Failed to delete reward");
+          }
+        }
+      );
     }
   };
 
@@ -109,12 +116,23 @@ export default function RewardPage() {
   };
 
   const handleCreate = () => {
-    setSelectedReward(null);
+    setSelectedReward({
+      name: "",
+      iconName: "",
+      price: 0,
+      stock: 0,
+    });
+    setIsEditMode(false);
     setIsSheetOpen(true);
   };
 
   const handleCloseDialog = () => {
-    setSelectedReward(null);
+    setSelectedReward({
+      name: "",
+      iconName: "",
+      price: 0,
+      stock: 0,
+    });
     setIsSheetOpen(false);
   };
 
@@ -136,7 +154,7 @@ export default function RewardPage() {
 
   const columns = createColumns({
     onEditReward: handleEdit,
-    onDeleteReward: (reward) => handleDelete(reward.id),
+    onDeleteReward: handleDelete,
   });
 
   return (

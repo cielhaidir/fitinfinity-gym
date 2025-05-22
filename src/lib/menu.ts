@@ -1,4 +1,5 @@
-import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound, DollarSign } from 'lucide-react';
+import Calendar from '@/app/(authenticated)/PT/jadwalPT/components/calendar';
+import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound, DollarSign, Gift, CircleGauge, UserRound, Calendar1 } from 'lucide-react';
 import { LucideIcon, HandCoins } from 'lucide-react';
 
 interface MenuItem {
@@ -94,33 +95,48 @@ export const Menu: { navMain: MenuGroup[] } = {
                 },
                 {
                     title: 'Rewards',
-                    url: '/admin/reward',
-                    icon: CreditCard,
+                    url: '/management/reward',
+                    icon: Gift,
                     requiredPermission: "list:reward"
                 }
             ],
         },
-        // {
-        //     title: "Administration",
-        //     url: "/admin/dashboard",
-        //     items: [
-        //         {
-        //             title: "Dashboard",
-        //             url: "/admin/dashboard",
-        //             requiredPermission: "read:dashboard-admin"
-        //         },
-        //         {
-        //             title: "Settings",
-        //             url: "/admin/settings",
-        //         },
-        //     ],
-        // },
+        {
+            title: "Administration",
+            url: "/admin",
+            items: [
+                {
+                    title: "Dashboard",
+                    url: "/admin",
+                    icon: CircleGauge,
+                    requiredPermission: "list:dashboard-admin"
+                },
+                {
+                    title: "Payment Validation",
+                    url: "/admin/payment-validation",
+                    icon: CreditCard,
+                    requiredPermission: "list:payment-validation"
+                },
+                {
+                    title: "Reward",
+                    url: "/admin/reward",
+                    icon: Gift,
+                    requiredPermission: "list:payment-validation"
+                },
+                
+                // {
+                //     title: "Settings",
+                //     url: "/admin/settings",
+                // },
+            ],
+        },
         {
             title: "Membership",
             url: "/member/dashboard",
             items: [
                 {
                     title: "Dashboard",
+                    icon: CircleGauge,
                     url: "/member",
                 },
                 {
@@ -130,13 +146,10 @@ export const Menu: { navMain: MenuGroup[] } = {
                 },
                 {
                     title: "Schedule",
-                    url: "/member/schedule",
+                    icon: Calendar1,
+                    url: "/member/calendar-session",
                     requiredPermission: "list:session"
                 },
-                // {
-                //     title: "Avalaible Package",
-                //     url: "/member/package",
-                // },
                 // {
                 //     title: "Vouchers",
                 //     url: "/member/vouchers",
@@ -147,11 +160,18 @@ export const Menu: { navMain: MenuGroup[] } = {
                 // },
                 {
                     title: "Payment History",
-                    url: "/member/payment",
+                    icon:CreditCard,
+                    url: "/member/payment-history",
                 },
                 {
                     title: "Profile",
+                    icon: UserRound,
                     url: "/member/profile",
+                },
+                {
+                    title: "Personal Trainer List",
+                    icon: Contact,
+                    url: "/member/personal-trainer",
                 },
                 // {
                 //     title: "Settings",
@@ -159,16 +179,19 @@ export const Menu: { navMain: MenuGroup[] } = {
                 // },
             ],
         },
+        
         {
             title: "Personal Trainer",
             url: "/instructor/dashboard",
             items: [
                 {
                     title: "Dashboard",
+                    icon: CircleGauge,
                     url: "/PT",
                 },
                 {
                     title: "Profile",
+                    icon: UserRound,
                     url: "/PT/profile",
                 },
                 // {
@@ -177,10 +200,12 @@ export const Menu: { navMain: MenuGroup[] } = {
                 // },
                 {
                     title: "Schedule",
+                    icon: Calendar1,
                     url: "/PT/jadwalPT",
                 },
                 {
                     title: "Member List",
+                    icon: Users,
                     url: "/PT/member_list",
                 },
                 
@@ -192,7 +217,8 @@ export const Menu: { navMain: MenuGroup[] } = {
             items: [
                 {
                     title: "Dashboard",
-                    url: "/finance/dashboard",
+                    icon: CircleGauge,
+                    url: "/finance",
                 },
                 {
                     title: "Balance Account",
@@ -210,10 +236,10 @@ export const Menu: { navMain: MenuGroup[] } = {
                     icon: DollarSign,
                     // requiredPermission: "manage:transactions"
                 },
-                {
-                    title: "Report",
-                    url: "/finance/report",
-                },
+                // {
+                //     title: "Report",
+                //     url: "/finance/report",
+                // },
             ],
         },
      

@@ -64,16 +64,39 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  delete: permissionProtectedProcedure(['list:reward'])
+  delete: permissionProtectedProcedure(['delete:reward'])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.db.reward.delete({
+        // First check if the reward exists
+        const reward = await ctx.db.reward.findUnique({
+          where: { id: input.id },
+          include: {
+            memberRewards: true
+          }
+        });
+
+        if (!reward) {
+          throw new Error("Reward not found");
+        }
+
+        // Check if there are any related member rewards
+        if (reward.memberRewards.length > 0) {
+          throw new Error("Cannot delete reward that has been claimed by members");
+        }
+
+        // If no related records, proceed with deletion
+        await ctx.db.reward.delete({
           where: { id: input.id },
         });
+
+        return { success: true };
       } catch (error) {
         console.error("Error deleting reward:", error);
-        throw error;
+        if (error instanceof Error) {
+          throw new Error(error.message);
+        }
+        throw new Error("Failed to delete reward");
       }
     }),
 
