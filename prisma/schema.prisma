@@ -100,6 +100,7 @@ model User {
     roles              Role[]
     memberships        Membership[]      @relation("MembershipToUser")
     personalTrainer    PersonalTrainer[] @relation("PersonalTrainerToUser")
+    fc                 FC[]             @relation("FCToUser")
     accounts           Account[]
     sessions           Session[]
     posts              Post[]
@@ -107,6 +108,7 @@ model User {
     createdUsers       User[]            @relation("UserCreatedBy")
     creator            User?             @relation("UserCreatedBy", fields: [createdBy], references: [id])
     createdMemberships Membership[]      @relation("MembershipCreator")
+    createdFCs         FC[]             @relation("UserCreatedBy")
     createdAt          DateTime          @default(now())
     updatedAt          DateTime          @updatedAt
     point              Int               @default(0)
@@ -333,6 +335,7 @@ model PaymentValidation {
     memberId       String
     packageId      String
     trainerId      String?
+    fcId           String?
     subsType       String // "gym" or "trainer"
     duration       Int    // days for gym, sessions for trainer
     totalPayment   Float
@@ -347,6 +350,7 @@ model PaymentValidation {
     member         Membership              @relation(fields: [memberId], references: [id])
     package        Package                 @relation(fields: [packageId], references: [id])
     trainer        PersonalTrainer?        @relation(fields: [trainerId], references: [id])
+    fc             FC?                     @relation(fields: [fcId], references: [id])
     @@index([memberId])
     @@index([paymentStatus])
 }
@@ -448,4 +452,17 @@ model AttendanceMember {
     member    Membership @relation("AttendanceMemberToMembership", fields: [memberId], references: [id])
 
     @@index([memberId])
+}
+
+model FC {
+    id          String   @id @default(cuid())
+    userId      String   @unique
+    isActive    Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    createdBy   String?
+
+    user          User             @relation("FCToUser", fields: [userId], references: [id])
+    creator       User?            @relation("UserCreatedBy", fields: [createdBy], references: [id])
+    paymentValidations PaymentValidation[]
 }
