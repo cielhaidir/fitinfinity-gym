@@ -49,14 +49,14 @@ export default function JadwalPTPage() {
       sessionsByDate[dateStr] = [];
     }
     
-    sessionsByDateTime[key].push({
+    // Create a new session object with a stable key
+    const sessionWithKey = {
       ...session,
-      key: `session-${session.id}` // Add a unique key to each session
-    });
-    sessionsByDate[dateStr].push({
-      ...session,
-      key: `session-${session.id}` // Add a unique key to each session
-    });
+      _key: `session-${session.id}-${dateStr}-${timeStr}` // More unique key
+    };
+    
+    sessionsByDateTime[key].push(sessionWithKey);
+    sessionsByDate[dateStr].push(sessionWithKey);
   });
 
   const handleNavigate = (direction: 'prev' | 'next') => {

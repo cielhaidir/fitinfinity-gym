@@ -326,7 +326,7 @@ export default function Calendar({
                           >
                             {isFirstHourOfSession && sessions.map((session) => (
                               <DraggableSession
-                                key={`session-${session.id}`}
+                                key={session._key || `session-${session.id}`}
                                 session={session}
                                 onClick={(e) => handleSessionClick(e, session)}
                                 onResize={handleResize}
@@ -375,7 +375,7 @@ export default function Calendar({
                       <div className="mt-1 space-y-1 max-h-[80px] overflow-y-auto">
                         {sessions.slice(0, 3).map((session) => (
                           <div 
-                            key={`month-session-${session.id}`}
+                            key={session._key || `session-${session.id}`}
                             className="p-1 bg-[#C9D953] text-black text-xs rounded cursor-pointer hover:bg-[#b8c748]"
                             onClick={(e) => handleSessionClick(e, session)}
                           >
