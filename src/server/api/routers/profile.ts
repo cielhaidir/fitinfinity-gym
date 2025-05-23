@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 import { createTRPCRouter, permissionProtectedProcedure, publicProcedure } from "@/server/api/trpc"
-import { uploadFile, uploadPTPhoto } from "@/lib/upload"
+import { uploadFile } from "@/lib/upload"
 import bcrypt from "bcryptjs"
 
 export const profileRouter = createTRPCRouter({
@@ -66,25 +66,43 @@ export const profileRouter = createTRPCRouter({
     }),
 
   uploadImage: permissionProtectedProcedure(['edit:profile'])
-    .input(z.object({ file: z.string() }))
+    .input(z.object({
+      file: z.string().refine(
+        (val) => val.startsWith('data:image/'),
+        'File must be an image'
+      ),
+    }))
     .mutation(async ({ ctx, input }) => {
       try {
-        const imageUrl = await uploadFile(input.file)
+        // Generate a temporary filename
+        const tempFileName = `profile-${Date.now()}.jpg`;
+        
+        // Upload the file
+        const imageUrl = await uploadFile(input.file, tempFileName);
+        
+        // Update user profile with new image URL
         await ctx.db.user.update({
           where: { id: ctx.session.user.id },
           data: { image: imageUrl },
-        })
-        return { imageUrl }
+        });
+
+        return { imageUrl };
       } catch (error) {
+        console.error('Profile image upload error:', error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to upload image",
-        })
+          message: error instanceof Error ? error.message : "Failed to upload image",
+        });
       }
     }),
 
   uploadPTPhoto: permissionProtectedProcedure(['edit:profile'])
-    .input(z.object({ file: z.string() }))
+    .input(z.object({
+      file: z.string().refine(
+        (val) => val.startsWith('data:image/'),
+        'File must be an image'
+      ),
+    }))
     .mutation(async ({ ctx, input }) => {
       try {
         // Check if user is a PT
@@ -93,26 +111,37 @@ export const profileRouter = createTRPCRouter({
             userId: ctx.session.user.id,
             isActive: true
           }
-        })
+        });
 
         if (!pt) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Only personal trainers can upload PT photos",
-          })
+          });
         }
 
-        const imageUrl = await uploadPTPhoto(input.file)
+        // Generate a temporary filename
+        const tempFileName = `pt-profile-${Date.now()}.jpg`;
+        
+        // Upload the file
+        const imageUrl = await uploadFile(input.file, tempFileName);
+        
+        // Update PT profile with new image URL
         await ctx.db.personalTrainer.update({
           where: { id: pt.id },
           data: { image: imageUrl },
-        })
-        return { imageUrl }
+        });
+
+        return { imageUrl };
       } catch (error) {
+        console.error('PT profile image upload error:', error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to upload PT photo",
-        })
+          message: error instanceof Error ? error.message : "Failed to upload image",
+        });
       }
     }),
 

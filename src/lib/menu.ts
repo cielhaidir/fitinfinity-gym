@@ -121,7 +121,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Reward",
                     url: "/admin/reward",
                     icon: Gift,
-                    requiredPermission: "list:payment-validation"
+                    requiredPermission: "list:admin-reward"
                 },
                 
                 // {

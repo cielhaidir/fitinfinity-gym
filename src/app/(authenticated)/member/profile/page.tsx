@@ -141,12 +141,29 @@ export default function ProfilePage() {
 
     try {
       const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64String = reader.result as string
-        uploadImage.mutate({ file: base64String })
+      reader.onloadend = async () => {
+        try {
+          const base64String = reader.result as string
+          console.log('Uploading image...', base64String.substring(0, 100) + '...') // Log first 100 chars
+          
+          const result = await uploadImage.mutateAsync({ file: base64String })
+          console.log('Upload result:', result)
+          
+          if (result.imageUrl) {
+            setFormData(prev => ({ ...prev, image: result.imageUrl }))
+            toast.success("Profile image updated successfully")
+          }
+        } catch (error) {
+          console.error('Upload error:', error)
+          toast.error("Failed to upload image")
+        }
+      }
+      reader.onerror = () => {
+        toast.error("Failed to read file")
       }
       reader.readAsDataURL(file)
     } catch (error) {
+      console.error("File processing error:", error)
       toast.error("Failed to process image")
     }
   }
