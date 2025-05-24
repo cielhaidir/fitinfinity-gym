@@ -142,6 +142,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                 {
                     title: "Classes",
                     url: "/member/classes",
+                    icon: Dumbbell,
                     requiredPermission: "list:classes"
                 },
                 {

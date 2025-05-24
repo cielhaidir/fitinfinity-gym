@@ -45,3 +45,32 @@ Unique constraint failed on the fields: (`email`)
 [2025-05-14 21:16:49] INFO: User PT2 (cmalc5hvq000549jkh9g99de9) successfully updated user: {"id":"cmalc5hvq000549jkh9g99de9","name":"PT2","email":"testing2@gmail.com","emailVerified":null,"password":"$2b$12$vEviw7251WSPBSykakcD1.maXGzZWwF6m1ClIsJhWIu6yUL7ge112","address":"test","phone":"01239","birthDate":"2002-05-13T00:00:00.000Z","idNumber":"","image":"/assets/PT/pt-1747127021715.jpg","createdBy":null,"createdAt":"2025-05-12T17:07:15.014Z","updatedAt":"2025-05-14T13:16:49.090Z","point":0,"height":50,"weight":40,"gender":"MALE"}
 [2025-05-15 14:12:28] INFO: User Andi Said Haidir Ali (cm77ng6bo0000k5i1epussaks) successfully updated user: {"id":"cm77ng6bo0000k5i1epussaks","name":"Andi Said Haidir Ali","email":"saidhaidirali987@gmail.com","emailVerified":null,"password":null,"address":"","phone":"","birthDate":null,"idNumber":"","image":"/assets/profile/profile-1745416848877.jpg","createdBy":null,"createdAt":"2025-02-16T13:15:35.557Z","updatedAt":"2025-05-15T06:12:28.175Z","point":0,"height":null,"weight":null,"gender":null}
 [2025-05-15 14:14:46] INFO: User Andi Said Haidir Ali (cm77ng6bo0000k5i1epussaks) successfully updated user: {"id":"cm77ng6bo0000k5i1epussaks","name":"Andi Said Haidir Ali","email":"saidhaidirali987@gmail.com","emailVerified":null,"password":null,"address":"","phone":"","birthDate":null,"idNumber":"","image":"/assets/profile/profile-1745416848877.jpg","createdBy":null,"createdAt":"2025-02-16T13:15:35.557Z","updatedAt":"2025-05-15T06:14:46.494Z","point":0,"height":null,"weight":null,"gender":null}
+[2025-05-24 15:35:02] INFO: User Muh Rezki (cma9dg3dh000s8depzhxehezl) successfully updated user: {"id":"cmalcag1n000s49jkue7ifl8k","name":"Muh Rezki","email":"muhrezkiiii4@gmail.com","emailVerified":null,"password":null,"address":"","phone":"","birthDate":null,"idNumber":"","image":"https://lh3.googleusercontent.com/a/ACg8ocK72HoRbnFmQg7ddPTztA9pRDcIHQzPDiXuQYwrICB9H10R=s96-c","createdBy":null,"createdAt":"2025-05-12T17:11:05.915Z","updatedAt":"2025-05-24T07:35:02.213Z","point":0,"height":null,"weight":null,"gender":null}
+[2025-05-24 15:41:45] ERROR: User Muh Rezki (cma9dg3dh000s8depzhxehezl) encountered an error while updating user: 
+Invalid `ctx.db.user.update()` invocation in
+/media/rezki/ehe/document/project/nextjs/fitinfinity Without store/aaa/fitinfinity/.next/server/chunks/[root of the server]__eea8a8._.js:913:44
+
+  910 const sessionUserId = ctx.session.user.id;
+  911 const sessionUserName = ctx.session.user.name;
+  912 try {
+→ 913     const user = await ctx.db.user.update(
+Unique constraint failed on the fields: (`phone`)
+[2025-05-24 15:45:37] ERROR: User PT1 (cmam9m52m0001god9hlgq1jce) encountered an error while updating user: 
+Invalid `ctx.db.user.update()` invocation in
+/media/rezki/ehe/document/project/nextjs/fitinfinity Without store/aaa/fitinfinity/.next/server/chunks/[root of the server]__eea8a8._.js:913:44
+
+  910 const sessionUserId = ctx.session.user.id;
+  911 const sessionUserName = ctx.session.user.name;
+  912 try {
+→ 913     const user = await ctx.db.user.update(
+Unique constraint failed on the fields: (`phone`)
+[2025-05-24 15:45:58] ERROR: User PT1 (cmam9m52m0001god9hlgq1jce) encountered an error while updating user: 
+Invalid `ctx.db.user.update()` invocation in
+/media/rezki/ehe/document/project/nextjs/fitinfinity Without store/aaa/fitinfinity/.next/server/chunks/[root of the server]__eea8a8._.js:913:44
+
+  910 const sessionUserId = ctx.session.user.id;
+  911 const sessionUserName = ctx.session.user.name;
+  912 try {
+→ 913     const user = await ctx.db.user.update(
+Unique constraint failed on the fields: (`phone`)
+[2025-05-24 15:46:16] INFO: User PT1 (cmam9m52m0001god9hlgq1jce) successfully updated user: {"id":"cma9dg3dh000s8depzhxehezl","name":"Muh Rezki","email":"muhrezki4@gmail.com","emailVerified":null,"password":null,"address":"testing","phone":"0892139139","birthDate":null,"idNumber":"","image":"https://lh3.googleusercontent.com/a/ACg8ocLg8OCBd4-kVFs_wEZeWoKnJvqkbC7FjxroCQOYz_9m-q-X1FqH=s96-c","createdBy":null,"createdAt":"2025-05-04T08:10:14.933Z","updatedAt":"2025-05-24T07:46:16.019Z","point":0,"height":null,"weight":null,"gender":null}
