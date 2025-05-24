@@ -7,6 +7,10 @@ import { DataTableColumnHeader } from "@/components/datatable/data-table-column-
 import { DataTableRowActions } from "@/components/datatable/data-table-row-actions";
 import { PaymentStatus, PackageType } from "@prisma/client";
 import { Subscription } from "./schema";
+import { api } from "@/trpc/react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Eye, Trash2 } from "lucide-react";
 
 interface ColumnsProps {
     onViewMember?: (memberId: string) => void;
@@ -14,7 +18,61 @@ interface ColumnsProps {
 
 export const createColumns = ({
     onViewMember,
-}: ColumnsProps): ColumnDef<Subscription>[] => [
+}: ColumnsProps): ColumnDef<Subscription>[] => {
+    const utils = api.useUtils();
+    const deleteSubscriptionMutation = api.subs.delete.useMutation({
+        onMutate: async (deletedSubscription) => {
+            // Cancel any outgoing refetches
+            await utils.subs.list.cancel();
+
+            // Snapshot the previous value
+            const previousSubscriptions = utils.subs.list.getData();
+
+            // Optimistically update to the new value
+            utils.subs.list.setData(undefined, (old) => {
+                if (!old) return { items: [], total: 0, page: 1, limit: 10 };
+                return {
+                    ...old,
+                    items: old.items.filter((item) => item.id !== deletedSubscription.id),
+                    total: old.total - 1
+                };
+            });
+
+            // Return a context object with the snapshotted value
+            return { previousSubscriptions };
+        },
+        onError: (err, newSubscription, context) => {
+            // If the mutation fails, use the context returned from onMutate to roll back
+            if (context?.previousSubscriptions) {
+                utils.subs.list.setData(undefined, context.previousSubscriptions);
+            }
+            toast.error(err.message);
+        },
+        onSuccess: () => {
+            toast.success('Subscription deleted successfully!');
+        },
+        onSettled: () => {
+            // Always refetch after error or success to ensure cache is in sync
+            utils.subs.list.invalidate();
+        },
+    });
+
+    const handleDelete = async (id: string) => {
+        if (!id) {
+            toast.error("Cannot delete: No subscription ID provided");
+            return;
+        }
+
+        if (window.confirm('Are you sure you want to delete this subscription?')) {
+            try {
+                await deleteSubscriptionMutation.mutateAsync({ id });
+            } catch (error) {
+                console.error("Error in handleDelete:", error);
+            }
+        }
+    };
+
+    return [
         {
             id: "select",
             header: ({ table }) => (
@@ -114,8 +172,8 @@ export const createColumns = ({
                     <div className="flex flex-col gap-1">
                         <Badge 
                             variant={
-                                latestPayment?.status === PaymentStatus.SUCCESS ? "success" :
-                                latestPayment?.status === PaymentStatus.PENDING ? "warning" :
+                                latestPayment?.status === PaymentStatus.SUCCESS ? "default" :
+                                latestPayment?.status === PaymentStatus.PENDING ? "secondary" :
                                 "destructive"
                             }
                         >
@@ -132,16 +190,30 @@ export const createColumns = ({
         },
         {
             id: "actions",
-            cell: ({ row }) => (
-                <DataTableRowActions
-                    row={row}
-                    actions={[
-                        {
-                            label: "View Member Details",
-                            onClick: () => onViewMember?.(row.original.memberId),
-                        },
-                    ]}
-                />
-            ),
+            cell: ({ row }) => {
+                return (
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onViewMember?.(row.original.memberId)}
+                            className="h-8 w-8 hover:bg-muted"
+                        >
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">View Member</span>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(row.original.id ?? "")}
+                            className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                        </Button>
+                    </div>
+                );
+            },
         },
     ];
+};

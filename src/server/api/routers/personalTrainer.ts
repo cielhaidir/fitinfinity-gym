@@ -108,8 +108,28 @@ export const personalTrainerRouter = createTRPCRouter({
     remove: permissionProtectedProcedure(['remove:trainers'])
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.personalTrainer.delete({
-                where: { id: input.id },
+            // Use a transaction to ensure all related data is deleted properly
+            return ctx.db.$transaction(async (tx) => {
+                // First delete all trainer sessions
+                await tx.trainerSession.deleteMany({
+                    where: { trainerId: input.id }
+                });
+
+                // Delete all classes associated with the trainer
+                await tx.class.deleteMany({
+                    where: { trainerId: input.id }
+                });
+
+                // Update subscriptions to remove trainer reference
+                await tx.subscription.updateMany({
+                    where: { trainerId: input.id },
+                    data: { trainerId: null }
+                });
+
+                // Finally delete the trainer
+                return tx.personalTrainer.delete({
+                    where: { id: input.id }
+                });
             });
         }),
 

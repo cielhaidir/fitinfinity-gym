@@ -17,16 +17,29 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 
 export default function SubscriptionPage() {
     const utils = api.useUtils();
     const router = useRouter();
+    const deleteSubscriptionMutation = api.subs.delete.useMutation();
 
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
     const [isSelectingMember, setIsSelectingMember] = useState(false);
     const [memberSearch, setMemberSearch] = useState("");
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [subscriptionToDelete, setSubscriptionToDelete] = useState<string | null>(null);
 
     // Query for subscriptions
     const { data: subscriptionData = { items: [], total: 0, page: 1, limit: 10 } } = api.subs.list.useQuery({
@@ -58,8 +71,29 @@ export default function SubscriptionPage() {
         router.push(`/checkout/${memberId}`);
     };
 
+    const handleDelete = async (id: string) => {
+        setSubscriptionToDelete(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!subscriptionToDelete) return;
+
+        try {
+            await deleteSubscriptionMutation.mutateAsync({ id: subscriptionToDelete });
+            toast.success('Subscription deleted successfully!');
+            await utils.subs.list.invalidate();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : String(error));
+        } finally {
+            setDeleteDialogOpen(false);
+            setSubscriptionToDelete(null);
+        }
+    };
+
     const columns = createColumns({ 
         onViewMember: viewMemberSubscriptions,
+        onDelete: handleDelete
     });
 
     return (
@@ -128,6 +162,27 @@ export default function SubscriptionPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the subscription
+                            and all associated payment records.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

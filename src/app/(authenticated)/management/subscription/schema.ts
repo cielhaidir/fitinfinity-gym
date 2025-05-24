@@ -16,6 +16,13 @@ export const SubscriptionSchema = z.object({
     memberId: z.string(),
     startDate: z.date(),
     endDate: z.date().nullable(),
+    member: z.object({
+        id: z.string(),
+        user: z.object({
+            name: z.string(),
+            email: z.string(),
+        }),
+    }).optional(),
     payments: z.array(z.object({
         id: z.string().optional(),
         subscriptionId: z.string(),

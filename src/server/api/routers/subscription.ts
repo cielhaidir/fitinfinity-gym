@@ -308,5 +308,56 @@ export const subscriptionRouter = createTRPCRouter({
                 throw error;
             }
         }),
+
+    delete: permissionProtectedProcedure(['delete:subscription'])
+        .input(z.object({ id: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            // Use a transaction to ensure all related data is deleted properly
+            return ctx.db.$transaction(async (tx) => {
+                // Get the subscription first to check if it exists
+                const subscription = await tx.subscription.findUnique({
+                    where: { id: input.id },
+                    include: {
+                        member: true,
+                        payments: true
+                    }
+                });
+
+                if (!subscription) {
+                    throw new Error("Subscription not found");
+                }
+
+                // First delete all payments associated with the subscription
+                if (subscription.payments && subscription.payments.length > 0) {
+                    await tx.payment.deleteMany({
+                        where: { subscriptionId: input.id }
+                    });
+                }
+
+                // Then delete the subscription
+                const deletedSubscription = await tx.subscription.delete({
+                    where: { id: input.id }
+                });
+
+                // Update member's active status if this was their only active subscription
+                const remainingSubscriptions = await tx.subscription.count({
+                    where: { 
+                        memberId: subscription.memberId,
+                        endDate: {
+                            gt: new Date()
+                        }
+                    }
+                });
+
+                if (remainingSubscriptions === 0) {
+                    await tx.membership.update({
+                        where: { id: subscription.memberId },
+                        data: { isActive: false }
+                    });
+                }
+
+                return deletedSubscription;
+            });
+        }),
 });
 
