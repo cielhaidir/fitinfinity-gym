@@ -12,7 +12,8 @@ export const voucherRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      return ctx.db.voucher.findMany({
+      // Get all vouchers that match the criteria and haven't been claimed by this user
+      const vouchers = await ctx.db.voucher.findMany({
         where: {
           type: input.type,
           isActive: input.isActive,
@@ -20,8 +21,24 @@ export const voucherRouter = createTRPCRouter({
             { expiryDate: null },
             { expiryDate: { gt: new Date() } }
           ],
+          // Exclude vouchers that have been claimed by this user
+          claims: {
+            none: {
+              memberId: ctx.user.id
+            }
+          }
         },
+        include: {
+          _count: {
+            select: {
+              claims: true
+            }
+          }
+        }
       });
+
+      // Filter out vouchers that have reached max claim
+      return vouchers.filter(voucher => voucher._count.claims < voucher.maxClaim);
     }),
 
   claim: permissionProtectedProcedure(['claim:voucher'])
@@ -34,21 +51,25 @@ export const voucherRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { voucherId, referralCode } = input;
 
-      // Find the voucher
+      // Find the voucher first
       const voucher = await ctx.db.voucher.findFirst({
         where: {
-          OR: [
-            { id: voucherId },
-            { referralCode: referralCode, type: VoucherType.REFERRAL }
-          ],
-          isActive: true,
-          expiryDate: {
-            gt: new Date(),
-          },
-        },
-        include: {
-          claims: true,
-        },
+          AND: [
+            {
+              OR: [
+                { id: voucherId },
+                { referralCode: referralCode, type: VoucherType.REFERRAL }
+              ]
+            },
+            { isActive: true },
+            {
+              OR: [
+                { expiryDate: null },
+                { expiryDate: { gt: new Date() } }
+              ]
+            }
+          ]
+        }
       });
 
       if (!voucher) {
@@ -58,58 +79,95 @@ export const voucherRouter = createTRPCRouter({
         });
       }
 
-      // Check if voucher has been claimed by this member
-      const existingClaim = await ctx.db.voucherClaim.findFirst({
-        where: {
-          memberId: ctx.user.id,
-          voucherId: voucher.id,
-        },
-      });
-
-      if (existingClaim) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Voucher sudah pernah diklaim",
-        });
-      }
-
       // Check if voucher has reached max claim
-      if (voucher.claims.length >= voucher.maxClaim) {
+      if (voucher.maxClaim <= 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Voucher sudah mencapai batas klaim maksimum",
         });
       }
 
-      // Use transaction to ensure both operations succeed or fail together
-      const result = await ctx.db.$transaction(async (tx) => {
-        // Create voucher claim
-        await tx.voucherClaim.create({
-          data: {
-            memberId: ctx.user.id,
-            voucherId: voucher.id,
-          },
-        });
+      // Return the voucher information without creating VoucherClaim
+      return {
+        id: voucher.id,
+        name: voucher.name,
+        amount: voucher.amount,
+        discountType: voucher.discountType,
+      };
+    }),
 
-        // Decrement maxClaim
-        const updatedVoucher = await tx.voucher.update({
-          where: { id: voucher.id },
-          data: {
-            maxClaim: {
-              decrement: 1
-            }
-          },
-        });
+  finalizeVoucherClaim: permissionProtectedProcedure(['claim:voucher'])
+    .input(
+      z.object({
+        voucherId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { voucherId } = input;
 
-        return updatedVoucher;
+      // Find the voucher
+      const voucher = await ctx.db.voucher.findFirst({
+        where: {
+          id: voucherId,
+          isActive: true,
+          OR: [
+            { expiryDate: null },
+            { expiryDate: { gt: new Date() } }
+          ]
+        }
       });
 
-      return {
-        id: result.id,
-        name: result.name,
-        amount: result.amount,
-        discountType: result.discountType,
-      };
+      if (!voucher) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Voucher tidak ditemukan atau sudah tidak aktif",
+        });
+      }
+
+      // Check if voucher has reached max claim
+      if (voucher.maxClaim <= 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Voucher sudah mencapai batas klaim maksimum",
+        });
+      }
+
+      try {
+        // Use transaction to ensure both operations succeed or fail together
+        const result = await ctx.db.$transaction(async (tx) => {
+          // Create VoucherClaim
+          await tx.voucherClaim.create({
+            data: {
+              memberId: ctx.user.id,
+              voucherId: voucher.id
+            }
+          });
+
+          // Update voucher with decremented maxClaim
+          const updatedVoucher = await tx.voucher.update({
+            where: {
+              id: voucher.id
+            },
+            data: {
+              maxClaim: voucher.maxClaim - 1
+            }
+          });
+
+          return updatedVoucher;
+        });
+
+        return {
+          id: result.id,
+          name: result.name,
+          amount: result.amount,
+          discountType: result.discountType,
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Gagal mengklaim voucher",
+        });
+      }
     }),
 
   getAll: permissionProtectedProcedure(['list:voucher']).query(async ({ ctx }) => {

@@ -96,6 +96,7 @@ function CheckoutValidateContent() {
                 totalPayment: parseFloat(totalPayment),
                 paymentMethod: paymentMethod,
                 filePath: uploadResult.filePath,
+                voucherId: voucherId || undefined,
             });
 
             toast.success("Proof of payment submitted successfully! Please wait for admin approval.");

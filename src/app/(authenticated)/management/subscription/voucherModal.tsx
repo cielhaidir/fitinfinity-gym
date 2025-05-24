@@ -24,7 +24,7 @@ export function VoucherModal({ isOpen, onClose, onVoucherApplied, currentVoucher
 
     const claimVoucherMutation = api.voucher.claim.useMutation({
         onSuccess: (voucher) => {
-            toast.success("Voucher claimed successfully");
+            toast.success("Voucher berhasil diapply");
             onVoucherApplied(voucher);
             onClose();
         },
@@ -35,6 +35,12 @@ export function VoucherModal({ isOpen, onClose, onVoucherApplied, currentVoucher
 
     const applyVoucher = async (voucher: { id: string; name: string; amount: number; discountType: "PERCENT" | "CASH" }) => {
         try {
+            // Check if this is the currently applied voucher
+            if (currentVoucher?.id === voucher.id) {
+                toast.error("Voucher ini sudah diapply");
+                return;
+            }
+
             await claimVoucherMutation.mutateAsync({ voucherId: voucher.id });
         } catch (error) {
             // Error is handled by the mutation
@@ -60,7 +66,9 @@ export function VoucherModal({ isOpen, onClose, onVoucherApplied, currentVoucher
                             {generalVouchers.map((voucher) => (
                                 <div
                                     key={voucher.id}
-                                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                                    className={`flex items-center justify-between p-3 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors ${
+                                        currentVoucher?.id === voucher.id ? 'bg-green-50 dark:bg-green-900/20' : ''
+                                    }`}
                                     onClick={() => applyVoucher(voucher)}
                                 >
                                     <div>
@@ -70,7 +78,7 @@ export function VoucherModal({ isOpen, onClose, onVoucherApplied, currentVoucher
                                                 {voucher.discountType === "PERCENT" ? `${voucher.amount}%` : `Rp ${voucher.amount.toLocaleString()}`}
                                             </Badge>
                                             <span className="text-sm text-gray-600 dark:text-gray-400">
-                                                {voucher.maxClaim} claims left
+                                                Sisa {voucher.maxClaim - voucher._count.claims} voucher
                                             </span>
                                         </div>
                                     </div>

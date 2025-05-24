@@ -66,23 +66,61 @@ export const paymentValidationRouter = createTRPCRouter({
             totalPayment: z.number(),
             paymentMethod: z.string(),
             filePath: z.string(),
-            // Add voucher details if your PaymentValidation schema supports it directly
-            // voucherId: z.string().optional(), 
+            voucherId: z.string().optional(), // Add voucherId to input
         }))
         .mutation(async ({ ctx, input }) => {
-            return ctx.db.paymentValidation.create({
-                data: {
-                    memberId: input.memberId,
-                    packageId: input.packageId,
-                    trainerId: input.trainerId,
-                    subsType: input.subsType,
-                    duration: input.duration,
-                    totalPayment: input.totalPayment,
-                    paymentMethod: input.paymentMethod,
-                    filePath: input.filePath,
-                    paymentStatus: PaymentValidationStatus.WAITING,
-                    // voucherId: input.voucherId, // if added to schema
-                },
+            // Use transaction to ensure all operations succeed or fail together
+            return ctx.db.$transaction(async (tx) => {
+                // Get the membership to get the user ID
+                const membership = await tx.membership.findUnique({
+                    where: { id: input.memberId },
+                    include: { user: true }
+                });
+
+                if (!membership) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Membership not found",
+                    });
+                }
+
+                // Create PaymentValidation entry
+                const paymentValidation = await tx.paymentValidation.create({
+                    data: {
+                        memberId: input.memberId,
+                        packageId: input.packageId,
+                        trainerId: input.trainerId,
+                        subsType: input.subsType,
+                        duration: input.duration,
+                        totalPayment: input.totalPayment,
+                        paymentMethod: input.paymentMethod,
+                        filePath: input.filePath,
+                        paymentStatus: PaymentValidationStatus.WAITING,
+                    },
+                });
+
+                // If voucherId is provided, create VoucherClaim and update voucher
+                if (input.voucherId) {
+                    // Create voucher claim using the user ID
+                    await tx.voucherClaim.create({
+                        data: {
+                            memberId: membership.user.id, // Use user ID instead of member ID
+                            voucherId: input.voucherId,
+                        },
+                    });
+
+                    // Decrement maxClaim
+                    await tx.voucher.update({
+                        where: { id: input.voucherId },
+                        data: {
+                            maxClaim: {
+                                decrement: 1
+                            }
+                        },
+                    });
+                }
+
+                return paymentValidation;
             });
         }),
 
