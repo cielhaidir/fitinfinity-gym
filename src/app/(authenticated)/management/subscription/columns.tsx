@@ -10,14 +10,16 @@ import { Subscription } from "./schema";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, Edit } from "lucide-react";
 
 interface ColumnsProps {
     onViewMember?: (memberId: string) => void;
+    onEdit?: (subscription: Subscription) => void;
 }
 
 export const createColumns = ({
     onViewMember,
+    onEdit,
 }: ColumnsProps): ColumnDef<Subscription>[] => {
     const utils = api.useUtils();
     const deleteSubscriptionMutation = api.subs.delete.useMutation({
@@ -201,6 +203,15 @@ export const createColumns = ({
                         >
                             <Eye className="h-4 w-4" />
                             <span className="sr-only">View Member</span>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onEdit?.(row.original)}
+                            className="h-8 w-8 hover:bg-muted"
+                        >
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
                         </Button>
                         <Button
                             variant="ghost"

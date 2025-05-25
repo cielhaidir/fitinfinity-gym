@@ -11,6 +11,7 @@ import { Subscription } from "./schema";
 import { toast } from "sonner"
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import EditModal from "./edit-modal";
 import {
     Dialog,
     DialogContent,
@@ -33,6 +34,7 @@ export default function SubscriptionPage() {
     const utils = api.useUtils();
     const router = useRouter();
     const deleteSubscriptionMutation = api.subs.delete.useMutation();
+    const updateSubscriptionMutation = api.subs.update.useMutation();
 
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
@@ -42,6 +44,8 @@ export default function SubscriptionPage() {
     const [memberSearch, setMemberSearch] = useState("");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [subscriptionToDelete, setSubscriptionToDelete] = useState<string | null>(null);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
 
     // Query for subscriptions
     const { data: subscriptionData = { items: [], total: 0, page: 1, limit: 10 } } = api.subs.list.useQuery({
@@ -79,6 +83,26 @@ export default function SubscriptionPage() {
         setDeleteDialogOpen(true);
     };
 
+    const handleEdit = (subscription: Subscription) => {
+        setSelectedSubscription(subscription);
+        setEditModalOpen(true);
+    };
+
+    const handleSaveEdit = async (updated: Subscription) => {
+        try {
+            await updateSubscriptionMutation.mutateAsync({
+                id: updated.id!,
+                endDate: new Date(updated.endDate!),
+            });
+            toast.success('Subscription updated successfully!');
+            await utils.subs.list.invalidate();
+            setEditModalOpen(false);
+            setSelectedSubscription(null);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : String(error));
+        }
+    };
+
     const confirmDelete = async () => {
         if (!subscriptionToDelete) return;
 
@@ -96,7 +120,7 @@ export default function SubscriptionPage() {
 
     const columns = createColumns({ 
         onViewMember: viewMemberSubscriptions,
-        onDelete: handleDelete
+        onEdit: handleEdit
     });
 
     return (
@@ -187,6 +211,16 @@ export default function SubscriptionPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <EditModal
+                open={editModalOpen}
+                onClose={() => {
+                    setEditModalOpen(false);
+                    setSelectedSubscription(null);
+                }}
+                subscription={selectedSubscription}
+                onSave={handleSaveEdit}
+            />
         </>
     );
 }
