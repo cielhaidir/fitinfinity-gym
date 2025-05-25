@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const fcRouter = createTRPCRouter({
@@ -189,5 +189,105 @@ export const fcRouter = createTRPCRouter({
       }
 
       return fc;
+    }),
+
+  getMembers: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+        search: z.string().optional(),
+        searchColumn: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, limit, search, searchColumn } = input;
+      const skip = (page - 1) * limit;
+
+      try {
+        // Get the FC ID for the current user
+        const fc = await ctx.db.fC.findFirst({
+          where: { 
+            userId: ctx.session.user.id,
+            isActive: true
+          }
+        });
+
+        if (!fc) {
+          return {
+            items: [],
+            total: 0,
+            page,
+            limit,
+          };
+        }
+
+        const where = {
+          fcId: fc.id, // Only get members assigned to this FC
+          ...(search && searchColumn
+            ? {
+                user: {
+                  [searchColumn]: {
+                    contains: search,
+                    mode: "insensitive" as const,
+                  },
+                },
+              }
+            : {}),
+        };
+
+        const [items, total] = await Promise.all([
+          ctx.db.membership.findMany({
+            where,
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                  phone: true,
+                  height: true,
+                  weight: true,
+                  birthDate: true,
+                },
+              },
+            },
+            skip,
+            take: limit,
+            orderBy: {
+              createdAt: "desc",
+            },
+          }),
+          ctx.db.membership.count({ where }),
+        ]);
+
+        // Transform the data to match the schema
+        const transformedItems = items.map(item => ({
+          id: item.id,
+          name: item.user.name ?? "",
+          email: item.user.email ?? "",
+          phone: item.user.phone ?? "",
+          height: item.user.height,
+          weight: item.user.weight,
+          birthDate: item.user.birthDate?.toISOString() ?? null,
+          registerDate: item.registerDate.toISOString(),
+          isActive: item.fcId === fc.id, // Member is active if they are still assigned to this FC
+          rfidNumber: item.rfidNumber,
+        }));
+
+        return {
+          items: transformedItems,
+          total,
+          page,
+          limit,
+        };
+      } catch (error) {
+        console.error("Error in getMembers:", error);
+        return {
+          items: [],
+          total: 0,
+          page,
+          limit,
+        };
+      }
     }),
 }); 
