@@ -23,9 +23,11 @@ export default function RewardPage() {
     stock: 0,
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const utils = api.useUtils();
-  const { data, isLoading, error } = api.reward.list.useQuery(undefined, {
+  const { data, isLoading, error } = api.reward.list.useQuery({ page, limit }, {
     staleTime: 5000,
     refetchOnWindowFocus: false
   });
@@ -111,8 +113,9 @@ export default function RewardPage() {
     }
   };
 
-  const handlePaginationChange = (page: number, limit: number) => {
-    // Handle pagination if needed
+  const handlePaginationChange = (newPage: number, newLimit: number) => {
+    setPage(newPage);
+    setLimit(newLimit);
   };
 
   const handleCreate = () => {

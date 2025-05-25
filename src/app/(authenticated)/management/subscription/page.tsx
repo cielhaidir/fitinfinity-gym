@@ -36,6 +36,8 @@ export default function SubscriptionPage() {
 
     const [search, setSearch] = useState("");
     const [searchColumn, setSearchColumn] = useState<string>("");
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
     const [isSelectingMember, setIsSelectingMember] = useState(false);
     const [memberSearch, setMemberSearch] = useState("");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -43,8 +45,8 @@ export default function SubscriptionPage() {
 
     // Query for subscriptions
     const { data: subscriptionData = { items: [], total: 0, page: 1, limit: 10 } } = api.subs.list.useQuery({
-        page: 1,
-        limit: 10,
+        page,
+        limit,
         search,
         searchColumn
     });
@@ -57,8 +59,9 @@ export default function SubscriptionPage() {
         searchColumn: "user.name"
     });
 
-    const handlePaginationChange = (page: number, limit: number) => {
-        utils.subs.list.invalidate({ page, limit });
+    const handlePaginationChange = (newPage: number, newLimit: number) => {
+        setPage(newPage);
+        setLimit(newLimit);
     };
 
     // Function to view member's subscriptions
@@ -126,6 +129,7 @@ export default function SubscriptionPage() {
                     onSearch={(value, column) => {
                         setSearch(value);
                         setSearchColumn(column);
+                        setPage(1); // Reset to first page when searching
                     }}
                 />
             </div>

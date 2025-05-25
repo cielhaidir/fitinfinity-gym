@@ -17,10 +17,12 @@ export default function RolePermissionPage() {
     const [selectedRoleId, setSelectedRoleId] = useState<string>("");
     const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
     const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
 
     const { data: rolePermissions = { items: [], total: 0, page: 1, limit: 10 } } = api.rolePermission.list.useQuery({
-        page: 1,
-        limit: 10,
+        page,
+        limit,
         search,
     });
 
@@ -88,8 +90,9 @@ export default function RolePermissionPage() {
         await utils.rolePermission.list.invalidate();
     };
 
-    const handlePaginationChange = (page: number, limit: number) => {
-        utils.rolePermission.list.invalidate({ page, limit });
+    const handlePaginationChange = (newPage: number, newLimit: number) => {
+        setPage(newPage);
+        setLimit(newLimit);
     };
 
     const columns = roleColumns({
@@ -134,21 +137,15 @@ export default function RolePermissionPage() {
                     <div className="rounded-md">
                         <DataTable
                             columns={columns}
-                            data={{
-                                items: rolePermissions.items.map(item => ({
-                                    id: item.id,
-                                    name: item.name,
-                                    permissions: item.permissions
-                                })),
-                                total: rolePermissions.total,
-                                page: rolePermissions.page,
-                                limit: rolePermissions.limit
-                            }}
+                            data={rolePermissions}
                             onPaginationChange={handlePaginationChange}
                             searchColumns={[
                                 { id: "name", placeholder: "Search by role name..." },
                             ]}
-                            onSearch={(value) => setSearch(value)}
+                            onSearch={(value) => {
+                                setSearch(value);
+                                setPage(1); // Reset to first page when searching
+                            }}
                         />
                     </div>
                 </div>

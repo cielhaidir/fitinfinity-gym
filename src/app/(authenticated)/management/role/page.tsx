@@ -20,10 +20,12 @@ export default function RolePage() {
         name: ""
     });
     const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
 
     const { data: roles = { items: [], total: 0, page: 1, limit: 10 } } = api.role.list.useQuery({
-        page: 1,
-        limit: 10,
+        page,
+        limit,
         search,
     });
 
@@ -96,8 +98,9 @@ export default function RolePage() {
         await utils.role.list.invalidate();
     };
 
-    const handlePaginationChange = (page: number, limit: number) => {
-        utils.role.list.invalidate({ page, limit });
+    const handlePaginationChange = (newPage: number, newLimit: number) => {
+        setPage(newPage);
+        setLimit(newLimit);
     };
 
     const columns = roleColumns({
@@ -138,17 +141,15 @@ export default function RolePage() {
                     <div className="rounded-md">
                         <DataTable
                             columns={columns}
-                            data={{
-                                items: roles.items,
-                                total: roles.total,
-                                page: roles.page,
-                                limit: roles.limit
-                            }}
+                            data={roles}
                             onPaginationChange={handlePaginationChange}
                             searchColumns={[
                                 { id: "name", placeholder: "Search by role name..." },
                             ]}
-                            onSearch={(value) => setSearch(value)}
+                            onSearch={(value) => {
+                                setSearch(value);
+                                setPage(1); // Reset to first page when searching
+                            }}
                         />
                     </div>
                 </div>

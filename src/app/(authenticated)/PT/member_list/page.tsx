@@ -13,7 +13,10 @@ import { Member } from "./schema";
 
 export default function MemberListPage() {
   const { data: session } = useSession();
-  const { data: members, isLoading, refetch: refetchMembers } = api.personalTrainer.getMembers.useQuery(undefined, {
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const { data: members, isLoading, refetch: refetchMembers } = api.personalTrainer.getMembers.useQuery({ page, limit }, {
     enabled: !!session,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -27,7 +30,7 @@ export default function MemberListPage() {
     page: number;
     limit: number;
   } = {
-    items: members?.map((member) => ({
+    items: members?.items?.map((member) => ({
       id: member.id,
       name: member.name || "",
       email: member.email || "",
@@ -38,9 +41,9 @@ export default function MemberListPage() {
       remainingSessions: member.remainingSessions || 0,
       subscriptionEndDate: member.subscriptionEndDate || new Date().toISOString(),
     })) ?? [],
-    total: members?.length || 0,
-    page: 1,
-    limit: 10,
+    total: members?.total || 0,
+    page: members?.page || 1,
+    limit: members?.limit || 10,
   };
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -71,6 +74,11 @@ export default function MemberListPage() {
     setSelectedMember(null);
   };
 
+  const handlePaginationChange = (newPage: number, newLimit: number) => {
+    setPage(newPage);
+    setLimit(newLimit);
+  };
+
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
@@ -83,7 +91,7 @@ export default function MemberListPage() {
       </div>
 
       <div className="rounded-md">
-      <DataTable
+        <DataTable
           columns={getColumns(handleEdit)}
           data={formattedData}
           searchColumns={[
@@ -91,6 +99,7 @@ export default function MemberListPage() {
             { id: "email", placeholder: "Search by email..." },
           ]}
           isLoading={isLoading}
+          onPaginationChange={handlePaginationChange}
         />
       </div>
       <ModalEdit

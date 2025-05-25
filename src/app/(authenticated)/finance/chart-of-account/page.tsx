@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { columns } from "./columns";
 import { api } from "@/trpc/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChartAccountForm } from "./chart-account-form";
 import { DataTable } from "@/app/_components/datatable/data-table";
 import type { ChartAccount } from "./schema";
@@ -12,8 +12,18 @@ import type { ChartAccount } from "./schema";
 export default function ChartAccountPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<ChartAccount | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const { data: chartAccounts, refetch } = api.chartAccount.getAll.useQuery();
+
+  // Implement client-side pagination
+  const paginatedData = useMemo(() => {
+    if (!chartAccounts) return [];
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    return chartAccounts.slice(start, end);
+  }, [chartAccounts, page, limit]);
 
   useEffect(() => {
     const handleEdit = (event: CustomEvent<{ id: number }>) => {
@@ -41,11 +51,16 @@ export default function ChartAccountPage() {
     refetch();
   };
 
+  const handlePaginationChange = (newPage: number, newLimit: number) => {
+    setPage(newPage);
+    setLimit(newLimit);
+  };
+
   const tableData = {
-    items: chartAccounts || [],
+    items: paginatedData,
     total: chartAccounts?.length || 0,
-    page: 1,
-    limit: 10
+    page,
+    limit
   };
 
   return (
@@ -58,7 +73,11 @@ export default function ChartAccountPage() {
         </Button>
       </div>
 
-      <DataTable columns={columns} data={tableData} />
+      <DataTable 
+        columns={columns} 
+        data={tableData}
+        onPaginationChange={handlePaginationChange}
+      />
 
       <ChartAccountForm
         open={isOpen}

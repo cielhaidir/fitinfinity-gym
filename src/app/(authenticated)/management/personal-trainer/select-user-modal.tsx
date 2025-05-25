@@ -49,9 +49,8 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
             let employeeCreated = false;
             
             try {
-                // Create employee record first with all required fields
                 await createEmployeeMutation.mutateAsync({
-                    id: user.id,  // Use user.id as employee id
+                    id: user.id,
                     userId: user.id,
                     position: "Personal Trainer",
                     department: "Fitness",
@@ -59,21 +58,18 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
                     image: "",
                     createdAt: new Date(),
                     updatedAt: new Date(),
-                    user: user, // Include the full user object
+                    user: user,
                 });
                 employeeCreated = true;
             } catch (employeeError: any) {
-                // If error is not about duplicate entry, throw it
                 if (!employeeError.message.includes("Unique constraint")) {
                     throw employeeError;
                 }
-                // If it's duplicate entry, we can proceed
                 employeeCreated = true;
             }
 
             if (employeeCreated) {
                 try {
-                    // Create personal trainer record
                     await createTrainerMutation.mutateAsync({
                         userId: user.id,
                         isActive: true,
@@ -105,8 +101,6 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
         limit,
         search,
         searchColumn,
-    }, {
-        keepPreviousData: true
     });
 
     const handlePageChange = (newPage: number) => {
@@ -115,7 +109,7 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
 
     const handleLimitChange = (newLimit: number) => {
         setLimit(newLimit);
-        setPage(1); // Reset to first page when changing limit
+        setPage(1);
     };
 
     const columns = [
@@ -153,8 +147,8 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
                         data={{
                             items: users.items,
                             total: users.total,
-                            page: users.page,
-                            limit: users.limit,
+                            page: page,
+                            limit: limit,
                         }}
                         columns={columns}
                         searchColumns={[
@@ -166,9 +160,16 @@ export const SelectUserModal = ({ isOpen, onClose, onSelectUser, onAddNew }: Sel
                             setSearchColumn(column);
                             setPage(1);
                         }}
-                        onPageChange={handlePageChange}
-                        onLimitChange={handleLimitChange}
                         pageSizeOptions={[10, 20, 50, 100]}
+                        onPaginationChange={(newPage, newLimit) => {
+                            if (newPage !== page) {
+                                setPage(newPage);
+                            }
+                            if (newLimit !== limit) {
+                                setLimit(newLimit);
+                                setPage(1);
+                            }
+                        }}
                     />
                 </div>
                 <div className="flex justify-end mt-4">

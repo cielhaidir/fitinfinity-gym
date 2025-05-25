@@ -26,11 +26,21 @@ export default function VoucherPage() {
   });
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 } } = api.voucher.list.useQuery({
     type: undefined,
     isActive: undefined,
   });
+
+  // Transform the data to match the expected format
+  const transformedData = {
+    items: Array.isArray(vouchers) ? vouchers : [],
+    total: Array.isArray(vouchers) ? vouchers.length : 0,
+    page,
+    limit,
+  };
 
   console.log('Vouchers data:', vouchers);
 
@@ -159,8 +169,10 @@ export default function VoucherPage() {
     });
     await promise;
   };
-  const handlePaginationChange = (page: number, limit: number) => {
-    void utils.voucher.list.invalidate();
+
+  const handlePaginationChange = (newPage: number, newLimit: number) => {
+    setPage(newPage);
+    setLimit(newLimit);
   };
 
   const columns = createColumns({
@@ -198,12 +210,7 @@ export default function VoucherPage() {
           </div>
           <div className="rounded-md">
             <DataTable
-              data={{
-                items: Array.isArray(vouchers) ? vouchers : [],
-                total: Array.isArray(vouchers) ? vouchers.length : 0,
-                page: 1,
-                limit: 10,
-              }}
+              data={transformedData}
               columns={columns}
               onPaginationChange={handlePaginationChange}
               searchColumns={[
@@ -213,6 +220,7 @@ export default function VoucherPage() {
               onSearch={(value, column) => {
                 setSearch(value);
                 setSearchColumn(column);
+                setPage(1); // Reset to first page when searching
               }}
             />
           </div>

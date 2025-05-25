@@ -14,14 +14,17 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
     const { memberID } = use(params);
     const utils = api.useUtils();
     const router = useRouter();
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
 
     const { data: member, isLoading: memberIsLoading, error: memberError } = api.member.detail.useQuery({ id: memberID });
     const { data: subs = { items: [], total: 0, page: 1, limit: 10 }, isLoading, error } = api.subs.getByIdMember.useQuery(
-        { memberId: memberID, page: 1, limit: 10 }
+        { memberId: memberID, page, limit }
     );
 
-    const handlePaginationChange = (page: number, limit: number) => {
-        utils.subs.getByIdMember.invalidate({ page, limit });
+    const handlePaginationChange = (newPage: number, newLimit: number) => {
+        setPage(newPage);
+        setLimit(newLimit);
     };
 
     const directToSubs = (memberID: String) => {

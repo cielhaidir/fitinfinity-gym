@@ -38,8 +38,8 @@ export default function PackagePage() {
     const [limit, setLimit] = useState(10);
 
     const { data: packageData = { items: [], total: 0, page: 1, limit: 10 } } = api.package.list.useQuery({
-        page: 1,
-        limit: 10,
+        page,
+        limit,
         search,
     });
 
