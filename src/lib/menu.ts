@@ -88,7 +88,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                     // requiredPermission: "list:roles"
                 },
                 {
-                    title: "Finance Consultan",
+                    title: "Fitness Consultan",
                     url: "/management/FC",
                     icon: Badge,
                     // requiredPermission: "list:roles"
