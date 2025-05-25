@@ -14,13 +14,16 @@ interface DraggableSessionProps {
     };
     startTime: Date;
     endTime: Date;
+    isCancelled?: boolean;
+    status: 'ENDED' | 'NOT_YET' | 'CANCELED' | 'ONGOING';
   };
   onClick: (e: React.MouseEvent) => void;
   onResize: (sessionId: string, startHour: number, endHour: number) => void;
   cellHeight: number;
+  isCancelled?: boolean;
 }
 
-export default function DraggableSession({ session, onClick, onResize, cellHeight }: DraggableSessionProps) {
+export default function DraggableSession({ session, onClick, onResize, cellHeight, isCancelled }: DraggableSessionProps) {
   const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({
     id: session.id,
     data: {
@@ -36,6 +39,32 @@ export default function DraggableSession({ session, onClick, onResize, cellHeigh
   const startHour = new Date(session.startTime).getHours();
   const endHour = new Date(session.endTime).getHours();
   const duration = endHour - startHour;
+
+  const getStatusColor = () => {
+    switch (session.status) {
+      case 'ENDED':
+        return 'bg-gray-500 hover:bg-gray-600';
+      case 'CANCELED':
+        return 'bg-red-500 hover:bg-red-600';
+      case 'ONGOING':
+        return 'bg-blue-500 hover:bg-blue-600';
+      default:
+        return 'bg-[#C9D953] hover:bg-[#b8c748]';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (session.status) {
+      case 'ENDED':
+        return 'Selesai';
+      case 'CANCELED':
+        return 'Dibatalkan';
+      case 'ONGOING':
+        return 'Sedang Berlangsung';
+      default:
+        return '';
+    }
+  };
 
   const style = {
     transform: transform ? CSS.Translate.toString(transform) : undefined,
@@ -78,8 +107,9 @@ export default function DraggableSession({ session, onClick, onResize, cellHeigh
       ref={setNodeRef}
       style={style}
       className={`
-        bg-[#C9D953] text-black text-xs rounded-md
-        cursor-move hover:bg-[#b8c748] 
+        ${getStatusColor()} 
+        text-black text-xs rounded-md
+        cursor-move
         ${isDragging ? 'opacity-50 shadow-lg' : ''}
         ${isResizing ? 'resize-active' : ''}
         transition-all duration-200
@@ -96,20 +126,27 @@ export default function DraggableSession({ session, onClick, onResize, cellHeigh
         <div className="text-xs opacity-75">
           {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
         </div>
+        {getStatusText() && (
+          <div className="text-xs font-bold text-white mt-1">
+            {getStatusText()}
+          </div>
+        )}
       </div>
       
       {/* Resize handle */}
-      <div 
-        className={`
-          absolute bottom-0 left-0 right-0 h-2
-          cursor-ns-resize hover:bg-[#86a439]
-          rounded-b flex items-center justify-center
-          ${isResizing ? 'bg-[#86a439]' : ''}
-        `}
-        onMouseDown={handleResizeStart}
-      >
-        <div className="w-8 h-1 bg-black/20 rounded-full" />
-      </div>
+      {session.status === 'NOT_YET' && (
+        <div 
+          className={`
+            absolute bottom-0 left-0 right-0 h-2
+            cursor-ns-resize hover:bg-[#86a439]
+            rounded-b flex items-center justify-center
+            ${isResizing ? 'bg-[#86a439]' : ''}
+          `}
+          onMouseDown={handleResizeStart}
+        >
+          <div className="w-8 h-1 bg-black/20 rounded-full" />
+        </div>
+      )}
     </div>
   );
 } 

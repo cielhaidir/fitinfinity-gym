@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { TrainerSession } from '@prisma/client';
 
-interface SessionWithTrainer extends TrainerSession {
+type SessionStatus = 'ENDED' | 'NOT_YET' | 'CANCELED' | 'ONGOING';
+
+interface SessionWithTrainer extends Omit<TrainerSession, 'status'> {
   trainer?: {
     user?: {
       name: string;
     };
   };
+  status: SessionStatus;
 }
 
 interface SessionDetailModalProps {
@@ -19,6 +22,32 @@ interface SessionDetailModalProps {
 
 export default function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
   if (!session) return null;
+
+  const getStatusText = (status: SessionWithTrainer['status']) => {
+    switch (status) {
+      case 'ENDED':
+        return 'Selesai';
+      case 'CANCELED':
+        return 'Dibatalkan';
+      case 'ONGOING':
+        return 'Sedang Berlangsung';
+      default:
+        return 'Belum Dimulai';
+    }
+  };
+
+  const getStatusColor = (status: SessionWithTrainer['status']) => {
+    switch (status) {
+      case 'ENDED':
+        return 'bg-gray-500/20 border-gray-500 text-gray-500';
+      case 'CANCELED':
+        return 'bg-red-500/20 border-red-500 text-red-500';
+      case 'ONGOING':
+        return 'bg-blue-500/20 border-blue-500 text-blue-500';
+      default:
+        return 'bg-[#C9D953]/20 border-[#C9D953] text-[#C9D953]';
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -34,6 +63,10 @@ export default function SessionDetailModal({ session, onClose }: SessionDetailMo
           >
             <X className="h-5 w-5" />
           </Button>
+        </div>
+
+        <div className={`mb-4 p-3 ${getStatusColor(session.status)} border rounded-md`}>
+          <p className="font-semibold">Status: {getStatusText(session.status)}</p>
         </div>
 
         <div className="space-y-4">

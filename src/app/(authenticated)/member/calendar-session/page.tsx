@@ -16,16 +16,31 @@ export default function MemberSchedulePage() {
   // Group sessions by date and time
   const sessionsByDateTime: Record<string, any[]> = {};
   
+  // Create a Map to track unique sessions
+  const uniqueSessions = new Map();
+  
   trainerSessions?.forEach((session) => {
     const dateStr = format(new Date(session.date), 'yyyy-MM-dd');
     const timeStr = format(new Date(session.startTime), 'HH:mm');
     const key = `${dateStr}T${timeStr}`;
     
-    if (!sessionsByDateTime[key]) {
-      sessionsByDateTime[key] = [];
-    }
+    // Create a unique identifier for this session
+    const sessionKey = `${session.memberId}-${session.trainerId}-${dateStr}-${timeStr}`;
     
-    sessionsByDateTime[key].push(session);
+    // Only add the session if we haven't seen this combination before
+    if (!uniqueSessions.has(sessionKey)) {
+      uniqueSessions.set(sessionKey, session);
+      
+      if (!sessionsByDateTime[key]) {
+        sessionsByDateTime[key] = [];
+      }
+      
+      // Add a unique identifier to the session object
+      sessionsByDateTime[key].push({
+        ...session,
+        _uniqueKey: sessionKey
+      });
+    }
   });
 
   return (

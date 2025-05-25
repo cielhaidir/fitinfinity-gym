@@ -33,6 +33,7 @@ interface CalendarProps {
   onToday: () => void;
   onSessionUpdate: (sessionId: string, date: Date, startHour: number, endHour: number) => void;
   onSessionDelete?: (sessionId: string) => void;
+  onSessionCancel?: (sessionId: string) => void;
 }
 
 // Komponen DroppableCell yang diperbarui
@@ -79,6 +80,7 @@ export default function Calendar({
   onToday,
   onSessionUpdate,
   onSessionDelete,
+  onSessionCancel,
 }: CalendarProps) {
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
 
@@ -331,6 +333,7 @@ export default function Calendar({
                                 onClick={(e) => handleSessionClick(e, session)}
                                 onResize={handleResize}
                                 cellHeight={CELL_HEIGHT}
+                                isCancelled={session.isCancelled}
                               />
                             ))}
                           </DroppableCell>
@@ -376,11 +379,20 @@ export default function Calendar({
                         {sessions.slice(0, 3).map((session) => (
                           <div 
                             key={session._key || `session-${session.id}`}
-                            className="p-1 bg-[#C9D953] text-black text-xs rounded cursor-pointer hover:bg-[#b8c748]"
+                            className={`${
+                              session.isCancelled 
+                                ? 'bg-red-500 hover:bg-red-600' 
+                                : 'bg-[#C9D953] hover:bg-[#b8c748]'
+                            } text-black text-xs rounded cursor-pointer transition-colors`}
                             onClick={(e) => handleSessionClick(e, session)}
                           >
                             <div className="truncate">{format(new Date(session.startTime), 'HH:mm')}</div>
                             <div className="truncate">{session.member.user.name}</div>
+                            {session.isCancelled && (
+                              <div className="text-xs font-bold text-white mt-1">
+                                Dibatalkan
+                              </div>
+                            )}
                           </div>
                         ))}
                         
@@ -403,6 +415,7 @@ export default function Calendar({
             session={selectedSession}
             onClose={() => setSelectedSession(null)}
             onDelete={handleDeleteSession}
+            onCancel={onSessionCancel || handleDeleteSession}
           />
         )}
       </div>

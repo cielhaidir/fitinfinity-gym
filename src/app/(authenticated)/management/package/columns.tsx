@@ -107,14 +107,25 @@ export const createColumns = ({
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Duration" />
             ),
-            cell: ({ row }) => (
-                <div className="w-[100px]">
-                    {row.getValue("type") === PackageType.GYM_MEMBERSHIP
-                        ? (row.original.day ?? '0') + ' Day'
-                        : (row.original.sessions ?? '0') + ' Session'
-                    }
-                </div>
-            ),
+            cell: ({ row }) => {
+                const type = row.getValue("type") as PackageType;
+                if (type === PackageType.GYM_MEMBERSHIP) {
+                    return (
+                        <div className="w-[150px]">
+                            {row.original.day ?? '0'} Days
+                        </div>
+                    );
+                } else {
+                    return (
+                        <div className="w-[200px]">
+                            <div>{row.original.sessions ?? '0'} Sessions</div>
+                            <div className="text-sm text-muted-foreground">
+                                Valid for {row.original.day ?? '0'} days
+                            </div>
+                        </div>
+                    );
+                }
+            },
         },
         {
             accessorKey: "isActive",

@@ -10,7 +10,7 @@ export const PackageSchema = z.object({
     point: z.number().min(0, "Points must be greater than or equal to 0").default(0),
     type: PackageTypeEnum,
     sessions: z.number().nullable(),
-    day: z.number().nullable(),
+    day: z.number().min(0, "Days must be greater than or equal to 0").nullable(),
     isActive: z.boolean().default(true),
     createdAt: z.date().optional(),
     updatedAt: z.date().optional(),

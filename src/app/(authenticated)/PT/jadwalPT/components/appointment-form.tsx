@@ -17,6 +17,13 @@ interface AppointmentFormProps {
   onClose: () => void;
 }
 
+interface Member {
+  id: string;
+  name: string;
+  membershipId: string;
+  remainingSessions: number;
+}
+
 export default function AppointmentForm({ selectedDate, onClose }: AppointmentFormProps) {
   const { data: session } = useSession();
   const [selectedMemberId, setSelectedMemberId] = useState('');
@@ -31,6 +38,31 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
     refetchOnMount: true,
     staleTime: 0,
   });
+  
+  // Combine members with same name and sum their remaining sessions
+  const combinedMembers = React.useMemo(() => {
+    if (!members) return [];
+    
+    const memberMap = new Map<string, Member>();
+    
+    members.forEach(member => {
+      const existingMember = memberMap.get(member.name);
+      if (existingMember) {
+        // If member already exists, add remaining sessions
+        existingMember.remainingSessions += member.remainingSessions;
+      } else {
+        // If member doesn't exist, add new entry
+        memberMap.set(member.name, {
+          id: member.id,
+          name: member.name,
+          membershipId: member.membershipId,
+          remainingSessions: member.remainingSessions
+        });
+      }
+    });
+    
+    return Array.from(memberMap.values());
+  }, [members]);
   
   const utils = api.useUtils();
   
@@ -66,7 +98,7 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
     }
 
     // Check if member has remaining sessions
-    const selectedMember = members?.find(member => member.id === selectedMemberId);
+    const selectedMember = combinedMembers.find(member => member.id === selectedMemberId);
     if (selectedMember && selectedMember.remainingSessions <= 0) {
       toast.error("Member tidak memiliki sisa sesi yang tersedia");
       return;
@@ -169,7 +201,7 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
             {isMembersLoading ? (
               <SelectItem value="loading" disabled>Loading members...</SelectItem>
             ) : (
-              members?.map((member) => (
+              combinedMembers.map((member) => (
                 <SelectItem key={member.id} value={member.id}>
                   {member.name} ({member.remainingSessions} sesi tersisa)
                 </SelectItem>

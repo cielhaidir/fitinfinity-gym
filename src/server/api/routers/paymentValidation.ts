@@ -63,6 +63,7 @@ export const paymentValidationRouter = createTRPCRouter({
             trainerId: z.string().optional(),
             subsType: z.string(), // "gym" or "trainer"
             duration: z.number(), // days for gym, sessions for trainer
+            sessions: z.number().optional(), // number of sessions for trainer package
             totalPayment: z.number(),
             paymentMethod: z.string(),
             filePath: z.string(),
@@ -92,6 +93,7 @@ export const paymentValidationRouter = createTRPCRouter({
                         trainerId: input.trainerId,
                         subsType: input.subsType,
                         duration: input.duration,
+                        sessions: input.sessions,
                         totalPayment: input.totalPayment,
                         paymentMethod: input.paymentMethod,
                         filePath: input.filePath,
@@ -189,11 +191,22 @@ export const paymentValidationRouter = createTRPCRouter({
             let endDate: Date | undefined = undefined;
             let remainingSessions: number | undefined = undefined;
 
-            if (paymentValidation.subsType === "gym") {
-                endDate = new Date(startDate);
-                endDate.setDate(startDate.getDate() + paymentValidation.duration);
-            } else if (paymentValidation.subsType === "trainer") {
-                remainingSessions = paymentValidation.duration;
+            // Get package details to access day field
+            const packageDetails = await ctx.db.package.findUnique({
+                where: { id: paymentValidation.packageId }
+            });
+
+            if (!packageDetails) {
+                throw new Error("Package details not found");
+            }
+
+            // Calculate end date based on day field for both package types
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + (packageDetails.day ?? 0));
+
+            // Set remaining sessions for trainer packages
+            if (paymentValidation.subsType === "trainer") {
+                remainingSessions = paymentValidation.sessions ?? paymentValidation.duration;
             }
 
             // Use a transaction to ensure atomicity

@@ -78,34 +78,37 @@ export default function PackagePage() {
             const packageData = isEditMode ? selectedPackage : newPackage;
             if (!packageData) return;
 
+            // Prepare the data based on package type
             const commonData = {
                 name: packageData.name,
                 description: packageData.description ?? '',
-                price: packageData.price === null ? null : Number(packageData.price),
+                price: packageData.price === null ? 0 : Number(packageData.price),
                 point: packageData.point === null ? 0 : Number(packageData.point),
                 type: packageData.type,
                 isActive: packageData.isActive,
-                sessions: packageData.type === 'PERSONAL_TRAINER' ? 
-                    (packageData.sessions === null ? null : Number(packageData.sessions)) : null,
-                day: packageData.type === 'GYM_MEMBERSHIP' ?
-                    (packageData.day === null ? null : Number(packageData.day)) : null,
             };
+
+            // Add type-specific fields
+            const typeSpecificData = packageData.type === 'PERSONAL_TRAINER' 
+                ? {
+                    sessions: Number(packageData.sessions) || 0,
+                    day: Number(packageData.day) || 0,
+                }
+                : {
+                    sessions: null,
+                    day: Number(packageData.day) || 0,
+                };
+
             if (isEditMode && selectedPackage?.id) {
                 await updatePackageMutation.mutateAsync({
                     id: selectedPackage.id,
-                    name: packageData.name,
-                    description: packageData.description ?? '',
-                    price: packageData.price,
-                    point: packageData.point === null ? 0 : packageData.point,
-                    type: packageData.type,
-                    isActive: packageData.isActive,
-                    sessions: packageData.type === 'PERSONAL_TRAINER' ? packageData.sessions : null,
-                    day: packageData.type === 'GYM_MEMBERSHIP' ? packageData.day : null
+                    ...commonData,
+                    ...typeSpecificData
                 });
             } else {
                 await createPackageMutation.mutateAsync({
                     ...commonData,
-                    price: packageData.price === null ? 0 : packageData.price // Ensure price is never null
+                    ...typeSpecificData
                 });
             }
 

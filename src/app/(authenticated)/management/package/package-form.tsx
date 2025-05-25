@@ -40,18 +40,38 @@ export const PackageForm: React.FC<PackageFormProps> = ({
     isEditMode,
 }) => {
     const handleTypeChange = (value: string) => {
-        const event = {
+        // Reset day and sessions when type changes
+        const dayEvent = {
+            target: {
+                name: 'day',
+                value: ''
+            }
+        } as React.ChangeEvent<HTMLInputElement>;
+
+        const sessionsEvent = {
+            target: {
+                name: 'sessions',
+                value: ''
+            }
+        } as React.ChangeEvent<HTMLInputElement>;
+
+        // Reset both fields
+        onInputChange(dayEvent);
+        onInputChange(sessionsEvent);
+
+        // Then set the new type
+        const typeEvent = {
             target: {
                 name: 'type',
                 value: value
             }
         } as React.ChangeEvent<HTMLInputElement>;
 
-        onInputChange(event);
+        onInputChange(typeEvent);
     };
 
     useEffect(() => {
-        console.log("New Member Data:", newPackage); // Debug log
+        console.log("New Package Data:", newPackage); // Debug log
     }, [newPackage]);
 
     return (
@@ -121,19 +141,37 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                 )}
 
                 {newPackage.type === 'PERSONAL_TRAINER' && (
-                    <div>
-                        <label htmlFor="sessions" className="block text-sm font-medium">
-                            Sessions
-                        </label>
-                        <Input
-                            id="sessions"
-                            name="sessions"
-                            type="number"
-                            placeholder="Number of sessions"
-                            value={newPackage.sessions ?? ""}
-                            onChange={onInputChange}
-                        />
-                    </div>
+                    <>
+                        <div>
+                            <label htmlFor="sessions" className="block text-sm font-medium">
+                                Sessions
+                            </label>
+                            <Input
+                                id="sessions"
+                                name="sessions"
+                                type="number"
+                                placeholder="Number of sessions"
+                                value={newPackage.sessions ?? ""}
+                                onChange={onInputChange}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="day" className="block text-sm font-medium">
+                                Validity Period (Days)
+                            </label>
+                            <Input
+                                id="day"
+                                name="day"
+                                type="number"
+                                placeholder="Number of days until sessions expire"
+                                value={newPackage.day ?? ""}
+                                onChange={onInputChange}
+                            />
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Sessions will expire after this period
+                            </p>
+                        </div>
+                    </>
                 )}
 
                 <div>

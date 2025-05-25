@@ -285,6 +285,7 @@ export const trainerSessionRouter = createTRPCRouter({
             date: z.date(),
             startTime: z.date(),
             endTime: z.date(),
+            status: z.enum(['ENDED', 'NOT_YET', 'CANCELED', 'ONGOING']).optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             console.log('Received update mutation:', {
@@ -292,6 +293,7 @@ export const trainerSessionRouter = createTRPCRouter({
                 date: input.date.toISOString(),
                 startTime: input.startTime.toISOString(),
                 endTime: input.endTime.toISOString(),
+                status: input.status,
             });
 
             try {
@@ -323,6 +325,7 @@ export const trainerSessionRouter = createTRPCRouter({
                     date: updateDate.toISOString(),
                     startTime: updateStartTime.toISOString(),
                     endTime: updateEndTime.toISOString(),
+                    status: input.status,
                 });
 
                 // Update the session
@@ -332,6 +335,7 @@ export const trainerSessionRouter = createTRPCRouter({
                         date: updateDate,
                         startTime: updateStartTime,
                         endTime: updateEndTime,
+                        status: input.status,
                     },
                     include: {
                         member: {

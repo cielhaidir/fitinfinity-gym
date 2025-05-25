@@ -9,12 +9,16 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import SessionDetailModal from './session-detail-modal';
 import { TrainerSession } from '@prisma/client';
 
-interface SessionWithTrainer extends TrainerSession {
+type SessionStatus = 'ENDED' | 'NOT_YET' | 'CANCELED' | 'ONGOING';
+
+interface SessionWithTrainer extends Omit<TrainerSession, 'status'> {
   trainer?: {
     user?: {
       name: string;
     };
   };
+  status: SessionStatus;
+  _uniqueKey: string;
 }
 
 interface CalendarProps {
@@ -56,6 +60,32 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
 
   const handleCloseModal = () => {
     setSelectedSession(null);
+  };
+
+  const getStatusColor = (status: SessionWithTrainer['status']) => {
+    switch (status) {
+      case 'ENDED':
+        return 'bg-gray-500 hover:bg-gray-600';
+      case 'CANCELED':
+        return 'bg-red-500 hover:bg-red-600';
+      case 'ONGOING':
+        return 'bg-blue-500 hover:bg-blue-600';
+      default:
+        return 'bg-[#C9D953] hover:bg-[#b8c748]';
+    }
+  };
+
+  const getStatusText = (status: SessionWithTrainer['status']) => {
+    switch (status) {
+      case 'ENDED':
+        return 'Selesai';
+      case 'CANCELED':
+        return 'Dibatalkan';
+      case 'ONGOING':
+        return 'Sedang Berlangsung';
+      default:
+        return '';
+    }
   };
 
   return (
@@ -108,7 +138,7 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
           </thead>
           <tbody>
             {timeSlots.map(({ label, hour }) => (
-              <tr key={label} className="border-t border-[#2a2a2a]">
+              <tr key={`time-${hour}`} className="border-t border-[#2a2a2a]">
                 <td className="border-r border-[#2a2a2a] p-2 text-right font-medium text-gray-400 w-20">
                   {label}
                 </td>
@@ -129,8 +159,8 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
                     >
                       {sessions.map((session) => (
                         <div
-                          key={session.id}
-                          className="bg-[#C9D953] text-black p-1.5 rounded cursor-pointer hover:bg-[#b8c748] transition-colors"
+                          key={session._uniqueKey}
+                          className={`${getStatusColor(session.status)} text-black p-1.5 rounded cursor-pointer transition-colors`}
                           onClick={() => handleSessionClick(session)}
                         >
                           <div className="font-medium">
@@ -139,6 +169,11 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
                           <div className="truncate">
                             {session.trainer?.user?.name || 'Personal Trainer'}
                           </div>
+                          {getStatusText(session.status) && (
+                            <div className="text-xs font-bold text-white mt-1">
+                              {getStatusText(session.status)}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </td>

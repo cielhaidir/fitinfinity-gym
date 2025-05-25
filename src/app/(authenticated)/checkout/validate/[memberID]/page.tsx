@@ -25,6 +25,7 @@ function CheckoutValidateContent() {
     const packagePrice = searchParams.get("packagePrice") || "0";
     const packageType = searchParams.get("packageType") || "N/A";
     const duration = searchParams.get("duration") || "0";
+    const sessions = searchParams.get("sessions") || "0";
     const totalPayment = searchParams.get("totalPayment") || "0";
     const paymentMethod = searchParams.get("paymentMethod") || "N/A";
     const trainerId = searchParams.get("trainerId");
@@ -93,6 +94,7 @@ function CheckoutValidateContent() {
                 trainerId: trainerId || undefined,
                 subsType: packageType,
                 duration: parseInt(duration, 10),
+                sessions: packageType === "trainer" ? parseInt(sessions, 10) : undefined,
                 totalPayment: parseFloat(totalPayment),
                 paymentMethod: paymentMethod,
                 filePath: uploadResult.filePath,

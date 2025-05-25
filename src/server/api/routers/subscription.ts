@@ -30,6 +30,9 @@ export const subscriptionRouter = createTRPCRouter({
                     : {
                         trainerId: input.trainerId,
                         remainingSessions: input.duration,
+                        endDate: new Date(new Date(input.startDate).setDate(
+                            new Date(input.startDate).getDate() + 30 // Default to 30 days for trainer packages
+                        )),
                     }),
             };
 
@@ -266,13 +269,21 @@ export const subscriptionRouter = createTRPCRouter({
                     throw new Error("Package not found");
                 }
 
-                // Create subscription
+                // Create subscription with proper end date calculation
                 const subscription = await ctx.db.subscription.create({
                     data: {
                         memberId: member.id,
                         packageId: packageData.id,
                         startDate: new Date(),
-                        remainingSessions: input.duration
+                        ...(packageData.type === 'GYM_MEMBERSHIP' 
+                            ? {
+                                endDate: new Date(new Date().setDate(
+                                    new Date().getDate() + input.duration
+                                )),
+                            }
+                            : {
+                                remainingSessions: input.duration,
+                            }),
                     },
                 });
 

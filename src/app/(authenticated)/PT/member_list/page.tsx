@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
@@ -10,40 +10,78 @@ import ModalEdit from "./modaledit";
 import { getColumns } from "./columns";
 import { Member } from "./schema";
 
+interface MemberData {
+  id: string;
+  membershipId: string;
+  name: string;
+  email: string;
+  phone: string;
+  height: number | null;
+  weight: number | null;
+  birthDate: string | null;
+  remainingSessions: number;
+  subscriptionEndDate: string;
+}
+
+interface PaginatedResponse {
+  items: MemberData[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 export default function MemberListPage() {
   const { data: session } = useSession();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: members, isLoading, refetch: refetchMembers } = api.personalTrainer.getMembers.useQuery({ page, limit }, {
+  const { data: members, isLoading, refetch: refetchMembers } = api.personalTrainer.getMembers.useQuery(undefined, {
     enabled: !!session,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     staleTime: 0,
   });
 
+  // Combine members with same name and sum their remaining sessions
+  const combinedMembers = useMemo(() => {
+    if (!members) return [];
+
+    const memberMap = new Map<string, Member>();
+    
+    members.forEach((member: MemberData) => {
+      const existingMember = memberMap.get(member.name);
+      if (existingMember) {
+        // If member already exists, add remaining sessions
+        existingMember.remainingSessions += member.remainingSessions;
+        // Keep the latest subscription end date
+        if (new Date(member.subscriptionEndDate) > new Date(existingMember.subscriptionEndDate)) {
+          existingMember.subscriptionEndDate = member.subscriptionEndDate;
+        }
+      } else {
+        // If member doesn't exist, add new entry
+        memberMap.set(member.name, {
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          phone: member.phone,
+          height: member.height,
+          weight: member.weight,
+          birthDate: member.birthDate,
+          remainingSessions: member.remainingSessions,
+          subscriptionEndDate: member.subscriptionEndDate,
+        });
+      }
+    });
+    
+    return Array.from(memberMap.values());
+  }, [members]);
+
   // Transform data to match schema and DataTable structure
-  const formattedData: {
-    items: Member[];
-    total: number;
-    page: number;
-    limit: number;
-  } = {
-    items: members?.items?.map((member) => ({
-      id: member.id,
-      name: member.name || "",
-      email: member.email || "",
-      phone: member.phone || "",
-      height: member.height ?? null,
-      weight: member.weight ?? null,
-      birthDate: member.birthDate ?? null,
-      remainingSessions: member.remainingSessions || 0,
-      subscriptionEndDate: member.subscriptionEndDate || new Date().toISOString(),
-    })) ?? [],
-    total: members?.total || 0,
-    page: members?.page || 1,
-    limit: members?.limit || 10,
+  const formattedData: PaginatedResponse = {
+    items: combinedMembers,
+    total: combinedMembers.length,
+    page: page,
+    limit: limit,
   };
 
   const [modalOpen, setModalOpen] = useState(false);

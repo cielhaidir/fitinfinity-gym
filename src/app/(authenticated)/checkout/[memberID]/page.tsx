@@ -62,18 +62,25 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
             return;
         }
 
-        if (paymentMethod === "qris") {
-            const queryParams = new URLSearchParams({
-                memberId: memberID,
-                packageId: selectedPackage,
-                packageName: selectedPackageDetails.name,
-                packagePrice: selectedPackageDetails.price.toString(),
-                packageType: subscriptionType,
-                duration: (subscriptionType === "gym" ? selectedPackageDetails.day ?? 0 : selectedPackageDetails.sessions ?? 0).toString(),
-                totalPayment: calculateTotal().toString(),
-                paymentMethod: paymentMethod,
-            });
+        // Calculate end date based on package type and day value
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        
+        // Add days to start date for both package types
+        endDate.setDate(startDate.getDate() + (selectedPackageDetails.day ?? 0));
 
+        if (paymentMethod === "qris") {
+            const queryParams = new URLSearchParams();
+            queryParams.set("packageId", selectedPackage);
+            queryParams.set("packageName", selectedPackageDetails.name);
+            queryParams.set("packagePrice", selectedPackageDetails.price.toString());
+            queryParams.set("packageType", subscriptionType);
+            queryParams.set("duration", subscriptionType === "gym" ? selectedPackageDetails.day?.toString() ?? "0" : selectedPackageDetails.sessions?.toString() ?? "0");
+            if (subscriptionType === "trainer") {
+                queryParams.set("sessions", selectedPackageDetails.sessions?.toString() ?? "0");
+            }
+            queryParams.set("totalPayment", calculateTotal().toString());
+            queryParams.set("paymentMethod", paymentMethod);
             if (subscriptionType === "trainer" && selectedTrainer) {
                 queryParams.set("trainerId", selectedTrainer);
                 const trainerInfo = trainers?.find(t => t.id === selectedTrainer);
@@ -93,23 +100,17 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
             router.push(`/checkout/validate/${memberID}?${queryParams.toString()}`);
 
         } else {
-            // This block handles other payment methods, if any are added in the future,
-            // or if the current "qris"-only setup is temporary.
-            // For now, it would effectively be the old direct subscription creation logic.
-            // If "qris" is the *only* method that will ever exist, this else might be redundant
-            // or adapted to show an error if an unknown payment method is somehow selected.
-
             const promise = async () => {
                 await createSubscriptionMutation.mutateAsync({
                     memberId: memberID,
                     packageId: selectedPackage,
                     trainerId: subscriptionType === "trainer" ? selectedTrainer : undefined,
-                    startDate: new Date(),
+                    startDate: startDate,
+                    endDate: endDate,
                     subsType: subscriptionType,
                     duration: subscriptionType === "gym" ? selectedPackageDetails.day ?? 0 : selectedPackageDetails.sessions ?? 0,
                     paymentMethod,
                     totalPayment: calculateTotal(),
-                    // Consider adding voucher details if createSubscriptionMutation supports it
                 });
 
                 await utils.subs.getByIdMember.invalidate({ memberId: memberID });

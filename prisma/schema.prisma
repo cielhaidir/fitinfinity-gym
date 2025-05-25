@@ -49,6 +49,13 @@ enum Gender {
     OTHER
 }
 
+enum SessionStatus {
+    ENDED
+    NOT_YET
+    CANCELED
+    ONGOING
+}
+
 model File {
     id           String   @id @default(uuid())
     bucket       String
@@ -296,13 +303,11 @@ model TrainerSession {
     startTime   DateTime
     endTime     DateTime
     description String?
+    status      String   @default("NOT_YET")
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
-
-    trainer PersonalTrainer @relation(fields: [trainerId], references: [id])
-    member  Membership      @relation(fields: [memberId], references: [id])
-
-    @@map("trainer_sessions")
+    trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])
+    member      Membership @relation(fields: [memberId], references: [id])
 }
 
 model Voucher {
@@ -343,6 +348,7 @@ model PaymentValidation {
     fcId           String?
     subsType       String // "gym" or "trainer"
     duration       Int    // days for gym, sessions for trainer
+    sessions       Int?   // number of sessions for trainer package
     totalPayment   Float
     paymentMethod  String // e.g., "direct_payment"
     filePath       String? // Path to the uploaded proof of payment
