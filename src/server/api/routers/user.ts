@@ -20,6 +20,7 @@ const createUserSchema = z.object({
     address: z.string().optional(),
     phone: z.string().optional(),
     birthDate: z.date().optional(),
+    fcId: z.string().nullable(),
 });
 
 // Add this query to your existing user router
@@ -29,7 +30,7 @@ export const userRouter = createTRPCRouter({
     create: publicProcedure
         .input(createUserSchema)
         .mutation(async ({ ctx, input }) => {
-            const { name, email, password, address, phone, birthDate } = input;
+            const { name, email, password, address, phone, birthDate, fcId } = input;
 
             // Check if user already exists
             const existingUser = await ctx.db.user.findUnique({
@@ -74,12 +75,13 @@ export const userRouter = createTRPCRouter({
                     });
                 }
 
-                // Create membership
+                // Create membership with FC ID if provided
                 await tx.membership.create({
                     data: {
                         userId: user.id,
                         registerDate: new Date(),
                         isActive: true,
+                        fcId: fcId || null,
                     },
                 });
 

@@ -1,5 +1,5 @@
 import Calendar from '@/app/(authenticated)/PT/jadwalPT/components/calendar';
-import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound, DollarSign, Gift, CircleGauge, UserRound, Calendar1 } from 'lucide-react';
+import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound, DollarSign, Gift, CircleGauge, UserRound, Calendar1, Badge, Book } from 'lucide-react';
 import { LucideIcon, HandCoins } from 'lucide-react';
 
 interface MenuItem {
@@ -72,7 +72,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                 {
                     title: "Permission",
                     url: "/management/permission",
-                    icon: Users,
+                    icon: Book,
                     // requiredPermission: "list:roles"
                 },
                 {
@@ -81,12 +81,18 @@ export const Menu: { navMain: MenuGroup[] } = {
                     icon: Users,
                     // requiredPermission: "list:roles"
                 },
-                // {
-                //     title: "Users",
-                //     url: "/management/user",
-                //     icon: UserCog,
-                //     // requiredPermission: "list:roles"
-                // },
+                {
+                    title: "Member",
+                    url: "/management/member",
+                    icon: UserCog,
+                    // requiredPermission: "list:roles"
+                },
+                {
+                    title: "Finance Consultan",
+                    url: "/management/FC",
+                    icon: Badge,
+                    // requiredPermission: "list:roles"
+                },
                 {
                     title: 'Subscription',
                     url: '/management/subscription',

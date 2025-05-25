@@ -56,10 +56,11 @@ export const fcRouter = createTRPCRouter({
         userId: z.string(),
         isActive: z.boolean().default(true),
         createdBy: z.string(),
+        referralCode: z.string().min(5, "Referral code must be at least 5 characters"),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { userId, isActive, createdBy } = input;
+      const { userId, isActive, createdBy, referralCode } = input;
 
       // Check if user exists
       const user = await ctx.db.user.findUnique({
@@ -85,11 +86,24 @@ export const fcRouter = createTRPCRouter({
         });
       }
 
+      // Check if referral code is already taken
+      const existingReferralCode = await ctx.db.fC.findUnique({
+        where: { referralCode },
+      });
+
+      if (existingReferralCode) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Referral code is already taken",
+        });
+      }
+
       return ctx.db.fC.create({
         data: {
           userId,
           isActive,
           createdBy,
+          referralCode,
         },
         include: {
           user: true,
@@ -157,5 +171,23 @@ export const fcRouter = createTRPCRouter({
       return ctx.db.fC.delete({
         where: { id },
       });
+    }),
+
+  findByReferralCode: publicProcedure
+    .input(z.object({ referralCode: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const fc = await ctx.db.fC.findUnique({
+        where: { referralCode: input.referralCode },
+        include: { user: true },
+      });
+
+      if (!fc) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "FC with this referral code not found",
+        });
+      }
+
+      return fc;
     }),
 }); 

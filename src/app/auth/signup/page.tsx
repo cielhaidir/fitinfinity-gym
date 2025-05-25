@@ -16,10 +16,17 @@ export default function SignUpPage() {
     confirmPassword: "",
     address: "",
     phone: "",
-    birthDate: new Date().toISOString().split('T')[0], // Set initial value to today's date
+    birthDate: new Date().toISOString().split('T')[0],
+    fcReferralCode: "",
   });
   const [error, setError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [fcError, setFcError] = useState("");
+
+  const { refetch: checkFC } = api.fc.findByReferralCode.useQuery(
+    { referralCode: formData.fcReferralCode },
+    { enabled: false }
+  );
 
   useEffect(() => {
     if (formData.confirmPassword && formData.password !== formData.confirmPassword) {
@@ -66,7 +73,7 @@ export default function SignUpPage() {
 
   const { refetch: checkPhone } = api.profile.checkPhone.useQuery(
     { phone: formData.phone },
-    { enabled: false } // Disable automatic query
+    { enabled: false }
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,6 +83,7 @@ export default function SignUpPage() {
       [name]: value
     }));
     setError(""); // Clear error when user types
+    setFcError(""); // Clear FC error when user types
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,6 +110,18 @@ export default function SignUpPage() {
         return;
       }
 
+      // If FC referral code is provided, validate it
+      let fcId = null;
+      if (formData.fcReferralCode) {
+        try {
+          const { data: fc } = await checkFC();
+          fcId = fc.id;
+        } catch (error) {
+          setFcError("Invalid FC referral code");
+          return;
+        }
+      }
+
       await createUserMutation.mutateAsync({
         name: formData.name,
         email: formData.email,
@@ -109,6 +129,7 @@ export default function SignUpPage() {
         address: formData.address,
         phone: formData.phone,
         birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
+        fcId: fcId,
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -258,6 +279,23 @@ export default function SignUpPage() {
                       onChange={handleChange}
                       className="[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     />
+                  </div>
+
+                  {/* FC Referral Code Field */}
+                  <div>
+                    <label htmlFor="fcReferralCode" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                      FC Referral Code (Optional)
+                    </label>
+                    <Input
+                      type="text"
+                      name="fcReferralCode"
+                      value={formData.fcReferralCode}
+                      onChange={handleChange}
+                      placeholder="Enter FC referral code"
+                    />
+                    {fcError && (
+                      <p className="text-sm text-red-500 mt-1">{fcError}</p>
+                    )}
                   </div>
 
                   {/* Sign Up Button */}

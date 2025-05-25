@@ -55,6 +55,50 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
     ),
   },
   {
+    id: "fc",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="FC" />
+    ),
+    cell: ({ row }) => {
+      const fc = row.original.fc;
+      return (
+        <div className="flex items-center justify-center">
+          {fc ? (
+            <Badge variant="outline" className="w-[100px] justify-center">
+              {fc.user.name}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="w-[100px] justify-center text-muted-foreground">
+              Not Assigned
+            </Badge>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    id: "pt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="PT" />
+    ),
+    cell: ({ row }) => {
+      const pt = row.original.personalTrainer;
+      return (
+        <div className="flex items-center justify-center">
+          {pt ? (
+            <Badge variant="outline" className="w-[100px] justify-center">
+              {pt.user.name}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="w-[100px] justify-center text-muted-foreground">
+              Not Assigned
+            </Badge>
+          )}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "registerDate",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Register Date" />

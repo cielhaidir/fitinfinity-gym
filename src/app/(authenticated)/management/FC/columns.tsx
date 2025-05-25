@@ -49,6 +49,13 @@ export const createColumns = ({ onEditMember, onDeleteMember }: ColumnsProps): C
     cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
   },
   {
+    accessorKey: "referralCode",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Referral Code" />
+    ),
+    cell: ({ row }) => <div className="w-[150px]">{row.original.referralCode || "-"}</div>,
+  },
+  {
     id: "email",
     accessorKey: "user.email",
     header: ({ column }) => (

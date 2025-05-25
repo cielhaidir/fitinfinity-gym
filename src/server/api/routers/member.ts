@@ -96,7 +96,7 @@ export const memberRouter = createTRPCRouter({
             return member;
         }),
 
-    list: permissionProtectedProcedure(['list:member'])
+    list: protectedProcedure
         .input(z.object({
             page: z.number().min(1),
             limit: z.number().min(1).max(100),
@@ -129,6 +129,24 @@ export const memberRouter = createTRPCRouter({
                 orderBy: { createdAt: "desc" },
                 include: {
                     user: true,
+                    fc: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                }
+                            }
+                        }
+                    },
+                    personalTrainer: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                }
+                            }
+                        }
+                    }
                 },
             });
 
@@ -157,13 +175,21 @@ export const memberRouter = createTRPCRouter({
             });
         }),
 
-    update: permissionProtectedProcedure(['edit:member'])
+    update: protectedProcedure
         .input(z.object({
             id: z.string(),
             registerDate: z.date().optional(),
             rfidNumber: z.string().optional(),
             isActive: z.boolean().optional(),
             revokedAt: z.date().optional(),
+            fc: z.object({
+                connect: z.object({ id: z.string() }).optional(),
+                disconnect: z.boolean().optional(),
+            }).optional(),
+            personalTrainer: z.object({
+                connect: z.object({ id: z.string() }).optional(),
+                disconnect: z.boolean().optional(),
+            }).optional(),
             user: z.object({
                 name: z.string().min(1),
                 email: z.string().email(),
@@ -192,9 +218,11 @@ export const memberRouter = createTRPCRouter({
                 where: { id: input.id },
                 data: {
                     registerDate: input.registerDate,
-                    rfidNumber: input.rfidNumber ?? null, // Allow null for rfidNumber
-                    isActive: input.isActive ?? true, // Default to true if not specified
+                    rfidNumber: input.rfidNumber ?? null,
+                    isActive: input.isActive ?? true,
                     revokedAt: input.revokedAt,
+                    fc: input.fc,
+                    personalTrainer: input.personalTrainer,
                     user: input.user ? {
                         update: {
                             name: input.user.name,
@@ -207,12 +235,30 @@ export const memberRouter = createTRPCRouter({
                     } : undefined,
                 },
                 include: {
-                    user: true, // Include user data in response
+                    user: true,
+                    fc: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                }
+                            }
+                        }
+                    },
+                    personalTrainer: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                }
+                            }
+                        }
+                    }
                 },
             });
         }),
 
-    remove: permissionProtectedProcedure(['delete:member'])
+    remove: protectedProcedure
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             return ctx.db.membership.delete({

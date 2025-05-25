@@ -161,6 +161,10 @@ model Membership {
     rfidNumber        String?
     isActive          Boolean            @default(false)
     createdBy         String?
+    fcId              String?
+    fc                FC?                @relation(fields: [fcId], references: [id])
+    personalTrainerId String?
+    personalTrainer   PersonalTrainer?   @relation(fields: [personalTrainerId], references: [id])
     revokedAt         DateTime?
     creator           User?              @relation("MembershipCreator", fields: [createdBy], references: [id])
     createdAt         DateTime           @default(now())
@@ -242,6 +246,7 @@ model PersonalTrainer {
     subscriptions Subscription[]
     sessions      TrainerSession[]
     paymentValidations PaymentValidation[]
+    memberships   Membership[]
 }
 
 enum MembershipStatus {
@@ -457,6 +462,7 @@ model AttendanceMember {
 model FC {
     id          String   @id @default(cuid())
     userId      String   @unique
+    referralCode String? @unique
     isActive    Boolean  @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
@@ -465,4 +471,5 @@ model FC {
     user          User             @relation("FCToUser", fields: [userId], references: [id])
     creator       User?            @relation("UserCreatedBy", fields: [createdBy], references: [id])
     paymentValidations PaymentValidation[]
+    memberships   Membership[]
 }
