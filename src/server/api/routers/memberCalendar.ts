@@ -8,6 +8,18 @@ export const memberCalendarRouter = createTRPCRouter({
             where: {
                 userId: ctx.session.user.id,
             },
+            include: {
+                subscriptions: {
+                    where: {
+                        endDate: {
+                            gt: new Date(),
+                        },
+                        remainingSessions: {
+                            gt: 0,
+                        },
+                    },
+                },
+            },
         });
 
         if (!member) {
@@ -18,7 +30,14 @@ export const memberCalendarRouter = createTRPCRouter({
             where: {
                 memberId: member.id,
             },
-            include: {
+            select: {
+                id: true,
+                date: true,
+                startTime: true,
+                endTime: true,
+                description: true,
+                exerciseResult: true,
+                status: true,
                 trainer: {
                     select: {
                         user: {

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, permissionProtectedProcedure, protectedProcedure } from "@/server/api/trpc";
+import { db } from "@/server/db";
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 export const trainerSessionRouter = createTRPCRouter({
     create: permissionProtectedProcedure(['create:session'])
@@ -286,6 +290,7 @@ export const trainerSessionRouter = createTRPCRouter({
             startTime: z.date(),
             endTime: z.date(),
             status: z.enum(['ENDED', 'NOT_YET', 'CANCELED', 'ONGOING']).optional(),
+            exerciseResult: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             console.log('Received update mutation:', {
@@ -294,6 +299,7 @@ export const trainerSessionRouter = createTRPCRouter({
                 startTime: input.startTime.toISOString(),
                 endTime: input.endTime.toISOString(),
                 status: input.status,
+                exerciseResult: input.exerciseResult,
             });
 
             try {
@@ -326,6 +332,7 @@ export const trainerSessionRouter = createTRPCRouter({
                     startTime: updateStartTime.toISOString(),
                     endTime: updateEndTime.toISOString(),
                     status: input.status,
+                    exerciseResult: input.exerciseResult,
                 });
 
                 // Update the session
@@ -336,6 +343,7 @@ export const trainerSessionRouter = createTRPCRouter({
                         startTime: updateStartTime,
                         endTime: updateEndTime,
                         status: input.status,
+                        exerciseResult: input.exerciseResult,
                     },
                     include: {
                         member: {
@@ -355,6 +363,119 @@ export const trainerSessionRouter = createTRPCRouter({
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Gagal mengupdate sesi',
+                });
+            }
+        }),
+
+    uploadExerciseResult: protectedProcedure
+        .input(z.object({
+            fileData: z.string(), // base64 string
+            fileName: z.string(),
+            fileType: z.string(),
+            memberId: z.string(),
+        }))
+        .mutation(async ({ input }) => {
+            const { fileData, fileName, fileType, memberId } = input;
+
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+            if (!validTypes.includes(fileType)) {
+                throw new Error('Invalid file type. Only PNG, JPG, JPEG, and PDF files are allowed.');
+            }
+
+            // Remove data URL prefix if present
+            const base64Data = fileData.replace(/^data:.*?;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+
+            // Validate file size (5MB max)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (buffer.length > maxSize) {
+                throw new Error('File size too large. Maximum size is 5MB.');
+            }
+
+            // Generate a unique filename
+            const extension = path.extname(fileName);
+            const uniqueFilename = `${uuidv4()}${extension}`;
+            
+            // Construct the path relative to the public directory
+            const relativeUploadDir = path.join('assets', 'exercise', memberId);
+            const uploadDir = path.join(process.cwd(), 'public', relativeUploadDir);
+            const filePath = path.join('/', relativeUploadDir, uniqueFilename);
+
+            // Create directory if it doesn't exist
+            await mkdir(uploadDir, { recursive: true });
+
+            // Write the file
+            await writeFile(path.join(uploadDir, uniqueFilename), buffer);
+
+            return {
+                success: true,
+                filePath: filePath,
+                message: 'File uploaded successfully'
+            };
+        }),
+
+    uploadFile: protectedProcedure
+        .input(z.object({
+            fileData: z.string(), // base64 string
+            fileName: z.string(),
+            fileType: z.string(),
+            memberId: z.string(),
+        }))
+        .mutation(async ({ input }) => {
+            const { fileData, fileName, fileType, memberId } = input;
+
+            try {
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+                if (!validTypes.includes(fileType)) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'Invalid file type. Only PNG, JPG, JPEG, and PDF files are allowed.'
+                    });
+                }
+
+                // Remove data URL prefix if present
+                const base64Data = fileData.replace(/^data:.*?;base64,/, '');
+                const buffer = Buffer.from(base64Data, 'base64');
+
+                // Validate file size (5MB max)
+                const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+                if (buffer.length > maxSize) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'File size too large. Maximum size is 5MB.'
+                    });
+                }
+
+                // Generate a unique filename
+                const extension = path.extname(fileName);
+                const uniqueFilename = `${uuidv4()}${extension}`;
+                
+                // Construct the path relative to the public directory
+                const relativeUploadDir = path.join('assets', 'exercise');
+                const uploadDir = path.join(process.cwd(), 'public', relativeUploadDir);
+                const filePath = path.join('/', relativeUploadDir, uniqueFilename);
+
+                // Create directory if it doesn't exist
+                await mkdir(uploadDir, { recursive: true });
+
+                // Write the file
+                await writeFile(path.join(uploadDir, uniqueFilename), buffer);
+
+                return {
+                    success: true,
+                    filePath: filePath,
+                    message: 'File uploaded successfully'
+                };
+            } catch (error) {
+                console.error('File upload error:', error);
+                if (error instanceof TRPCError) {
+                    throw error;
+                }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to upload file: ' + (error instanceof Error ? error.message : 'Unknown error')
                 });
             }
         }),

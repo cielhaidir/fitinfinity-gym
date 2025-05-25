@@ -5,20 +5,27 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday,
          startOfMonth, endOfMonth, isSameMonth, addWeeks, subWeeks } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import SessionDetailModal from './session-detail-modal';
+import { ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { SessionDetailModal } from './session-detail-modal';
 import { TrainerSession } from '@prisma/client';
 
 type SessionStatus = 'ENDED' | 'NOT_YET' | 'CANCELED' | 'ONGOING';
 
-interface SessionWithTrainer extends Omit<TrainerSession, 'status'> {
-  trainer?: {
-    user?: {
-      name: string;
-    };
-  };
+interface SessionWithTrainer {
+  id: string;
+  date: Date;
+  startTime: Date;
+  endTime: Date;
+  description: string | null;
+  exerciseResult: string | null;
   status: SessionStatus;
   _uniqueKey: string;
+  trainer: {
+    user: {
+      name: string;
+      email: string;
+    };
+  };
 }
 
 interface CalendarProps {
@@ -62,20 +69,28 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
     setSelectedSession(null);
   };
 
-  const getStatusColor = (status: SessionWithTrainer['status']) => {
+  const getStatusColor = (status: SessionWithTrainer['status'], exerciseResult: string | null) => {
+    if (exerciseResult) {
+      return 'bg-blue-500 hover:bg-blue-600';
+    }
+    
     switch (status) {
       case 'ENDED':
         return 'bg-gray-500 hover:bg-gray-600';
       case 'CANCELED':
-        return 'bg-red-500 hover:bg-red-600';
+        return 'bg-destructive hover:bg-destructive/80';
       case 'ONGOING':
-        return 'bg-blue-500 hover:bg-blue-600';
+        return 'bg-yellow-500 hover:bg-yellow-600';
       default:
         return 'bg-[#C9D953] hover:bg-[#b8c748]';
     }
   };
 
-  const getStatusText = (status: SessionWithTrainer['status']) => {
+  const getStatusText = (status: SessionWithTrainer['status'], exerciseResult: string | null) => {
+    if (exerciseResult) {
+      return 'Hasil Terupload';
+    }
+    
     switch (status) {
       case 'ENDED':
         return 'Selesai';
@@ -89,8 +104,8 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
   };
 
   return (
-    <div className="bg-[#232323] rounded-lg overflow-hidden">
-      <div className="flex justify-between items-center p-4 border-b border-[#2a2a2a]">
+    <div className="bg-background rounded-lg overflow-hidden">
+      <div className="flex justify-between items-center p-4 border-b border-border">
         <div className="flex space-x-2">
           <Button 
             onClick={handlePrevWeek} 
@@ -111,7 +126,7 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
           <Button onClick={handleToday} variant="secondary" className="h-8 text-xs">today</Button>
         </div>
         
-        <div className="bg-[#2a2a2a] text-white text-sm px-3 py-1 rounded-full">
+        <div className="bg-muted text-foreground text-sm px-3 py-1 rounded-full">
           {format(weekStart, 'dd MMMM', { locale: id })} - {format(weekEnd, 'dd MMMM yyyy', { locale: id })}
         </div>
       </div>
@@ -120,16 +135,16 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="w-20 border-r border-[#2a2a2a] p-2"></th>
+              <th className="w-20 border-r border-border p-2"></th>
               {days.map((day) => (
                 <th 
                   key={day.toString()} 
-                  className={`border-r border-[#2a2a2a] p-2 text-center ${
-                    isToday(day) ? 'bg-[#2a2a2a]' : ''
+                  className={`border-r border-border p-2 text-center ${
+                    isToday(day) ? 'bg-muted' : ''
                   }`}
                 >
-                  <div className="text-gray-400">{format(day, 'EEE', { locale: id })}</div>
-                  <div className={`text-lg ${isToday(day) ? 'text-[#C9D953] font-bold' : 'text-white'}`}>
+                  <div className="text-muted-foreground">{format(day, 'EEE', { locale: id })}</div>
+                  <div className={`text-lg ${isToday(day) ? 'text-primary font-bold' : 'text-foreground'}`}>
                     {format(day, 'd/M')}
                   </div>
                 </th>
@@ -138,8 +153,8 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
           </thead>
           <tbody>
             {timeSlots.map(({ label, hour }) => (
-              <tr key={`time-${hour}`} className="border-t border-[#2a2a2a]">
-                <td className="border-r border-[#2a2a2a] p-2 text-right font-medium text-gray-400 w-20">
+              <tr key={`time-${hour}`} className="border-t border-border">
+                <td className="border-r border-border p-2 text-right font-medium text-muted-foreground w-20">
                   {label}
                 </td>
                 {days.map((day) => {
@@ -152,15 +167,15 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
                     <td
                       key={`${dateStr}-${hour}`}
                       className={`
-                        border-r border-[#2a2a2a] p-1 
+                        border-r border-border p-1 
                         h-[64px] align-top 
-                        ${isToday(day) ? 'bg-[#2a2a2a]/50' : ''}
+                        ${isToday(day) ? 'bg-muted/50' : ''}
                       `}
                     >
                       {sessions.map((session) => (
                         <div
                           key={session._uniqueKey}
-                          className={`${getStatusColor(session.status)} text-black p-1.5 rounded cursor-pointer transition-colors`}
+                          className={`${getStatusColor(session.status, session.exerciseResult)} text-foreground p-1.5 rounded cursor-pointer transition-colors`}
                           onClick={() => handleSessionClick(session)}
                         >
                           <div className="font-medium">
@@ -169,9 +184,9 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
                           <div className="truncate">
                             {session.trainer?.user?.name || 'Personal Trainer'}
                           </div>
-                          {getStatusText(session.status) && (
-                            <div className="text-xs font-bold text-white mt-1">
-                              {getStatusText(session.status)}
+                          {getStatusText(session.status, session.exerciseResult) && (
+                            <div className="text-xs font-bold text-foreground mt-1">
+                              {getStatusText(session.status, session.exerciseResult)}
                             </div>
                           )}
                         </div>

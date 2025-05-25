@@ -268,14 +268,11 @@ export default function JadwalPTPage() {
   return (
     <div className="p-6 relative">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Jadwal Latihan</h1>
-        <p className="text-gray-400">Atur jadwal latihan Anda dengan personal trainer pilihan untuk hasil yang maksimal</p>
+        <h1 className="text-2xl font-bold text-foreground">Jadwal Latihan</h1>
+        <p className="text-muted-foreground">Atur jadwal latihan Anda dengan personal trainer pilihan untuk hasil yang maksimal</p>
       </div>
 
-      <div className="bg-[#232323] p-4 rounded-lg mb-6">
-        <h2 className="text-xl font-semibold text-[#C9D953] mb-2">Jadwal Latihan</h2>
-        <p className="text-gray-400">Pilih tanggal dan waktu untuk sesi latihan Anda</p>
-      </div>
+      
 
       <Calendar
         currentDate={currentDate}
@@ -292,7 +289,7 @@ export default function JadwalPTPage() {
       />
 
       {/* Slide-in form */}
-      <div className={`fixed top-0 right-0 h-full w-96 bg-[#232323] shadow-lg transform transition-transform duration-300 ease-in-out z-50 ${
+      <div className={`fixed top-0 right-0 h-full w-96 bg-background shadow-lg transform transition-transform duration-300 ease-in-out z-50 border-l border-border ${
         showForm ? 'translate-x-0' : 'translate-x-full'
       }`}>
         <div className="p-6 h-full overflow-y-auto">
@@ -306,7 +303,7 @@ export default function JadwalPTPage() {
       {/* Overlay when form is open */}
       {showForm && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
           onClick={() => setShowForm(false)}
         ></div>
       )}

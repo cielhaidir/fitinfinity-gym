@@ -1,18 +1,23 @@
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
-import { TrainerSession } from '@prisma/client';
+import { FileText, X } from "lucide-react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { useState } from "react";
 
-type SessionStatus = 'ENDED' | 'NOT_YET' | 'CANCELED' | 'ONGOING';
-
-interface SessionWithTrainer extends Omit<TrainerSession, 'status'> {
-  trainer?: {
-    user?: {
+interface SessionWithTrainer {
+  id: string;
+  date: Date;
+  startTime: Date;
+  endTime: Date;
+  description: string | null;
+  exerciseResult: string | null;
+  trainer: {
+    user: {
       name: string;
+      email: string;
     };
   };
-  status: SessionStatus;
 }
 
 interface SessionDetailModalProps {
@@ -20,94 +25,91 @@ interface SessionDetailModalProps {
   onClose: () => void;
 }
 
-export default function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
+export function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
+  const [showImageModal, setShowImageModal] = useState(false);
+
   if (!session) return null;
 
-  const getStatusText = (status: SessionWithTrainer['status']) => {
-    switch (status) {
-      case 'ENDED':
-        return 'Selesai';
-      case 'CANCELED':
-        return 'Dibatalkan';
-      case 'ONGOING':
-        return 'Sedang Berlangsung';
-      default:
-        return 'Belum Dimulai';
-    }
-  };
-
-  const getStatusColor = (status: SessionWithTrainer['status']) => {
-    switch (status) {
-      case 'ENDED':
-        return 'bg-gray-500/20 border-gray-500 text-gray-500';
-      case 'CANCELED':
-        return 'bg-red-500/20 border-red-500 text-red-500';
-      case 'ONGOING':
-        return 'bg-blue-500/20 border-blue-500 text-blue-500';
-      default:
-        return 'bg-[#C9D953]/20 border-[#C9D953] text-[#C9D953]';
-    }
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-[#232323] p-6 rounded-lg w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Detail Sesi Latihan</h2>
-          <Button 
-            type="button" 
-            variant="ghost" 
-            size="icon" 
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <div className={`mb-4 p-3 ${getStatusColor(session.status)} border rounded-md`}>
-          <p className="font-semibold">Status: {getStatusText(session.status)}</p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-gray-400 block mb-1">Trainer</label>
-            <p className="text-white font-semibold">{session.trainer?.user?.name || 'Personal Trainer'}</p>
-          </div>
-
-          <div>
-            <label className="text-gray-400 block mb-1">Tanggal</label>
-            <p className="text-white">
-              {format(new Date(session.date), 'EEEE, d MMMM yyyy', { locale: id })}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-gray-400 block mb-1">Waktu</label>
-            <p className="text-white">
-              {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
-            </p>
-          </div>
-
-          {session.description && (
+    <>
+      <Dialog open onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detail Sesi Latihan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
             <div>
-              <label className="text-gray-400 block mb-1">Deskripsi</label>
-              <p className="text-white">{session.description}</p>
+              <h3 className="font-medium">Trainer</h3>
+              <p className="text-muted-foreground">{session.trainer.user.name}</p>
             </div>
-          )}
-
-          <div className="pt-4 flex justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              className="bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white"
-            >
-              Tutup
-            </Button>
+            <div>
+              <h3 className="font-medium">Tanggal</h3>
+              <p className="text-muted-foreground">
+                {format(new Date(session.date), 'EEEE, d MMMM yyyy', { locale: id })}
+              </p>
+            </div>
+            <div>
+              <h3 className="font-medium">Waktu</h3>
+              <p className="text-muted-foreground">
+                {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
+              </p>
+            </div>
+            {session.description && (
+              <div>
+                <h3 className="font-medium">Deskripsi</h3>
+                <p className="text-muted-foreground">{session.description}</p>
+              </div>
+            )}
+            {session.exerciseResult && (
+              <div>
+                <h3 className="font-medium">Hasil Latihan</h3>
+                <Button
+                  variant="outline"
+                  className="w-full mt-2"
+                  onClick={() => setShowImageModal(true)}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Lihat Hasil Latihan
+                </Button>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Modal */}
+      <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Hasil Latihan</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0"
+              onClick={() => setShowImageModal(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <div className="mt-4">
+              {session.exerciseResult?.endsWith('.pdf') ? (
+                <iframe
+                  src={session.exerciseResult}
+                  className="w-full h-[80vh]"
+                  title="Exercise Result PDF"
+                />
+              ) : (
+                <img
+                  src={session.exerciseResult || ''}
+                  alt="Exercise Result"
+                  className="w-full h-auto max-h-[80vh] object-contain"
+                />
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 } 

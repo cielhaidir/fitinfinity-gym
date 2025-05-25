@@ -16,6 +16,7 @@ interface DraggableSessionProps {
     endTime: Date;
     isCancelled?: boolean;
     status: 'ENDED' | 'NOT_YET' | 'CANCELED' | 'ONGOING';
+    exerciseResult?: boolean;
   };
   onClick: (e: React.MouseEvent) => void;
   onResize: (sessionId: string, startHour: number, endHour: number) => void;
@@ -41,19 +42,27 @@ export default function DraggableSession({ session, onClick, onResize, cellHeigh
   const duration = endHour - startHour;
 
   const getStatusColor = () => {
+    if (session.exerciseResult) {
+      return 'bg-blue-500 hover:bg-blue-600';
+    }
+    
     switch (session.status) {
       case 'ENDED':
         return 'bg-gray-500 hover:bg-gray-600';
       case 'CANCELED':
-        return 'bg-red-500 hover:bg-red-600';
+        return 'bg-destructive hover:bg-destructive/80';
       case 'ONGOING':
-        return 'bg-blue-500 hover:bg-blue-600';
+        return 'bg-yellow-500 hover:bg-yellow-600';
       default:
         return 'bg-[#C9D953] hover:bg-[#b8c748]';
     }
   };
 
   const getStatusText = () => {
+    if (session.exerciseResult) {
+      return 'Hasil Terupload';
+    }
+    
     switch (session.status) {
       case 'ENDED':
         return 'Selesai';
@@ -116,6 +125,7 @@ export default function DraggableSession({ session, onClick, onResize, cellHeigh
         shadow-sm
       `}
       onClick={(e) => {
+        e.stopPropagation();
         if (!isResizing) onClick(e);
       }}
       {...listeners}

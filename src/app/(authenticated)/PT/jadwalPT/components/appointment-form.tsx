@@ -130,56 +130,56 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-white">Tambah Jadwal</h2>
+        <h2 className="text-xl font-bold text-foreground">Tambah Jadwal</h2>
         <Button 
           type="button" 
           variant="ghost" 
           size="icon" 
           onClick={onClose}
-          className="text-gray-400 hover:text-white"
+          className="text-muted-foreground hover:text-foreground"
         >
           <X className="h-5 w-5" />
         </Button>
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="date" className="text-gray-300">Tanggal</Label>
+        <Label htmlFor="date" className="text-muted-foreground">Tanggal</Label>
         <div className="relative">
           <Input
             id="date"
             value={formattedDate}
             readOnly
-            className="pl-10 bg-gray-700 border-gray-600 text-white"
+            className="pl-10"
             placeholder="Pilih tanggal pada kalender"
           />
-          <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+          <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="time" className="text-gray-300">Waktu Mulai</Label>
+        <Label htmlFor="time" className="text-muted-foreground">Waktu Mulai</Label>
         <div className="relative">
           <Input
             id="time"
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="pl-10 bg-gray-700 border-gray-600 text-white"
+            className="pl-10"
           />
-          <Clock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+          <Clock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="duration" className="text-gray-300">Durasi</Label>
+        <Label htmlFor="duration" className="text-muted-foreground">Durasi</Label>
         <Select 
           value={duration} 
           onValueChange={setDuration}
         >
-          <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+          <SelectTrigger>
             <SelectValue placeholder="Pilih durasi" />
           </SelectTrigger>
-          <SelectContent className="bg-gray-700 border-gray-600 text-white">
+          <SelectContent>
             <SelectItem value="30">30 menit</SelectItem>
             <SelectItem value="60">60 menit</SelectItem>
             <SelectItem value="90">90 menit</SelectItem>
@@ -189,15 +189,15 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="member" className="text-gray-300">Nama Member</Label>
+        <Label htmlFor="member" className="text-muted-foreground">Nama Member</Label>
         <Select 
           value={selectedMemberId} 
           onValueChange={setSelectedMemberId}
         >
-          <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+          <SelectTrigger>
             <SelectValue placeholder="Pilih member" />
           </SelectTrigger>
-          <SelectContent className="bg-gray-700 border-gray-600 text-white">
+          <SelectContent>
             {isMembersLoading ? (
               <SelectItem value="loading" disabled>Loading members...</SelectItem>
             ) : (
@@ -212,20 +212,19 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description" className="text-gray-300">Deskripsi</Label>
+        <Label htmlFor="description" className="text-muted-foreground">Deskripsi</Label>
         <Textarea
           id="description"
           placeholder="Detail sesi latihan..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
-          className="bg-gray-700 border-gray-600 text-white"
         />
       </div>
 
       <Button 
         type="submit" 
-        className="w-full bg-lime-400 hover:bg-lime-500 text-black mt-4"
+        className="w-full bg-[#C9D953] hover:bg-[#b8c748] text-black mt-4"
         disabled={createSession.isPending}
       >
         {createSession.isPending ? 'Menyimpan...' : 'Simpan Jadwal'}

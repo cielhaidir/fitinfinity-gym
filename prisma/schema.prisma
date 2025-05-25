@@ -304,6 +304,7 @@ model TrainerSession {
     endTime     DateTime
     description String?
     status      String   @default("NOT_YET")
+    exerciseResult String? // Optional path to the uploaded exercise result file
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
     trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])

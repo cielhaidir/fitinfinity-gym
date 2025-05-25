@@ -6,7 +6,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday,
 import { id } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import SessionDetailModal from './session-detail-modal';
+import { SessionDetailModal } from './session-detail-modal';
 import { DndContext, DragEndEvent, MouseSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import DraggableSession from './draggable-session';
 import { toast } from 'sonner';
@@ -224,20 +224,20 @@ export default function Calendar({
             <Button 
               onClick={() => onViewModeChange('monthly')} 
               variant={viewMode === 'monthly' ? 'default' : 'outline'}
-              className={viewMode === 'monthly' ? 'bg-[#C9D953] text-black hover:bg-[#b8c748]' : ''}
+              className={viewMode === 'monthly' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}
             >
               Monthly
             </Button>
             <Button 
               onClick={() => onViewModeChange('weekly')} 
               variant={viewMode === 'weekly' ? 'default' : 'outline'}
-              className={viewMode === 'weekly' ? 'bg-[#C9D953] text-black hover:bg-[#b8c748]' : ''}
+              className={viewMode === 'weekly' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}
             >
               Weekly
             </Button>
           </div>
           
-          <div className="bg-[#2a2a2a] text-white text-sm px-3 py-1 rounded-full">
+          <div className="bg-muted text-foreground text-sm px-3 py-1 rounded-full">
             {viewMode === 'weekly' 
               ? `${format(weekStart, 'dd MMMM')} - ${format(weekEnd, 'dd MMMM yyyy')}`
               : format(currentDate, 'MMMM yyyy')
@@ -245,8 +245,8 @@ export default function Calendar({
           </div>
         </div>
 
-        <div className="bg-[#232323] rounded-lg overflow-hidden">
-          <div className="flex justify-between items-center p-4 border-b border-[#2a2a2a]">
+        <div className="bg-background rounded-lg overflow-hidden">
+          <div className="flex justify-between items-center p-4 border-b border-border">
             <div className="flex space-x-2">
               <Button 
                 onClick={() => onNavigate('prev')} 
@@ -269,7 +269,7 @@ export default function Calendar({
             
             <Button 
               onClick={() => onDateClick(new Date())}
-              className="bg-[#C9D953] hover:bg-[#b8c748] text-black h-8 text-xs"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
             >
               <Plus className="mr-1 h-3 w-3" /> Jadwalkan Sesi
             </Button>
@@ -280,16 +280,16 @@ export default function Calendar({
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
-                    <th className="w-20 border-r border-[#2a2a2a] p-2"></th>
+                    <th className="w-20 border-r border-border p-2"></th>
                     {days.map((day) => (
                       <th 
                         key={day.toString()} 
-                        className={`border-r border-[#2a2a2a] p-2 text-center ${
-                          isToday(day) ? 'bg-[#2a2a2a]' : ''
+                        className={`border-r border-border p-2 text-center ${
+                          isToday(day) ? 'bg-muted' : ''
                         }`}
                       >
-                        <div className="text-gray-400">{format(day, 'EEE', { locale: id })}</div>
-                        <div className={`text-lg ${isToday(day) ? 'text-[#C9D953] font-bold' : 'text-white'}`}>
+                        <div className="text-muted-foreground">{format(day, 'EEE', { locale: id })}</div>
+                        <div className={`text-lg ${isToday(day) ? 'text-primary font-bold' : 'text-foreground'}`}>
                           {format(day, 'd/M')}
                         </div>
                       </th>
@@ -298,8 +298,8 @@ export default function Calendar({
                 </thead>
                 <tbody>
                   {timeSlots.map(({ label, hour }) => (
-                    <tr key={`time-${hour}`} className="border-t border-[#2a2a2a]">
-                      <td className="border-r border-[#2a2a2a] p-2 text-right font-medium text-gray-400 w-20">
+                    <tr key={`time-${hour}`} className="border-t border-border">
+                      <td className="border-r border-border p-2 text-right font-medium text-muted-foreground w-20">
                         {label}
                       </td>
                       {days.map((day) => {
@@ -308,32 +308,25 @@ export default function Calendar({
                         const key = `${dateStr}-${timeStr}`;
                         const sessions = sessionsByDateTime[key] || [];
                         
-                        // Check if this hour is the start of any session
-                        const isFirstHourOfSession = sessions.some(
-                          session => new Date(session.startTime).getHours() === hour
-                        );
-
                         return (
                           <DroppableCell
                             key={`${dateStr}-${hour}`}
                             id={`${dateStr}-${hour}`}
-                            isFirstHourOfSession={isFirstHourOfSession}
                             className={`
-                              border-r border-[#2a2a2a] p-1 
+                              border-r border-border p-1 
                               h-[64px] align-top 
-                              cursor-pointer hover:bg-[#2a2a2a] 
-                              ${isToday(day) ? 'bg-[#2a2a2a]/50' : ''}
+                              cursor-pointer hover:bg-muted
+                              ${isToday(day) ? 'bg-muted/50' : ''}
                             `}
                             onClick={() => onDateClick(day, hour)}
                           >
-                            {isFirstHourOfSession && sessions.map((session) => (
+                            {sessions.map((session) => (
                               <DraggableSession
                                 key={session._key || `session-${session.id}`}
                                 session={session}
                                 onClick={(e) => handleSessionClick(e, session)}
                                 onResize={handleResize}
                                 cellHeight={CELL_HEIGHT}
-                                isCancelled={session.isCancelled}
                               />
                             ))}
                           </DroppableCell>
@@ -350,7 +343,7 @@ export default function Calendar({
             <div className="p-4">
               <div className="grid grid-cols-7 gap-1">
                 {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day) => (
-                  <div key={day} className="p-2 text-center font-medium text-gray-400">
+                  <div key={day} className="p-2 text-center font-medium text-muted-foreground">
                     {day}
                   </div>
                 ))}
@@ -364,14 +357,14 @@ export default function Calendar({
                     <div
                       key={`month-${dateStr}`}
                       className={`
-                        min-h-[100px] p-2 border border-[#2a2a2a] rounded-md
+                        min-h-[100px] p-2 border border-border rounded-md
                         ${!isCurrentMonth ? 'opacity-40' : ''}
-                        ${isToday(day) ? 'border-[#C9D953]' : ''}
-                        cursor-pointer hover:bg-[#2a2a2a]
+                        ${isToday(day) ? 'border-primary' : ''}
+                        cursor-pointer hover:bg-muted
                       `}
                       onClick={() => onDateClick(day)}
                     >
-                      <div className={`text-right ${isToday(day) ? 'text-[#C9D953] font-bold' : ''}`}>
+                      <div className={`text-right ${isToday(day) ? 'text-primary font-bold' : ''}`}>
                         {format(day, 'd')}
                       </div>
                       
@@ -380,24 +373,45 @@ export default function Calendar({
                           <div 
                             key={session._key || `session-${session.id}`}
                             className={`${
-                              session.isCancelled 
-                                ? 'bg-red-500 hover:bg-red-600' 
+                              session.exerciseResult
+                                ? 'bg-blue-500 hover:bg-blue-600'
+                                : session.status === 'ENDED' 
+                                ? 'bg-muted hover:bg-muted/80'
+                                : session.status === 'ONGOING'
+                                ? 'bg-yellow-500 hover:bg-yellow-600'
+                                : session.status === 'CANCELED'
+                                ? 'bg-destructive hover:bg-destructive/80'
                                 : 'bg-[#C9D953] hover:bg-[#b8c748]'
-                            } text-black text-xs rounded cursor-pointer transition-colors`}
+                            } text-foreground text-xs rounded cursor-pointer transition-colors`}
                             onClick={(e) => handleSessionClick(e, session)}
                           >
                             <div className="truncate">{format(new Date(session.startTime), 'HH:mm')}</div>
                             <div className="truncate">{session.member.user.name}</div>
-                            {session.isCancelled && (
-                              <div className="text-xs font-bold text-white mt-1">
+                            {session.exerciseResult && (
+                              <div className="text-xs font-bold text-blue-900 mt-1">
+                                Hasil Terupload
+                              </div>
+                            )}
+                            {session.status === 'CANCELED' && (
+                              <div className="text-xs font-bold text-destructive-foreground mt-1">
                                 Dibatalkan
+                              </div>
+                            )}
+                            {session.status === 'ONGOING' && (
+                              <div className="text-xs font-bold text-yellow-900 mt-1">
+                                Sedang Berlangsung
+                              </div>
+                            )}
+                            {session.status === 'ENDED' && !session.exerciseResult && (
+                              <div className="text-xs font-bold text-muted-foreground mt-1">
+                                Selesai
                               </div>
                             )}
                           </div>
                         ))}
                         
                         {sessions.length > 3 && (
-                          <div key={`more-${dateStr}`} className="text-xs text-gray-400 text-center">
+                          <div key={`more-${dateStr}`} className="text-xs text-muted-foreground text-center">
                             +{sessions.length - 3} more
                           </div>
                         )}
@@ -413,9 +427,10 @@ export default function Calendar({
         {selectedSession && (
           <SessionDetailModal
             session={selectedSession}
+            isOpen={!!selectedSession}
             onClose={() => setSelectedSession(null)}
-            onDelete={handleDeleteSession}
-            onCancel={onSessionCancel || handleDeleteSession}
+            onDelete={onSessionDelete || (() => {})}
+            onCancel={onSessionCancel}
           />
         )}
       </div>
