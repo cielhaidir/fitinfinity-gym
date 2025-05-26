@@ -3,6 +3,14 @@
  * for Docker builds.
  */
 import "./src/env.js";
+import nextPWA from "next-pwa"; // Or const nextPWA = require("next-pwa"); if ES modules are not fully supported in this context by the version
+
+const withPWA = nextPWA({
+  dest: "public",
+  // Add other PWA options here if needed, for example:
+  // register: true,
+  // skipWaiting: true,
+});
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -53,6 +61,9 @@ const config = {
   //     },
   //   ];
   // },
+  // The async headers part can remain if needed, but ensure it doesn't conflict
+  // with next-pwa's own service worker generation and headers.
+  // It's often better to let next-pwa handle service worker related headers.
 };
 
-export default config;
+export default withPWA(config);
