@@ -11,6 +11,7 @@ import { Menu as data } from "@/lib/menu";
 import { useRouter } from "next/navigation"
 import { useRBAC } from "@/hooks/useRBAC";
 
+
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +24,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarFooter,
+  useSidebar
 } from "@/components/ui/sidebar";
 
 import {
@@ -41,10 +43,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const { hasPermission } = useRBAC();
-  
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  // Add this new useEffect to close mobile menu on route change
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, setOpenMobile]);
+
   const handleLogout = () => {
     signOut();
   };
+
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -91,7 +102,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </a>
         </div>
 
-        <SearchForm setOpen={setOpen} />
+      { !isMobile &&  <SearchForm setOpen={setOpen} />}
+       
 
       </SidebarHeader>
       <SidebarContent className="ps-4 pe-2">
@@ -104,10 +116,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {item.items.map((subItem) => (
-                  <SidebarMenuItem key={subItem.title}>
+                  <SidebarMenuItem key={subItem.title} >
                     <SidebarMenuButton
                       asChild
                       isActive={pathname === subItem.url}
+                                   className="sm:p-2 p-4 sm:text-sm text-base"
                     >
                       <Link href={subItem.url} className="flex items-center gap-2">
                         {"icon" in subItem && subItem.icon && <subItem.icon className="h-4 w-4" />}

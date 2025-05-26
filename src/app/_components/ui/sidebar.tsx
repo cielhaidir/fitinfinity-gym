@@ -213,21 +213,19 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="bg-accent px-5 text-sidebar-foreground w-[--sidebar-width] p-0 [&>button]:hidden"
+            className="bg-accent text-sidebar-foreground w-full h-[80vh] p-6 [&>button]:hidden"
             style={
               {
-                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+                "--sidebar-width": "100%",
               } as React.CSSProperties
             }
-            side={side}
+            side="bottom"
           >
-            {/* <VisuallyHidden> */}
-              <SheetHeader>
-                <SheetTitle></SheetTitle>
-                <SheetDescription></SheetDescription>
-              </SheetHeader>
-            {/* </VisuallyHidden> */}
-            <div className="flex h-full w-full flex-col">{children}</div>
+            <SheetHeader>
+              <SheetTitle></SheetTitle>
+              <SheetDescription></SheetDescription>
+            </SheetHeader>
+            <div className="flex h-full w-full flex-col overflow-y-auto">{children}</div>
           </SheetContent>
         </Sheet>
       );
