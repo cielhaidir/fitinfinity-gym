@@ -73,9 +73,9 @@ ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]
 
-FROM deps AS dev
+# FROM deps AS dev
 
-WORKDIR /app
+# WORKDIR /app
 
-CMD ["npm", "run", "dev"]
+# CMD ["npm", "run", "dev"]
 
