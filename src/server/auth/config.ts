@@ -197,29 +197,49 @@ export const authConfig = {
 
           if (!existingUser) {
             console.error("User record not found after OAuth signup");
-            return false; // Or redirect to a signup page if you want to create users who don't already exist
+            try {
+              const membership = await createUserMembership(user.id);
+              console.log("Membership creation result from event:", membership);
+      
+              // Assign Member role only during initial user creation
+              const memberRole = await db.role.findUnique({
+                where: { name: "Member" },
+              });
+              if (memberRole) {
+                await db.user.update({
+                  where: { id: user.id },
+                  data: { roles: { connect: { id: memberRole.id } } },
+                });
+                console.log("Assigned Member role to user:", user.id);
+              }
+            } catch (error) {
+              console.error("Error in createUser event:", error);
+            }
+          }else{
+            const hasGoogleAccount = existingUser.accounts?.some((acc) => acc.provider === "google");
+
+            if (!hasGoogleAccount) {
+              await db.account.create({
+                data: {
+                  userId: existingUser.id,
+                  type: account.type,
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                  access_token: account.access_token,
+                  token_type: account.token_type,
+                  scope: account.scope,
+                  id_token: account.id_token,
+                  session_state: account.session_state ? String(account.session_state) : null,
+                },
+              });
+              console.log("Google account linked for user:", existingUser.id);
+              return true;
           }
 
-          const hasGoogleAccount = existingUser.accounts?.some((acc) => acc.provider === "google");
-
-          if (!hasGoogleAccount) {
-            await db.account.create({
-              data: {
-                userId: existingUser.id,
-                type: account.type,
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
-                access_token: account.access_token,
-                token_type: account.token_type,
-                scope: account.scope,
-                id_token: account.id_token,
-                session_state: account.session_state ? String(account.session_state) : null,
-              },
-            });
-            console.log("Google account linked for user:", existingUser.id);
+          
           }
         }
-        return true;
+
       } catch (error) {
         console.error("Error in signIn callback:", error);
         return false; // Important: Returning false prevents sign-in
@@ -290,6 +310,7 @@ export const authConfig = {
     signOut: "/auth/signin",
     error: "/auth/error", // Error code passed in query string as ?error=
     verifyRequest: "/auth/verify-request", // (used for check email message)
-    newUser: "/auth/new-user", // New users will be directed here on first sign in (leave the property out if not of interest)
+    // Remove the newUser line below if you don't have this page implemented
+    // newUser: "/auth/new-user", 
   },
 } satisfies NextAuthConfig;
