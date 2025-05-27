@@ -22,7 +22,7 @@ export const subscriptionRouter = createTRPCRouter({
         }))
         .mutation(async ({ ctx, input }) => {
             const member = await ctx.db.membership.findUnique({
-                where: { id: input.memberId }
+                where: { userId: input.memberId }
               });
               
               if (!member) {

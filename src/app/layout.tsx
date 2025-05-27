@@ -6,6 +6,7 @@ import { type Metadata } from "next";
 
 import { TRPCReactProvider } from "@/trpc/react";
 import { InstallPWA } from "@/components/pwa/install-prompt";
+import Head from "next/head";
 
 export const metadata: Metadata = {
   title: "Fit Infinity",
@@ -19,10 +20,15 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${GeistSans.variable}`} suppressHydrationWarning>
-      <head>
+      <Head>
       <meta name="apple-mobile-web-app-title" content="Fitinifnity" />
+      <meta name="viewport" content="width=device-width, initial-scale=0.8, maximum-scale=1, user-scalable=no; viewport-fit=cover" />
+      <meta name="mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-capable" content="yes"/>
+      <meta name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"></meta>
       {/* <link rel="manifest" href="/manifest.json" /> */}
-      </head>
+      </Head>
       <body>
         <TRPCReactProvider>
           <ClientThemeProvider>

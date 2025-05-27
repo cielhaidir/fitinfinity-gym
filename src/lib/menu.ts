@@ -55,7 +55,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Users",
                     url: "/management/user",
                     icon: Dumbbell,
-                    //requiredPermission: "list:users"
+                    requiredPermission: "list:users"
                 },
                 {
                     title: "Voucher",
@@ -67,19 +67,19 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Role Permission",
                     url: "/management/role-permission",
                     icon: Users,
-                    // requiredPermission: "list:roles"
+                    requiredPermission: "list:roles"
                 },
                 {
                     title: "Permission",
                     url: "/management/permission",
                     icon: Book,
-                    // requiredPermission: "list:roles"
+                    requiredPermission: "list:roles"
                 },
                 {
                     title: "Role",
                     url: "/management/role",
                     icon: Users,
-                    // requiredPermission: "list:roles"
+                    requiredPermission: "list:roles"
                 },
                 // {
                 //     title: "Member",
@@ -88,10 +88,10 @@ export const Menu: { navMain: MenuGroup[] } = {
                 //     // requiredPermission: "list:roles"
                 // },
                 {
-                    title: "Fitness Consultan",
+                    title: "Fitness Consultant",
                     url: "/management/FC",
                     icon: Badge,
-                    // requiredPermission: "list:roles"
+                    requiredPermission: "list:fc"
                 },
                 {
                     title: 'Subscription',
@@ -200,11 +200,13 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Dashboard",
                     icon: CircleGauge,
                     url: "/PT",
+                    requiredPermission: "list:dashboard-pt"
                 },
                 {
                     title: "Profile",
                     icon: UserRound,
                     url: "/PT/profile",
+                    requiredPermission: "list:profile-pt"
                 },
                 // {
                 //     title: "Classes",
@@ -214,11 +216,13 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Schedule",
                     icon: Calendar1,
                     url: "/PT/jadwalPT",
+                    requiredPermission: "list:schedule-pt"
                 },
                 {
                     title: "Member List",
                     icon: Users,
                     url: "/PT/member_list",
+                    requiredPermission: "list:member-pt"
                 },
                 
             ],
@@ -231,22 +235,25 @@ export const Menu: { navMain: MenuGroup[] } = {
                     title: "Dashboard",
                     icon: CircleGauge,
                     url: "/finance",
+                    requiredPermission: "list:dashboard-finance"
                 },
                 {
                     title: "Balance Account",
                     url: "/finance/balance-account",
                     icon: CreditCard,
+                    requiredPermission: "list:balance-account"
                 },
                 {
                     title: "Chart Of Account",
                     url: "/finance/chart-of-account",
                     icon: HandCoins,
+                    requiredPermission: "list:chart-of-account"
                 },
                 {
                     title: "Transactions",
                     url: "/management/transaction",
                     icon: DollarSign,
-                    // requiredPermission: "manage:transactions"
+                    requiredPermission: "list:transactions"
                 },
                 // {
                 //     title: "Report",

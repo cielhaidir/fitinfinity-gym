@@ -3,6 +3,7 @@
   "short_name": "Fitinfinity",
   "description": "An app to help you stay fit and healthy.",
   "orientation": "portrait",
+  "display_override": ["window-controls-overlay"],
   "screenshots": [
     {
       "src": "/screenshot1.png",
@@ -59,5 +60,5 @@
   "theme_color": "#ffffff",
   "background_color": "#ffffff",
   "display": "standalone",
-  "start_url": "/"
+  "start_url": "/?launchscreen=true"
 }

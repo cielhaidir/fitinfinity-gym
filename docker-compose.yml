@@ -18,6 +18,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: deps
+    volumes:
+      - .:/app
+      - /app/node_modules
     depends_on:
       - db
     ports:
