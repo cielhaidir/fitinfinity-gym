@@ -104,7 +104,7 @@ export default function Navbar({ user }: { user?: any; }) {
                     className="border-2 border-[#C9D953] text-[#C9D953] px-5 py-3 rounded-md font-bold bg-transparent transition duration-200 transform hover:scale-105 hover:shadow-xl overflow-hidden hover:border-[#b6c940] hover:text-[#b6c940] relative"
                     asChild
                   >
-                    <Link href="/register" className="relative z-10">Register</Link>
+                    <Link href="/auth/signup" className="relative z-10">Register</Link>
                   </Button>
                   <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
                 </div>
@@ -160,7 +160,7 @@ export default function Navbar({ user }: { user?: any; }) {
                   className="bg-[#BFFF00] text-black hover:bg-[#9FDF00] w-full"
                   asChild
                 >
-                  <Link href="/register">Register</Link>
+                  <Link href="/auth/signup">Register</Link>
                 </Button>
               </div>
             )}

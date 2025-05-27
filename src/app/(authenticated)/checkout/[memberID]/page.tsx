@@ -27,13 +27,16 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
     const { data: trainers } = api.personalTrainer.listAll.useQuery();
 
     const createSubscriptionMutation = api.subs.create.useMutation();
+    const createPaymentMutation = api.payment.createTransaction.useMutation();
+    const updatePaymentStatusMutation = api.subs.updatePaymentStatus.useMutation();
 
     const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer">("gym")
     const [selectedPackage, setSelectedPackage] = useState("")
     const [selectedTrainer, setSelectedTrainer] = useState("")
-    const [paymentMethod, setPaymentMethod] = useState("qris")
+    const [paymentMethod, setPaymentMethod] = useState("midtrans")
     const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
     const [selectedVoucher, setSelectedVoucher] = useState<{ id: string; name: string; amount: number; discountType: "PERCENT" | "CASH" } | null>(null);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     const selectedPackageDetails = subscriptionType === "gym" ? gymPackages?.find((p) => p.id === selectedPackage) : trainerPackages?.find((p) => p.id === selectedPackage);
 
@@ -65,7 +68,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
         // Calculate end date based on package type and day value
         const startDate = new Date();
         const endDate = new Date(startDate);
-        
+
         // Add days to start date for both package types
         endDate.setDate(startDate.getDate() + (selectedPackageDetails.day ?? 0));
 
@@ -95,10 +98,106 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                 queryParams.set("voucherAmount", selectedVoucher.amount.toString());
                 queryParams.set("voucherDiscountType", selectedVoucher.discountType);
             }
-            
+
             toast.info("Proceeding to payment validation...");
             router.push(`/checkout/validate/${memberID}?${queryParams.toString()}`);
+        } else if (paymentMethod === "midtrans") {
+            setIsProcessingPayment(true);
+            try {
+                // Create a unique order ID
+                const orderId = `FIT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+                // Create subscription record first (with pending status)
+                const subscription = await createSubscriptionMutation.mutateAsync({
+                    memberId: memberID,
+                    packageId: selectedPackage,
+                    trainerId: subscriptionType === "trainer" ? selectedTrainer : undefined,
+                    startDate: startDate,
+                    // endDate is removed as it is not part of the expected type
+                    subsType: subscriptionType,
+                    duration: subscriptionType === "gym" ? selectedPackageDetails.day ?? 0 : selectedPackageDetails.sessions ?? 0,
+                    paymentMethod: "midtrans", // Indicate online payment
+                    totalPayment: calculateTotal(),
+                    status: "PENDING", // Start as pending until payment is confirmed
+                    orderReference: orderId,
+                });
+
+                // Format item details
+                const itemDetails = [{
+                    id: selectedPackage,
+                    name: selectedPackageDetails.name,
+                    price: calculateTotal(),
+                    quantity: 1
+                }];
+
+                // Create the transaction with Midtrans
+                const transactionResponse = await createPaymentMutation.mutateAsync({
+                    orderId,
+                    amount: calculateTotal(),
+                    customerName: Member?.user?.name || "Member",
+                    customerEmail: Member?.user?.email || undefined,
+                    itemDetails,
+                    callbackUrl: `${window.location.origin}/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}`,
+                });
+
+                // Open Midtrans Snap payment page
+                if (transactionResponse.token) {
+                    // Load Snap.js when needed
+                    const snapScript = document.createElement('script');
+                    snapScript.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+                    snapScript.setAttribute('data-client-key', process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '');
+                    document.body.appendChild(snapScript);
+
+                    snapScript.onload = () => {
+                        // @ts-ignore - window.snap is from the loaded script
+                        window.snap.pay(transactionResponse.token, {
+                            onSuccess: async function (result: any) {
+                                try {
+                                    // Update the payment status to SUCCESS
+                                    await updatePaymentStatusMutation.mutateAsync({
+                                        orderReference: orderId,
+                                        status: "SUCCESS",
+                                        gatewayResponse: result
+                                    });
+
+                                    toast.success('Payment successful!');
+                                    await utils.subs.getByIdMember.invalidate({ memberId: memberID });
+                                    router.push(`/management/subscription/${memberID}`);
+                                } catch (error) {
+                                    console.error('Error updating payment status:', error);
+                                    toast.error('Payment was processed but there was an error updating your subscription');
+                                    // Still redirect to subscription page, as payment was successful
+                                    router.push(`/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=SUCCESS`);
+                                }
+                            },
+                            onPending: function (result: any) {
+                                toast.info('Payment pending, waiting for confirmation');
+                                router.push(`/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=PENDING`);
+                            },
+                            onError: function (result: any) {
+                                updatePaymentStatusMutation.mutateAsync({
+                                    orderReference: orderId,
+                                    status: "FAILED",
+                                    gatewayResponse: result
+                                }).catch(console.error);
+                                toast.error('Payment failed');
+                                console.error(result);
+                                router.push(`/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=FAILED`);
+                            },
+                            onClose: function () {
+                                toast.info('Payment window closed, transaction may still be processing');
+                                router.push(`/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}`);
+                            }
+                        });
+                    };
+                } else {
+                    toast.error('Failed to initialize payment');
+                }
+            } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Payment process failed');
+            } finally {
+                setIsProcessingPayment(false);
+            }
         } else {
             const promise = async () => {
                 await createSubscriptionMutation.mutateAsync({
@@ -106,7 +205,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                     packageId: selectedPackage,
                     trainerId: subscriptionType === "trainer" ? selectedTrainer : undefined,
                     startDate: startDate,
-                    endDate: endDate,
+                    // endDate: endDate,
                     subsType: subscriptionType,
                     duration: subscriptionType === "gym" ? selectedPackageDetails.day ?? 0 : selectedPackageDetails.sessions ?? 0,
                     paymentMethod,
@@ -126,7 +225,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
     }
 
     return (
-        <div className="container mx-auto p-5">
+        <><div className="container mx-auto p-5">
             <h1 className="text-3xl font-bold">Subscription Checkout</h1>
             <p className="mb-6 text-muted-foreground mt-1">Member: {Member?.user?.name}</p>
 
@@ -144,7 +243,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                     setSubscriptionType(value as "gym" | "trainer")
                                     setSelectedPackage("")
                                     setSelectedTrainer("")
-                                }}
+                                } }
                             >
                                 <TabsList className="grid w-full grid-cols-2">
                                     <TabsTrigger value="gym">Gym Membership</TabsTrigger>
@@ -232,26 +331,19 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                 <h3 className="text-lg font-medium mb-3">Payment Method</h3>
                                 <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="grid grid-cols-1 gap-3">
                                     <div className="flex items-center space-x-2 rounded-md border p-3">
-                                        <RadioGroupItem value="qris" id="qris" />
-                                        <Label htmlFor="qris" className="flex items-center gap-2">
-                                            <QrCode className="h-4 w-4" />
-                                            Pembayaran Langsung
-                                        </Label>
-                                    </div>
-                                    {/* <div className="flex items-center space-x-2 rounded-md border p-3">
-                                        <RadioGroupItem value="bankA" id="bankA" />
-                                        <Label htmlFor="bankA" className="flex items-center gap-2">
+                                        <RadioGroupItem value="midtrans" id="midtrans" />
+                                        <Label htmlFor="midtrans" className="flex items-center gap-2">
                                             <CreditCard className="h-4 w-4" />
-                                            Bank A
+                                            Pay Online (Card/QRIS/E-Wallet)
                                         </Label>
                                     </div>
                                     <div className="flex items-center space-x-2 rounded-md border p-3">
-                                        <RadioGroupItem value="bankB" id="bankB" />
-                                        <Label htmlFor="bankB" className="flex items-center gap-2">
-                                            <CreditCard className="h-4 w-4" />
-                                            Bank B
+                                        <RadioGroupItem value="qris" id="qris" />
+                                        <Label htmlFor="qris" className="flex items-center gap-2">
+                                            <QrCode className="h-4 w-4" />
+                                            Manual Bukti Bayar
                                         </Label>
-                                    </div> */}
+                                    </div>
                                 </RadioGroup>
                             </div>
 
@@ -266,8 +358,8 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                         <div className="flex items-center justify-between w-full">
                                             <span>
                                                 {selectedVoucher.name} (
-                                                {selectedVoucher.discountType === "PERCENT" 
-                                                    ? `${selectedVoucher.amount}% off` 
+                                                {selectedVoucher.discountType === "PERCENT"
+                                                    ? `${selectedVoucher.amount}% off`
                                                     : `Rp ${selectedVoucher.amount.toLocaleString()} off`}
                                                 )
                                             </span>
@@ -301,20 +393,23 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                                                 <span>{selectedPackageDetails.name}</span>
                                             </div>
 
+
                                             <div className="flex justify-between">
                                                 <span>Price:</span>
                                                 <span>Rp {selectedPackageDetails.price.toLocaleString('id-ID')}</span>
                                             </div>
 
                                             {selectedVoucher && (
-                                                <div className="flex justify-between text-green-600">
-                                                    <span>Discount:</span>
-                                                    <span>
-                                                        {selectedVoucher.discountType === "PERCENT" 
-                                                            ? `${selectedVoucher.amount}%` 
-                                                            : `Rp ${selectedVoucher.amount.toLocaleString()}`}
-                                                    </span>
-                                                </div>
+                                                <>
+                                                    <div className="flex justify-between text-green-600">
+                                                        <span>Discount:</span>
+                                                        <span>
+                                                            {selectedVoucher.discountType === "PERCENT"
+                                                                ? `${selectedVoucher.amount}%`
+                                                                : `Rp ${selectedVoucher.amount.toLocaleString()}`}
+                                                        </span>
+                                                    </div>
+                                                </>
                                             )}
 
                                             <Separator className="my-2" />
@@ -333,22 +428,27 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                         <CardFooter>
                             <Button
                                 className="w-full bg-infinity"
-                                disabled={!selectedPackageDetails || (subscriptionType === "trainer" && !selectedTrainer)}
+                                disabled={!selectedPackageDetails ||
+                                    (subscriptionType === "trainer" && !selectedTrainer) ||
+                                    isProcessingPayment}
                                 onClick={handleSubmit}
                             >
-                                {paymentMethod === "qris" ? "Proceed to Upload Bukti Bayar" : "Complete Checkout"}
+                                {isProcessingPayment ? "Processing..." :
+                                    paymentMethod === "qris" ? "Proceed to Upload Bukti Bayar" :
+                                        "Pay Now"}
                             </Button>
                         </CardFooter>
                     </Card>
                 </div>
             </div>
-
-            <VoucherModal
+        </div>
+                <VoucherModal
                 isOpen={isVoucherModalOpen}
                 onClose={() => setIsVoucherModalOpen(false)}
                 onVoucherApplied={(voucher) => setSelectedVoucher(voucher.id ? voucher : null)}
-                currentVoucher={selectedVoucher || undefined}
-            />
-        </div>
+                currentVoucher={selectedVoucher || undefined} />
+
+
+        </>
     )
 }

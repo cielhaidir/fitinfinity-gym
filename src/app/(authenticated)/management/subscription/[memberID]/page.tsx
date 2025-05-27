@@ -8,6 +8,7 @@ import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "../columns";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ContinuePaymentButton } from "@/components/subscription/ContinuePaymentButton";
 
 export default function SubscriptionPage({ params }: { params: Promise<{ memberID: string }> }) {
 
@@ -18,7 +19,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
     const [limit, setLimit] = useState(10);
 
     const { data: member, isLoading: memberIsLoading, error: memberError } = api.member.detail.useQuery({ id: memberID });
-    const { data: subs = { items: [], total: 0, page: 1, limit: 10 }, isLoading, error } = api.subs.getByIdMember.useQuery(
+    const { data: subs = { items: [], total: 0, page: 1, limit: 10 }, isLoading, error, refetch } = api.subs.getByIdMember.useQuery(
         { memberId: memberID, page, limit }
     );
 
@@ -72,6 +73,33 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
                     columns={columns}
                     onPaginationChange={handlePaginationChange}
                 />
+            </div>
+            <div>
+                {subs.items.map(subscription => (
+                    <div key={subscription.id}>
+                        {/* Existing subscription display code */}
+                        
+                        {/* Add this button for pending payments */}
+                        {subscription.payments.some(payment => payment.status === "PENDING") && (
+                            <ContinuePaymentButton
+                                orderReference={subscription.payments.find(p => p.status === "PENDING")?.orderReference || ""}
+                                paymentInfo={{
+                                    totalPayment: subscription.payments.find(p => p.status === "PENDING")?.totalPayment || 0,
+                                    subscriptionId: subscription.id
+                                }}
+                                packageInfo={{
+                                    id: subscription.packageId,
+                                    name: subscription.package.name
+                                }}
+                                customerName={subscription.member.user.name || undefined}
+                                customerEmail={subscription.member.user.email || undefined}
+                                buttonText="Complete Payment"
+                                className="mt-2"
+                                onSuccess={() => refetch()}
+                            />
+                        )}
+                    </div>
+                ))}
             </div>
         </div>
     )

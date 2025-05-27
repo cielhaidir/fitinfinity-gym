@@ -107,6 +107,7 @@ export function ActivePackage() {
             <Button 
                 variant="outline" 
                 className="mt-4 w-full bg-[#C4F82A] text-black hover:bg-[#b3e626] border-0"
+                onClick={handleGetMembership}
             >
                 Upgrade Package
             </Button>

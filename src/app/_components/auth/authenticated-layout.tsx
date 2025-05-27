@@ -41,9 +41,13 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
   }, [status, router, pathname, hasPermission, isLoading])
 
   if (isLoading || status === "loading") {
-    return <LoadingSkeleton />
+    return (
+      <div className="p-4">
+        <LoadingSkeleton />
+      </div>
+    )
   }
-
+  
   return (
     <SidebarProvider>
       <AppSidebar />

@@ -169,6 +169,7 @@ export const memberRouter = createTRPCRouter({
                     user: {
                         select: {
                             name: true,
+                            email: true,
                         }
                     }
                 }

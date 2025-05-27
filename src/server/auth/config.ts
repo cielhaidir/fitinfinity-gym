@@ -183,7 +183,9 @@ export const authConfig = {
     },
 
     async signIn({ user, account, profile }) {
+
       console.log("Starting signIn callback for provider:", account?.provider);
+
       try {
         if (account?.provider === "google") {
           console.log("Processing Google sign in for email:", user.email);
@@ -192,31 +194,72 @@ export const authConfig = {
             where: { email: user.email as string },
             include: { accounts: true, roles: true },
           });
+
           if (!existingUser) {
             console.error("User record not found after OAuth signup");
-            return false;
+            return false; // Or redirect to a signup page if you want to create users who don't already exist
           }
-          if (!existingUser.accounts.some((acc) => acc.provider === "google")) {
+
+          const hasGoogleAccount = existingUser.accounts?.some((acc) => acc.provider === "google");
+
+          if (!hasGoogleAccount) {
             await db.account.create({
               data: {
                 userId: existingUser.id,
                 type: account.type,
                 provider: account.provider,
                 providerAccountId: account.providerAccountId,
-                access_token: account.access_token as string | null,
-                token_type: account.token_type as string | null,
-                scope: account.scope as string | null,
-                id_token: account.id_token as string | null,
-                session_state: account.session_state as string | null,
+                access_token: account.access_token,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state: account.session_state ? String(account.session_state) : null,
               },
             });
+            console.log("Google account linked for user:", existingUser.id);
           }
         }
         return true;
       } catch (error) {
         console.error("Error in signIn callback:", error);
-        return false;
+        return false; // Important: Returning false prevents sign-in
       }
+      
+      // console.log("Starting signIn callback for provider:", account?.provider);
+      // try {
+      //   if (account?.provider === "google") {
+      //     console.log("Processing Google sign in for email:", user.email);
+
+      //     const existingUser = await db.user.findUnique({
+      //       where: { email: user.email as string },
+      //       include: { accounts: true, roles: true },
+      //     });
+      //     if (!existingUser) {
+      //       console.error("User record not found after OAuth signup");
+      //       return false;
+      //     }
+      //     if (!existingUser.accounts.some((acc) => acc.provider === "google")) {
+      //       await db.account.create({
+      //         data: {
+      //           userId: existingUser.id,
+      //           type: account.type,
+      //           provider: account.provider,
+      //           providerAccountId: account.providerAccountId,
+      //           access_token: account.access_token as string | null,
+      //           token_type: account.token_type as string | null,
+      //           scope: account.scope as string | null,
+      //           id_token: account.id_token as string | null,
+      //           session_state: account.session_state as string | null,
+      //         },
+      //       });
+      //     }
+      //   }
+      //   return true;
+      // } catch (error) {
+      //   console.error("Error in signIn callback:", error);
+      //   return false;
+      // }
+      return true
     },
   },
   events: {

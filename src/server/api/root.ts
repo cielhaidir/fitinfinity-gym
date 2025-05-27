@@ -25,6 +25,7 @@ import { paymentValidationRouter } from "./routers/paymentValidation";
 import { transactionRouter } from "./routers/transaction";
 import { whatsappRouter } from "./routers/whatsapp";
 import { fcRouter } from "./routers/fc";
+import { paymentRouter } from "./routers/payment";
 /**
  * This is the primary router for your server.
  *
@@ -57,6 +58,7 @@ export const appRouter = createTRPCRouter({
   transaction: transactionRouter,
   whatsapp: whatsappRouter,
   fc: fcRouter,
+  payment: paymentRouter
 });
 
 // export type definition of API

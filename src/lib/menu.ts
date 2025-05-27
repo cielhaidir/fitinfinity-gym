@@ -81,12 +81,12 @@ export const Menu: { navMain: MenuGroup[] } = {
                     icon: Users,
                     // requiredPermission: "list:roles"
                 },
-                {
-                    title: "Member",
-                    url: "/management/member",
-                    icon: UserCog,
-                    // requiredPermission: "list:roles"
-                },
+                // {
+                //     title: "Member",
+                //     url: "/management/member",
+                //     icon: UserCog,
+                //     // requiredPermission: "list:roles"
+                // },
                 {
                     title: "Fitness Consultan",
                     url: "/management/FC",
@@ -165,8 +165,13 @@ export const Menu: { navMain: MenuGroup[] } = {
                 //     title: "Point",
                 //     url: "/member/point-reward",
                 // },
+                // {
+                //     title: "Online Payment History",
+                //     icon:CreditCard,
+                //     url: "/management/subscription",
+                // },
                 {
-                    title: "Payment History",
+                    title: "Offline Payment History",
                     icon:CreditCard,
                     url: "/member/payment-history",
                 },

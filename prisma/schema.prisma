@@ -19,6 +19,11 @@ enum PaymentStatus {
     SUCCESS
     PENDING
     FAILED
+    EXPIRED
+    CANCELED
+    CHALLENGED
+    REFUNDED
+    SETTLED
 }
 
 enum VoucherType {
@@ -100,7 +105,7 @@ model User {
     emailVerified      DateTime?
     password           String?
     address            String?
-    phone              String?           @unique
+    phone              String?        
     birthDate          DateTime?
     idNumber           String?
     image              String?
@@ -225,6 +230,7 @@ model Subscription {
     startDate         DateTime
     endDate           DateTime?
     remainingSessions Int?
+    isActive          Boolean          @default(false)
     payments          Payment[]
 }
 
@@ -235,7 +241,12 @@ model Payment {
     status         PaymentStatus
     method         String
     totalPayment   Int
+    orderReference String?       @unique  // Used to track payments with the gateway
+    gatewayResponse Json?        // Store the complete gateway response
+    paymentUrl     String?       // URL to payment page (if applicable)
+    paidAt         DateTime?     // When the payment was completed
     createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
 }
 
 model PersonalTrainer {

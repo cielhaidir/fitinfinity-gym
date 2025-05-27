@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { data: session, status } = useSession()
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,6 +28,12 @@ export default function SignUpPage() {
     { referralCode: formData.fcReferralCode },
     { enabled: false }
   );
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/");
+    }
+  }, [status, router]);
 
   useEffect(() => {
     if (formData.confirmPassword && formData.password !== formData.confirmPassword) {
@@ -115,7 +122,7 @@ export default function SignUpPage() {
       if (formData.fcReferralCode) {
         try {
           const { data: fc } = await checkFC();
-          fcId = fc.id;
+          fcId = fc?.id;
         } catch (error) {
           setFcError("Invalid FC referral code");
           return;
@@ -129,7 +136,7 @@ export default function SignUpPage() {
         address: formData.address,
         phone: formData.phone,
         birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
-        fcId: fcId,
+        fcId: fcId? fcId : '',
       });
     } catch (error) {
       console.error("Signup error:", error);
