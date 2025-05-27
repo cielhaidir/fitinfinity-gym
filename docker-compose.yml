@@ -19,9 +19,9 @@ services:
       context: .
       dockerfile: Dockerfile
       # target: dev
-    volumes:
-      - .:/app
-      - /app/node_modules
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
     depends_on:
       - db
     ports:
