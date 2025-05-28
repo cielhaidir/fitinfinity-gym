@@ -10,16 +10,25 @@ import { Subscription } from "./schema";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2, Edit } from "lucide-react";
+import { Eye, Trash2, Edit, ExternalLink, MoreHorizontal } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ColumnsProps {
-    onViewMember?: (memberId: string) => void;
-    onEdit?: (subscription: Subscription) => void;
+    onViewMember: (memberId: string) => void;
+    onEdit: (subscription: Subscription) => void;
+    onCheckPayment?: (memberId: string, orderReference: string) => void;
 }
 
 export const createColumns = ({
     onViewMember,
     onEdit,
+    onCheckPayment,
 }: ColumnsProps): ColumnDef<Subscription>[] => {
     const utils = api.useUtils();
     const deleteSubscriptionMutation = api.subs.delete.useMutation({
@@ -31,7 +40,7 @@ export const createColumns = ({
             const previousSubscriptions = utils.subs.list.getData();
 
             // Optimistically update to the new value
-            utils.subs.list.setData(undefined, (old) => {
+            utils.subs.list.setData({ page: 1, limit: 10 }, (old) => {
                 if (!old) return { items: [], total: 0, page: 1, limit: 10 };
                 return {
                     ...old,
@@ -46,7 +55,7 @@ export const createColumns = ({
         onError: (err, newSubscription, context) => {
             // If the mutation fails, use the context returned from onMutate to roll back
             if (context?.previousSubscriptions) {
-                utils.subs.list.setData(undefined, context.previousSubscriptions);
+                utils.subs.list.setData({ page: 1, limit: 10 }, context.previousSubscriptions);
             }
             toast.error(err.message);
         },
@@ -193,36 +202,32 @@ export const createColumns = ({
         {
             id: "actions",
             cell: ({ row }) => {
+                const subscription = row.original;
+                const paymentValidation = subscription.payments;
+                const isOnlinePayment = paymentValidation?.isOnlinePayment;
+                const orderReference = paymentValidation?.orderReference;
+
                 return (
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onViewMember?.(row.original.memberId)}
-                            className="h-8 w-8 hover:bg-muted"
-                        >
-                            <Eye className="h-4 w-4" />
-                            <span className="sr-only">View Member</span>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onEdit?.(row.original)}
-                            className="h-8 w-8 hover:bg-muted"
-                        >
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(row.original.id ?? "")}
-                            className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                        </Button>
-                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        
+                            <DropdownMenuItem onClick={() => onEdit(subscription)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            { orderReference && onCheckPayment && (
+                                <DropdownMenuItem onClick={() => onCheckPayment(subscription.memberId!, orderReference)}>
+                                    <ExternalLink className="mr-2 h-4 w-4" /> Check Payment Status
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 );
             },
         },

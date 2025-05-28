@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/trpc/react"
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"
-import { VoucherModal } from "@/app/(authenticated)/management/subscription/voucherModal";
+import { VoucherModal } from "./voucherModal";
 
 export default function SubscriptionPage({ params }: { params: Promise<{ memberID: string }> }) {
     const { memberID } = use(params)

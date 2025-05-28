@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Receipt, Package } from "lucide-react";
+import { Receipt, Package, ExternalLink, CreditCard } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -20,17 +20,25 @@ import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 export default function PaymentHistoryPage() {
+    const router = useRouter();
     const { data: session } = useSession();
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
 
-    // Query untuk mendapatkan data transaksi member
+    // Query to get membership for member ID
+    const { data: membershipData } = api.member.getByUserId.useQuery(
+        { userId: session?.user?.id ?? "" },
+        { enabled: !!session?.user?.id }
+    );
+
+    // Query for getting all payment types
     const { data: transactions, isLoading } = api.paymentValidation.getMemberPayments.useQuery(
-        { page, limit },
+        { page, limit, includeOnline: true },
         {
             enabled: !!session,
             refetchOnWindowFocus: true,
@@ -45,6 +53,13 @@ export default function PaymentHistoryPage() {
         }
         setSelectedImageUrl(imageUrl);
         setIsImageModalOpen(true);
+    };
+
+    // Navigate to payment confirmation page for online payments
+    const goToPaymentStatus = (orderReference: string) => {
+        if (membershipData?.id) {
+            router.push(`/checkout/confirmation/${membershipData.id}?orderRef=${orderReference}`);
+        }
     };
 
     const columns: ColumnDef<any>[] = [
@@ -89,6 +104,20 @@ export default function PaymentHistoryPage() {
             },
         },
         {
+            accessorKey: "paymentMethod",
+            header: ({ column }) => <DataTableColumnHeader column={column} title="Method" />,
+            cell: ({ row }) => {
+                const method = row.getValue("paymentMethod") as string | undefined;
+                const isOnline = row.original.isOnlinePayment;
+                return (
+                    <div className="flex items-center">
+                        {isOnline ? <CreditCard className="h-4 w-4 mr-1 text-blue-500" /> : <Receipt className="h-4 w-4 mr-1" />}
+                        <span className="capitalize">{method || (isOnline ? "Online" : "Manual")}</span>
+                    </div>
+                );
+            },
+        },
+        {
             accessorKey: "paymentStatus",
             header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
             cell: ({ row }) => {
@@ -98,12 +127,19 @@ export default function PaymentHistoryPage() {
 
                 switch (status) {
                     case "ACCEPTED":
+                    case "SUCCESS":
                         variant = "default";
                         label = "Accepted";
                         break;
                     case "DECLINED":
+                    case "FAILED":
+                    case "EXPIRED":
                         variant = "destructive";
-                        label = "Declined";
+                        label = status === "DECLINED" ? "Declined" : status === "FAILED" ? "Failed" : "Expired";
+                        break;
+                    case "PENDING":
+                        variant = "secondary";
+                        label = "Pending";
                         break;
                     default:
                         variant = "secondary";
@@ -114,18 +150,38 @@ export default function PaymentHistoryPage() {
             },
         },
         {
-            accessorKey: "filePath",
-            header: "Proof",
+            accessorKey: "actions",
+            header: "Actions",
             cell: ({ row }) => {
+                const isOnline = row.original.isOnlinePayment;
+                const orderReference = row.original.orderReference;
                 const filePath = row.original.filePath;
-                if (!filePath) {
-                    return <span className="text-muted-foreground">No proof</span>;
+                const status = row.original.paymentStatus;
+                
+                // For online payments, show a button to check status
+                if (isOnline) {
+                    return (
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => goToPaymentStatus(orderReference)}
+                            disabled={!orderReference}
+                        >
+                            <ExternalLink className="mr-2 h-4 w-4" /> Check Status
+                        </Button>
+                    );
                 }
-                return (
-                    <Button variant="outline" size="sm" onClick={() => openImageModal(filePath)}>
-                        <Receipt className="mr-2 h-4 w-4" /> View
-                    </Button>
-                );
+                
+                // For offline payments, show view proof button if available
+                if (filePath) {
+                    return (
+                        <Button variant="outline" size="sm" onClick={() => openImageModal(filePath)}>
+                            <Receipt className="mr-2 h-4 w-4" /> View Proof
+                        </Button>
+                    );
+                }
+                
+                return <span className="text-muted-foreground text-sm">No action</span>;
             },
         },
     ];

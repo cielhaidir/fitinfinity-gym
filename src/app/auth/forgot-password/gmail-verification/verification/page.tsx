@@ -1,20 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
-export default function GmailVerificationCodePage() {
-  const [verificationCode, setVerificationCode] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Implement verification code checking logic
-    console.log("Verifying code:", verificationCode);
-  };
-
-  const handleResend = () => {
-    // Implement resend verification code logic
-    console.log("Resending verification code");
-  };
+export default function VerificationInstructionsPage() {
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email");
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
@@ -27,57 +18,63 @@ export default function GmailVerificationCodePage() {
         />
       </div>
 
-      {/* Verification Code Form Container */}
+      {/* Content Container */}
       <div className="flex-1 flex items-center justify-center px-4 md:px-6">
-        <div className="w-full max-w-[500px]">
+        <div className="w-full max-w-[500px] text-center">
+          <div className="mb-6">
+            <svg 
+              className="mx-auto h-12 w-12 text-[#BAD45E]" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" 
+              />
+            </svg>
+          </div>
+
           <h1 className="text-3xl font-bold mb-4 dark:text-white">
-            Enter Your Verification Code
+            Check Your Email
           </h1>
+
+          {email && (
+            <p className="text-gray-600 dark:text-gray-300 mb-2">
+              We've sent a password reset link to:
+              <br />
+              <span className="font-medium text-gray-900 dark:text-white">
+                {email}
+              </span>
+            </p>
+          )}
+
           <p className="text-gray-600 dark:text-gray-300 mb-8">
-            We've sent a 6-digit verification code to your Email. Enter it below to proceed.
+            Click the link in the email to reset your password. If you don't see the email, check your spam folder.
           </p>
 
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-6">
-              {/* Verification Code Field */}
-              <div>
-                <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Verification Code
-                </label>
-                <input
-                  type="text"
-                  id="verificationCode"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  placeholder="6-digit verification code"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
-                  required
-                  maxLength={6}
-                  pattern="\d{6}"
-                />
-              </div>
+          <Link 
+            href="/auth/signin" 
+            className="inline-block text-[#BAD45E] hover:text-[#95B640] font-medium"
+          >
+            Back to Sign In
+          </Link>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] text-center font-bold rounded-md dark:text-gray-900"
+          <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Didn't receive the email?
+              <br />
+              Check your spam folder or{" "}
+              <Link 
+                href="/auth/forgot-password/gmail-verification" 
+                className="text-[#BAD45E] hover:text-[#95B640]"
               >
-                Send Verification Code
-              </button>
-
-              {/* Resend Link */}
-              <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
-                Didn't receive the code?{' '}
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  className="text-[#95B640] hover:underline"
-                >
-                  Resend
-                </button>
-              </p>
-            </div>
-          </form>
+                try another email address
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,14 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/trpc/react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function GmailVerificationPage() {
   const [email, setEmail] = useState("");
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const sendResetEmail = api.email.sendPasswordResetEmail.useMutation({
+    onSuccess: () => {
+      // Always show success even if email doesn't exist (for security)
+      toast.success("If an account exists with this email, you will receive a password reset link.");
+      router.push(`/auth/forgot-password/gmail-verification/verification?email=${encodeURIComponent(email)}`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Implement verification code sending logic
-    console.log("Sending verification code to:", email);
+    
+    try {
+      await sendResetEmail.mutateAsync({
+        email,
+        resetBaseUrl: `${window.location.origin}/auth/reset-password`,
+      });
+    } catch (error) {
+      // Error is handled by onError above
+    }
   };
 
   return (
@@ -53,9 +75,20 @@ export default function GmailVerificationPage() {
               {/* Send Verification Code Button */}
               <button
                 type="submit"
-                className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] text-center font-bold rounded-md dark:text-gray-900"
+                disabled={sendResetEmail.isPending}
+                className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] text-center font-bold rounded-md dark:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                Send Verification Code
+                {sendResetEmail.isPending ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Sending...
+                  </>
+                ) : (
+                  "Send Verification Code"
+                )}
               </button>
             </div>
           </form>

@@ -22,10 +22,12 @@ export const subscriptionRouter = createTRPCRouter({
         }))
         .mutation(async ({ ctx, input }) => {
             const member = await ctx.db.membership.findUnique({
-                where: { userId: input.memberId }
+                where: { id: input.memberId }
               });
               
               if (!member) {
+
+                
                 throw new TRPCError({
                   code: "BAD_REQUEST",
                   message: `Member with ID ${input.memberId} does not exist.`,
@@ -239,7 +241,17 @@ export const subscriptionRouter = createTRPCRouter({
                             point: true,
                         }
                     },
-                    payments: true,
+                    payments: {
+                        select: {
+                            id: true,
+                            status: true,
+                            method: true,
+                            totalPayment: true,
+                            orderReference: true,
+                            paidAt: true,
+                            updatedAt: true,
+                        }
+                    },
                 }
             });
 

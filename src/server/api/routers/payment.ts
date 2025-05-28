@@ -3,12 +3,15 @@ import { z } from "zod";
 import {
     createTRPCRouter,
     protectedProcedure,
-    publicProcedure
+    publicProcedure,
 } from "@/server/api/trpc";
 
+import { TRPCError } from "@trpc/server";
 // @ts-ignore
 import midtransClient from "midtrans-client";
-import { PaymentStatus } from "@prisma/client";  // Import the correct enum type
+import { PaymentStatus, EmailType } from "@prisma/client";  // Import the correct enum types
+import { emailService } from "@/lib/email/emailService";
+import { format } from "date-fns";
 
 export const paymentRouter = createTRPCRouter({
   createTransaction: publicProcedure
@@ -27,7 +30,7 @@ export const paymentRouter = createTRPCRouter({
         callbackUrl: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const snap = new midtransClient.Snap({
         isProduction: false, // true di production
         serverKey: process.env.MIDTRANS_SERVER_KEY,
@@ -51,8 +54,62 @@ export const paymentRouter = createTRPCRouter({
         } : undefined,
       };
 
-      const transaction = await snap.createTransaction(parameter);
-      return { token: transaction.token, redirect_url: transaction.redirect_url };
+      try {
+        const transaction = await snap.createTransaction(parameter);
+        
+        // Find existing payment record and update it with the token
+        const payment = await ctx.db.payment.findFirst({
+          where: { orderReference: input.orderId }
+        });
+        
+        if (payment) {
+          // Store token directly in the payment record
+          await ctx.db.payment.update({
+            where: { id: payment.id },
+            data: { 
+              token: transaction.token,
+              tokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              gatewayResponse: {
+                ...(typeof payment.gatewayResponse === 'object' && payment.gatewayResponse !== null ? payment.gatewayResponse : {}),
+                redirect_url: transaction.redirect_url
+              }
+            }
+          });
+        }
+        
+        return { token: transaction.token, redirect_url: transaction.redirect_url };
+      } catch (error) {
+        console.error('Error creating transaction:', error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Failed to create transaction"
+        });
+      }
+    }),
+
+  getByOrderReference: protectedProcedure
+    .input(z.object({ orderReference: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const payment = await ctx.db.payment.findFirst({
+        where: { 
+          orderReference: input.orderReference,
+          // Only get tokens that haven't expired
+          OR: [
+            { tokenExpiry: { gt: new Date() } },
+            { tokenExpiry: null }
+          ]
+        },
+      });
+      
+      if (!payment || !payment.token) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Payment token not found or expired"
+        });
+      }
+      
+      // Return the token directly from the payment record
+      return { token: payment.token };
     }),
 
   handleNotification: publicProcedure
@@ -113,32 +170,93 @@ export const paymentRouter = createTRPCRouter({
 
         // If payment is successful, activate the membership
         if (status === "SUCCESS" && payment.subscription) {
-          // Update membership to active
-          await ctx.db.membership.update({
+          // Find membership and package details
+          const membership = await ctx.db.membership.findUnique({
             where: { id: payment.subscription.memberId },
-            data: { isActive: true }
+            include: {
+              user: true,
+              personalTrainer: {
+                include: { user: true }
+              }
+            }
           });
-          
-          // Find the package details
+
           const packageDetails = await ctx.db.package.findUnique({
             where: { id: payment.subscription.packageId }
           });
+
+          if (!membership || !packageDetails) {
+            throw new Error("Membership or package details not found");
+          }
+
+          // Update membership to active
+          await ctx.db.membership.update({
+            where: { id: membership.id },
+            data: { isActive: true }
+          });
           
           // Award points to the member's user account
-          if (packageDetails && packageDetails.point > 0) {
-            const membership = await ctx.db.membership.findUnique({
-              where: { id: payment.subscription.memberId },
-              select: { userId: true }
+          if (packageDetails.point > 0) {
+            await ctx.db.user.update({
+              where: { id: membership.userId },
+              data: {
+                point: { increment: packageDetails.point }
+              }
             });
-            
-            if (membership) {
-              await ctx.db.user.update({
-                where: { id: membership.userId },
-                data: {
-                  point: { increment: packageDetails.point }
-                }
-              });
-            }
+          }
+
+          // Send payment receipt email
+          const paymentTemplate = await ctx.db.emailTemplate.findFirst({
+            where: { type: EmailType.PAYMENT_RECEIPT }
+          });
+
+          if (paymentTemplate) {
+            await emailService.sendTemplateEmail({
+              to: membership.user.email!,
+              templateId: paymentTemplate.id,
+              templateData: {
+                name: membership.user.name,
+                packageName: packageDetails.name,
+                amount: payment.totalPayment,
+                paymentDate: format(new Date(), "PPP"),
+                paymentMethod: payment.method,
+                transactionId: payment.orderReference,
+                email: membership.user.email,
+                supportEmail: "support@fitinfinity.com",
+                supportPhone: "+1234567890",
+                logoUrl: "https://dev.fitinfinity.id/assets/fitinfinity-lime.png",
+                currentYear: new Date().getFullYear(),
+                address: "123 Gym Street, Fitness City",
+              }
+            });
+          }
+
+          // Send membership confirmation email
+          const membershipTemplate = await ctx.db.emailTemplate.findFirst({
+            where: { type: EmailType.MEMBERSHIP_CONFIRMATION }
+          });
+
+          if (membershipTemplate) {
+            await emailService.sendTemplateEmail({
+              to: membership.user.email!,
+              templateId: membershipTemplate.id,
+              templateData: {
+                memberName: membership.user.name,
+                membershipId: membership.id,
+                packageName: packageDetails.name,
+                startDate: format(payment.subscription.startDate, "PPP"),
+                endDate: payment.subscription.endDate ? format(payment.subscription.endDate, "PPP") : "N/A",
+                personalTrainer: membership.personalTrainer ? true : false,
+                trainerName: membership.personalTrainer?.user.name,
+                email: membership.user.email,
+                portalUrl: "https://dev.fitinfinity.id/member",
+                supportEmail: "support@fitinfinity.com",
+                supportPhone: "+1234567890",
+                logoUrl: "https://dev.fitinfinity.id/assets/fitinfinity-lime.png",
+                currentYear: new Date().getFullYear(),
+                address: "123 Gym Street, Fitness City",
+              }
+            });
           }
         }
 

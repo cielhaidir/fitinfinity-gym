@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Welcome to Fit Infinity</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 8px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .membership-details {
+            background-color: white;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{logoUrl}}" alt="Fit Infinity" class="logo">
+        <h1>Welcome to Fit Infinity!</h1>
+    </div>
+
+    <div class="content">
+        <p>Dear {{memberName}},</p>
+
+        <p>Welcome to Fit Infinity! We're excited to have you as a member of our fitness family. Your membership has been successfully activated.</p>
+
+        <div class="membership-details">
+            <h3>Membership Details:</h3>
+            <p><strong>Membership ID:</strong> {{membershipId}}</p>
+            <p><strong>Package:</strong> {{packageName}}</p>
+            <p><strong>Start Date:</strong> {{startDate}}</p>
+            <p><strong>End Date:</strong> {{endDate}}</p>
+            {{#if personalTrainer}}
+            <p><strong>Personal Trainer:</strong> {{trainerName}}</p>
+            {{/if}}
+        </div>
+
+        <p>What's Next:</p>
+        <ul>
+            <li>Visit our facility and meet with our staff for orientation</li>
+            <li>Download our mobile app to track your workouts</li>
+            <li>Check out our class schedule and book your first session</li>
+        </ul>
+
+        <p>Get started by accessing your member portal:</p>
+        <a href="{{portalUrl}}" class="button">Access Member Portal</a>
+
+        <p>If you have any questions or need assistance, our team is here to help. Contact us at:</p>
+        <ul>
+            <li>Phone: {{supportPhone}}</li>
+            <li>Email: {{supportEmail}}</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>This email was sent to {{memberEmail}}</p>
+        <p>&copy; {{currentYear}} Fit Infinity. All rights reserved.</p>
+        <p>{{address}}</p>
+    </div>
+</body>
+</html>

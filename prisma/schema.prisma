@@ -1,6 +1,36 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+// model EmailConfig {
+//   id        String   @id @default(cuid())
+//   name      String
+//   host      String
+//   port      Int
+//   username  String
+//   password  String
+//   fromEmail String
+//   fromName  String
+//   useTLS    Boolean  @default(true)
+//   useSSL    Boolean  @default(false)
+//   isActive  Boolean  @default(false)
+//   isDefault Boolean  @default(false)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+// model EmailTemplate {
+//   id          String    @id @default(cuid())
+//   type        String
+//   name        String
+//   subject     String
+//   htmlContent String    @db.Text
+//   textContent String?   @db.Text
+//   variables   Json
+//   isActive    Boolean   @default(true)
+//   createdAt   DateTime  @default(now())
+//   updatedAt   DateTime  @updatedAt
+// }
+
 generator client {
     provider = "prisma-client-js"
 }
@@ -105,10 +135,12 @@ model User {
     emailVerified      DateTime?
     password           String?
     address            String?
-    phone              String?        
+    phone              String?
     birthDate          DateTime?
     idNumber           String?
     image              String?
+    resetToken         String?           @unique
+    resetTokenExpiry   DateTime?
     roles              Role[]
     memberships        Membership[]      @relation("MembershipToUser")
     personalTrainer    PersonalTrainer[] @relation("PersonalTrainerToUser")
@@ -241,6 +273,8 @@ model Payment {
     status         PaymentStatus
     method         String
     totalPayment   Int
+    token          String?       // Dedicated field for payment gateway token
+    tokenExpiry    DateTime?     // When the token expires
     orderReference String?       @unique  // Used to track payments with the gateway
     gatewayResponse Json?        // Store the complete gateway response
     paymentUrl     String?       // URL to payment page (if applicable)
@@ -490,4 +524,75 @@ model FC {
     creator       User?            @relation("UserCreatedBy", fields: [createdBy], references: [id])
     paymentValidations PaymentValidation[]
     memberships   Membership[]
+}
+
+// Email Configuration Models
+enum EmailType {
+    MEMBERSHIP_CONFIRMATION
+    PAYMENT_RECEIPT
+    PASSWORD_RESET
+    SUBSCRIPTION_EXPIRY
+    TRAINER_SESSION_REMINDER
+}
+
+enum EmailStatus {
+    PENDING
+    SENT
+    FAILED
+    BOUNCED
+}
+
+model EmailConfig {
+    id          String   @id @default(cuid())
+    name        String   @unique // e.g., "primary", "backup"
+    host        String
+    port        Int
+    username    String
+    password    String   // encrypted
+    fromEmail   String
+    fromName    String
+    useTLS      Boolean  @default(true)
+    useSSL      Boolean  @default(false)
+    isActive    Boolean  @default(false)
+    isDefault   Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@index([isActive])
+    @@index([isDefault])
+}
+
+model EmailTemplate {
+    id          String   @id @default(cuid())
+    name        String   @unique
+    type        EmailType
+    subject     String
+    htmlContent String   @db.Text
+    textContent String?  @db.Text
+    variables   Json     // Available template variables
+    isActive    Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    
+    emailLogs   EmailLog[]
+
+    @@index([type])
+    @@index([isActive])
+}
+
+model EmailLog {
+    id          String      @id @default(cuid())
+    to          String
+    subject     String
+    templateId  String?
+    status      EmailStatus @default(PENDING)
+    errorMessage String?
+    sentAt      DateTime?
+    createdAt   DateTime    @default(now())
+    
+    template    EmailTemplate? @relation(fields: [templateId], references: [id])
+
+    @@index([status])
+    @@index([createdAt])
+    @@index([to])
 }

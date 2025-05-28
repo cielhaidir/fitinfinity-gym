@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -40,6 +39,7 @@ export function ContinuePaymentButton({
   
   const createPaymentMutation = api.payment.createTransaction.useMutation();
   const updatePaymentStatusMutation = api.subs.updatePaymentStatus.useMutation();
+  const getPaymentByOrderRef = api.payment.getByOrderReference.useMutation();
   
   const handleContinuePayment = async () => {
     setIsProcessing(true);
@@ -52,15 +52,33 @@ export function ContinuePaymentButton({
         quantity: 1
       }];
 
-      // Create a transaction with Midtrans
-      const transactionResponse = await createPaymentMutation.mutateAsync({
-        orderId: orderReference,
-        amount: paymentInfo.totalPayment,
-        customerName,
-        customerEmail,
-        itemDetails,
-        callbackUrl: `${window.location.origin}/checkout/confirmation/${orderReference}?subscriptionId=${paymentInfo.subscriptionId}`,
-      });
+      // First try to get existing payment data
+      let transactionResponse;
+      try {
+        const existingPayment = await getPaymentByOrderRef.mutateAsync({
+          orderReference
+        });
+        
+        // If we have an existing payment with token, use it
+        if (existingPayment && existingPayment.token) {
+          transactionResponse = { token: existingPayment.token };
+        } else {
+          // Otherwise create new payment
+          transactionResponse = await createPaymentMutation.mutateAsync({
+            orderId: orderReference,
+            amount: paymentInfo.totalPayment,
+            customerName,
+            customerEmail,
+            itemDetails,
+            callbackUrl: `${window.location.origin}/checkout/confirmation/${orderReference}?subscriptionId=${paymentInfo.subscriptionId}`,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching or creating payment:', error);
+        toast.error('Failed to fetch or create payment');
+        setIsProcessing(false);
+        return;
+      }
 
       if (transactionResponse.token) {
         // Clean up any existing snap instances

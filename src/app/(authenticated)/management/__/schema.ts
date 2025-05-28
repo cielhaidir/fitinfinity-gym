@@ -44,7 +44,15 @@ export const SubscriptionSchema = z.object({
         updatedAt: z.date().nullable(),
         type: z.enum(['GYM_MEMBERSHIP', 'PERSONAL_TRAINER']),
     }),
-
+    paymentValidation: z.object({
+        id: z.string().optional(),
+        isOnlinePayment: z.boolean().optional(),
+        orderReference: z.string().optional(),
+        paymentStatus: z.enum(['PENDING', 'SUCCESS', 'FAILED', 'EXPIRED', 'ACCEPTED', 'DECLINED']).optional(),
+        totalPayment: z.number().optional(),
+        paymentMethod: z.string().optional(),
+        createdAt: z.date().optional(),
+    }).optional(),
 });
 
 export type Subscription = z.infer<typeof SubscriptionSchema>;

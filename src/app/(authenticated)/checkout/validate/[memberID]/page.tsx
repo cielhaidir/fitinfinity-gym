@@ -102,7 +102,7 @@ function CheckoutValidateContent() {
             });
 
             toast.success("Proof of payment submitted successfully! Please wait for admin approval.");
-            router.push(`/management/subscription/${memberID}`);
+            router.push(`/member/payment-history`);
             await utils.paymentValidation.listWaiting.invalidate();
 
         } catch (error) {

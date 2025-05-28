@@ -1,5 +1,7 @@
 import { postRouter } from "@/server/api/routers/post";
+import { emailRouter } from "@/server/api/routers/email";
 import { userRouter } from "@/server/api/routers/user";
+import { authRouter } from "@/server/api/routers/auth";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { memberRouter } from "./routers/member";
 import { personalTrainerRouter } from "./routers/personalTrainer";
@@ -26,6 +28,7 @@ import { transactionRouter } from "./routers/transaction";
 import { whatsappRouter } from "./routers/whatsapp";
 import { fcRouter } from "./routers/fc";
 import { paymentRouter } from "./routers/payment";
+
 /**
  * This is the primary router for your server.
  *
@@ -58,7 +61,9 @@ export const appRouter = createTRPCRouter({
   transaction: transactionRouter,
   whatsapp: whatsappRouter,
   fc: fcRouter,
-  payment: paymentRouter
+  payment: paymentRouter,
+  email: emailRouter,
+  auth: authRouter
 });
 
 // export type definition of API

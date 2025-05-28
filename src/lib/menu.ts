@@ -1,5 +1,5 @@
 import Calendar from '@/app/(authenticated)/PT/jadwalPT/components/calendar';
-import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound, DollarSign, Gift, CircleGauge, UserRound, Calendar1, Badge, Book } from 'lucide-react';
+import { Users, UserCog, Package, User, UserPlus, Dumbbell, CreditCard, Contact, ContactRound, DollarSign, Gift, CircleGauge, UserRound, Calendar1, Badge, Book, Settings, Mail } from 'lucide-react';
 import { LucideIcon, HandCoins } from 'lucide-react';
 
 interface MenuItem {
@@ -94,7 +94,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                     requiredPermission: "list:fc"
                 },
                 {
-                    title: 'Subscription',
+                    title: 'Payment List',
                     url: '/management/subscription',
                     icon: CreditCard,
                     requiredPermission: "list:subscriptions"
@@ -104,6 +104,18 @@ export const Menu: { navMain: MenuGroup[] } = {
                     url: '/management/reward',
                     icon: Gift,
                     requiredPermission: "list:reward"
+                },
+                // {
+                //     title: "Configuration",
+                //     url: "/management/config",
+                //     icon: Settings,
+                //     // requiredPermission: "manage:config"
+                // },
+                {
+                    title: "Email Settings",
+                    url: "/management/config/email",
+                    icon: Mail,
+                    // requiredPermission: "manage:config"
                 }
             ],
         },
@@ -171,7 +183,7 @@ export const Menu: { navMain: MenuGroup[] } = {
                 //     url: "/management/subscription",
                 // },
                 {
-                    title: "Offline Payment History",
+                    title: "Payment History",
                     icon:CreditCard,
                     url: "/member/payment-history",
                 },

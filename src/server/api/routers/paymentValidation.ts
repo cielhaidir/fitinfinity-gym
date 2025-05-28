@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "@/server/api/trpc";
 import { db } from "@/server/db";
-import { PaymentValidationStatus, PaymentStatus } from "@prisma/client";
+import { PaymentValidationStatus, PaymentStatus, EmailType } from "@prisma/client";
+import { emailService } from "@/lib/email/emailService";
+import { format } from "date-fns";
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -167,14 +169,19 @@ export const paymentValidationRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             const paymentValidation = await ctx.db.paymentValidation.findUnique({
                 where: { id: input.id },
-                include: { 
+                include: {
                     package: true,
                     member: {
                         include: {
                             user: true
                         }
+                    },
+                    trainer: {
+                        include: {
+                            user: true
+                        }
                     }
-                }, // Include package to get duration/session details
+                },
             });
 
             if (!paymentValidation) {
@@ -244,7 +251,48 @@ export const paymentValidationRouter = createTRPCRouter({
                     },
                 });
                 
-                // 4. Optionally, give points to user if applicable by package
+                // 4. Send payment receipt email
+                const paymentTemplate = await prisma.emailTemplate.findFirst({
+                    where: { type: EmailType.PAYMENT_RECEIPT }
+                });
+
+                if (paymentTemplate && paymentValidation.member?.user?.email) {
+                    await emailService.sendTemplateEmail({
+                        to: paymentValidation.member.user.email,
+                        templateId: paymentTemplate.id,
+                        templateData: {
+                            memberName: paymentValidation.member.user.name,
+                            packageName: paymentValidation.package.name,
+                            receiptNumber: subscription.id,
+                            totalAmount: paymentValidation.totalPayment,
+                            paymentStatus: PaymentStatus.SUCCESS,
+                            statusClass: PaymentStatus.SUCCESS.toLowerCase(),
+                            paymentDate: format(new Date(), "PPP"),
+                            paymentMethod: paymentValidation.paymentMethod,
+                            duration: `${paymentValidation.duration} ${paymentValidation.subsType === "gym" ? "days" : "sessions"}`,
+                            currency: "Rp",
+                            memberEmail: paymentValidation.member.user.email,
+                            supportEmail: "support@fitinfinity.com",
+                            supportPhone: "+1234567890",
+                            logoUrl: "https://fitinfinity.com/logo.png",
+                            currentYear: new Date().getFullYear(),
+                            address: "123 Gym Street, Fitness City",
+                            // Conditional trainer data
+                            ...(paymentValidation.trainer && {
+                                personalTrainer: true,
+                                trainerName: paymentValidation.trainer.user.name
+                            }),
+                            // Optional discount data if voucher was used
+                            ...(paymentValidation.package.price > paymentValidation.totalPayment && {
+                                subtotal: paymentValidation.package.price,
+                                discount: paymentValidation.package.price - paymentValidation.totalPayment
+                            })
+                        }
+                    });
+                }
+
+
+                // 6. Optionally, give points to user if applicable by package
                 if (paymentValidation.package.point && paymentValidation.package.point > 0 && paymentValidation.member?.user?.id) {
                     await prisma.user.update({
                         where: {
@@ -310,7 +358,8 @@ export const paymentValidationRouter = createTRPCRouter({
             return { items, total, page, limit };
         }),
 
-    getMemberPayments: protectedProcedure
+        
+    getAllPayments: protectedProcedure
         .input(
             z.object({
                 page: z.number().min(1).default(1),
@@ -319,6 +368,111 @@ export const paymentValidationRouter = createTRPCRouter({
         )
         .query(async ({ ctx, input }) => {
             const { page, limit } = input;
+            const skip = (page - 1) * limit;
+
+            // Fetch offline payments (payment validations)
+            const offlinePaymentsPromise = ctx.db.paymentValidation.findMany({
+                include: {
+                    package: true,
+                    trainer: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                },
+                            },
+                        },
+                    },
+                    member: {
+                        include: {
+                            user: true, // To get member's name
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+            });
+
+            // Fetch total count for offline payments
+            const offlineTotalPromise = ctx.db.paymentValidation.count();
+
+            // Fetch online payments through subscriptions
+            const onlinePaymentsPromise = ctx.db.subscription.findMany({
+                include: {
+                    payments: {
+                        where: {
+                            NOT: {
+                                orderReference: null, // Only get payments with order references (online)
+                            },
+                        },
+                    },
+                    member: {
+                        include: {
+                            user: true, // To get member's name
+                        },
+                    },
+                    package: true,
+                    trainer: {
+                        include: {
+                            user: {
+                                select: {
+                                    name: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            // Resolve promises for offline and online payments
+            const [offlinePayments, offlineTotal, onlineSubscriptions] = await Promise.all([
+                offlinePaymentsPromise,
+                offlineTotalPromise,
+                onlinePaymentsPromise,
+            ]);
+
+            // Transform online subscriptions with payments into a similar format as offline payments
+            const onlinePayments = onlineSubscriptions.flatMap(subscription =>
+                subscription.payments.map(payment => ({
+                    id: payment.id,
+                    createdAt: payment.createdAt,
+                    paymentStatus: payment.status,
+                    totalPayment: payment.totalPayment,
+                    paymentMethod: payment.method,
+                    subsType: subscription.trainerId ? "trainer" : "gym",
+                    orderReference: payment.orderReference,
+                    package: subscription.package,
+                    trainer: subscription.trainer,
+                    member: subscription.member,
+                    isOnlinePayment: true,
+                }))
+            );
+
+            // Combine and sort both payment types
+            const allPayments = [...offlinePayments.map(p => ({ ...p, isOnlinePayment: false })), ...onlinePayments]
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+            // Apply pagination to the combined result
+            const paginatedItems = allPayments.slice(skip, skip + limit);
+
+            return {
+                items: paginatedItems,
+                total: offlineTotal + onlinePayments.length,
+                page,
+                limit,
+            };
+        }),
+    getMemberPayments: protectedProcedure
+        .input(
+            z.object({
+                page: z.number().min(1).default(1),
+                limit: z.number().min(1).max(100).default(10),
+                includeOnline: z.boolean().default(true), // Add flag to include online payments
+            })
+        )
+        .query(async ({ ctx, input }) => {
+            const { page, limit, includeOnline } = input;
             const skip = (page - 1) * limit;
 
             // Get the member ID from the user's session
@@ -335,15 +489,8 @@ export const paymentValidationRouter = createTRPCRouter({
                 });
             }
 
-            // Get total count
-            const total = await ctx.db.paymentValidation.count({
-                where: {
-                    memberId: member.id,
-                },
-            });
-
-            // Get paginated payments
-            const items = await ctx.db.paymentValidation.findMany({
+            // Get offline payments (payment validations)
+            const offlinePaymentsPromise = ctx.db.paymentValidation.findMany({
                 where: {
                     memberId: member.id,
                 },
@@ -358,19 +505,98 @@ export const paymentValidationRouter = createTRPCRouter({
                             },
                         },
                     },
+                    member: {
+                        include: {
+                            user: true, // To get member's name
+                        }
+                    },
                 },
                 orderBy: {
                     createdAt: "desc",
-                },
-                skip,
-                take: limit,
+                }
             });
 
+            // Get total count for offline payments
+            const offlineTotalPromise = ctx.db.paymentValidation.count({
+                where: {
+                    memberId: member.id,
+                },
+            });
+            
+            // Get online payments if requested
+            let onlinePayments: any[] = [];
+            let onlineTotal = 0;
+            
+            if (includeOnline) {
+                // Get online payments through subscription
+                const subscriptions = await ctx.db.subscription.findMany({
+                    where: {
+                        memberId: member.id,
+                    },
+                    include: {
+                        payments: {
+                            where: {
+                                NOT: {
+                                    orderReference: null, // Only get payments with order references (online)
+                                },
+                            },
+                        },
+                        member: {
+                            include: {
+                                user: true, // To get member's name
+                            },
+                        },
+                        package: true,
+                        trainer: {
+                            include: {
+                                user: {
+                                    select: {
+                                        name: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+                
+                // Transform subscriptions with payments into a similar format as offline payments
+                onlinePayments = subscriptions.flatMap(subscription => 
+                    subscription.payments.map(payment => ({
+                        id: payment.id,
+                        createdAt: payment.createdAt,
+                        paymentStatus: payment.status,
+                        totalPayment: payment.totalPayment,
+                        paymentMethod: payment.method,
+                        subsType: subscription.trainerId ? "trainer" : "gym",
+                        orderReference: payment.orderReference,
+                        package: subscription.package,
+                        trainer: subscription.trainer,
+                        isOnlinePayment: true,
+                        
+                    }))
+                );
+                
+                onlineTotal = onlinePayments.length;
+            }
+
+            // Resolve promises for offline payments
+            const [offlinePayments, offlineTotal] = await Promise.all([
+                offlinePaymentsPromise,
+                offlineTotalPromise,
+            ]);
+
+            // Combine and sort both payment types
+            const allPayments = [...offlinePayments.map(p => ({...p, isOnlinePayment: false})), ...onlinePayments]
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            
+            // Apply pagination to the combined result
+            const paginatedItems = allPayments.slice(skip, skip + limit);
+            
             return {
-                items,
-                total,
+                items: paginatedItems,
+                total: offlineTotal + onlineTotal,
                 page,
                 limit,
             };
         }),
-}); 
+});

@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
               className="w-full py-2 px-4 border-2 border-[#BAD45E] text-[#95B640] rounded-md flex items-center justify-center space-x-2 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               <img src="/assets/google-lime.png" alt="Gmail" className="w-5 h-5" />
-              <span>Send verification in Gmail</span>
+              <span>Send verification in Email</span>
             </button>
 
             {/* Whatsapp Verification Button */}

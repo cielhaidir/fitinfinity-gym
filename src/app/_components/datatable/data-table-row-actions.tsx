@@ -25,22 +25,32 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ShortcutBadge } from "../ShorcutBadge"
 
+interface ActionItem {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
 interface DataTableRowActionsProps<TData> {
-  row: Row<TData>
-  onEdit?: ((item: TData) => void) | null
-  onDelete?: ((item: TData) => void) | null
-  customActions?: { label: string, action: (item: TData) => void }[] // Support multiple custom actions
-  showEdit?: boolean
+  row: Row<TData>;
+  actions?: ActionItem[];
+  // Keep these for backward compatibility
+  onEdit?: ((item: TData) => void) | null;
+  onDelete?: ((item: TData) => void) | null;
+  customActions?: { label: string, action: (item: TData) => void }[];
+  showEdit?: boolean;
 }
 
 export function DataTableRowActions<TData>({ 
   row, 
+  actions,
   onEdit, 
   onDelete, 
   customActions,
   showEdit = true 
 }: DataTableRowActionsProps<TData>) {
   const [isAlertOpen, setIsAlertOpen] = useState(false)
+  const [actionToDelete, setActionToDelete] = useState<ActionItem | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -55,10 +65,16 @@ export function DataTableRowActions<TData>({
   }, [])
 
   const handleDelete = () => {
-    onDelete?.(row.original)
-    setIsAlertOpen(false)
+    if (actionToDelete) {
+      actionToDelete.onClick();
+    } else if (onDelete) {
+      onDelete(row.original);
+    }
+    setIsAlertOpen(false);
   }
   
+  // Check if we're using the new or old API
+  const usingNewAPI = !!actions;
 
   return (
     <>
@@ -70,28 +86,58 @@ export function DataTableRowActions<TData>({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
-          {showEdit && onEdit && (
-            <DropdownMenuItem onClick={() => onEdit(row.original)}>Edit</DropdownMenuItem>
-          )}
-        
-          {customActions && customActions.map((customAction, index) => (
-            <div key={index}>
-              <DropdownMenuItem onClick={() => customAction.action(row.original)}>{customAction.label}</DropdownMenuItem>
-            </div>
+          {/* New API with actions array */}
+          {usingNewAPI && actions?.map((action, index) => (
+            <DropdownMenuItem 
+              key={index}
+              onClick={action.label.toLowerCase() === "delete" 
+                ? () => {
+                    setActionToDelete(action);
+                    setIsAlertOpen(true);
+                    document.body.style.pointerEvents = "";
+                  }
+                : action.onClick
+              }
+              disabled={action.disabled}
+            >
+              {action.label}
+              {action.label.toLowerCase() === "delete" && (
+                <DropdownMenuShortcut>
+                  <ShortcutBadge keyChar="⌫" />
+                </DropdownMenuShortcut>
+              )}
+            </DropdownMenuItem>
           ))}
 
-          {customActions && customActions.length > 0 && <DropdownMenuSeparator />}
+          {/* Legacy API support */}
+          {!usingNewAPI && (
+            <>
+              {showEdit && onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(row.original)}>Edit</DropdownMenuItem>
+              )}
+            
+              {customActions && customActions.map((customAction, index) => (
+                <div key={index}>
+                  <DropdownMenuItem onClick={() => customAction.action(row.original)}>{customAction.label}</DropdownMenuItem>
+                </div>
+              ))}
 
-          <DropdownMenuItem 
-              onSelect={() => {
-                setIsAlertOpen(true)
-                document.body.style.pointerEvents = ""
-              }}>
-              Delete
-              <DropdownMenuShortcut>
-                <ShortcutBadge keyChar="⌫" />
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
+              {customActions && customActions.length > 0 && <DropdownMenuSeparator />}
+
+              {onDelete && (
+                <DropdownMenuItem 
+                  onSelect={() => {
+                    setIsAlertOpen(true)
+                    document.body.style.pointerEvents = ""
+                  }}>
+                  Delete
+                  <DropdownMenuShortcut>
+                    <ShortcutBadge keyChar="⌫" />
+                  </DropdownMenuShortcut>
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

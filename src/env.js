@@ -20,6 +20,7 @@ export const env = createEnv({
     MINIO_PORT: z.number().default(9000),
     MINIO_SSL: z.string().default('false'),
     DATABASE_URL: z.string().url(),
+    ALLOW_RBAC: z.boolean().default(true),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -50,6 +51,7 @@ export const env = createEnv({
     MINIO_SSL: process.env.MINIO_SSL,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    ALLOW_RBAC: process.env.ALLOW_RBAC,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

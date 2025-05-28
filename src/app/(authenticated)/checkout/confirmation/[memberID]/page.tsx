@@ -23,21 +23,14 @@ import { toast } from "sonner"
 export default function ConfirmationPage({ params }: { params: Promise<{ memberID: string }> }) {
   const { memberID } = use(params)
   const searchParams = useSearchParams()
-  const router = useRouter()
   const subscriptionId = searchParams.get("subscriptionId")
   const orderReference = searchParams.get("orderRef")
   
   const [isCheckingStatus, setIsCheckingStatus] = useState(false)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
-  const createPaymentMutation = api.payment.createTransaction.useMutation();
   const [isContinuingPayment, setIsContinuingPayment] = useState(false);
   
-  // Get subscription details based on ID or order reference
-  // const { data: subscriptionData, isLoading: isLoadingSubscription, refetch: refetchSubscription } = 
-  //   orderReference 
-  //     ? api.subs.getByOrderReference.useQuery({ orderReference }, { enabled: !!orderReference })
-  //     : api.subs.getById.useQuery({ id: subscriptionId! }, { enabled: !!subscriptionId })
-      
+
   // Payment status check mutation
   const checkPaymentStatusMutation = api.payment.checkStatus.useQuery(
     { orderId: orderReference! }, 
@@ -58,7 +51,16 @@ const payment = subscriptionData?.payment;
 
 
   const checkPaymentStatus = async () => {
-    if (!orderReference) return
+    if (!orderReference || !payment) {
+      toast.error("Cannot check status: Missing payment information");
+      return;
+    }
+    
+    // Don't check if we don't have a token
+    if (!payment.token) {
+      toast.error("Cannot check status: No payment token available");
+      return;
+    }
     
     setIsCheckingStatus(true)
     try {
@@ -138,26 +140,10 @@ const payment = subscriptionData?.payment;
     try {
       // Get the original order reference
       const orderId = payment.orderReference;
+      const token = payment.token;
       
-      // Format item details
-      const itemDetails = [{
-        id: subscription.packageId,
-        name: subscription.package.name,
-        price: payment.totalPayment,
-        quantity: 1
-      }];
 
-      // Create a new transaction with Midtrans (or use the same order ID)
-      const transactionResponse = await createPaymentMutation.mutateAsync({
-        orderId,
-        amount: payment.totalPayment,
-        customerName: subscription.member.user.name || "Member",
-        customerEmail: subscription.member.user.email || undefined,
-        itemDetails,
-        callbackUrl: window.location.href, // Return to this same page
-      });
-
-      if (transactionResponse.token) {
+      if (token) {
         // Clean up any existing snap instances
         if (window.snap) {
           delete window.snap;
@@ -171,12 +157,8 @@ const payment = subscriptionData?.payment;
 
         snapScript.onload = () => {
           // @ts-ignore - window.snap is from the loaded script
-          window.snap.pay(transactionResponse.token, {
-            // Configure to show as a clean modal
-            skipOrderSummary: true,
-            showOrderId: false,
-            theme: "#4169E1",
-            
+          window.snap.pay(token, {
+          
             onSuccess: async function(result: any) {
               try {
                 console.log("Continue payment success, updating status", result);
@@ -220,33 +202,9 @@ const payment = subscriptionData?.payment;
     }
   };
   
-  // Start polling for payment status updates if the payment is pending
+  // Remove automatic polling and only check status manually
   useEffect(() => {
-    if (orderReference && payment?.status === "PENDING" && !pollingInterval) {
-      // Check immediately
-      void checkPaymentStatus()
-      
-      // Then check every 10 seconds
-      const interval = setInterval(() => {
-        void checkPaymentStatus()
-      }, 10000)
-      
-      setPollingInterval(interval)
-      
-      return () => {
-        clearInterval(interval)
-      }
-    }
-    
-    // If payment is complete or failed, clear the interval
-    if (payment?.status !== "PENDING" && pollingInterval) {
-      clearInterval(pollingInterval)
-      setPollingInterval(null)
-    }
-  }, [orderReference, payment?.status])
-  
-  // Clean up interval on unmount
-  useEffect(() => {
+    // Clean up any intervals that might be running
     return () => {
       if (pollingInterval) {
         clearInterval(pollingInterval)
@@ -413,7 +371,7 @@ const payment = subscriptionData?.payment;
                 <>
                   <Button
                     onClick={() => checkPaymentStatus()}
-                    disabled={isCheckingStatus}
+                    disabled={isCheckingStatus || !payment?.token}
                     variant="outline"
                   >
                     {isCheckingStatus ? (
@@ -428,7 +386,7 @@ const payment = subscriptionData?.payment;
                   
                   <Button
                     onClick={continuePayment}
-                    disabled={isContinuingPayment}
+                    disabled={isContinuingPayment || !payment?.token}
                     className="bg-infinity"
                   >
                     {isContinuingPayment ? (
@@ -442,14 +400,15 @@ const payment = subscriptionData?.payment;
                   </Button>
                 </>
               ) : (
-                <Button
-                  className="w-full sm:w-auto"
-                  asChild
-                >
-                  <Link href={`/management/subscription/${memberID}`}>
-                    View My Subscriptions <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                <></>
+                // <Button
+                //   className="w-full sm:w-auto"
+                //   asChild
+                // >
+                //   <Link href={`/management/subscription/${memberID}`}>
+                //     View My Subscriptions <ArrowRight className="ml-2 h-4 w-4" />
+                //   </Link>
+                // </Button>
               )}
             </CardFooter>
           </Card>

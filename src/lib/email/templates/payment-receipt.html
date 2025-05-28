@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Payment Receipt - Fit Infinity</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 8px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+        .receipt {
+            background-color: white;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .receipt-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .receipt-total {
+            border-top: 2px solid #eee;
+            margin-top: 15px;
+            padding-top: 15px;
+            font-weight: bold;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{logoUrl}}" alt="Fit Infinity" class="logo">
+        <h1>Payment Receipt</h1>
+    </div>
+
+    <div class="content">
+        <p>Dear {{memberName}},</p>
+
+        <p>Thank you for your payment. Here are your receipt details:</p>
+
+        <div class="receipt">
+            <div class="receipt-header">
+                <h3>Receipt #{{receiptNumber}}</h3>
+                <p>Date: {{paymentDate}}</p>
+                <p>Status: <span class="status status-{{statusClass}}">{{paymentStatus}}</span></p>
+            </div>
+
+            <div class="receipt-details">
+                <div class="receipt-row">
+                    <span>Package:</span>
+                    <span>{{packageName}}</span>
+                </div>
+                {{#if personalTrainer}}
+                <div class="receipt-row">
+                    <span>Personal Trainer:</span>
+                    <span>{{trainerName}}</span>
+                </div>
+                {{/if}}
+                <div class="receipt-row">
+                    <span>Duration:</span>
+                    <span>{{duration}}</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Payment Method:</span>
+                    <span>{{paymentMethod}}</span>
+                </div>
+                {{#if discount}}
+                <div class="receipt-row">
+                    <span>Subtotal:</span>
+                    <span>{{currency}}{{subtotal}}</span>
+                </div>
+                <div class="receipt-row">
+                    <span>Discount:</span>
+                    <span>{{currency}}{{discount}}</span>
+                </div>
+                {{/if}}
+                <div class="receipt-total">
+                    <div class="receipt-row">
+                        <span>Total Amount:</span>
+                        <span>{{currency}}{{totalAmount}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p>Your membership details have been updated accordingly. You can view your complete payment history and membership details in your member portal.</p>
+
+        {{#if pendingInstructions}}
+        <div class="pending-instructions">
+            <h3>Next Steps:</h3>
+            <p>{{pendingInstructions}}</p>
+        </div>
+        {{/if}}
+
+        <p>If you have any questions about this payment or your membership, please don't hesitate to contact us:</p>
+        <ul>
+            <li>Phone: {{supportPhone}}</li>
+            <li>Email: {{supportEmail}}</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>This receipt was sent to {{memberEmail}}</p>
+        <p>&copy; {{currentYear}} Fit Infinity. All rights reserved.</p>
+        <p>{{address}}</p>
+    </div>
+</body>
+</html>
