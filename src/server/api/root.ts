@@ -21,6 +21,7 @@ import { employeeRouter } from "./routers/employee";
 import { attendanceRouter } from "./routers/attendance";
 import { profileRouter } from "./routers/profile";
 import { memberCalendarRouter } from "@/server/api/routers/memberCalendar";
+import { fcMemberRouter } from "./routers/fc-member";
 import { balanceAccountRouter } from "./routers/balanceAccount";
 import { chartAccountRouter } from "./routers/chartAccount";
 import { paymentValidationRouter } from "./routers/paymentValidation";
@@ -28,6 +29,7 @@ import { transactionRouter } from "./routers/transaction";
 import { whatsappRouter } from "./routers/whatsapp";
 import { fcRouter } from "./routers/fc";
 import { paymentRouter } from "./routers/payment";
+import { configRouter } from "./routers/config";
 
 /**
  * This is the primary router for your server.
@@ -63,7 +65,9 @@ export const appRouter = createTRPCRouter({
   fc: fcRouter,
   payment: paymentRouter,
   email: emailRouter,
-  auth: authRouter
+  auth: authRouter,
+  config: configRouter,
+  fcMember: fcMemberRouter
 });
 
 // export type definition of API

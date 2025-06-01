@@ -8,6 +8,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { TRPCError } from "@trpc/server";
+import { siteConfig } from "@/lib/config/siteConfig";
 
 export const paymentValidationRouter = createTRPCRouter({
     uploadFile: protectedProcedure
@@ -272,11 +273,12 @@ export const paymentValidationRouter = createTRPCRouter({
                             duration: `${paymentValidation.duration} ${paymentValidation.subsType === "gym" ? "days" : "sessions"}`,
                             currency: "Rp",
                             memberEmail: paymentValidation.member.user.email,
-                            supportEmail: "support@fitinfinity.com",
-                            supportPhone: "+1234567890",
-                            logoUrl: "https://fitinfinity.com/logo.png",
+                            supportEmail: siteConfig.supportEmail,
+                            supportPhone: siteConfig.supportPhone,
+                            logoUrl: siteConfig.logoUrl,
+                            portalUrl: siteConfig.portalUrl,
                             currentYear: new Date().getFullYear(),
-                            address: "123 Gym Street, Fitness City",
+                            address: siteConfig.address,
                             // Conditional trainer data
                             ...(paymentValidation.trainer && {
                                 personalTrainer: true,

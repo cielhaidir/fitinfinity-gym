@@ -1,12 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { FieldValues, UseFormReturn } from "react-hook-form";
-import type { ControllerRenderProps } from "react-hook-form";
-
-type FormFieldProps<T extends FieldValues = FieldValues> = {
-  field: ControllerRenderProps<T>;
-};
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/app/_components/ui/button";
@@ -19,7 +13,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/app/_components/ui/card";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/app/_components/ui/alert";
-import { EmailConfig, SMTP_PRESETS, emailConfigSchema } from "./schema";
+import { EmailConfig, SMTP_PRESETS, emailConfigSchema, type EmailConfigFormData } from "./schema";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 
@@ -34,8 +28,8 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
   const [testResult, setTestResult] = useState<{ success: boolean; message?: string } | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<string>("custom");
 
-  const form = useForm<EmailConfig>({
-    resolver: zodResolver(emailConfigSchema),
+  const form = useForm<EmailConfigFormData>({
+    resolver: zodResolver(emailConfigSchema) as any,
     defaultValues: initialData || {
       name: "",
       host: "",
@@ -169,7 +163,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                 <FormField
                   control={form.control}
                   name="name"
-                  render={({ field }: FormFieldProps<EmailConfig>) => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Configuration Name</FormLabel>
                       <FormControl>
@@ -187,7 +181,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="host"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>SMTP Host</FormLabel>
                         <FormControl>
@@ -201,7 +195,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="port"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Port</FormLabel>
                         <FormControl>
@@ -222,7 +216,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="username"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
@@ -236,7 +230,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="password"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
@@ -262,7 +256,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="fromEmail"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>From Email</FormLabel>
                         <FormControl>
@@ -276,7 +270,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="fromName"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>From Name</FormLabel>
                         <FormControl>
@@ -304,7 +298,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="supportEmail"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Support Email</FormLabel>
                         <FormControl>
@@ -318,7 +312,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="supportPhone"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem>
                         <FormLabel>Support Phone</FormLabel>
                         <FormControl>
@@ -333,7 +327,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                 <FormField
                   control={form.control}
                   name="logoUrl"
-                  render={({ field }: FormFieldProps<EmailConfig>) => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Logo URL</FormLabel>
                       <FormControl>
@@ -347,7 +341,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                 <FormField
                   control={form.control}
                   name="businessAddress"
-                  render={({ field }: FormFieldProps<EmailConfig>) => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Business Address</FormLabel>
                       <FormControl>
@@ -361,7 +355,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                 <FormField
                   control={form.control}
                   name="currency"
-                  render={({ field }: FormFieldProps<EmailConfig>) => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
                       <FormControl>
@@ -386,7 +380,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="useTLS"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
                           <FormLabel className="text-base">Use TLS</FormLabel>
@@ -407,7 +401,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="useSSL"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
                           <FormLabel className="text-base">Use SSL</FormLabel>
@@ -440,7 +434,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="isActive"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
                           <FormLabel className="text-base">Active</FormLabel>
@@ -461,7 +455,7 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                   <FormField
                     control={form.control}
                     name="isDefault"
-                    render={({ field }: FormFieldProps<EmailConfig>) => (
+                    render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
                           <FormLabel className="text-base">Default</FormLabel>

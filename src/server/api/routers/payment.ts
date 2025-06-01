@@ -12,6 +12,7 @@ import midtransClient from "midtrans-client";
 import { PaymentStatus, EmailType } from "@prisma/client";  // Import the correct enum types
 import { emailService } from "@/lib/email/emailService";
 import { format } from "date-fns";
+import { siteConfig } from "@/lib/config/siteConfig";
 
 export const paymentRouter = createTRPCRouter({
   createTransaction: publicProcedure
@@ -215,18 +216,33 @@ export const paymentRouter = createTRPCRouter({
               to: membership.user.email!,
               templateId: paymentTemplate.id,
               templateData: {
-                name: membership.user.name,
+                memberName: membership.user.name,
                 packageName: packageDetails.name,
-                amount: payment.totalPayment,
+                receiptNumber: payment.orderReference,
+                totalAmount: payment.totalPayment,
+                paymentStatus: PaymentStatus.SUCCESS,
+                statusClass: PaymentStatus.SUCCESS.toLowerCase(),
                 paymentDate: format(new Date(), "PPP"),
                 paymentMethod: payment.method,
-                transactionId: payment.orderReference,
-                email: membership.user.email,
-                supportEmail: "support@fitinfinity.com",
-                supportPhone: "+1234567890",
-                logoUrl: "https://dev.fitinfinity.id/assets/fitinfinity-lime.png",
+                duration: `${packageDetails.day ?? 0} days`,
+                currency: "Rp",
+                memberEmail: membership.user.email,
+                portalUrl: siteConfig.portalUrl,
+                supportEmail: siteConfig.supportEmail,
+                supportPhone: siteConfig.supportPhone,
+                logoUrl: siteConfig.logoUrl,
                 currentYear: new Date().getFullYear(),
-                address: "123 Gym Street, Fitness City",
+                address: siteConfig.address,
+                // Conditional trainer data
+                ...(membership.personalTrainer && {
+                  personalTrainer: true,
+                  trainerName: membership.personalTrainer.user.name
+                }),
+                // Optional discount data if voucher was used
+                ...(packageDetails.price > payment.totalPayment && {
+                  subtotal: packageDetails.price,
+                  discount: packageDetails.price - payment.totalPayment
+                })
               }
             });
           }
@@ -248,13 +264,21 @@ export const paymentRouter = createTRPCRouter({
                 endDate: payment.subscription.endDate ? format(payment.subscription.endDate, "PPP") : "N/A",
                 personalTrainer: membership.personalTrainer ? true : false,
                 trainerName: membership.personalTrainer?.user.name,
-                email: membership.user.email,
-                portalUrl: "https://dev.fitinfinity.id/member",
-                supportEmail: "support@fitinfinity.com",
-                supportPhone: "+1234567890",
-                logoUrl: "https://dev.fitinfinity.id/assets/fitinfinity-lime.png",
+                memberEmail: membership.user.email,
+                portalUrl: siteConfig.portalUrl,
+                supportEmail: siteConfig.supportEmail,
+                supportPhone: siteConfig.supportPhone,
+                logoUrl: siteConfig.logoUrl,
                 currentYear: new Date().getFullYear(),
-                address: "123 Gym Street, Fitness City",
+                address: siteConfig.address,
+                currency: "Rp",
+                paymentMethod: payment.method,
+                totalAmount: payment.totalPayment,
+                // Include other standard fields that might be needed
+                receiptNumber: payment.orderReference,
+                paymentStatus: PaymentStatus.SUCCESS,
+                statusClass: PaymentStatus.SUCCESS.toLowerCase(),
+                paymentDate: format(new Date(), "PPP")
               }
             });
           }

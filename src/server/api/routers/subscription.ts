@@ -4,7 +4,10 @@ import {
     permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { PaymentStatus } from "@prisma/client";
+import { PaymentStatus, EmailType } from "@prisma/client";
+import { emailService } from "@/lib/email/emailService"; // Add this import
+import { format } from "date-fns"; // Add this import
+import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
 
 export const subscriptionRouter = createTRPCRouter({
     create: permissionProtectedProcedure(['create:subscription'])
@@ -123,14 +126,9 @@ export const subscriptionRouter = createTRPCRouter({
                 
                 // If subscription is available, also update the subscription status here
                 if (payment.subscription) {
-                    // await ctx.db.subscription.update({
-                    //     where: { id: payment.subscription.id },
-                    //     data: { isActive: true }
-                    // });
-
                     await ctx.db.membership.update({
                         where: { id: payment.subscription.memberId },
-                        data: { isActive: false }
+                        data: { isActive: true }
                     });
                 }
             }
@@ -143,7 +141,23 @@ export const subscriptionRouter = createTRPCRouter({
             const updatedPayment = await ctx.db.payment.update({
                 where: { id: payment.id },
                 data: updateData,
-                include: { subscription: true }
+                include: { 
+                    subscription: {
+                        include: {
+                            member: {
+                                include: {
+                                    user: true
+                                }
+                            },
+                            trainer: {
+                                include: {
+                                    user: true
+                                }
+                            },
+                            package: true
+                        }
+                    }
+                }
             });
 
             // If payment is now successful, apply all relevant benefits
@@ -173,6 +187,84 @@ export const subscriptionRouter = createTRPCRouter({
                             point: { increment: packageDetails.point }
                         }
                     });
+                }
+
+                // Send email notifications if this is a new successful payment
+                if (updatedPayment.subscription.member?.user?.email) {
+                    // Send payment receipt email
+                    const paymentTemplate = await ctx.db.emailTemplate.findFirst({
+                        where: { type: EmailType.PAYMENT_RECEIPT }
+                    });
+
+                    if (paymentTemplate) {
+                        await emailService.sendTemplateEmail({
+                            to: updatedPayment.subscription.member.user.email,
+                            templateId: paymentTemplate.id,
+                            templateData: {
+                                memberName: updatedPayment.subscription.member.user.name,
+                                packageName: updatedPayment.subscription.package.name,
+                                receiptNumber: updatedPayment.orderReference || updatedPayment.id,
+                                totalAmount: updatedPayment.totalPayment,
+                                paymentStatus: PaymentStatus.SUCCESS,
+                                statusClass: PaymentStatus.SUCCESS.toLowerCase(),
+                                paymentDate: format(new Date(), "PPP"),
+                                paymentMethod: updatedPayment.method,
+                                duration: updatedPayment.subscription.remainingSessions ? 
+                                    `${updatedPayment.subscription.remainingSessions} sessions` : 
+                                    `${updatedPayment.subscription.endDate ? 
+                                        Math.ceil((updatedPayment.subscription.endDate.getTime() - updatedPayment.subscription.startDate.getTime()) / (1000 * 60 * 60 * 24)) : 
+                                        0} days`,
+                                currency: "Rp",
+                                memberEmail: updatedPayment.subscription.member.user.email,
+                                supportEmail: siteConfig.supportEmail,
+                                supportPhone: siteConfig.supportPhone,
+                                logoUrl: siteConfig.logoUrl,
+                                portalUrl: siteConfig.portalUrl,
+                                currentYear: new Date().getFullYear(),
+                                address: siteConfig.address,
+                                // Conditional trainer data
+                                ...(updatedPayment.subscription.trainer && {
+                                    personalTrainer: true,
+                                    trainerName: updatedPayment.subscription.trainer.user.name
+                                })
+                            }
+                        });
+                    }
+
+                    // Send membership confirmation email
+                    const membershipTemplate = await ctx.db.emailTemplate.findFirst({
+                        where: { type: EmailType.MEMBERSHIP_CONFIRMATION }
+                    });
+
+                    if (membershipTemplate) {
+                        await emailService.sendTemplateEmail({
+                            to: updatedPayment.subscription.member.user.email,
+                            templateId: membershipTemplate.id,
+                            templateData: {
+                                memberName: updatedPayment.subscription.member.user.name,
+                                membershipId: updatedPayment.subscription.member.id,
+                                packageName: updatedPayment.subscription.package.name,
+                                startDate: format(updatedPayment.subscription.startDate, "PPP"),
+                                endDate: updatedPayment.subscription.endDate ? format(updatedPayment.subscription.endDate, "PPP") : "N/A",
+                                personalTrainer: updatedPayment.subscription.trainer ? true : false,
+                                trainerName: updatedPayment.subscription.trainer?.user.name,
+                                memberEmail: updatedPayment.subscription.member.user.email,
+                                portalUrl: siteConfig.portalUrl,
+                                supportEmail: siteConfig.supportEmail,
+                                supportPhone: siteConfig.supportPhone,
+                                logoUrl: siteConfig.logoUrl,
+                                currentYear: new Date().getFullYear(),
+                                address: siteConfig.address,
+                                currency: "Rp",
+                                paymentMethod: updatedPayment.method,
+                                totalAmount: updatedPayment.totalPayment,
+                                receiptNumber: updatedPayment.orderReference || updatedPayment.id,
+                                paymentStatus: PaymentStatus.SUCCESS,
+                                statusClass: PaymentStatus.SUCCESS.toLowerCase(),
+                                paymentDate: format(new Date(), "PPP")
+                            }
+                        });
+                    }
                 }
             }
 

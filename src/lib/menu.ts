@@ -205,6 +205,24 @@ export const Menu: { navMain: MenuGroup[] } = {
         },
         
         {
+            title: "Fitness Consultant",
+            url: "/fc/dashboard",
+            items: [
+                {
+                    title: "Dashboard",
+                    icon: CircleGauge,
+                    url: "/fc",
+                    requiredPermission: "list:dashboard-fc"
+                },
+                {
+                    title: "Member Management",
+                    icon: Users,
+                    url: "/fc/members",
+                    requiredPermission: "list:members-fc"
+                },
+            ],
+        },
+        {
             title: "Personal Trainer",
             url: "/instructor/dashboard",
             items: [

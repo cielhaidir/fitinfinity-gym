@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import { EmailTemplate, EmailType, emailTemplateSchema } from "./schema";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
+import { siteConfig } from "@/lib/config/siteConfig";
 
 interface EmailTemplateFormProps {
   initialData?: EmailTemplate;
@@ -22,7 +23,7 @@ interface EmailTemplateFormProps {
 
 export function EmailTemplateForm({ initialData, onSuccess, onCancel }: EmailTemplateFormProps) {
   const form = useForm<EmailTemplate>({
-    resolver: zodResolver(emailTemplateSchema),
+    resolver: zodResolver(emailTemplateSchema) as any,
     defaultValues: initialData || {
       name: "",
       type: EmailType.MEMBERSHIP_CONFIRMATION,
@@ -158,12 +159,16 @@ export function EmailTemplateForm({ initialData, onSuccess, onCancel }: EmailTem
                       <li>{'{{discount}}'} - Discount amount (if any)</li>
                       <li>{'{{personalTrainer}}'} - Has trainer (boolean)</li>
                       <li>{'{{trainerName}}'} - Trainer name (if applicable)</li>
-                      <li>{'{{supportPhone}}'} - Support phone number</li>
-                      <li>{'{{supportEmail}}'} - Support email</li>
                       <li>{'{{memberEmail}}'} - Member's email</li>
+                      <li>{'{{membershipId}}'} - Membership ID</li>
+                      <li>{'{{startDate}}'} - Subscription start date</li>
+                      <li>{'{{endDate}}'} - Subscription end date</li>
+                      <li>{'{{portalUrl}}'} - Member portal URL ({siteConfig.portalUrl})</li>
+                      <li>{'{{supportPhone}}'} - Support phone ({siteConfig.supportPhone})</li>
+                      <li>{'{{supportEmail}}'} - Support email ({siteConfig.supportEmail})</li>
                       <li>{'{{currentYear}}'} - Current year</li>
-                      <li>{'{{address}}'} - Business address</li>
-                      <li>{'{{logoUrl}}'} - Logo image URL</li>
+                      <li>{'{{address}}'} - Business address ({siteConfig.address})</li>
+                      <li>{'{{logoUrl}}'} - Logo image URL ({siteConfig.logoUrl})</li>
                     </ul>
                   </div>
                   <FormMessage />

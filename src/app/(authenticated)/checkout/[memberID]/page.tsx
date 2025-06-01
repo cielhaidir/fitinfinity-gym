@@ -162,7 +162,7 @@ export default function SubscriptionPage({ params }: { params: Promise<{ memberI
 
                                     toast.success('Payment successful!');
                                     await utils.subs.getByIdMember.invalidate({ memberId: memberID });
-                                    router.push(`/management/subscription/${memberID}`);
+                                    router.push(`/member/payment-history`);
                                 } catch (error) {
                                     console.error('Error updating payment status:', error);
                                     toast.error('Payment was processed but there was an error updating your subscription');

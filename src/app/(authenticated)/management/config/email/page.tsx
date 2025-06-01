@@ -40,12 +40,12 @@ export default function EmailConfigPage() {
     },
     onDeleteConfig: (config) => {
       if (window.confirm("Are you sure you want to delete this configuration?")) {
-        deleteConfigMutation.mutateAsync({ id: config.id });
+        deleteConfigMutation.mutateAsync({ id: config.id || "" });
       }
     },
     onTestConnection: async (config) => {
       try {
-        const result = await testConnectionMutation.mutateAsync({ id: config.id });
+        const result = await testConnectionMutation.mutateAsync({ id: config.id  || "" });
         if (result.success) {
           alert("Connection test successful!");
         } else {
@@ -56,7 +56,7 @@ export default function EmailConfigPage() {
       }
     },
     onSetActive: (config) => {
-      setActiveMutation.mutateAsync({ id: config.id });
+      setActiveMutation.mutateAsync({ id: config.id  || "" });
     }
   });
 

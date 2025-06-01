@@ -72,6 +72,19 @@ enum PaymentValidationStatus {
     DECLINED
 }
 
+enum FCMemberStatus {
+    new
+    contacted
+    follow_up
+    interested
+    not_interested
+    pending
+    scheduled
+    converted
+    rejected
+    inactive
+}
+
 enum FlowType {
     income
     outcome
@@ -524,6 +537,7 @@ model FC {
     creator       User?            @relation("UserCreatedBy", fields: [createdBy], references: [id])
     paymentValidations PaymentValidation[]
     memberships   Membership[]
+    fc_members    FcMember[]
 }
 
 // Email Configuration Models
@@ -580,6 +594,22 @@ model EmailTemplate {
     @@index([isActive])
 }
 
+model FcMember {
+    id           String        @id @default(cuid())
+    fc_id        String
+    member_name  String
+    member_phone String
+    member_email String
+    status       FCMemberStatus
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+
+    fc           FC           @relation(fields: [fc_id], references: [id])
+
+    @@index([fc_id])
+}
+
+
 model EmailLog {
     id          String      @id @default(cuid())
     to          String
@@ -595,4 +625,16 @@ model EmailLog {
     @@index([status])
     @@index([createdAt])
     @@index([to])
+}
+
+model Config {
+    id        String   @id @default(cuid())
+    key       String   @unique
+    value     String
+    category  String?  // Optional category for organizing configs
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([key])
+    @@index([category])
 }

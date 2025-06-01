@@ -1,107 +1,126 @@
 "use client";
 
-import React, { useState } from "react";
-import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
-import { DataTable } from "@/components/datatable/data-table";
-import { getColumns } from "./columns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { Users, UserPlus, UserCheck, UserX } from "lucide-react";
+import Link from "next/link";
+import { FC_MEMBER } from "@prisma/client";
+export default function FCDashboard() {
+  const { data: members } = api.fcMember.getAll.useQuery(undefined, {
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+  });
 
-export default function FCDashboardPage() {
-  const { data: session, status } = useSession();
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [search, setSearch] = useState("");
-  const [searchColumn, setSearchColumn] = useState<string>("");
+  const getStatusCounts = () => {
+    if (!members) return {
+      new: 0,
+      contacted: 0,
+      converted: 0,
+      not_interested: 0
+    };
 
-  const { data: members = { items: [], total: 0, page: 1, limit: 10 }, isLoading } = api.fc.getMembers.useQuery(
-    { page, limit, search, searchColumn },
-    {
-      enabled: status === "authenticated",
-      refetchOnWindowFocus: true,
-      refetchOnMount: true,
-      staleTime: 0,
-    }
-  );
-
-  const handlePaginationChange = (newPage: number, newLimit: number) => {
-    setPage(newPage);
-    setLimit(newLimit);
+    return members.reduce((acc: {
+      new: number;
+      contacted: number;
+      converted: number;
+      not_interested: number;
+    }, member: FC_MEMBER) => {
+      switch (member.status) {
+        case "new":
+          acc.new++;
+          break;
+        case "contacted":
+        case "follow_up":
+          acc.contacted++;
+          break;
+        case "converted":
+          acc.converted++;
+          break;
+        case "not_interested":
+        case "rejected":
+          acc.not_interested++;
+          break;
+      }
+      return acc;
+    }, {
+      new: 0,
+      contacted: 0,
+      converted: 0,
+      not_interested: 0
+    });
   };
 
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
-
-  if (status === "unauthenticated") {
-    return <div>Please log in to access this page</div>;
-  }
+  const stats = getStatusCounts();
 
   return (
-    <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Fitness Consultant Dashboard</h2>
-          <p className="text-muted-foreground">
-            View and manage your members here
-          </p>
-        </div>
+    <>
+      <div className="container mx-auto py-10">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Fitness Consultant Dashboard</h1>
+        <p className="text-muted-foreground mt-2">
+          Welcome back! Here's an overview of your member management.
+        </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Members
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{members.total}</div>
-            <p className="text-xs text-muted-foreground">
-              Members under your management
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Link href="/fc/members?status=new">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">New Leads</CardTitle>
+              <UserPlus className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.new}</div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Members
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {members.items.filter(member => member.isActive).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Currently active members
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/fc/members?status=contacted">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.contacted}</div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/fc/members?status=converted">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Converted</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.converted}</div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/fc/members?status=not_interested">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Not Interested</CardTitle>
+              <UserX className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.not_interested}</div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
-      {/* Members Table */}
-      <div className="rounded-md">
-        <DataTable
-          columns={getColumns()}
-          data={members}
-          searchColumns={[
-            { id: "name", placeholder: "Search by member name..." },
-            { id: "email", placeholder: "Search by email..." },
-          ]}
-          isLoading={isLoading}
-          onPaginationChange={handlePaginationChange}
-          onSearch={(value, column) => {
-            setSearch(value);
-            setSearchColumn(column);
-            setPage(1); // Reset to first page when searching
-          }}
-        />
+      <div className="mt-8">
+        <Link 
+          href="/fc/members" 
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          View All Members
+        </Link>
       </div>
     </div>
+    </>
   );
 }

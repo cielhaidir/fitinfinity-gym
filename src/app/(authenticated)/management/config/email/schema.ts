@@ -28,6 +28,9 @@ export type EmailConfig = z.infer<typeof emailConfigSchema> & {
   updatedAt?: Date;
 };
 
+// Add the EmailConfigFormData type export
+export type EmailConfigFormData = z.infer<typeof emailConfigSchema>;
+
 export const EmailType = {
   MEMBERSHIP_CONFIRMATION: "MEMBERSHIP_CONFIRMATION",
   PAYMENT_RECEIPT: "PAYMENT_RECEIPT",
