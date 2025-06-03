@@ -7,7 +7,7 @@ import { createTRPCContext } from "@/server/api/trpc";
 import { configService } from "@/lib/config/configService";
 
 // Load configurations at startup
-configService.loadFromDatabase().catch(console.error);
+// configService.loadFromDatabase().catch(console.error);
 
 /**
  * This wraps the `createTRPCContext` helper and provides the required context for the tRPC API when

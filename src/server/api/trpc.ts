@@ -13,7 +13,10 @@ import { ZodError } from "zod";
 
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
+import { configService } from "@/lib/config/configService";
 
+// Load configurations at startup
+// configService.loadFromDatabase().catch(console.error);
 /**
  * 1. CONTEXT
  *
