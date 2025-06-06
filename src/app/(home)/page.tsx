@@ -65,7 +65,7 @@ export default async function Home() {
     </section> */}
   
     <section id="about" className="py-20 bg-black">
-      <div className="container mx-auto px-6">
+        <div className="container mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           {/* Kiri: Teks dan tombol */}
           <div>
@@ -82,32 +82,34 @@ export default async function Home() {
               Our modern facilities and professional trainers are here to push your limits and support you every step of the way on your fitness journey.
             </p>
             <div className="flex items-center gap-4">
-              <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200">
-                <span
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
-                ></span>
-                Discover more
-                <span
-                  className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
-                ></span>
-              </button>
+              <Link href="/auth/signin" passHref legacyBehavior>
+                <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200">
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
+                  ></span>
+                  Discover more
+                  <span
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
+                  ></span>
+                </button>
+              </Link>
               <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-800">
                 <svg width="20" height="20" fill="currentColor" className="text-gray-200" viewBox="0 0 20 20"><polygon points="7,5 15,10 7,15" /></svg>
               </span>
-            </div>
-          </div>
+                        </div>
+                    </div>
           {/* Kanan: Dua kotak placeholder */}
-          <div className="flex flex-col gap-8">
-            <div className="rounded-xl bg-gray-800 h-56 md:h-64 w-full"></div>
-            <div className="rounded-xl bg-gray-800 h-56 md:h-64 w-full"></div>
-          </div>
+          <div className="flex flex-row gap-8 justify-center">
+            <img src="/assets/dashboard/img9.png" alt="About Fit Infinity" className="rounded-xl shadow-lg w-48 md:w-64 h-96 md:h-[28rem] object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
+            <img src="/assets/dashboard/img10.png" alt="About Fit Infinity 2" className="rounded-xl shadow-2xl w-48 md:w-64 h-96 md:h-[28rem] object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
+                </div>
+            </div>
         </div>
-      </div>
     </section>
     
     {/* Section Facilities */}
     <section id="facilities" className="py-20 bg-black">
-      <div className="container mx-auto px-6">
+        <div className="container mx-auto px-6">
         <div className="flex flex-col items-center mb-10">
           <span className="bg-[#C9D953] text-black text-sm font-semibold px-6 py-1 rounded-full mb-4">Facilities</span>
           <h2 className="text-2xl md:text-3xl font-extrabold text-center text-white mb-8">A Different Ngegym Experience</h2>
@@ -127,15 +129,17 @@ export default async function Home() {
             </div>
             <img src="/assets/dashboard/img1.png" alt="Dressing Room" className="w-full h-40 object-cover rounded-b-2xl shadow-lg" />
             <div className="pt-4 pb-4 text-center">
-              <button className="w-full bg-white text-black py-4 text-xl font-bold rounded-xl flex items-center justify-center relative shadow-lg hover:bg-gray-100 transition duration-200">
-                <span className="mx-6">Other Benefits</span>
-                <span className="absolute top-3 right-5">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9D953" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M7 7L17 7L17 17"/>
-                    <path d="M17 7L7 17"/>
-                  </svg>
-                </span>
-              </button>
+              <Link href="/auth/signin" passHref legacyBehavior>
+                <button className="w-full bg-white text-black py-4 text-xl font-bold rounded-xl flex items-center justify-center relative shadow-lg hover:bg-gray-100 transition duration-200">
+                  <span className="mx-6">Other Benefits</span>
+                  <span className="absolute top-3 right-5">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9D953" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 7L17 7L17 17"/>
+                      <path d="M17 7L7 17"/>
+                    </svg>
+                  </span>
+                </button>
+              </Link>
             </div>
           </div>
           {/* Card 3 */}
@@ -167,22 +171,22 @@ export default async function Home() {
                 <div className="flex flex-col flex-1">
                   <div className="text-black text-sm mb-0 font-bold">
                     Improve flexibility, strength and mental focus with out yoga sessions.
-                  </div>
+                        </div>
                   <div className="flex flex-col mt-20">
                     <div className="flex items-center text-black text-xs gap-1 font-bold">
                       <i className="fas fa-user"></i> Steven Doe
                     </div>
                     <div className="flex items-center text-black text-xs gap-1 font-bold">
                       <i className="far fa-clock"></i> 60 Min
+                        </div>
                     </div>
-                  </div>
                 </div>
                 {/* Kanan: Gambar dan judul */}
                 <div className="flex flex-col items-center justify-center flex-1">
                 <img src="/assets/dashboard/img6.jpg" alt="Class" className="w-32 h-32 object-cover rounded-xl mb-2" />
                   <div className="font-extrabold text-2xl text-black text-center font-bold">Yoga</div>
-                </div>
-              </div>
+                        </div>
+                    </div>
               {/* Kotak kedua dengan polygon tail (lebih tinggi) */}
               <div className="relative w-[60%] h-14 mt-0 ml-0" style={{clipPath:'polygon(0 0, 100% 0, 100% 0%, 80% 100%, 0 100%)', background:'#fff'}}>
                 {/* Badge Level di dalam kotak kedua */}
@@ -202,11 +206,11 @@ export default async function Home() {
                 <div className="flex flex-col flex-1">
                   <div className="text-black text-sm mb-0 font-bold">
                     Build strength and muscle with proper technique and guidance.
-                  </div>
+                        </div>
                   <div className="flex flex-col mt-20">
                     <div className="flex items-center text-black text-xs gap-1 font-bold">
                       <i className="fas fa-user"></i> Steven Doe
-                    </div>
+                        </div>
                     <div className="flex items-center text-black text-xs gap-1 font-bold">
                       <i className="far fa-clock"></i> 45 Min
                     </div>
@@ -217,7 +221,7 @@ export default async function Home() {
                 <img src="/assets/dashboard/img8.png" alt="Class" className="w-32 h-32 object-cover rounded-xl mb-2" />
                   <div className="font-extrabold text-2xl text-black text-center font-bold">Weighylifting</div>
                 </div>
-              </div>
+            </div>
               {/* Kotak kedua dengan polygon tail (lebih tinggi) */}
               <div className="relative w-[60%] h-14 mt-0 ml-0" style={{clipPath:'polygon(0 0, 100% 0, 100% 0%, 80% 100%, 0 100%)', background:'#fff'}}>
                 {/* Badge Level di dalam kotak kedua */}
@@ -226,8 +230,8 @@ export default async function Home() {
                     Medium
                     <svg width="16" height="16" fill="none" stroke="#C9D953" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                   </button>
-                </div>
-              </div>
+            </div>
+        </div>
             </div>
             {/* Card 3 */}
             <div className="relative flex flex-col items-stretch min-h-[340px]">
@@ -244,15 +248,15 @@ export default async function Home() {
                     </div>
                     <div className="flex items-center text-black text-xs gap-1 font-bold">
                       <i className="far fa-clock"></i> 60 Min
+                        </div>
                     </div>
-                  </div>
                 </div>
                 {/* Kanan: Gambar dan judul */}
                 <div className="flex flex-col items-center justify-center flex-1">
                 <img src="/assets/dashboard/img7.jpg" alt="Class" className="w-32 h-32 object-cover rounded-xl mb-2" />
                   <div className="font-extrabold text-2xl text-black text-center font-bold">CrossFit</div>
-                </div>
-              </div>
+                        </div>
+                    </div>
               {/* Kotak kedua dengan polygon tail (lebih tinggi) */}
               <div className="relative w-[60%] h-14 mt-0 ml-0" style={{clipPath:'polygon(0 0, 100% 0, 100% 0%, 80% 100%, 0 100%)', background:'#fff'}}>
                 {/* Badge Level di dalam kotak kedua */}
@@ -262,10 +266,10 @@ export default async function Home() {
                     <svg width="16" height="16" fill="none" stroke="#C9D953" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                   </button>
                 </div>
-              </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
         {/* Steps */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8 mb-8">
           <div className="flex flex-col items-center">
@@ -283,22 +287,24 @@ export default async function Home() {
         </div>
         {/* Learn More Button */}
         <div className="flex justify-center">
-          <button className="relative bg-black text-[#C9D953] font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-black flex items-center overflow-hidden hover:bg-neutral-900 transition duration-200">
-            <span
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
-            ></span>
-            Learn More
-            <span
-              className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
-            ></span>
-          </button>
+          <Link href="/auth/signin" passHref legacyBehavior>
+            <button className="relative bg-black text-[#C9D953] font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-black flex items-center overflow-hidden hover:bg-neutral-900 transition duration-200">
+              <span
+                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
+              ></span>
+              Learn More
+              <span
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
+              ></span>
+            </button>
+          </Link>
         </div>
-      </div>
+        </div>
     </section>
     
 
     <section id="trainers" className="py-20 bg-black">
-      <div className="container mx-auto px-6">
+        <div className="container mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
           {/* Kiri */}
           <div>
@@ -313,41 +319,43 @@ export default async function Home() {
               <div className="flex items-center py-4 border-b border-gray-700">
                 <span className="text-2xl font-semibold text-white mr-6">01.</span>
                 <span className="text-lg text-white">Personal Training</span>
-              </div>
+            </div>
               <div className="flex items-center py-4 border-b border-gray-700">
                 <span className="text-2xl font-semibold text-white mr-6">02.</span>
                 <span className="text-lg text-white">Maximum Progress</span>
-              </div>
+                            </div>
               <div className="flex items-center py-4">
                 <span className="text-2xl font-semibold text-white mr-6">03.</span>
                 <span className="text-lg text-white">Optimal Result</span>
-              </div>
-            </div>
-          </div>
+                            </div>
+                        </div>
+                    </div>
           {/* Tengah */}
           <div className="flex justify-end pr-8">
-            <img src="/assets/dashboard/img4.jpg" alt="Trainer" className="rounded-xl w-full max-w-md object-cover" />
+            <img src="/assets/dashboard/img4.jpg" alt="Trainer" className="rounded-xl w-full max-w-md object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
           </div>
           {/* Kanan */}
           <div className="flex flex-col items-center gap-6">
-            <img src="/assets/dashboard/img5.jpg" alt="Trainer" className="rounded-xl w-40 h-56 object-cover" />
+            <img src="/assets/dashboard/img5.jpg" alt="Trainer" className="rounded-xl w-40 h-56 object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
             <div className="text-xl font-semibold text-white text-center">Find Best Coaches</div>
-            <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200 mt-2">
-              <span
-                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
-              ></span>
-              Learn More
-              <span
-                className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
-              ></span>
-            </button>
-          </div>
+            <Link href="/auth/signin" passHref legacyBehavior>
+              <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200 mt-2">
+                <span
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
+                ></span>
+                Learn More
+                <span
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
+                ></span>
+              </button>
+            </Link>
+                </div>
+            </div>
         </div>
-      </div>
     </section>
     
     <section className="py-16 bg-black">
-      <div className="container mx-auto px-6 text-center">
+        <div className="container mx-auto px-6 text-center">
         <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-6">READY TO FORCE YOUR LEGACY?</h2>
         <p className="text-lg text-white mb-8 max-w-2xl mx-auto">Join Infinity Gym today and start your fitness journey with our expert guidance and supportive community.</p>
         <div className="flex justify-center">
@@ -359,7 +367,7 @@ export default async function Home() {
             </button>
           </Link>
         </div>
-      </div>
+        </div>
     </section>
     
     <section id="contact" className="py-20">
