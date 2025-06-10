@@ -10,6 +10,11 @@ import Trainers from "./trainers";
 
 export default async function Home() {
   const session = await auth();
+  
+  // Helper function untuk menentukan URL tujuan
+  const getAuthUrl = () => {
+    return session?.user ? "/member/dashboard" : "/auth/signin";
+  };
 
   return (
     <HydrateClient>
@@ -61,195 +66,114 @@ export default async function Home() {
             </div>
         </div>
     </section> */}
-
-          <section id="about" className="bg-black py-20">
-            <div className="container mx-auto px-6">
-              <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
-                {/* Kiri: Teks dan tombol */}
-                <div>
-                  <h2 className="mb-4 text-2xl font-bold text-white md:text-3xl">
-                    ABOUT <span className="text-[#C9D953]">FIT INFINITY</span>
-                  </h2>
-                  <p className="mb-4 text-gray-200">
-                    Fit Infinity is the largest gym in Makassar, providing a
-                    complete fitness experience for everyone. We believe that
-                    fitness should be accessible to all—no matter your income or
-                    background.
-                  </p>
-                  <p className="mb-4 text-gray-200">
-                    With just one membership, you get unlimited access to all
-                    our classes for free. From expert training and personalized
-                    nutrition guidance to strong community support, everything
-                    is designed to help you achieve your goals.
-                  </p>
-                  <p className="mb-8 text-gray-200">
-                    Our modern facilities and professional trainers are here to
-                    push your limits and support you every step of the way on
-                    your fitness journey.
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <Link href="/auth/signin" passHref legacyBehavior>
-                      <button className="relative flex items-center overflow-hidden rounded-md border-2 border-[#C9D953] bg-[#C9D953] px-8 py-3 font-bold uppercase text-black shadow-lg transition duration-200 hover:bg-[#b6c940]">
-                        <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-black"></span>
-                        Discover more
-                        <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-black"></span>
-                      </button>
-                    </Link>
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-800">
-                      <svg
-                        width="20"
-                        height="20"
-                        fill="currentColor"
-                        className="text-gray-200"
-                        viewBox="0 0 20 20"
-                      >
-                        <polygon points="7,5 15,10 7,15" />
-                      </svg>
-                    </span>
-                  </div>
+  
+    <section id="about" className="py-20 bg-black">
+        <div className="container mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          {/* Kiri: Teks dan tombol */}
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">
+              ABOUT <span className="text-[#C9D953]">FIT INFINITY</span>
+            </h2>
+            <p className="text-gray-200 mb-4">
+              Fit Infinity is the largest gym in Makassar, providing a complete fitness experience for everyone. We believe that fitness should be accessible to all—no matter your income or background.
+            </p>
+            <p className="text-gray-200 mb-4">
+              With just one membership, you get unlimited access to all our classes for free. From expert training and personalized nutrition guidance to strong community support, everything is designed to help you achieve your goals.
+            </p>
+            <p className="text-gray-200 mb-8">
+              Our modern facilities and professional trainers are here to push your limits and support you every step of the way on your fitness journey.
+            </p>
+            <div className="flex items-center gap-4">
+              <Link href={getAuthUrl()} passHref legacyBehavior>
+                <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200">
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
+                  ></span>
+                  Discover more
+                  <span
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
+                  ></span>
+                </button>
+              </Link>
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-800">
+                <svg width="20" height="20" fill="currentColor" className="text-gray-200" viewBox="0 0 20 20"><polygon points="7,5 15,10 7,15" /></svg>
+              </span>
+                        </div>
+                    </div>
+          {/* Kanan: Dua kotak placeholder */}
+          <div className="flex flex-row gap-8 justify-center">
+            <img src="/assets/dashboard/img9.png" alt="About Fit Infinity" className="rounded-xl shadow-lg w-48 md:w-64 h-96 md:h-[28rem] object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
+            <img src="/assets/dashboard/img10.png" alt="About Fit Infinity 2" className="rounded-xl shadow-2xl w-48 md:w-64 h-96 md:h-[28rem] object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
                 </div>
-                {/* Kanan: Dua kotak placeholder */}
-                <div className="flex flex-row justify-center gap-8">
-                  <img
-                    src="/assets/dashboard/img9.png"
-                    alt="About Fit Infinity"
-                    className="h-96 w-48 rounded-xl object-cover shadow-lg transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953] md:h-[28rem] md:w-64"
-                  />
-                  <img
-                    src="/assets/dashboard/img10.png"
-                    alt="About Fit Infinity 2"
-                    className="h-96 w-48 rounded-xl object-cover shadow-2xl transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953] md:h-[28rem] md:w-64"
-                  />
-                </div>
-              </div>
             </div>
-          </section>
-
-          {/* Section Facilities */}
-          <section id="facilities" className="bg-black py-20">
-            <div className="container mx-auto px-6">
-              <div className="mb-10 flex flex-col items-center">
-                <span className="mb-4 rounded-full bg-[#C9D953] px-6 py-1 text-sm font-semibold text-black">
-                  Facilities
-                </span>
-                <h2 className="mb-8 text-center text-2xl font-extrabold text-white md:text-3xl">
-                  A Different Ngegym Experience
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-                {/* Card 1 */}
-                <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-black">
-                  <div className="bg-[#C9D953] p-6 text-center">
-                    <div className="min-h-[40px] text-lg font-bold leading-snug tracking-wide text-black md:text-xl">
-                      All Modern Tools
-                      <br />& Brand New
-                      <br />
-                      &nbsp;
-                    </div>
-                  </div>
-                  <img
-                    src="/assets/dashboard/img3.png"
-                    alt="Modern Tools"
-                    className="h-56 w-full rounded-b-2xl object-cover shadow-lg"
-                  />
-                </div>
-                {/* Card 2 */}
-                <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-black">
-                  <div
-                    className="p-6 text-center"
-                    style={{
-                      background:
-                        "radial-gradient(ellipse at 100% 900%, #C9D953 0%, #111 100%)",
-                    }}
-                  >
-                    <div className="min-h-[40px] text-lg font-bold leading-snug tracking-wide text-white md:text-xl">
-                      Get Towel
-                      <br />& Cozy Dressing
-                      <br />
-                      Room
-                    </div>
-                  </div>
-                  <img
-                    src="/assets/dashboard/img1.png"
-                    alt="Dressing Room"
-                    className="h-40 w-full rounded-b-2xl object-cover shadow-lg"
-                  />
-                  <div className="pb-4 pt-4 text-center">
-                    <Link href="/auth/signin" passHref legacyBehavior>
-                      <button className="relative flex w-full items-center justify-center rounded-xl bg-white py-4 text-xl font-bold text-black shadow-lg transition duration-200 hover:bg-gray-100">
-                        <span className="mx-6">Other Benefits</span>
-                        <span className="absolute right-5 top-3">
-                          <svg
-                            width="28"
-                            height="28"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#C9D953"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M7 7L17 7L17 17" />
-                            <path d="M17 7L7 17" />
-                          </svg>
-                        </span>
-                      </button>
-                    </Link>
-                  </div>
-                </div>
-                {/* Card 3 */}
-                <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-black">
-                  <div className="bg-[#C9D953] p-6 text-center">
-                    <div className="min-h-[40px] text-lg font-bold leading-snug tracking-wide text-black md:text-xl">
-                      Full Access
-                      <br />
-                      24 Hours Comfortable
-                      <br />& Clean
-                    </div>
-                  </div>
-                  <img
-                    src="/assets/dashboard/img2.png"
-                    alt="Gym Building"
-                    className="h-56 w-full rounded-b-2xl object-cover shadow-lg"
-                  />
-                </div>
-              </div>
+        </div>
+    </section>
+    
+    {/* Section Facilities */}
+    <section id="facilities" className="py-20 bg-black">
+        <div className="container mx-auto px-6">
+        <div className="flex flex-col items-center mb-10">
+          <span className="bg-[#C9D953] text-black text-sm font-semibold px-6 py-1 rounded-full mb-4">Facilities</span>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-center text-white mb-8">A Different Ngegym Experience</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Card 1 */}
+          <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
+            <div className="bg-[#C9D953] p-6 text-center">
+              <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">All Modern Tools<br/>& Brand New<br/>&nbsp;</div>
             </div>
-          </section>
-
-          <section
-            id="classes"
-            className="relative bg-[#C9D953] py-20 text-black"
-            style={{
-              clipPath:
-                "polygon(0 4% , 5% 0, 95% 0, 100% 4%, 100% 96%, 95% 100%, 5% 100%, 0 96%)",
-            }}
-          >
-            <div className="container mx-auto px-6">
-              <div className="mb-8 flex flex-col items-center">
-                <span className="mb-4 rounded-full bg-black px-6 py-1 text-xs font-semibold text-[#C9D953]">
-                  OUR CLASSES
-                </span>
-                <h2 className="mb-4 text-center text-2xl font-extrabold text-black md:text-3xl">
-                  We offer a wide variety of fitness classes designed to
-                  challenge
-                  <br className="hidden md:block" /> and inspire your at every
-                  fitness level.
-                </h2>
-              </div>
-              <div className="relative flex flex-col items-center">
-                {/* Spotlight effect */}
-                <div className="absolute left-1/2 top-1/2 z-0 h-40 w-[480px] -translate-x-1/2 rounded-full bg-black opacity-40 blur-3xl md:top-2/3"></div>
-                <div className="relative z-10 mb-12 grid w-full grid-cols-1 gap-8 md:grid-cols-3">
-                  {/* Card 1 */}
-                  <div className="relative flex min-h-[340px] flex-col items-stretch">
-                    {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
-                    <div className="flex h-[250px] bg-white p-4">
-                      {/* Kiri: Deskripsi dan info */}
-                      <div className="flex flex-1 flex-col">
-                        <div className="mb-0 text-sm font-bold text-black">
-                          Improve flexibility, strength and mental focus with
-                          out yoga sessions.
+            <img src="/assets/dashboard/img3.png" alt="Modern Tools" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
+          </div>
+          {/* Card 2 */}
+          <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
+            <div className="p-6 text-center" style={{background: 'radial-gradient(ellipse at 100% 900%, #C9D953 0%, #111 100%)'}}>
+              <div className="text-lg md:text-xl font-bold tracking-wide text-white leading-snug min-h-[40px]">Get Towel<br/>& Cozy Dressing<br/>Room</div>
+            </div>
+            <img src="/assets/dashboard/img1.png" alt="Dressing Room" className="w-full h-40 object-cover rounded-b-2xl shadow-lg" />
+            <div className="pt-4 pb-4 text-center">
+              <Link href={getAuthUrl()} passHref legacyBehavior>
+                <button className="w-full bg-white text-black py-4 text-xl font-bold rounded-xl flex items-center justify-center relative shadow-lg hover:bg-gray-100 transition duration-200">
+                  <span className="mx-6">Other Benefits</span>
+                  <span className="absolute top-3 right-5">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9D953" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 7L17 7L17 17"/>
+                      <path d="M17 7L7 17"/>
+                    </svg>
+                  </span>
+                </button>
+              </Link>
+            </div>
+          </div>
+          {/* Card 3 */}
+          <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
+            <div className="bg-[#C9D953] p-6 text-center">
+              <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">Full Access<br/>24 Hours Comfortable<br/>& Clean</div>
+            </div>
+            <img src="/assets/dashboard/img2.png" alt="Gym Building" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section id="classes" className="relative py-20 bg-[#C9D953] text-black" style={{clipPath: 'polygon(0 4% , 5% 0, 95% 0, 100% 4%, 100% 96%, 95% 100%, 5% 100%, 0 96%)'}}>
+      <div className="container mx-auto px-6">
+        <div className="flex flex-col items-center mb-8">
+          <span className="bg-black text-[#C9D953] text-xs font-semibold px-6 py-1 rounded-full mb-4">OUR CLASSES</span>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-center text-black mb-4">We offer a wide variety of fitness classes designed to challenge<br className='hidden md:block'/> and inspire your at every fitness level.</h2>
+        </div>
+        <div className="relative flex flex-col items-center">
+          {/* Spotlight effect */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 md:top-2/3 w-[480px] h-40 bg-black rounded-full blur-3xl opacity-40 z-0"></div>
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 w-full">
+            {/* Card 1 */}
+            <div className="relative flex flex-col items-stretch min-h-[340px]">
+              {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
+              <div className="bg-white flex h-[250px] p-4">
+                {/* Kiri: Deskripsi dan info */}
+                <div className="flex flex-col flex-1">
+                  <div className="text-black text-sm mb-0 font-bold">
+                    Improve flexibility, strength and mental focus with out yoga sessions.
                         </div>
                         <div className="mt-20 flex flex-col">
                           <div className="flex items-center gap-1 text-xs font-bold text-black">
@@ -416,191 +340,147 @@ export default async function Home() {
                     </div>
                   </div>
                 </div>
-              </div>
-              {/* Steps */}
-              <div className="mb-8 mt-8 grid grid-cols-1 gap-8 md:grid-cols-3">
-                <div className="flex flex-col items-center">
-                  <span className="mb-2 text-xs text-gray-700">Step 01</span>
-                  <div className="text-center text-xl font-semibold text-black md:text-2xl">
-                    Choose the Class
-                    <br />
-                    as You Like <sup>↗</sup>
-                  </div>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="mb-2 text-xs text-gray-700">Step 02</span>
-                  <div className="text-center text-xl font-semibold text-black md:text-2xl">
-                    Booking
-                    <br />
-                    Your Class <sup>↗</sup>
-                  </div>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="mb-2 text-xs text-gray-700">Step 03</span>
-                  <div className="text-center text-xl font-semibold text-black md:text-2xl">
-                    Attend &<br />
-                    Enjoy It! <sup>↗</sup>
-                  </div>
-                </div>
-              </div>
-              {/* Learn More Button */}
-              <div className="flex justify-center">
-                <Link href="/auth/signin" passHref legacyBehavior>
-                  <button className="relative flex items-center overflow-hidden rounded-md border-2 border-black bg-black px-8 py-3 font-bold uppercase text-[#C9D953] shadow-lg transition duration-200 hover:bg-neutral-900">
-                    <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-[#C9D953]"></span>
-                    Learn More
-                    <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-[#C9D953]"></span>
-                  </button>
-                </Link>
-              </div>
             </div>
-          </section>
-
-          <section id="trainers" className="bg-black py-20">
-            <div className="container mx-auto px-6">
-              <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-3">
-                {/* Kiri */}
-                <div>
-                  <span className="mb-4 inline-flex items-center rounded-full bg-black px-4 py-1 text-xs font-semibold text-[#C9D953]">
-                    <span className="mr-2 h-2 w-2 rounded-full bg-[#C9D953]"></span>
-                    OUR TRAINERS
-                  </span>
-                  <h2 className="mb-8 text-3xl font-extrabold leading-tight text-white">
-                    Certified Fitness
-                    <br />
-                    Coaches
-                  </h2>
-                  <div>
-                    <div className="flex items-center border-b border-gray-700 py-4">
-                      <span className="mr-6 text-2xl font-semibold text-white">
-                        01.
-                      </span>
-                      <span className="text-lg text-white">
-                        Personal Training
-                      </span>
-                    </div>
-                    <div className="flex items-center border-b border-gray-700 py-4">
-                      <span className="mr-6 text-2xl font-semibold text-white">
-                        02.
-                      </span>
-                      <span className="text-lg text-white">
-                        Maximum Progress
-                      </span>
-                    </div>
-                    <div className="flex items-center py-4">
-                      <span className="mr-6 text-2xl font-semibold text-white">
-                        03.
-                      </span>
-                      <span className="text-lg text-white">Optimal Result</span>
-                    </div>
-                  </div>
-                </div>
-                {/* Tengah */}
-                <div className="flex justify-end pr-8">
-                  <img
-                    src="/assets/dashboard/img4.jpg"
-                    alt="Trainer"
-                    className="w-full max-w-md rounded-xl object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]"
-                  />
-                </div>
-                {/* Kanan */}
-                <div className="flex flex-col items-center gap-6">
-                  <img
-                    src="/assets/dashboard/img5.jpg"
-                    alt="Trainer"
-                    className="h-56 w-40 rounded-xl object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]"
-                  />
-                  <div className="text-center text-xl font-semibold text-white">
-                    Find Best Coaches
-                  </div>
-                  <Link href="/auth/signin" passHref legacyBehavior>
-                    <button className="relative mt-2 flex items-center overflow-hidden rounded-md border-2 border-[#C9D953] bg-[#C9D953] px-8 py-3 font-bold uppercase text-black shadow-lg transition duration-200 hover:bg-[#b6c940]">
-                      <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-black"></span>
-                      Learn More
-                      <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-black"></span>
-                    </button>
-                  </Link>
-                </div>
-              </div>
+        {/* Steps */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8 mb-8">
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-700 mb-2">Step 01</span>
+            <div className="text-xl md:text-2xl font-semibold text-black text-center">Choose the Class<br/>as You Like <sup>↗</sup></div>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-700 mb-2">Step 02</span>
+            <div className="text-xl md:text-2xl font-semibold text-black text-center">Booking<br/>Your Class <sup>↗</sup></div>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-700 mb-2">Step 03</span>
+            <div className="text-xl md:text-2xl font-semibold text-black text-center">Attend &<br/>Enjoy It! <sup>↗</sup></div>
+          </div>
+        </div>
+        {/* Learn More Button */}
+        <div className="flex justify-center">
+          <Link href={getAuthUrl()} passHref legacyBehavior>
+            <button className="relative bg-black text-[#C9D953] font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-black flex items-center overflow-hidden hover:bg-neutral-900 transition duration-200">
+              <span
+                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
+              ></span>
+              Learn More
+              <span
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
+              ></span>
+            </button>
+          </Link>
             </div>
-          </section>
+        </div>
+    </section>
+    
 
-          <section className="bg-black py-16">
-            <div className="container mx-auto px-6 text-center">
-              <h2 className="mb-6 text-2xl font-extrabold text-white md:text-3xl">
-                READY TO FORCE YOUR LEGACY?
-              </h2>
-              <p className="mx-auto mb-8 max-w-2xl text-lg text-white">
-                Join Infinity Gym today and start your fitness journey with our
-                expert guidance and supportive community.
-              </p>
-              <div className="flex justify-center">
-                <Link href="/auth/signup" passHref legacyBehavior>
-                  <button className="relative flex items-center overflow-hidden rounded-md border-2 border-[#C9D953] bg-[#C9D953] px-8 py-3 font-bold uppercase text-black shadow-lg transition duration-200 hover:bg-[#b6c940]">
-                    <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-black" />
-                    SIGN UP NOW
-                    <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-black" />
-                  </button>
-                </Link>
-              </div>
+    <section id="trainers" className="py-20 bg-black">
+        <div className="container mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+          {/* Kiri */}
+          <div>
+            <span className="inline-flex items-center bg-black text-[#C9D953] text-xs font-semibold px-4 py-1 rounded-full mb-4">
+              <span className="w-2 h-2 bg-[#C9D953] rounded-full mr-2"></span>
+              OUR TRAINERS
+            </span>
+            <h2 className="text-3xl font-extrabold text-white mb-8 leading-tight">
+              Certified Fitness<br />Coaches
+            </h2>
+            <div>
+              <div className="flex items-center py-4 border-b border-gray-700">
+                <span className="text-2xl font-semibold text-white mr-6">01.</span>
+                <span className="text-lg text-white">Personal Training</span>
             </div>
-          </section>
-
-          <section id="contact" className="py-20">
-            <div className="container mx-auto px-6">
-              <div className="flex flex-col md:flex-row">
-                <div className="mb-10 md:mb-0 md:w-1/2 md:pr-10">
-                  <h2 className="mb-6 text-3xl font-bold text-gray-800 dark:text-white">
-                    CONTACT <span className="text-infinity">US</span>
-                  </h2>
-                  <p className="mb-6 text-gray-600 dark:text-gray-300">
-                    Have questions about our service and facilities? Reach out
-                    to us and we'll get back to you as soon as possible.
-                  </p>
-
-                  <div className="space-y-4">
-                    <div className="flex items-start">
-                      <div className="mr-4 rounded-full bg-infinity p-2 text-white">
-                        <i className="fas fa-map-marker-alt"></i>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800 dark:text-white">
-                          Address
-                        </h4>
-                        <p className="text-gray-600 dark:text-gray-300">
-                          Jl. Sungai Saddang Lama No.102, Makassar
-                        </p>
-                      </div>
+              <div className="flex items-center py-4 border-b border-gray-700">
+                <span className="text-2xl font-semibold text-white mr-6">02.</span>
+                <span className="text-lg text-white">Maximum Progress</span>
+                            </div>
+              <div className="flex items-center py-4">
+                <span className="text-2xl font-semibold text-white mr-6">03.</span>
+                <span className="text-lg text-white">Optimal Result</span>
+                            </div>
+                        </div>
                     </div>
-
-                    <div className="flex items-start">
-                      <div className="mr-4 rounded-full bg-infinity p-2 text-white">
-                        <i className="fas fa-phone-alt"></i>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800 dark:text-white">
-                          Phone
-                        </h4>
-                        <p className="text-gray-600 dark:text-gray-300">
-                          (123) 456-7890
-                        </p>
-                      </div>
+          {/* Tengah */}
+          <div className="flex justify-end pr-8">
+            <img src="/assets/dashboard/img4.jpg" alt="Trainer" className="rounded-xl w-full max-w-md object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
+          </div>
+          {/* Kanan */}
+          <div className="flex flex-col items-center gap-6">
+            <img src="/assets/dashboard/img5.jpg" alt="Trainer" className="rounded-xl w-40 h-56 object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
+            <div className="text-xl font-semibold text-white text-center">Find Best Coaches</div>
+            <Link href={getAuthUrl()} passHref legacyBehavior>
+              <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200 mt-2">
+                <span
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
+                ></span>
+                Learn More
+                <span
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none"
+                ></span>
+              </button>
+            </Link>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    {!session?.user && (
+      <section className="py-16 bg-black">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-6">READY TO FORCE YOUR LEGACY?</h2>
+          <p className="text-lg text-white mb-8 max-w-2xl mx-auto">Join Infinity Gym today and start your fitness journey with our expert guidance and supportive community.</p>
+          <div className="flex justify-center">
+            <Link href="/auth/signup" passHref legacyBehavior>
+              <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200">
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]" />
+                SIGN UP NOW
+                <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
+              </button>
+            </Link>
+          </div>
+        </div>
+      </section>
+    )}
+    
+    <section id="contact" className="py-20">
+        <div className="container mx-auto px-6">
+            <div className="flex flex-col md:flex-row">
+                <div className="md:w-1/2 mb-10 md:mb-0 md:pr-10">
+                    <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">CONTACT <span className="text-infinity">US</span></h2>
+                    <p className="text-gray-600 dark:text-gray-300 mb-6">Have questions about our service and facilities? Reach out to us and we'll get back to you as soon as possible.</p>
+                    
+                    <div className="space-y-4">
+                        <div className="flex items-start">
+                            <div className="bg-infinity p-2 rounded-full text-white mr-4">
+                                <i className="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-800 dark:text-white">Address</h4>
+                                <p className="text-gray-600 dark:text-gray-300">Jl. Sungai Saddang Lama No.102, Makassar</p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-start">
+                            <div className="bg-infinity p-2 rounded-full text-white mr-4">
+                                <i className="fas fa-phone-alt"></i>
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-800 dark:text-white">Phone</h4>
+                                <p className="text-gray-600 dark:text-gray-300">(123) 456-7890</p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-start">
+                            <div className="bg-infinity p-2 rounded-full text-white mr-4">
+                                <i className="fas fa-envelope"></i>
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-800 dark:text-white">Email</h4>
+                                <p className="text-gray-600 dark:text-gray-300">info@fitinfinity.id</p>
+                            </div>
+                        </div>
                     </div>
-
-                    <div className="flex items-start">
-                      <div className="mr-4 rounded-full bg-infinity p-2 text-white">
-                        <i className="fas fa-envelope"></i>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800 dark:text-white">
-                          Email
-                        </h4>
-                        <p className="text-gray-600 dark:text-gray-300">
-                          info@fitinfinity.id
-                        </p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="md:w-1/2">

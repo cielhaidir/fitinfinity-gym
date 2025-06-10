@@ -1,7 +1,15 @@
 import React from "react";
 import Link from "next/link";
+import { auth } from "@/server/auth";
 
-const Hero = () => {
+const Hero = async () => {
+  const session = await auth();
+  
+  // Helper function untuk menentukan URL tujuan
+  const getAuthUrl = () => {
+    return session?.user ? "/member/dashboard" : "/auth/signin";
+  };
+
   return (
     <section className="relative flex h-[100vh] w-full flex-col overflow-hidden bg-[#C9D953]">
       {/* Gradiasi bulat hitam di tengah */}
@@ -35,10 +43,18 @@ const Hero = () => {
               Join our gym and transform your body with our professional
               trainers and state of the art equipment.
             </p>
-            <div className="mb-8 flex space-x-4">
-              <Link href="/auth/signin" passHref legacyBehavior>
-                <button className="relative flex transform items-center overflow-hidden rounded-md border-2 border-neutral-900 bg-[#C9D953] px-5 py-3 font-bold text-black shadow-lg transition duration-200 hover:scale-105 hover:bg-[#b6c940] hover:shadow-xl">
-                  <span className="/* kiri atas */ /* kiri bawah */ /* kanan atas */ /* kanan bawah */ absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-neutral-900"></span>
+            <div className="flex space-x-4 mb-8">
+              <Link href={getAuthUrl()} passHref legacyBehavior>
+                <button className="relative bg-[#C9D953] text-black px-5 py-3 rounded-md font-bold shadow-lg transition duration-200 transform hover:scale-105 hover:shadow-xl flex items-center overflow-hidden border-2 border-neutral-900 hover:bg-[#b6c940]">
+                  <span
+                    className="
+                      absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-neutral-900
+                      rounded-tl-none  /* kiri atas */
+                      rounded-bl-none  /* kiri bawah */
+                      rounded-tr-[5px] /* kanan atas */
+                      rounded-br-[5px] /* kanan bawah */
+                    "
+                  ></span>
                   GET STARTED
                   <span className="/* kiri atas */ /* kiri bawah */ /* kanan atas */ /* kanan bawah */ absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-neutral-900"></span>
                 </button>
@@ -103,10 +119,18 @@ const Hero = () => {
             Join our gym and transform your body with our professional trainers
             and state of the art equipment.
           </p>
-          <div className="mb-8 flex space-x-4">
-            <Link href="/auth/signin" passHref legacyBehavior>
-              <button className="relative flex transform items-center overflow-hidden rounded-md border-2 border-neutral-900 bg-[#C9D953] px-5 py-3 font-bold text-black shadow-lg transition duration-200 hover:scale-105 hover:bg-[#b6c940] hover:shadow-xl">
-                <span className="/* kiri atas */ /* kiri bawah */ /* kanan atas */ /* kanan bawah */ absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-neutral-900"></span>
+          <div className="flex space-x-4 mb-8">
+            <Link href={getAuthUrl()} passHref legacyBehavior>
+              <button className="relative bg-[#C9D953] text-black px-5 py-3 rounded-md font-bold shadow-lg transition duration-200 transform hover:scale-105 hover:shadow-xl flex items-center overflow-hidden border-2 border-neutral-900 hover:bg-[#b6c940]">
+                <span
+                  className="
+                    absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-neutral-900
+                    rounded-tl-none  /* kiri atas */
+                    rounded-bl-none  /* kiri bawah */
+                    rounded-tr-[5px] /* kanan atas */
+                    rounded-br-[5px] /* kanan bawah */
+                  "
+                ></span>
                 GET STARTED
                 <span className="/* kiri atas */ /* kiri bawah */ /* kanan atas */ /* kanan bawah */ absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-neutral-900"></span>
               </button>
