@@ -10,10 +10,27 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { Session } from "next-auth";
 
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 import { configService } from "@/lib/config/configService";
+
+// Define device context type
+interface Context {
+  db: typeof db;
+  session: Session | null;
+  headers: Headers;
+  device?: {
+    id: string;
+    name: string;
+    accessKey: string;
+    isActive: boolean;
+    lastSeen: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+}
 
 // Load configurations at startup
 // configService.loadFromDatabase().catch(console.error);
@@ -67,6 +84,22 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
  */
 export const createCallerFactory = t.createCallerFactory;
 
+// Define device context type
+interface Context {
+  db: typeof db;
+  session: Session | null;
+  headers: Headers;
+  device?: {
+    id: string;
+    name: string;
+    accessKey: string;
+    isActive: boolean;
+    lastSeen: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+}
+
 /**
  * 3. ROUTER & PROCEDURE (THE IMPORTANT BIT)
  *
@@ -105,6 +138,49 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 });
 
 /**
+ * Device authentication middleware
+ */
+const deviceAuthMiddleware = t.middleware(async ({ ctx, next, input }) => {
+  const inputObj = input as { deviceId?: string; accessKey?: string };
+  if (!inputObj?.deviceId || !inputObj?.accessKey) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Device credentials required',
+    });
+  }
+
+  const { deviceId, accessKey } = inputObj;
+
+  const device = await ctx.db.device.findFirst({
+    where: {
+      id: deviceId,
+      accessKey: accessKey,
+      isActive: true,
+    },
+  });
+
+  if (!device) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Invalid device credentials',
+    });
+  }
+
+  // Update last seen timestamp
+  await ctx.db.device.update({
+    where: { id: device.id },
+    data: { lastSeen: new Date() },
+  });
+
+  return next({
+    ctx: {
+      ...ctx,
+      device,
+    },
+  });
+});
+
+/**
  * Public (unauthenticated) procedure
  *
  * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
@@ -112,6 +188,15 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+/**
+ * Device-protected procedure
+ *
+ * Use this for endpoints that require valid device authentication
+ */
+export const deviceProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(deviceAuthMiddleware);
 
 /**
  * Protected (authenticated) procedure

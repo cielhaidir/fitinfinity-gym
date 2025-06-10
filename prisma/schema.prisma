@@ -454,6 +454,8 @@ model Employee {
     position    String?
     department  String?
     image       String?
+    fingerprintId Int? @unique
+    rfidTag    String? @unique
     isActive    Boolean      @default(true)
     createdAt   DateTime     @default(now())
     updatedAt   DateTime     @updatedAt
@@ -467,6 +469,7 @@ model Attendance {
     employeeId String
     checkIn    DateTime
     checkOut   DateTime?
+    deviceId  String? // Optional device ID for attendance tracking
     date       DateTime  @default(now())
     createdAt  DateTime  @default(now())
     updatedAt  DateTime  @updatedAt
@@ -637,4 +640,15 @@ model Config {
 
     @@index([key])
     @@index([category])
+}
+
+
+model Device {
+    id         String   @id @default(cuid())
+    name       String
+    accessKey  String
+    isActive   Boolean  @default(true)
+    lastSeen   DateTime?
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 }
