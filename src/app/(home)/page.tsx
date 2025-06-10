@@ -10,6 +10,11 @@ import Trainers from "./trainers";
 
 export default async function Home() {
   const session = await auth();
+  
+  // Helper function untuk menentukan URL tujuan
+  const getAuthUrl = () => {
+    return session?.user ? "/member/dashboard" : "/auth/signin";
+  };
 
   return (
     <HydrateClient>
@@ -82,7 +87,7 @@ export default async function Home() {
               Our modern facilities and professional trainers are here to push your limits and support you every step of the way on your fitness journey.
             </p>
             <div className="flex items-center gap-4">
-              <Link href="/auth/signin" passHref legacyBehavior>
+              <Link href={getAuthUrl()} passHref legacyBehavior>
                 <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200">
                   <span
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
@@ -129,7 +134,7 @@ export default async function Home() {
             </div>
             <img src="/assets/dashboard/img1.png" alt="Dressing Room" className="w-full h-40 object-cover rounded-b-2xl shadow-lg" />
             <div className="pt-4 pb-4 text-center">
-              <Link href="/auth/signin" passHref legacyBehavior>
+              <Link href={getAuthUrl()} passHref legacyBehavior>
                 <button className="w-full bg-white text-black py-4 text-xl font-bold rounded-xl flex items-center justify-center relative shadow-lg hover:bg-gray-100 transition duration-200">
                   <span className="mx-6">Other Benefits</span>
                   <span className="absolute top-3 right-5">
@@ -287,7 +292,7 @@ export default async function Home() {
         </div>
         {/* Learn More Button */}
         <div className="flex justify-center">
-          <Link href="/auth/signin" passHref legacyBehavior>
+          <Link href={getAuthUrl()} passHref legacyBehavior>
             <button className="relative bg-black text-[#C9D953] font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-black flex items-center overflow-hidden hover:bg-neutral-900 transition duration-200">
               <span
                 className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
@@ -298,7 +303,7 @@ export default async function Home() {
               ></span>
             </button>
           </Link>
-        </div>
+            </div>
         </div>
     </section>
     
@@ -338,7 +343,7 @@ export default async function Home() {
           <div className="flex flex-col items-center gap-6">
             <img src="/assets/dashboard/img5.jpg" alt="Trainer" className="rounded-xl w-40 h-56 object-cover transition duration-300 hover:shadow-[0_0_40px_10px_#C9D953]" />
             <div className="text-xl font-semibold text-white text-center">Find Best Coaches</div>
-            <Link href="/auth/signin" passHref legacyBehavior>
+            <Link href={getAuthUrl()} passHref legacyBehavior>
               <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200 mt-2">
                 <span
                   className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]"
@@ -354,21 +359,23 @@ export default async function Home() {
         </div>
     </section>
     
-    <section className="py-16 bg-black">
+    {!session?.user && (
+      <section className="py-16 bg-black">
         <div className="container mx-auto px-6 text-center">
-        <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-6">READY TO FORCE YOUR LEGACY?</h2>
-        <p className="text-lg text-white mb-8 max-w-2xl mx-auto">Join Infinity Gym today and start your fitness journey with our expert guidance and supportive community.</p>
-        <div className="flex justify-center">
-          <Link href="/auth/signup" passHref legacyBehavior>
-            <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200">
-              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]" />
-              SIGN UP NOW
-              <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
-            </button>
-          </Link>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-6">READY TO FORCE YOUR LEGACY?</h2>
+          <p className="text-lg text-white mb-8 max-w-2xl mx-auto">Join Infinity Gym today and start your fitness journey with our expert guidance and supportive community.</p>
+          <div className="flex justify-center">
+            <Link href="/auth/signup" passHref legacyBehavior>
+              <button className="relative bg-[#C9D953] text-black font-bold uppercase px-8 py-3 rounded-md shadow-lg border-2 border-[#C9D953] flex items-center overflow-hidden hover:bg-[#b6c940] transition duration-200">
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]" />
+                SIGN UP NOW
+                <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-black rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
+              </button>
+            </Link>
+          </div>
         </div>
-        </div>
-    </section>
+      </section>
+    )}
     
     <section id="contact" className="py-20">
         <div className="container mx-auto px-6">

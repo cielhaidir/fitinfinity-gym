@@ -1,7 +1,15 @@
 import React from "react";
 import Link from "next/link";
+import { auth } from "@/server/auth";
 
-const Hero = () => {
+const Hero = async () => {
+  const session = await auth();
+  
+  // Helper function untuk menentukan URL tujuan
+  const getAuthUrl = () => {
+    return session?.user ? "/member/dashboard" : "/auth/signin";
+  };
+
   return (
     <section className="relative w-full h-[100vh] flex flex-col overflow-hidden bg-[#C9D953]">
       {/* Gradiasi bulat hitam di tengah */}
@@ -35,7 +43,7 @@ const Hero = () => {
               Join our gym and transform your body with our professional trainers and state of the art equipment.
             </p>
             <div className="flex space-x-4 mb-8">
-              <Link href="/auth/signin" passHref legacyBehavior>
+              <Link href={getAuthUrl()} passHref legacyBehavior>
                 <button className="relative bg-[#C9D953] text-black px-5 py-3 rounded-md font-bold shadow-lg transition duration-200 transform hover:scale-105 hover:shadow-xl flex items-center overflow-hidden border-2 border-neutral-900 hover:bg-[#b6c940]">
                   <span
                     className="
@@ -129,7 +137,7 @@ const Hero = () => {
             Join our gym and transform your body with our professional trainers and state of the art equipment.
           </p>
           <div className="flex space-x-4 mb-8">
-            <Link href="/auth/signin" passHref legacyBehavior>
+            <Link href={getAuthUrl()} passHref legacyBehavior>
               <button className="relative bg-[#C9D953] text-black px-5 py-3 rounded-md font-bold shadow-lg transition duration-200 transform hover:scale-105 hover:shadow-xl flex items-center overflow-hidden border-2 border-neutral-900 hover:bg-[#b6c940]">
                 <span
                   className="
