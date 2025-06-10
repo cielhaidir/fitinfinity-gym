@@ -110,6 +110,7 @@
     "zod": "^3.25.32"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/eslint": "^8.56.10",
     "@types/handlebars": "^4.0.40",
@@ -123,6 +124,7 @@
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.1.0",
+    "bcrypt": "^6.0.0",
     "daisyui": "^4.12.23",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.0.1",
