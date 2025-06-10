@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 
 export const roleRouter = createTRPCRouter({
-  create: protectedProcedure
+  create: permissionProtectedProcedure(["create:role"])
     .input(
       z.object({
         name: z.string(),
@@ -16,7 +16,7 @@ export const roleRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:role"])
     .input(
       z.object({
         id: z.string(),
@@ -32,7 +32,7 @@ export const roleRouter = createTRPCRouter({
       });
     }),
 
-  listAll: protectedProcedure
+  listAll: permissionProtectedProcedure(["list:role"])
     .input(
       z.object({
         search: z.string().optional(),
@@ -56,7 +56,7 @@ export const roleRouter = createTRPCRouter({
       return items;
     }),
 
-  list: protectedProcedure
+  list: permissionProtectedProcedure(["list:role"])
     .input(
       z.object({
         page: z.number().min(1),
@@ -91,7 +91,7 @@ export const roleRouter = createTRPCRouter({
       };
     }),
 
-  remove: protectedProcedure
+  remove: permissionProtectedProcedure(["delete:role"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.role.delete({
@@ -99,7 +99,7 @@ export const roleRouter = createTRPCRouter({
       });
     }),
 
-  getAll: protectedProcedure.query(async ({ ctx }) => {
+  getAll: permissionProtectedProcedure(["list:role"]).query(async ({ ctx }) => {
     const roles = await ctx.db.role.findMany({
       orderBy: {
         name: "asc",

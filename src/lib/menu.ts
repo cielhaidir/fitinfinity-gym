@@ -108,7 +108,7 @@ export const Menu: { navMain: MenuGroup[] } = {
         // },
         {
           title: "Fitness Consultant",
-          url: "/management/FC",
+          url: "/management/fitness-consultant",
           icon: Badge,
           requiredPermission: "list:fc",
         },
@@ -230,13 +230,13 @@ export const Menu: { navMain: MenuGroup[] } = {
         {
           title: "Dashboard",
           icon: CircleGauge,
-          url: "/fc",
+          url: "/fitness-consultants",
           requiredPermission: "list:dashboard-fc",
         },
         {
           title: "Member Management",
           icon: Users,
-          url: "/fc/members",
+          url: "/fitness-consultants/members",
           requiredPermission: "list:members-fc",
         },
       ],

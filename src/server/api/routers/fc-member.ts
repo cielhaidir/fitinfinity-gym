@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, permissionProtectedProcedure } from "../trpc";
 import { type Prisma, type FcMember } from "@prisma/client";
 
 const FCMemberStatus = {
@@ -17,7 +17,7 @@ const FCMemberStatus = {
 
 export const fcMemberRouter = createTRPCRouter({
   // Create FC Member
-  create: protectedProcedure
+  create: permissionProtectedProcedure(["create:fc-member"])
     .input(
       z.object({
         member_name: z.string(),
@@ -58,7 +58,7 @@ export const fcMemberRouter = createTRPCRouter({
     }),
 
   // Get all FC Members for current FC
-  getAll: protectedProcedure.query(async ({ ctx }) => {
+  getAll: permissionProtectedProcedure(["list:fc-member"]).query(async ({ ctx }) => {
     const fc = await ctx.db.fC.findFirst({
       where: {
         userId: ctx.session.user.id,
@@ -80,7 +80,7 @@ export const fcMemberRouter = createTRPCRouter({
   }),
 
   // Get FC Member by ID
-  getById: protectedProcedure
+  getById: permissionProtectedProcedure(["show:fc-member"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const fc = await ctx.db.fC.findFirst({
@@ -108,7 +108,7 @@ export const fcMemberRouter = createTRPCRouter({
     }),
 
   // Update FC Member
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:fc-member"])
     .input(
       z.object({
         id: z.string(),
@@ -164,7 +164,7 @@ export const fcMemberRouter = createTRPCRouter({
     }),
 
   // Delete FC Member
-  delete: protectedProcedure
+  delete: permissionProtectedProcedure(["delete:fc-member"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const fc = await ctx.db.fC.findFirst({

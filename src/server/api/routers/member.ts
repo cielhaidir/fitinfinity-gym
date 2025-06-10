@@ -98,7 +98,7 @@ export const memberRouter = createTRPCRouter({
       return member;
     }),
 
-  list: protectedProcedure
+  list: permissionProtectedProcedure(["list:member"])
     .input(
       z.object({
         page: z.number().min(1),
@@ -180,7 +180,7 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:member"])
     .input(
       z.object({
         id: z.string(),
@@ -273,7 +273,7 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
-  remove: protectedProcedure
+  remove: permissionProtectedProcedure(["delete:member"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.membership.delete({
@@ -292,7 +292,7 @@ export const memberRouter = createTRPCRouter({
     },
   ),
 
-  getAttendanceCount: protectedProcedure
+  getAttendanceCount: permissionProtectedProcedure(["list:attendance"])
     .input(z.object({ memberId: z.string() }))
     .query(async ({ ctx, input }) => {
       const startOfYear = new Date(new Date().getFullYear(), 0, 1);

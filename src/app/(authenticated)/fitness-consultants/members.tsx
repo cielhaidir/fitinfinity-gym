@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { DataTable } from "@/app/_components/datatable/data-table";
-import { columns } from "./members-columns";
+import { columns, type FC_Member } from "./members-columns";
 import { Button } from "@/app/_components/ui/button";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -86,7 +86,11 @@ export default function FCMembersPage({ searchParams }: PageProps) {
       <DataTable
         columns={tableColumns}
         data={{
-          items: filteredMembers,
+          items: filteredMembers.map((member) => ({
+            ...member,
+            onEdit: handleEdit,
+            onDelete: handleDelete,
+          })) as FC_Member[],
           total: filteredMembers.length,
           page: 1,
           limit: 10,

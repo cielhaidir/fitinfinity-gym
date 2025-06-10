@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import {
   createTRPCRouter,
-  protectedProcedure,
   publicProcedure,
+  permissionProtectedProcedure,
 } from "@/server/api/trpc";
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -98,7 +98,7 @@ export const userRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:user"])
     .input(
       z.object({
         id: z.string(),
@@ -145,7 +145,7 @@ export const userRouter = createTRPCRouter({
       }
     }),
 
-  delete: protectedProcedure
+  delete: permissionProtectedProcedure(["delete:user"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const sessionUserId = ctx.session.user.id;
@@ -167,11 +167,11 @@ export const userRouter = createTRPCRouter({
       }
     }),
 
-  all: protectedProcedure.query(async ({ ctx }) => {
+  all: permissionProtectedProcedure(["list:user"]).query(async ({ ctx }) => {
     return await ctx.db.user.findMany();
   }),
 
-  list: protectedProcedure
+  list: permissionProtectedProcedure(["list:user"])
     .input(
       z.object({
         page: z.number().min(1),
@@ -209,7 +209,7 @@ export const userRouter = createTRPCRouter({
         limit: input.limit,
       };
     }),
-  getUserWithRoles: protectedProcedure.query(async ({ ctx }) => {
+  getUserWithRoles: permissionProtectedProcedure(["show:user"]).query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
 
     const user = await ctx.db.user.findUnique({
@@ -229,7 +229,7 @@ export const userRouter = createTRPCRouter({
 
     return user;
   }),
-  getById: protectedProcedure
+  getById: permissionProtectedProcedure(["show:user"])
     .input(
       z.object({
         id: z.string(),

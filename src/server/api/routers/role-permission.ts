@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 
 export const rolePermissionRouter = createTRPCRouter({
-  create: protectedProcedure
+  create: permissionProtectedProcedure(["create:role-permission"])
     .input(
       z.object({
         roleId: z.string(),
@@ -27,7 +27,7 @@ export const rolePermissionRouter = createTRPCRouter({
       return rolePermissions;
     }),
 
-  list: protectedProcedure
+  list: permissionProtectedProcedure(["list:role-permission"])
     .input(
       z.object({
         page: z.number().default(1),
@@ -82,7 +82,7 @@ export const rolePermissionRouter = createTRPCRouter({
       };
     }),
 
-  getRoles: protectedProcedure.query(async ({ ctx }) => {
+  getRoles: permissionProtectedProcedure(["list:role"]).query(async ({ ctx }) => {
     const roles = await ctx.db.role.findMany({
       select: {
         id: true,
@@ -95,7 +95,7 @@ export const rolePermissionRouter = createTRPCRouter({
     return roles;
   }),
 
-  getPermissions: protectedProcedure.query(async ({ ctx }) => {
+  getPermissions: permissionProtectedProcedure(["list:permission"]).query(async ({ ctx }) => {
     const permissions = await ctx.db.permission.findMany({
       select: {
         id: true,
@@ -108,7 +108,7 @@ export const rolePermissionRouter = createTRPCRouter({
     return permissions;
   }),
 
-  getPermissionsByRole: protectedProcedure
+  getPermissionsByRole: permissionProtectedProcedure(["show:role-permission"])
     .input(
       z.object({
         roleId: z.string(),
@@ -126,7 +126,7 @@ export const rolePermissionRouter = createTRPCRouter({
       return rolePermissions;
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:role-permission"])
     .input(
       z.object({
         roleId: z.string(),
@@ -158,7 +158,7 @@ export const rolePermissionRouter = createTRPCRouter({
       return rolePermissions;
     }),
 
-  remove: protectedProcedure
+  remove: permissionProtectedProcedure(["delete:role-permission"])
     .input(
       z.object({
         roleId: z.string(),

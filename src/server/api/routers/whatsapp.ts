@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   createTRPCRouter,
   publicProcedure,
-  protectedProcedure,
+  permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import jwt from "jsonwebtoken";
@@ -70,7 +70,7 @@ async function sendWhatsAppMessage(formattedPhone: string, message: string) {
 }
 
 export const whatsappRouter = createTRPCRouter({
-  sendMessage: protectedProcedure
+  sendMessage: permissionProtectedProcedure(["send:whatsapp"])
     .input(
       z.object({
         phone: z.string(), // e.g., '6281234567890'

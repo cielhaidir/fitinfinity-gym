@@ -75,7 +75,7 @@ export const attendanceRouter = createTRPCRouter({
       }
     }),
 
-  checkIn: protectedProcedure.mutation(async ({ ctx }) => {
+  checkIn: permissionProtectedProcedure(["create:attendance"]).mutation(async ({ ctx }) => {
     try {
       // First check if user exists and has employee role
       const user = await ctx.db.user.findUnique({
@@ -138,7 +138,7 @@ export const attendanceRouter = createTRPCRouter({
     }
   }),
 
-  checkOut: protectedProcedure.mutation(async ({ ctx }) => {
+  checkOut: permissionProtectedProcedure(["create:attendance"]).mutation(async ({ ctx }) => {
     try {
       // First check if user exists and has employee role
       const user = await ctx.db.user.findUnique({

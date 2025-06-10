@@ -1,12 +1,12 @@
 import { z } from "zod";
 import {
   createTRPCRouter,
-  protectedProcedure,
   publicProcedure,
+  permissionProtectedProcedure,
 } from "@/server/api/trpc";
 
 export const personalTrainerRouter = createTRPCRouter({
-  create: protectedProcedure
+  create: permissionProtectedProcedure(["create:trainers"])
     .input(
       z.object({
         userId: z.string(),
@@ -22,7 +22,7 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     }),
 
-  edit: protectedProcedure
+  edit: permissionProtectedProcedure(["edit:trainers"])
     .input(
       z.object({
         id: z.string(),
@@ -35,14 +35,14 @@ export const personalTrainerRouter = createTRPCRouter({
       return ctx.db.personalTrainer.update({
         where: { id: input.id },
         data: {
-          userId: input.userId,
-          description: input.description,
-          isActive: input.isActive,
+          userId: input.userId ?? undefined,
+          description: input.description ?? undefined,
+          isActive: input.isActive ?? undefined,
         },
       });
     }),
 
-  detail: protectedProcedure
+  detail: permissionProtectedProcedure(["show:trainers"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.personalTrainer.findUnique({
@@ -50,7 +50,7 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     }),
 
-  list: protectedProcedure
+  list: permissionProtectedProcedure(["list:trainers"])
     .input(
       z.object({
         page: z.number().min(1),
@@ -74,7 +74,7 @@ export const personalTrainerRouter = createTRPCRouter({
       };
     }),
 
-  getById: protectedProcedure
+  getById: permissionProtectedProcedure(["show:trainers"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.personalTrainer.findUnique({
@@ -82,7 +82,7 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:trainers"])
     .input(
       z.object({
         id: z.string(),
@@ -95,9 +95,9 @@ export const personalTrainerRouter = createTRPCRouter({
       return ctx.db.personalTrainer.update({
         where: { id: input.id },
         data: {
-          userId: input.userId,
-          description: input.description,
-          isActive: input.isActive,
+          userId: input.userId ?? undefined,
+          description: input.description ?? undefined,
+          isActive: input.isActive ?? undefined,
         },
       });
     }),

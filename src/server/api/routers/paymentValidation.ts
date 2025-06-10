@@ -1,8 +1,8 @@
 import { z } from "zod";
 import {
   createTRPCRouter,
-  protectedProcedure,
   publicProcedure,
+  permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import {
@@ -19,7 +19,7 @@ import { TRPCError } from "@trpc/server";
 import { siteConfig } from "@/lib/config/siteConfig";
 
 export const paymentValidationRouter = createTRPCRouter({
-  uploadFile: protectedProcedure
+  uploadFile: permissionProtectedProcedure(["upload:payment"])
     .input(
       z.object({
         fileData: z.string(), // base64 string
@@ -76,7 +76,7 @@ export const paymentValidationRouter = createTRPCRouter({
       };
     }),
 
-  create: protectedProcedure
+  create: permissionProtectedProcedure(["create:payment"])
     .input(
       z.object({
         memberId: z.string(),
@@ -148,7 +148,7 @@ export const paymentValidationRouter = createTRPCRouter({
       });
     }),
 
-  listWaiting: protectedProcedure // Assuming only admins/protected users can see this
+  listWaiting: permissionProtectedProcedure(["list:payment"])
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -188,7 +188,7 @@ export const paymentValidationRouter = createTRPCRouter({
       return { items, total, page, limit };
     }),
 
-  accept: protectedProcedure // Assuming only admins can accept
+  accept: permissionProtectedProcedure(["accept:payment"])
     .input(z.object({ id: z.string(), balanceId: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const paymentValidation = await ctx.db.paymentValidation.findUnique({
@@ -340,7 +340,7 @@ export const paymentValidationRouter = createTRPCRouter({
       });
     }),
 
-  decline: protectedProcedure // Assuming only admins can decline
+  decline: permissionProtectedProcedure(["decline:payment"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const paymentValidation = await ctx.db.paymentValidation.findUnique({
@@ -363,7 +363,7 @@ export const paymentValidationRouter = createTRPCRouter({
       });
     }),
 
-  listAll: protectedProcedure
+  listAll: permissionProtectedProcedure(["list:payment"])
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -395,7 +395,7 @@ export const paymentValidationRouter = createTRPCRouter({
       return { items, total, page, limit };
     }),
 
-  getAllPayments: protectedProcedure
+  getAllPayments: permissionProtectedProcedure(["list:payment"])
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -505,7 +505,7 @@ export const paymentValidationRouter = createTRPCRouter({
         limit,
       };
     }),
-  getMemberPayments: protectedProcedure
+  getMemberPayments: permissionProtectedProcedure(["show:payment"])
     .input(
       z.object({
         page: z.number().min(1).default(1),

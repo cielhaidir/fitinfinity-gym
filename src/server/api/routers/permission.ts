@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 
 export const permissionRouter = createTRPCRouter({
-  createSingle: protectedProcedure
+  createSingle: permissionProtectedProcedure(["create:permission"])
     .input(
       z.object({
         name: z.string(),
@@ -23,7 +23,7 @@ export const permissionRouter = createTRPCRouter({
       });
     }),
 
-  create: protectedProcedure
+  create: permissionProtectedProcedure(["create:permission"])
     .input(
       z.object({
         name: z.string(),
@@ -51,7 +51,7 @@ export const permissionRouter = createTRPCRouter({
       return permissions;
     }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:permission"])
     .input(
       z.object({
         id: z.string(),
@@ -74,7 +74,7 @@ export const permissionRouter = createTRPCRouter({
       });
     }),
 
-  list: protectedProcedure
+  list: permissionProtectedProcedure(["list:permission"])
     .input(
       z.object({
         page: z.number().min(1),
@@ -118,7 +118,7 @@ export const permissionRouter = createTRPCRouter({
       };
     }),
 
-  getAllRoles: protectedProcedure.query(async ({ ctx }) => {
+  getAllRoles: permissionProtectedProcedure(["list:permission"]).query(async ({ ctx }) => {
     return ctx.db.role.findMany({
       orderBy: { name: "asc" },
       select: {
@@ -128,7 +128,7 @@ export const permissionRouter = createTRPCRouter({
     });
   }),
 
-  getById: protectedProcedure
+  getById: permissionProtectedProcedure(["show:permission"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.permission.findUnique({
@@ -143,7 +143,7 @@ export const permissionRouter = createTRPCRouter({
       });
     }),
 
-  remove: protectedProcedure
+  remove: permissionProtectedProcedure(["delete:permission"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.permission.delete({
@@ -151,7 +151,7 @@ export const permissionRouter = createTRPCRouter({
       });
     }),
 
-  getAll: protectedProcedure.query(async ({ ctx }) => {
+  getAll: permissionProtectedProcedure(["list:permission"]).query(async ({ ctx }) => {
     const permissions = await ctx.db.permission.findMany({
       orderBy: {
         name: "asc",

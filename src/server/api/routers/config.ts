@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
 import { configService } from "@/lib/config/configService";
 import { TRPCError } from "@trpc/server";
 
 export const configRouter = createTRPCRouter({
-  getAll: protectedProcedure.query(async ({ ctx }) => {
+  getAll: permissionProtectedProcedure(["list:config"]).query(async ({ ctx }) => {
     // Check for admin permission
 
     await configService.ensureLoaded();
@@ -16,7 +16,7 @@ export const configRouter = createTRPCRouter({
     return configs;
   }),
 
-  update: protectedProcedure
+  update: permissionProtectedProcedure(["edit:config"])
     .input(
       z.object({
         key: z.string(),
@@ -27,17 +27,16 @@ export const configRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       // Check for admin permission
 
-      // If category is provided, update with category
-      if (input.category) {
-        await configService.set(input.key, input.value, input.category);
-      } else {
-        await configService.set(input.key, input.value);
-      }
+      await configService.set(
+        input.key,
+        input.value,
+        input.category ?? 'default' // Use 'default' as fallback category
+      );
 
       return { success: true };
     }),
 
-  resetToDefaults: protectedProcedure.mutation(async ({ ctx }) => {
+  resetToDefaults: permissionProtectedProcedure(["edit:config"]).mutation(async ({ ctx }) => {
     await configService.initializeDefaults();
 
     return { success: true };

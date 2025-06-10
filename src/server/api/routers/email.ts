@@ -1,8 +1,8 @@
 import { z } from "zod";
 import {
   createTRPCRouter,
-  protectedProcedure,
   publicProcedure,
+  permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import {
   emailConfigSchema,
@@ -15,7 +15,7 @@ import { emailService } from "@/lib/email/emailService";
 import { randomBytes } from "crypto";
 
 export const emailRouter = createTRPCRouter({
-  createConfig: protectedProcedure
+  createConfig: permissionProtectedProcedure(["create:email"])
     .input(emailConfigSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.emailConfig.create({
@@ -23,7 +23,7 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  updateConfig: protectedProcedure
+  updateConfig: permissionProtectedProcedure(["edit:email"])
     .input(
       z.object({
         id: z.string(),
@@ -37,7 +37,7 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  deleteConfig: protectedProcedure
+  deleteConfig: permissionProtectedProcedure(["delete:email"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.emailConfig.delete({
@@ -45,13 +45,13 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  listConfigs: protectedProcedure.query(async ({ ctx }) => {
+  listConfigs: permissionProtectedProcedure(["list:email"]).query(async ({ ctx }) => {
     return ctx.db.emailConfig.findMany({
       orderBy: { createdAt: "desc" },
     });
   }),
 
-  getConfig: protectedProcedure
+  getConfig: permissionProtectedProcedure(["show:email"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const config = await ctx.db.emailConfig.findUnique({
@@ -68,7 +68,7 @@ export const emailRouter = createTRPCRouter({
       return config;
     }),
 
-  setActiveConfig: protectedProcedure
+  setActiveConfig: permissionProtectedProcedure(["activate:email"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       // First, set all configs to inactive
@@ -84,7 +84,7 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  testConnection: protectedProcedure
+  testConnection: permissionProtectedProcedure(["test:email"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const config = await ctx.db.emailConfig.findUnique({
@@ -119,7 +119,7 @@ export const emailRouter = createTRPCRouter({
       }
     }),
 
-  createTemplate: protectedProcedure
+  createTemplate: permissionProtectedProcedure(["create:email"])
     .input(emailTemplateSchema)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.emailTemplate.create({
@@ -127,7 +127,7 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  updateTemplate: protectedProcedure
+  updateTemplate: permissionProtectedProcedure(["edit:email"])
     .input(
       z.object({
         id: z.string(),
@@ -141,7 +141,7 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  deleteTemplate: protectedProcedure
+  deleteTemplate: permissionProtectedProcedure(["delete:email"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.emailTemplate.delete({
@@ -149,13 +149,13 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  listTemplates: protectedProcedure.query(async ({ ctx }) => {
+  listTemplates: permissionProtectedProcedure(["list:email"]).query(async ({ ctx }) => {
     return ctx.db.emailTemplate.findMany({
       orderBy: { createdAt: "desc" },
     });
   }),
 
-  getTemplate: protectedProcedure
+  getTemplate: permissionProtectedProcedure(["show:email"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const template = await ctx.db.emailTemplate.findUnique({
@@ -219,7 +219,7 @@ export const emailRouter = createTRPCRouter({
 
       try {
         await emailService.sendTemplateEmail({
-          to: user.email,
+          to: user.email ?? '',
           templateId: template.id,
           templateData: {
             name: user.name || "User",
