@@ -1,9 +1,9 @@
-import { ColumnDef } from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/app/_components/ui/badge";
 import { Checkbox } from "@/app/_components/ui/checkbox";
 import { DataTableColumnHeader } from "@/app/_components/datatable/data-table-column-header";
 import { DataTableRowActions } from "@/app/_components/datatable/data-table-row-actions";
-import { EmailConfig, EmailTemplate } from "./schema";
+import { type EmailConfig, type EmailTemplate } from "./schema";
 import { format } from "date-fns";
 
 // Helper function to format dates
@@ -177,7 +177,7 @@ export const createEmailTemplateColumns = ({
       <DataTableColumnHeader column={column} title="Type" />
     ),
     cell: ({ row }) => {
-      const type = row.getValue("type") as string;
+      const type = row.getValue("type");
       return (
         <Badge variant="outline" className="capitalize">
           {type.replace(/_/g, " ").toLowerCase()}

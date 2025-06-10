@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRBAC } from "@/hooks/useRBAC";
-import { ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,10 +10,10 @@ interface ProtectedRouteProps {
   requiredRoles?: string[];
 }
 
-export function ProtectedRoute({ 
-  children, 
-  requiredPermissions = [], 
-  requiredRoles = [] 
+export function ProtectedRoute({
+  children,
+  requiredPermissions = [],
+  requiredRoles = [],
 }: ProtectedRouteProps) {
   const router = useRouter();
   const { hasPermission, hasRole, isLoading } = useRBAC();
@@ -21,16 +21,24 @@ export function ProtectedRoute({
   useEffect(() => {
     if (isLoading) return;
 
-    const hasRequiredPermissions = requiredPermissions.length === 0 || 
-      requiredPermissions.some(permission => hasPermission(permission));
-    
-    const hasRequiredRoles = requiredRoles.length === 0 || 
-      requiredRoles.some(role => hasRole(role));
+    const hasRequiredPermissions =
+      requiredPermissions.length === 0 ||
+      requiredPermissions.some((permission) => hasPermission(permission));
+
+    const hasRequiredRoles =
+      requiredRoles.length === 0 || requiredRoles.some((role) => hasRole(role));
 
     if (!hasRequiredPermissions || !hasRequiredRoles) {
       router.push("/unauthorized");
     }
-  }, [hasPermission, hasRole, isLoading, requiredPermissions, requiredRoles, router]);
+  }, [
+    hasPermission,
+    hasRole,
+    isLoading,
+    requiredPermissions,
+    requiredRoles,
+    router,
+  ]);
 
   if (isLoading) {
     return <div>Loading...</div>;

@@ -67,7 +67,7 @@ export const appRouter = createTRPCRouter({
   email: emailRouter,
   auth: authRouter,
   config: configRouter,
-  fcMember: fcMemberRouter
+  fcMember: fcMemberRouter,
 });
 
 // export type definition of API

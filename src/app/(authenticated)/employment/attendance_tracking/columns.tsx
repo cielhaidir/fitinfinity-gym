@@ -1,7 +1,7 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { Attendance } from "./schema";
+import { type ColumnDef } from "@tanstack/react-table";
+import { type Attendance } from "./schema";
 import { format } from "date-fns";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 
@@ -43,7 +43,11 @@ export const columns: ColumnDef<Attendance>[] = [
     ),
     cell: ({ row }) => {
       const checkOut = row.original.checkOut;
-      return <div className="w-[100px]">{checkOut ? format(checkOut, "HH:mm") : "-"}</div>;
+      return (
+        <div className="w-[100px]">
+          {checkOut ? format(checkOut, "HH:mm") : "-"}
+        </div>
+      );
     },
   },
-]; 
+];

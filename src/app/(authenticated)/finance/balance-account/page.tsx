@@ -7,25 +7,28 @@ import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
-import { BalanceAccount, BalanceAccountList } from "./schema";
+import { type BalanceAccount, BalanceAccountList } from "./schema";
 import { BalanceAccountForm } from "./_components/balance-account-form";
 import { toast } from "sonner";
 
 export default function BalanceAccountPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<BalanceAccount | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<BalanceAccount | null>(
+    null,
+  );
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
   const utils = api.useUtils();
-  const { data: accounts = { items: [], total: 0, page: 1, limit: 10 } } = api.balanceAccount.getAll.useQuery({
-    page,
-    limit,
-    search,
-    searchColumn
-  });
+  const { data: accounts = { items: [], total: 0, page: 1, limit: 10 } } =
+    api.balanceAccount.getAll.useQuery({
+      page,
+      limit,
+      search,
+      searchColumn,
+    });
 
   const createAccount = api.balanceAccount.create.useMutation({
     onSuccess: () => {
@@ -91,12 +94,15 @@ export default function BalanceAccountPage() {
             Here&apos;s a list of your balance accounts!
           </p>
         </div>
-        <Sheet open={isSheetOpen} onOpenChange={(open) => {
-          setIsSheetOpen(open);
-          if (!open) {
-            setSelectedAccount(null);
-          }
-        }}>
+        <Sheet
+          open={isSheetOpen}
+          onOpenChange={(open) => {
+            setIsSheetOpen(open);
+            if (!open) {
+              setSelectedAccount(null);
+            }
+          }}
+        >
           <SheetTrigger asChild>
             <Button className="mb-4 bg-infinity">
               <Plus className="mr-2 h-4 w-4" /> Create Account
@@ -120,7 +126,7 @@ export default function BalanceAccountPage() {
         onPaginationChange={handlePaginationChange}
         searchColumns={[
           { id: "name", placeholder: "Search by name..." },
-          { id: "account_number", placeholder: "Search by account number..." }
+          { id: "account_number", placeholder: "Search by account number..." },
         ]}
         onSearch={(value, column) => {
           setSearch(value);

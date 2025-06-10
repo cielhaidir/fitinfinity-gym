@@ -22,15 +22,15 @@ export default function Cards() {
         />
         <CardTitle className="mt-4 text-lg font-bold">Dr. Testing</CardTitle>
         <CardDescription className="text-sm">Data Analyst</CardDescription>
-        <div className="flex space-x-2 my-4">
-          <Badge className="rounded-xl mr-2 flex items-center dark:bg-blue-600 dark:text-white bg-white text-blue-600 border-2 border-blue-600">
+        <div className="my-4 flex space-x-2">
+          <Badge className="mr-2 flex items-center rounded-xl border-2 border-blue-600 bg-white text-blue-600 dark:bg-blue-600 dark:text-white">
             <BriefcaseBusiness className="mr-1" /> Niggas
           </Badge>
-          <Badge className="rounded-xl flex items-center dark:bg-blue-600 dark:text-white bg-white text-blue-600 border-2 border-blue-600">
+          <Badge className="flex items-center rounded-xl border-2 border-blue-600 bg-white text-blue-600 dark:bg-blue-600 dark:text-white">
             <ThumbsUp className="mr-1" /> 88%
           </Badge>
         </div>
-        <h2 className="font-bold text-xl">Rp.20000</h2>
+        <h2 className="text-xl font-bold">Rp.20000</h2>
       </CardContent>
       <CardFooter className="flex justify-end">
         <Button>Chat</Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 
@@ -38,9 +38,7 @@ export const createColumns = (): ColumnDef<MemberReward>[] => [
       <DataTableColumnHeader column={column} title="Reward Points" />
     ),
     cell: ({ row }) => (
-      <Badge variant="outline">
-        {row.original.reward.price} points
-      </Badge>
+      <Badge variant="outline">{row.original.reward.price} points</Badge>
     ),
   },
   {
@@ -52,4 +50,4 @@ export const createColumns = (): ColumnDef<MemberReward>[] => [
       <div>{new Date(row.original.claimedAt).toLocaleDateString()}</div>
     ),
   },
-]; 
+];

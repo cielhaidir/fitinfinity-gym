@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Voucher } from "./schema";
+import { type Voucher } from "./schema";
 import { useState, useEffect } from "react";
 import {
   Popover,
@@ -45,16 +45,22 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
   onCreateOrUpdateVoucher,
   isEditMode,
 }) => {
-  const [currentDiscountType, setCurrentDiscountType] = useState(voucher.discountType || "CASH");
-  const [amountInput, setAmountInput] = useState(voucher.amount?.toString() || "0");
+  const [currentDiscountType, setCurrentDiscountType] = useState(
+    voucher.discountType || "CASH",
+  );
+  const [amountInput, setAmountInput] = useState(
+    voucher.amount?.toString() || "0",
+  );
   const [expiryDate, setExpiryDate] = useState<Date | undefined>(
-    voucher.expiryDate ? new Date(voucher.expiryDate) : undefined
+    voucher.expiryDate ? new Date(voucher.expiryDate) : undefined,
   );
 
   useEffect(() => {
     setCurrentDiscountType(voucher.discountType || "CASH");
     setAmountInput(voucher.amount?.toString() || "0");
-    setExpiryDate(voucher.expiryDate ? new Date(voucher.expiryDate) : undefined);
+    setExpiryDate(
+      voucher.expiryDate ? new Date(voucher.expiryDate) : undefined,
+    );
   }, [voucher.discountType, voucher.amount, voucher.expiryDate]);
   const handleDiscountTypeChange = (value: "PERCENT" | "CASH") => {
     setCurrentDiscountType(value);
@@ -72,15 +78,15 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
     const target = {
       name: "amount",
       value: numericValue,
-      type: "number", 
+      type: "number",
       checked: false,
-      valueAsNumber: numericValue
+      valueAsNumber: numericValue,
     } as unknown as EventTarget & HTMLInputElement;
 
     const syntheticEvent = {
       target,
       currentTarget: target,
-      nativeEvent: new Event('input'),
+      nativeEvent: new Event("input"),
       bubbles: true,
       cancelable: true,
       defaultPrevented: false,
@@ -92,7 +98,7 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
       isPropagationStopped: () => false,
       persist: () => {},
       timeStamp: Date.now(),
-      type: 'change'
+      type: "change",
     } as unknown as React.ChangeEvent<HTMLInputElement>;
 
     onInputChange(syntheticEvent);
@@ -101,7 +107,7 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
   const handleExpiryDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const date = e.target.value ? new Date(e.target.value) : undefined;
     setExpiryDate(date);
-    
+
     // Create a synthetic event for the date change
     const syntheticEvent = {
       target: {
@@ -112,9 +118,9 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
       currentTarget: {
         name: "expiryDate",
         value: date || null,
-        type: "date"
+        type: "date",
       },
-      nativeEvent: new Event('change'),
+      nativeEvent: new Event("change"),
       bubbles: true,
       cancelable: true,
       defaultPrevented: false,
@@ -123,9 +129,9 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
       preventDefault: () => {},
       stopPropagation: () => {},
       timeStamp: Date.now(),
-      type: 'change'
+      type: "change",
     } as unknown as React.ChangeEvent<HTMLInputElement>;
-    
+
     onInputChange(syntheticEvent);
   };
 
@@ -138,14 +144,14 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
         name: "expiryDate",
         value: null,
         type: "date",
-        checked: false
+        checked: false,
       },
       currentTarget: {
         name: "expiryDate",
         value: null,
-        type: "date"
+        type: "date",
       },
-      nativeEvent: new Event('input'),
+      nativeEvent: new Event("input"),
       bubbles: true,
       cancelable: true,
       defaultPrevented: false,
@@ -157,7 +163,7 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
       isPropagationStopped: () => false,
       persist: () => {},
       timeStamp: Date.now(),
-      type: 'change'
+      type: "change",
     } as unknown as React.ChangeEvent<HTMLInputElement>;
 
     onInputChange(syntheticEvent);
@@ -178,7 +184,7 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
 
       <div className="flex flex-col gap-4 py-8">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium mb-2">
+          <label htmlFor="name" className="mb-2 block text-sm font-medium">
             Voucher Name
           </label>
           <Input
@@ -191,7 +197,7 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="type" className="block text-sm font-medium mb-2">
+          <label htmlFor="type" className="mb-2 block text-sm font-medium">
             Voucher Type
           </label>
           <Select
@@ -209,7 +215,10 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="discountType" className="block text-sm font-medium mb-2">
+          <label
+            htmlFor="discountType"
+            className="mb-2 block text-sm font-medium"
+          >
             Discount Type
           </label>
           <Select
@@ -227,8 +236,10 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
         </div>
 
         <div>
-          <label htmlFor="amount" className="block text-sm font-medium mb-2">
-            {currentDiscountType === "PERCENT" ? "Discount Percentage (%)" : "Discount Amount (Rp)"}
+          <label htmlFor="amount" className="mb-2 block text-sm font-medium">
+            {currentDiscountType === "PERCENT"
+              ? "Discount Percentage (%)"
+              : "Discount Amount (Rp)"}
           </label>
           <div className="relative">
             {currentDiscountType === "CASH" && (
@@ -249,20 +260,20 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
               }
               value={amountInput}
               onChange={handleAmountChange}
-              className={`[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+              className={`[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
                 currentDiscountType === "CASH" ? "pl-8" : ""
               }`}
             />
           </div>
           {currentDiscountType === "PERCENT" && (
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="mt-1 text-sm text-muted-foreground">
               Maximum discount percentage is 100%
             </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="maxClaim" className="block text-sm font-medium mb-2">
+          <label htmlFor="maxClaim" className="mb-2 block text-sm font-medium">
             Maximum Claims
           </label>
           <Input
@@ -278,7 +289,10 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
 
         {voucher.type === "REFERRAL" && (
           <div>
-            <label htmlFor="referralCode" className="block text-sm font-medium mb-2">
+            <label
+              htmlFor="referralCode"
+              className="mb-2 block text-sm font-medium"
+            >
               Referral Code
             </label>
             <Input
@@ -292,22 +306,25 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
         )}
 
         <div>
-          <label htmlFor="expiryDate" className="block text-sm font-medium mb-2">
+          <label
+            htmlFor="expiryDate"
+            className="mb-2 block text-sm font-medium"
+          >
             Expiry Date (Optional)
           </label>
           <Input
             id="expiryDate"
             name="expiryDate"
             type="date"
-            min={new Date().toISOString().split('T')[0]}
-            value={expiryDate ? expiryDate.toISOString().split('T')[0] : ''}
+            min={new Date().toISOString().split("T")[0]}
+            value={expiryDate ? expiryDate.toISOString().split("T")[0] : ""}
             onChange={handleExpiryDateChange}
             className="w-full"
           />
           {expiryDate && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="mt-2"
               onClick={clearExpiryDate}
               type="button"
@@ -331,4 +348,4 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
       </SheetFooter>
     </SheetContent>
   );
-}; 
+};

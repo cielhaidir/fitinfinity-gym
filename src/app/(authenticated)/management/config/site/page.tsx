@@ -6,169 +6,174 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 
 export default function SiteConfigPage() {
-    const { toast } = useToast();
-    const [editingKey, setEditingKey] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState("");
+  const { toast } = useToast();
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
-    const { data: configs, refetch } = api.config.getAll.useQuery(undefined, {
-        onError: (error) => {
-            toast({
-                variant: "destructive",
-                title: "Error loading configurations",
-                description: error.message,
-            });
-        },
+  const { data: configs, refetch } = api.config.getAll.useQuery(undefined, {
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error loading configurations",
+        description: error.message,
+      });
+    },
+  });
+
+  console.log("Site Configurations:", configs);
+
+  const updateMutation = api.config.update.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Configuration updated",
+        description: "The setting has been saved successfully.",
+      });
+      setEditingKey(null);
+      void refetch();
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error updating configuration",
+        description: error.message,
+      });
+    },
+  });
+
+  const resetMutation = api.config.resetToDefaults.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Configurations reset",
+        description: "All settings have been reset to their default values.",
+      });
+      void refetch();
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error resetting configurations",
+        description: error.message,
+      });
+    },
+  });
+
+  const handleEdit = (key: string, currentValue: string) => {
+    setEditingKey(key);
+    setEditValue(currentValue);
+  };
+
+  const handleSave = async () => {
+    if (!editingKey) return;
+    await updateMutation.mutate({
+      key: editingKey,
+      value: editValue,
+      category: "site", // Add the category
     });
+  };
 
-    console.log("Site Configurations:", configs);
+  const handleReset = async () => {
+    if (
+      confirm(
+        "Are you sure you want to reset all configurations to their default values?",
+      )
+    ) {
+      await resetMutation.mutate();
+    }
+  };
 
-    const updateMutation = api.config.update.useMutation({
-        onSuccess: () => {
-            toast({
-                title: "Configuration updated",
-                description: "The setting has been saved successfully.",
-            });
-            setEditingKey(null);
-            void refetch();
-        },
-        onError: (error) => {
-            toast({
-                variant: "destructive",
-                title: "Error updating configuration",
-                description: error.message,
-            });
-        },
-    });
+  const siteConfigs =
+    configs?.filter((config) => config.category === "site") ?? [];
 
-    const resetMutation = api.config.resetToDefaults.useMutation({
-        onSuccess: () => {
-            toast({
-                title: "Configurations reset",
-                description: "All settings have been reset to their default values.",
-            });
-            void refetch();
-        },
-        onError: (error) => {
-            toast({
-                variant: "destructive",
-                title: "Error resetting configurations",
-                description: error.message,
-            });
-        },
-    });
-
-    const handleEdit = (key: string, currentValue: string) => {
-        setEditingKey(key);
-        setEditValue(currentValue);
-    };
-
-    const handleSave = async () => {
-        if (!editingKey) return;
-        await updateMutation.mutate({ 
-            key: editingKey, 
-            value: editValue,
-            category: "site" // Add the category
-        });
-    };
-
-    const handleReset = async () => {
-        if (confirm("Are you sure you want to reset all configurations to their default values?")) {
-            await resetMutation.mutate();
-        }
-    };
-
-    const siteConfigs = configs?.filter(config => config.category === "site") ?? [];
-
-    return (
-        <div className="container mx-auto py-6">
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <CardTitle>Site Configuration</CardTitle>
-                        <Button 
-                            variant="outline" 
-                            onClick={handleReset}
-                            disabled={resetMutation.isLoading}
+  return (
+    <div className="container mx-auto py-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Site Configuration</CardTitle>
+            <Button
+              variant="outline"
+              onClick={handleReset}
+              disabled={resetMutation.isLoading}
+            >
+              {resetMutation.isLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Reset to Defaults
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Setting</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {siteConfigs.map((config) => (
+                <TableRow key={config.key}>
+                  <TableCell className="font-medium">
+                    {config.description ?? config.key}
+                  </TableCell>
+                  <TableCell>
+                    {editingKey === config.key ? (
+                      <Input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="max-w-sm"
+                      />
+                    ) : (
+                      config.value
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingKey === config.key ? (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleSave}
+                          disabled={updateMutation.isLoading}
                         >
-                            {resetMutation.isLoading && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Reset to Defaults
+                          Save
                         </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Setting</TableHead>
-                                <TableHead>Value</TableHead>
-                                <TableHead className="w-[100px]">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {siteConfigs.map((config) => (
-                                <TableRow key={config.key}>
-                                    <TableCell className="font-medium">
-                                        {config.description ?? config.key}
-                                    </TableCell>
-                                    <TableCell>
-                                        {editingKey === config.key ? (
-                                            <Input
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                className="max-w-sm"
-                                            />
-                                        ) : (
-                                            config.value
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {editingKey === config.key ? (
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    variant="default"
-                                                    size="sm"
-                                                    onClick={handleSave}
-                                                    disabled={updateMutation.isLoading}
-                                                >
-                                                    Save
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setEditingKey(null)}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleEdit(config.key, config.value)}
-                                            >
-                                                Edit
-                                            </Button>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </div>
-    );
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingKey(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(config.key, config.value)}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

@@ -15,10 +15,22 @@ export const emailConfigSchema = z.object({
   isDefault: z.boolean().default(false),
 
   // Template Variables
-  supportEmail: z.string().email("Invalid support email").default("support@fitinfinity.com"),
-  supportPhone: z.string().min(1, "Support phone is required").default("+1234567890"),
-  logoUrl: z.string().url("Invalid logo URL").default("https://fitinfinity.com/logo.png"),
-  businessAddress: z.string().min(1, "Business address is required").default("123 Gym Street, Fitness City"),
+  supportEmail: z
+    .string()
+    .email("Invalid support email")
+    .default("support@fitinfinity.com"),
+  supportPhone: z
+    .string()
+    .min(1, "Support phone is required")
+    .default("+1234567890"),
+  logoUrl: z
+    .string()
+    .url("Invalid logo URL")
+    .default("https://fitinfinity.com/logo.png"),
+  businessAddress: z
+    .string()
+    .min(1, "Business address is required")
+    .default("123 Gym Street, Fitness City"),
   currency: z.string().min(1, "Currency is required").default("Rp"),
 });
 

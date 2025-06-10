@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
-import { VariantProps, cva } from "class-variance-authority";
+import { type VariantProps, cva } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -213,7 +213,7 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="bg-accent text-sidebar-foreground w-full h-[80vh] p-6 [&>button]:hidden"
+            className="text-sidebar-foreground h-[80vh] w-full bg-accent p-6 [&>button]:hidden"
             style={
               {
                 "--sidebar-width": "100%",
@@ -225,7 +225,9 @@ const Sidebar = React.forwardRef<
               <SheetTitle></SheetTitle>
               <SheetDescription></SheetDescription>
             </SheetHeader>
-            <div className="flex h-full w-full flex-col overflow-y-auto">{children}</div>
+            <div className="flex h-full w-full flex-col overflow-y-auto">
+              {children}
+            </div>
           </SheetContent>
         </Sheet>
       );
@@ -580,18 +582,18 @@ const SidebarMenuButton = React.forwardRef<
 
     const button = (
       <Comp
-      ref={ref}
-      data-sidebar="menu-button"
-      data-size={size}
-      data-active={isActive}
-      className={cn(
-        sidebarMenuButtonVariants({ variant, size }),
-        isActive && "bg-infinity text-secondary", // Custom background color when active
-        "hover:bg-infinity hover:text-secondary", // Same color on hover
-        className,
-      )}
-      style={{ transition: "background-color 0.3s, color 0.3s" }}
-      {...props}
+        ref={ref}
+        data-sidebar="menu-button"
+        data-size={size}
+        data-active={isActive}
+        className={cn(
+          sidebarMenuButtonVariants({ variant, size }),
+          isActive && "bg-infinity text-secondary", // Custom background color when active
+          "hover:bg-infinity hover:text-secondary", // Same color on hover
+          className,
+        )}
+        style={{ transition: "background-color 0.3s, color 0.3s" }}
+        {...props}
       />
     );
 

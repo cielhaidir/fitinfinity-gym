@@ -1,27 +1,32 @@
-"use client"
+"use client";
 
-import { ColumnDef } from "@tanstack/react-table"
+import { type ColumnDef } from "@tanstack/react-table";
 
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
-import { Edit, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash2 } from "lucide-react";
 
-import { PersonalTrainer } from "./schema"
-import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
-import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
-import { Role } from "./schema"
+import { type PersonalTrainer } from "./schema";
+import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
+import { DataTableRowActions } from "@/components/datatable/data-table-row-actions";
+import { type Role } from "./schema";
 
 interface ColumnsProps {
-  onEditMember: (member: any) => void,
-  onDeleteMember: (member: any) => void,
-  onEdit: (role: Role) => void,
-  onDelete: (role: Role) => void,
+  onEditMember: (member: any) => void;
+  onDeleteMember: (member: any) => void;
+  onEdit: (role: Role) => void;
+  onDelete: (role: Role) => void;
 }
 
-export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }: ColumnsProps): ColumnDef<PersonalTrainer>[] => [
+export const createColumns = ({
+  onEditMember,
+  onDeleteMember,
+  onEdit,
+  onDelete,
+}: ColumnsProps): ColumnDef<PersonalTrainer>[] => [
   {
-    id: "select", 
+    id: "select",
     header: ({ table }) => (
       <Checkbox
         checked={
@@ -30,7 +35,7 @@ export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
-        className="translate-y-[2px] ring-offset-background ring-black"
+        className="translate-y-[2px] ring-black ring-offset-background"
       />
     ),
     cell: ({ row }) => (
@@ -43,13 +48,15 @@ export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }
     ),
     enableSorting: false,
     enableHiding: false,
-  },  
+  },
   {
     accessorKey: "user.name",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Trainer Name" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px]">{row.original.user.name}</div>
+    ),
   },
   {
     id: "email",
@@ -82,22 +89,41 @@ export const createColumns = ({ onEditMember, onDeleteMember, onEdit, onDelete }
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Created At" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("createdAt")).toLocaleDateString()}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px]">
+        {new Date(row.getValue("createdAt")).toLocaleDateString()}
+      </div>
+    ),
   },
   {
     accessorKey: "updatedAt",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Updated At" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("updatedAt")).toLocaleDateString()}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px]">
+        {new Date(row.getValue("updatedAt")).toLocaleDateString()}
+      </div>
+    ),
   },
   {
     id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEditMember} onDelete={onDeleteMember} />,
+    cell: ({ row }) => (
+      <DataTableRowActions
+        row={row}
+        onEdit={onEditMember}
+        onDelete={onDeleteMember}
+      />
+    ),
   },
-]
+];
 
-export const roleColumns = ({ onEdit, onDelete, onEditMember, onDeleteMember }: ColumnsProps): ColumnDef<Role>[] => [
+export const roleColumns = ({
+  onEdit,
+  onDelete,
+  onEditMember,
+  onDeleteMember,
+}: ColumnsProps): ColumnDef<Role>[] => [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -128,7 +154,7 @@ export const roleColumns = ({ onEdit, onDelete, onEditMember, onDeleteMember }: 
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-          
+
           {/* Mobile actions */}
           <div className="md:hidden">
             <Button
@@ -144,6 +170,4 @@ export const roleColumns = ({ onEdit, onDelete, onEditMember, onDeleteMember }: 
       );
     },
   },
-]
-
-
+];

@@ -4,8 +4,24 @@ import React from "react";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Calendar, Clock, ChevronLeft, ChevronRight } from "lucide-react";
-import { format, isValid, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday, addWeeks, subWeeks } from "date-fns";
+import {
+  Users,
+  Calendar,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import {
+  format,
+  isValid,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  isToday,
+  addWeeks,
+  subWeeks,
+} from "date-fns";
 import { id } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 
@@ -29,34 +45,37 @@ const customScrollbarStyles = `
   }
 `;
 
-const style = document.createElement('style');
+const style = document.createElement("style");
 style.textContent = customScrollbarStyles;
 document.head.appendChild(style);
 
 export default function PTDashboardPage() {
   const { data: session } = useSession();
   const [currentDate, setCurrentDate] = React.useState(new Date());
-  
-  const { data: members, isLoading: isMembersLoading } = api.personalTrainer.getMembers.useQuery(undefined, {
-    enabled: !!session,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    staleTime: 0,
-  });
 
-  const { data: trainerSessions, isLoading: isSessionsLoading } = api.trainerSession.getAll.useQuery(undefined, {
-    enabled: !!session,
-  });
+  const { data: members, isLoading: isMembersLoading } =
+    api.personalTrainer.getMembers.useQuery(undefined, {
+      enabled: !!session,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      staleTime: 0,
+    });
+
+  const { data: trainerSessions, isLoading: isSessionsLoading } =
+    api.trainerSession.getAll.useQuery(undefined, {
+      enabled: !!session,
+    });
 
   // Hitung jumlah member aktif (dengan remaining sessions > 0)
-  const activeMembers = members?.filter(member => member.remainingSessions > 0).length ?? 0;
+  const activeMembers =
+    members?.filter((member) => member.remainingSessions > 0).length ?? 0;
   const totalMembers = members?.length ?? 0;
   const inactiveMembers = totalMembers - activeMembers;
 
   // Group sessions by date
   const sessionsByDate: Record<string, any[]> = {};
-  trainerSessions?.forEach(session => {
-    const dateStr = format(new Date(session.date), 'yyyy-MM-dd');
+  trainerSessions?.forEach((session) => {
+    const dateStr = format(new Date(session.date), "yyyy-MM-dd");
     if (!sessionsByDate[dateStr]) {
       sessionsByDate[dateStr] = [];
     }
@@ -81,8 +100,8 @@ export default function PTDashboardPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">PT Dashboard</h2>
           <p className="text-muted-foreground">
@@ -91,19 +110,15 @@ export default function PTDashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="mb-8 grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Members
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalMembers}</div>
-            <p className="text-xs text-muted-foreground">
-              All time members
-            </p>
+            <p className="text-xs text-muted-foreground">All time members</p>
           </CardContent>
         </Card>
 
@@ -160,38 +175,40 @@ export default function PTDashboardPage() {
         </CardHeader>
         <CardContent>
           {isSessionsLoading ? (
-            <div className="text-center py-4">Loading...</div>
+            <div className="py-4 text-center">Loading...</div>
           ) : (
-            <div className="bg-[#232323] rounded-lg p-4">
-              <div className="text-center mb-4 text-lg font-semibold">
-                {format(weekStart, 'dd MMMM', { locale: id })} - {format(weekEnd, 'dd MMMM yyyy', { locale: id })}
+            <div className="rounded-lg bg-[#232323] p-4">
+              <div className="mb-4 text-center text-lg font-semibold">
+                {format(weekStart, "dd MMMM", { locale: id })} -{" "}
+                {format(weekEnd, "dd MMMM yyyy", { locale: id })}
               </div>
               <div className="grid grid-cols-7 gap-2">
                 {days.map((day) => {
-                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dateStr = format(day, "yyyy-MM-dd");
                   const sessions = sessionsByDate[dateStr] || [];
-                  
+
                   return (
                     <div
                       key={dateStr}
-                      className={`
-                        min-h-[300px] p-2 border border-[#2a2a2a] rounded-md
-                        ${isToday(day) ? 'border-[#C9D953] bg-[#2a2a2a]' : ''}
-                      `}
+                      className={`min-h-[300px] rounded-md border border-[#2a2a2a] p-2 ${isToday(day) ? "border-[#C9D953] bg-[#2a2a2a]" : ""} `}
                     >
-                      <div className={`text-center mb-2 ${isToday(day) ? 'text-[#C9D953] font-bold' : 'text-gray-400'}`}>
-                        <div className="text-sm">{format(day, 'EEE', { locale: id })}</div>
-                        <div className="text-lg">{format(day, 'd')}</div>
+                      <div
+                        className={`mb-2 text-center ${isToday(day) ? "font-bold text-[#C9D953]" : "text-gray-400"}`}
+                      >
+                        <div className="text-sm">
+                          {format(day, "EEE", { locale: id })}
+                        </div>
+                        <div className="text-lg">{format(day, "d")}</div>
                       </div>
-                      
-                      <div className="space-y-1 max-h-[260px] overflow-y-auto custom-scrollbar">
+
+                      <div className="custom-scrollbar max-h-[260px] space-y-1 overflow-y-auto">
                         {sessions.map((session) => (
-                          <div 
-                            key={session.id} 
-                            className="p-2 bg-[#C9D953] text-black text-xs rounded hover:bg-[#b8c748] transition-colors"
+                          <div
+                            key={session.id}
+                            className="rounded bg-[#C9D953] p-2 text-xs text-black transition-colors hover:bg-[#b8c748]"
                           >
                             <div className="font-medium">
-                              {format(new Date(session.startTime), 'HH:mm')}
+                              {format(new Date(session.startTime), "HH:mm")}
                             </div>
                             <div className="truncate">
                               {session.member.user.name}

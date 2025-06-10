@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { X, Upload } from "lucide-react";
 import { useState } from "react";
@@ -29,9 +29,15 @@ interface SessionDetailModalProps {
   onCancel?: (sessionId: string) => void;
 }
 
-export function SessionDetailModal({ session, isOpen, onClose, onDelete, onCancel }: SessionDetailModalProps) {
+export function SessionDetailModal({
+  session,
+  isOpen,
+  onClose,
+  onDelete,
+  onCancel,
+}: SessionDetailModalProps) {
   if (!session) return null;
-  
+
   const [isUploading, setIsUploading] = useState(false);
   const utils = api.useUtils();
 
@@ -42,7 +48,7 @@ export function SessionDetailModal({ session, isOpen, onClose, onDelete, onCance
     },
     onError: (error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   const uploadFileMutation = api.trainerSession.uploadFile.useMutation({
@@ -51,7 +57,7 @@ export function SessionDetailModal({ session, isOpen, onClose, onDelete, onCance
     },
     onError: (error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,27 +66,27 @@ export function SessionDetailModal({ session, isOpen, onClose, onDelete, onCance
 
     try {
       setIsUploading(true);
-      
+
       // Convert file to base64
       const fileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.readAsDataURL(file);
           reader.onload = () => resolve(reader.result as string);
-          reader.onerror = error => reject(error);
+          reader.onerror = (error) => reject(error);
         });
       };
 
       // Step 1: Upload the file using tRPC
       const base64Data = await fileToBase64(file);
-      
-      console.log('Uploading file for member:', session.member.id); // Debug log
-      
+
+      console.log("Uploading file for member:", session.member.id); // Debug log
+
       const uploadResult = await uploadFileMutation.mutateAsync({
         fileData: base64Data,
         fileName: file.name,
         fileType: file.type,
-        memberId: session.member.id // Use member.id instead of member.user.id
+        memberId: session.member.id, // Use member.id instead of member.user.id
       });
 
       if (!uploadResult.success || !uploadResult.filePath) {
@@ -93,79 +99,99 @@ export function SessionDetailModal({ session, isOpen, onClose, onDelete, onCance
         date: new Date(session.date),
         startTime: new Date(session.startTime),
         endTime: new Date(session.endTime),
-        exerciseResult: uploadResult.filePath
+        exerciseResult: uploadResult.filePath,
       });
 
       toast.success("Hasil latihan berhasil diupload");
       utils.trainerSession.getAll.invalidate();
-
     } catch (error) {
-      console.error('Error uploading file:', error);
-      toast.error(error instanceof Error ? error.message : 'Gagal mengupload hasil latihan');
+      console.error("Error uploading file:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal mengupload hasil latihan",
+      );
     } finally {
       setIsUploading(false);
     }
   };
 
   const formatGender = (gender: string | null | undefined) => {
-    if (!gender) return '-';
+    if (!gender) return "-";
     switch (gender) {
-      case 'MALE': return 'Laki-laki';
-      case 'FEMALE': return 'Perempuan';
-      case 'OTHER': return 'Lainnya';
-      default: return '-';
+      case "MALE":
+        return "Laki-laki";
+      case "FEMALE":
+        return "Perempuan";
+      case "OTHER":
+        return "Lainnya";
+      default:
+        return "-";
     }
   };
 
   // Calculate hours until session
   const startTime = new Date(session.startTime);
   const now = new Date();
-  const hoursUntilSession = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const hoursUntilSession =
+    (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
   const isWithin12Hours = hoursUntilSession <= 12 && hoursUntilSession > 0;
   const isPast = hoursUntilSession <= 0;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? '' : 'hidden'}`}>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? "" : "hidden"}`}
+    >
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative z-50 w-full max-w-md rounded-lg bg-background p-6 shadow-lg">
-        <h2 className="mb-4 text-xl font-semibold text-foreground">Detail Sesi</h2>
-        
+        <h2 className="mb-4 text-xl font-semibold text-foreground">
+          Detail Sesi
+        </h2>
+
         <div className="space-y-4">
           <div>
             <label className="text-sm text-muted-foreground">Member</label>
             <p className="font-medium">{session.member.user.name}</p>
           </div>
-          
+
           <div>
             <label className="text-sm text-muted-foreground">Email</label>
             <p className="font-medium">{session.member.user.email}</p>
           </div>
-          
+
           <div>
             <label className="text-sm text-muted-foreground">Tanggal</label>
-            <p className="font-medium">{new Date(session.date).toLocaleDateString()}</p>
+            <p className="font-medium">
+              {new Date(session.date).toLocaleDateString()}
+            </p>
           </div>
-          
+
           <div>
             <label className="text-sm text-muted-foreground">Waktu</label>
             <p className="font-medium">
-              {new Date(session.startTime).toLocaleTimeString()} - {new Date(session.endTime).toLocaleTimeString()}
+              {new Date(session.startTime).toLocaleTimeString()} -{" "}
+              {new Date(session.endTime).toLocaleTimeString()}
             </p>
           </div>
-          
+
           <div>
             <label className="text-sm text-muted-foreground">Status</label>
             <p className="font-medium">{session.status}</p>
           </div>
 
-          {session.status === 'ENDED' && (
+          {session.status === "ENDED" && (
             <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Hasil Latihan</label>
+              <label className="text-sm text-muted-foreground">
+                Hasil Latihan
+              </label>
               {session.exerciseResult ? (
                 <div className="flex items-center gap-2">
-                  <a 
-                    href={session.exerciseResult} 
-                    target="_blank" 
+                  <a
+                    href={session.exerciseResult}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-blue-500 hover:underline"
                   >
@@ -182,7 +208,9 @@ export function SessionDetailModal({ session, isOpen, onClose, onDelete, onCance
                     className="w-full"
                   />
                   {isUploading && (
-                    <p className="text-sm text-muted-foreground">Mengupload file...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Mengupload file...
+                    </p>
                   )}
                 </div>
               )}
@@ -216,4 +244,4 @@ export function SessionDetailModal({ session, isOpen, onClose, onDelete, onCance
       </div>
     </div>
   );
-} 
+}

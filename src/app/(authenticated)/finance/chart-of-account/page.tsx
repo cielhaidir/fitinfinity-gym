@@ -11,7 +11,9 @@ import type { ChartAccount } from "./schema";
 
 export default function ChartAccountPage() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<ChartAccount | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<ChartAccount | null>(
+    null,
+  );
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
@@ -27,7 +29,7 @@ export default function ChartAccountPage() {
 
   useEffect(() => {
     const handleEdit = (event: CustomEvent<{ id: number }>) => {
-      const account = chartAccounts?.find(acc => acc.id === event.detail.id);
+      const account = chartAccounts?.find((acc) => acc.id === event.detail.id);
       if (account) {
         setSelectedAccount(account);
         setIsOpen(true);
@@ -36,7 +38,10 @@ export default function ChartAccountPage() {
 
     window.addEventListener("editChartAccount", handleEdit as EventListener);
     return () => {
-      window.removeEventListener("editChartAccount", handleEdit as EventListener);
+      window.removeEventListener(
+        "editChartAccount",
+        handleEdit as EventListener,
+      );
     };
   }, [chartAccounts]);
 
@@ -60,12 +65,12 @@ export default function ChartAccountPage() {
     items: paginatedData,
     total: chartAccounts?.length || 0,
     page,
-    limit
+    limit,
   };
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Chart of Accounts</h1>
         <Button onClick={handleAdd}>
           <Plus className="mr-2 h-4 w-4" />
@@ -73,8 +78,8 @@ export default function ChartAccountPage() {
         </Button>
       </div>
 
-      <DataTable 
-        columns={columns} 
+      <DataTable
+        columns={columns}
         data={tableData}
         onPaginationChange={handlePaginationChange}
       />

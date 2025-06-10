@@ -83,13 +83,15 @@ export default function AppNavbar() {
         )}
         {/* Tampilkan NavUser jika user login */}
         {session?.user?.name && session.user.email ? (
-          <NavUser user={{
-            name: session.user.name,
-            email: session.user.email,
-            image: session.user.image ?? ''
-          }} />
+          <NavUser
+            user={{
+              name: session.user.name,
+              email: session.user.email,
+              image: session.user.image ?? "",
+            }}
+          />
         ) : (
-          <Button onClick={handleLogout} className="bg-infinity rounded border">
+          <Button onClick={handleLogout} className="rounded border bg-infinity">
             Logout
           </Button>
         )}

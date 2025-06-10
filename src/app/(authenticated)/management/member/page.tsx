@@ -11,9 +11,9 @@ import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
-import { Member, UserMember } from "./schema";
+import { type Member, type UserMember } from "./schema";
 import { MemberForm } from "./member-form";
-import { toast } from "sonner"
+import { toast } from "sonner";
 
 export default function MemberPage() {
   const utils = api.useUtils();
@@ -28,14 +28,16 @@ export default function MemberPage() {
   const [limit, setLimit] = useState(10);
   const [showForm, setShowForm] = useState(false);
 
-  const isSelectingForSubscription = searchParams.get('action') === 'select-for-subscription';
+  const isSelectingForSubscription =
+    searchParams.get("action") === "select-for-subscription";
 
-  const { data: member = { items: [], total: 0, page: 1, limit: 10 } } = api.member.list.useQuery({ 
-    page, 
-    limit,
-    search,
-    searchColumn 
-  });
+  const { data: member = { items: [], total: 0, page: 1, limit: 10 } } =
+    api.member.list.useQuery({
+      page,
+      limit,
+      search,
+      searchColumn,
+    });
 
   const updateMemberMutation = api.member.update.useMutation({
     onSuccess: () => {
@@ -46,7 +48,7 @@ export default function MemberPage() {
     },
     onError: (error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,16 +73,20 @@ export default function MemberPage() {
       const updateData = {
         id: selectedMember.id,
         rfidNumber: selectedMember.rfidNumber || undefined,
-        fc: selectedMember.fcId ? {
-          connect: { id: selectedMember.fcId }
-        } : {
-          disconnect: true
-        },
-        personalTrainer: selectedMember.personalTrainerId ? {
-          connect: { id: selectedMember.personalTrainerId }
-        } : {
-          disconnect: true
-        },
+        fc: selectedMember.fcId
+          ? {
+              connect: { id: selectedMember.fcId },
+            }
+          : {
+              disconnect: true,
+            },
+        personalTrainer: selectedMember.personalTrainerId
+          ? {
+              connect: { id: selectedMember.personalTrainerId },
+            }
+          : {
+              disconnect: true,
+            },
         user: {
           name: selectedMember.name || "",
           email: selectedMember.email || "",
@@ -88,7 +94,7 @@ export default function MemberPage() {
           phone: selectedMember.phone || undefined,
           birthDate: selectedMember.birthDate || undefined,
           idNumber: selectedMember.idNumber || undefined,
-        }
+        },
       };
 
       await updateMemberMutation.mutateAsync(updateData);
@@ -105,16 +111,16 @@ export default function MemberPage() {
 
   const handleEditMember = (member: Member) => {
     setSelectedMember({
-        id: member.id,
-        name: member.user.name ?? "",
-        email: member.user.email ?? "",
-        rfidNumber: member.rfidNumber ?? "",
-        fcId: member.fc?.id ?? null,
-        personalTrainerId: member.personalTrainer?.id ?? null,
-        address: member.user.address ?? "",
-        phone: member.user.phone ?? "",
-        birthDate: member.user.birthDate ?? null,
-        idNumber: member.user.idNumber ?? "",
+      id: member.id,
+      name: member.user.name ?? "",
+      email: member.user.email ?? "",
+      rfidNumber: member.rfidNumber ?? "",
+      fcId: member.fc?.id ?? null,
+      personalTrainerId: member.personalTrainer?.id ?? null,
+      address: member.user.address ?? "",
+      phone: member.user.phone ?? "",
+      birthDate: member.user.birthDate ?? null,
+      idNumber: member.user.idNumber ?? "",
     });
     setShowForm(true);
     setIsSheetOpen(true);
@@ -127,7 +133,7 @@ export default function MemberPage() {
     },
     onError: (error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   const handleDeleteMember = async (member: Member) => {
@@ -158,20 +164,20 @@ export default function MemberPage() {
 
   const handleMemberSelect = (member: Member) => {
     if (isSelectingForSubscription) {
-        router.push(`/checkout/${member.id}`);
+      router.push(`/checkout/${member.id}`);
     }
   };
 
-  const columns = createColumns({ 
-    onEditMember: handleEditMember, 
+  const columns = createColumns({
+    onEditMember: handleEditMember,
     onDeleteMember: handleDeleteMember,
-    customActions: isSelectingForSubscription ? [] : customActions
+    customActions: isSelectingForSubscription ? [] : customActions,
   });
 
   return (
     <>
-      <Sheet 
-        open={isSheetOpen} 
+      <Sheet
+        open={isSheetOpen}
         onOpenChange={(open) => {
           setIsSheetOpen(open);
           if (!open) {
@@ -193,8 +199,12 @@ export default function MemberPage() {
           </div>
           {isSelectingForSubscription && (
             <div className="mb-4">
-              <h2 className="text-2xl font-bold">Select Member for New Subscription</h2>
-              <p className="text-muted-foreground">Click on a member to create a new subscription</p>
+              <h2 className="text-2xl font-bold">
+                Select Member for New Subscription
+              </h2>
+              <p className="text-muted-foreground">
+                Click on a member to create a new subscription
+              </p>
             </div>
           )}
           {showForm && selectedMember && (
@@ -216,7 +226,7 @@ export default function MemberPage() {
             searchColumns={[
               { id: "user.name", placeholder: "Search by name..." },
               { id: "user.email", placeholder: "Search by email..." },
-              { id: "rfidNumber", placeholder: "Search by RFID..." }
+              { id: "rfidNumber", placeholder: "Search by RFID..." },
             ]}
             onSearch={(value, column) => {
               setSearch(value);

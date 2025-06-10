@@ -1,21 +1,25 @@
-"use client"
+"use client";
 
-import { ColumnDef } from "@tanstack/react-table"
+import { type ColumnDef } from "@tanstack/react-table";
 
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
-import { Member } from "./schema"
-import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
-import { DataTableRowActions } from "@/components/datatable/data-table-row-actions"
+import { type Member } from "./schema";
+import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
+import { DataTableRowActions } from "@/components/datatable/data-table-row-actions";
 
 interface ColumnsProps {
-  onEditMember: (member: any) => void,
-  onDeleteMember: (member: any) => void,
-  customActions?: { label: string, action: (member: any) => void }[] // Support multiple custom actions
+  onEditMember: (member: any) => void;
+  onDeleteMember: (member: any) => void;
+  customActions?: { label: string; action: (member: any) => void }[]; // Support multiple custom actions
 }
 
-export const createColumns = ({ onEditMember, onDeleteMember, customActions }: ColumnsProps): ColumnDef<Member>[] => [
+export const createColumns = ({
+  onEditMember,
+  onDeleteMember,
+  customActions,
+}: ColumnsProps): ColumnDef<Member>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -26,7 +30,7 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
-        className="translate-y-[2px] ring-offset-background ring-black"
+        className="translate-y-[2px] ring-black ring-offset-background"
       />
     ),
     cell: ({ row }) => (
@@ -45,7 +49,9 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Member Name" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{row.original.user.name}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px]">{row.original.user.name}</div>
+    ),
   },
   {
     id: "email",
@@ -68,7 +74,10 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
               {fc.user.name}
             </Badge>
           ) : (
-            <Badge variant="outline" className="w-[100px] justify-center text-muted-foreground">
+            <Badge
+              variant="outline"
+              className="w-[100px] justify-center text-muted-foreground"
+            >
               Not Assigned
             </Badge>
           )}
@@ -90,7 +99,10 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
               {pt.user.name}
             </Badge>
           ) : (
-            <Badge variant="outline" className="w-[100px] justify-center text-muted-foreground">
+            <Badge
+              variant="outline"
+              className="w-[100px] justify-center text-muted-foreground"
+            >
               Not Assigned
             </Badge>
           )}
@@ -103,7 +115,11 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Register Date" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{new Date(row.getValue("registerDate")).toLocaleDateString()}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px]">
+        {new Date(row.getValue("registerDate")).toLocaleDateString()}
+      </div>
+    ),
   },
   {
     accessorKey: "isActive",
@@ -128,7 +144,7 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
       <div className="flex items-center justify-center">
         <Badge
           variant="outline"
-          className="cursor-pointer hover:bg-infinity hover:text-white transition-colors"
+          className="cursor-pointer transition-colors hover:bg-infinity hover:text-white"
           onClick={() => onEditMember(row.original)}
         >
           Assign RFID
@@ -148,6 +164,4 @@ export const createColumns = ({ onEditMember, onDeleteMember, customActions }: C
       />
     ),
   },
-]
-
-
+];

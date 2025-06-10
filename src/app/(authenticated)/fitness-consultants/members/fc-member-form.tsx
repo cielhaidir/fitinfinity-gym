@@ -12,7 +12,7 @@ import {
 import { Input } from "@/app/_components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FcMember } from "@prisma/client";
+import { type FcMember } from "@prisma/client";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { api } from "@/trpc/react";
@@ -179,10 +179,7 @@ export function FCMemberForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Status</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />

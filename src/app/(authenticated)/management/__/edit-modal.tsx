@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Subscription } from "./schema";
+import { type Subscription } from "./schema";
 import { Check, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +19,12 @@ interface EditModalProps {
   onSave: (updated: Subscription) => void;
 }
 
-export default function EditModal({ open, onClose, subscription, onSave }: EditModalProps) {
+export default function EditModal({
+  open,
+  onClose,
+  subscription,
+  onSave,
+}: EditModalProps) {
   const [form, setForm] = useState<Subscription | null>(null);
 
   useEffect(() => {
@@ -24,9 +35,7 @@ export default function EditModal({ open, onClose, subscription, onSave }: EditM
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setForm((prev) =>
-      prev ? { ...prev, [name]: value } : prev
-    );
+    setForm((prev) => (prev ? { ...prev, [name]: value } : prev));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -52,7 +61,11 @@ export default function EditModal({ open, onClose, subscription, onSave }: EditM
               type="datetime-local"
               name="endDate"
               id="endDate"
-              value={form.endDate ? new Date(form.endDate).toISOString().slice(0, 16) : ""}
+              value={
+                form.endDate
+                  ? new Date(form.endDate).toISOString().slice(0, 16)
+                  : ""
+              }
               onChange={handleChange}
             />
           </div>
@@ -63,13 +76,10 @@ export default function EditModal({ open, onClose, subscription, onSave }: EditM
               onClick={onClose}
               className="flex items-center gap-2"
             >
-              <X className="w-4 h-4" /> Cancel
+              <X className="h-4 w-4" /> Cancel
             </Button>
-            <Button
-              type="submit"
-              className="flex items-center gap-2"
-            >
-              <Check className="w-4 h-4" /> Save Changes
+            <Button type="submit" className="flex items-center gap-2">
+              <Check className="h-4 w-4" /> Save Changes
             </Button>
           </div>
         </form>

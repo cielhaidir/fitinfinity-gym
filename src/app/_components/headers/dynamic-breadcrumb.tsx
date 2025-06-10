@@ -1,7 +1,7 @@
-"use client"
-import React from "react"
+"use client";
+import React from "react";
 
-import { usePathname } from "next/navigation"
+import { usePathname } from "next/navigation";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,19 +9,18 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
+} from "@/components/ui/breadcrumb";
 
 export function DynamicBreadcrumb() {
-  const pathname = usePathname()
-  const pathSegments = pathname.split("/").filter((segment) => segment !== "")
+  const pathname = usePathname();
+  const pathSegments = pathname.split("/").filter((segment) => segment !== "");
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
-      
         {pathSegments.map((segment, index) => {
-          const href = `/${pathSegments.slice(0, index + 1).join("/")}`
-          const isLast = index === pathSegments.length - 1
+          const href = `/${pathSegments.slice(0, index + 1).join("/")}`;
+          const isLast = index === pathSegments.length - 1;
 
           return (
             <React.Fragment key={href}>
@@ -34,10 +33,9 @@ export function DynamicBreadcrumb() {
               </BreadcrumbItem>
               {!isLast && <BreadcrumbSeparator />}
             </React.Fragment>
-          )
+          );
         })}
       </BreadcrumbList>
     </Breadcrumb>
-  )
+  );
 }
-

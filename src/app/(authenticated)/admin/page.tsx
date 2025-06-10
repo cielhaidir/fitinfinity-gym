@@ -6,26 +6,30 @@ import { Users, CreditCard, UserCog } from "lucide-react";
 import { api } from "@/trpc/react";
 
 const DashboardPage: React.FC = () => {
-  const { data: memberData, isLoading: memberLoading } = api.member.list.useQuery({ 
-    page: 1, 
-    limit: 100,
-    search: "",
-    searchColumn: "isActive"
-  });
-  
-  const { data: employeeData, isLoading: employeeLoading } = api.employee.list.useQuery({
-    page: 1,
-    limit: 1,
-    search: "",
-    searchColumn: ""
-  });
+  const { data: memberData, isLoading: memberLoading } =
+    api.member.list.useQuery({
+      page: 1,
+      limit: 100,
+      search: "",
+      searchColumn: "isActive",
+    });
 
-  const { data: transactionData, isLoading: transactionLoading } = api.subs.list.useQuery({
-    page: 1,
-    limit: 5
-  });
+  const { data: employeeData, isLoading: employeeLoading } =
+    api.employee.list.useQuery({
+      page: 1,
+      limit: 1,
+      search: "",
+      searchColumn: "",
+    });
 
-  const activeMembers = memberData?.items.filter(member => member.isActive).length ?? 0;
+  const { data: transactionData, isLoading: transactionLoading } =
+    api.subs.list.useQuery({
+      page: 1,
+      limit: 5,
+    });
+
+  const activeMembers =
+    memberData?.items.filter((member) => member.isActive).length ?? 0;
   const totalEmployees = employeeData?.total ?? 0;
   const latestTransactions = transactionData?.items ?? [];
 
@@ -35,7 +39,7 @@ const DashboardPage: React.FC = () => {
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground">Welcome, Admin!</p>
       </div>
-      
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-6">
           <div className="flex items-center gap-4">
@@ -71,7 +75,9 @@ const DashboardPage: React.FC = () => {
               <CreditCard className="h-6 w-6 text-purple-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Latest Transactions</p>
+              <p className="text-sm text-muted-foreground">
+                Latest Transactions
+              </p>
               <h2 className="text-2xl font-bold">
                 {transactionLoading ? "..." : latestTransactions.length}
               </h2>
@@ -82,18 +88,29 @@ const DashboardPage: React.FC = () => {
 
       {latestTransactions.length > 0 && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
+          <h3 className="mb-4 text-lg font-semibold">Recent Transactions</h3>
           <div className="space-y-4">
             {latestTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between border-b pb-2">
+              <div
+                key={transaction.id}
+                className="flex items-center justify-between border-b pb-2"
+              >
                 <div>
                   <p className="font-medium">{transaction.member.user.name}</p>
-                  <p className="text-sm text-muted-foreground">{transaction.package.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {transaction.package.name}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">Rp {transaction.package.price.toLocaleString()}</p>
+                  <p className="font-medium">
+                    Rp {transaction.package.price.toLocaleString()}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {transaction.payments[0] ? new Date(transaction.payments[0].createdAt).toLocaleDateString() : 'No payment date'}
+                    {transaction.payments[0]
+                      ? new Date(
+                          transaction.payments[0].createdAt,
+                        ).toLocaleDateString()
+                      : "No payment date"}
                   </p>
                 </div>
               </div>

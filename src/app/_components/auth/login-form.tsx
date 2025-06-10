@@ -1,22 +1,21 @@
 "use client";
 
-import Link from "next/link"
+import Link from "next/link";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { FormEvent } from "react";
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 
 export function LoginForm() {
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const username = (e.target as any).username.value;
@@ -54,7 +53,10 @@ export function LoginForm() {
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Password</Label>
-                <Link href="#" className="ml-auto inline-block text-sm underline">
+                <Link
+                  href="#"
+                  className="ml-auto inline-block text-sm underline"
+                >
                   Forgot your password?
                 </Link>
               </div>
@@ -76,5 +78,5 @@ export function LoginForm() {
         </CardContent>
       </form>
     </Card>
-  )
+  );
 }

@@ -7,7 +7,7 @@ import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
-import { Voucher } from "./schema";
+import { type Voucher } from "./schema";
 import { VoucherForm } from "./voucher-form";
 import { toast } from "sonner";
 
@@ -29,10 +29,11 @@ export default function VoucherPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 } } = api.voucher.list.useQuery({
-    type: undefined,
-    isActive: undefined,
-  });
+  const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 } } =
+    api.voucher.list.useQuery({
+      type: undefined,
+      isActive: undefined,
+    });
 
   // Transform the data to match the expected format
   const transformedData = {
@@ -42,7 +43,7 @@ export default function VoucherPage() {
     limit,
   };
 
-  console.log('Vouchers data:', vouchers);
+  console.log("Vouchers data:", vouchers);
 
   const createVoucherMutation = api.voucher.create.useMutation({
     onSuccess: () => {
@@ -58,7 +59,7 @@ export default function VoucherPage() {
         amount: 0,
         isActive: true,
       });
-    }
+    },
   });
 
   const updateVoucherMutation = api.voucher.update.useMutation({
@@ -67,13 +68,13 @@ export default function VoucherPage() {
       setIsSheetOpen(false);
       setIsEditMode(false);
       setSelectedVoucher(null);
-    }
+    },
   });
 
   const deleteVoucherMutation = api.voucher.remove.useMutation({
     onSuccess: () => {
       void utils.voucher.list.invalidate();
-    }
+    },
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,31 +82,31 @@ export default function VoucherPage() {
     let processedValue = value;
 
     // Handle number inputs
-    if (type === 'number') {
-      processedValue = value === '' ? '0' : value;
+    if (type === "number") {
+      processedValue = value === "" ? "0" : value;
     }
 
     if (isEditMode && selectedVoucher) {
-      setSelectedVoucher(prev => ({
+      setSelectedVoucher((prev) => ({
         ...prev!,
-        [name]: type === 'number' ? Number(processedValue) : processedValue,
+        [name]: type === "number" ? Number(processedValue) : processedValue,
       }));
     } else {
-      setNewVoucher(prev => ({
+      setNewVoucher((prev) => ({
         ...prev,
-        [name]: type === 'number' ? Number(processedValue) : processedValue,
+        [name]: type === "number" ? Number(processedValue) : processedValue,
       }));
     }
   };
 
   const handleSelectChange = (name: string, value: string) => {
     if (isEditMode && selectedVoucher) {
-      setSelectedVoucher(prev => ({
+      setSelectedVoucher((prev) => ({
         ...prev!,
         [name]: value,
       }));
     } else {
-      setNewVoucher(prev => ({
+      setNewVoucher((prev) => ({
         ...prev,
         [name]: value,
       }));
@@ -115,7 +116,7 @@ export default function VoucherPage() {
   const handleCreateOrUpdateVoucher = async () => {
     try {
       let operation;
-      
+
       if (isEditMode && selectedVoucher) {
         operation = updateVoucherMutation.mutateAsync({
           id: selectedVoucher.id,
@@ -141,14 +142,15 @@ export default function VoucherPage() {
       }
 
       toast.promise(operation, {
-        loading: 'Loading...',
-        success: `Voucher has been ${isEditMode ? 'updated' : 'created'} successfully!`,
-        error: (error) => error instanceof Error ? error.message : String(error),
+        loading: "Loading...",
+        success: `Voucher has been ${isEditMode ? "updated" : "created"} successfully!`,
+        error: (error) =>
+          error instanceof Error ? error.message : String(error),
       });
 
       await operation;
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       // Don't show toast here since toast.promise will handle errors
     }
   };
@@ -163,9 +165,10 @@ export default function VoucherPage() {
     const promise = deleteVoucherMutation.mutateAsync({ id: voucher.id });
 
     toast.promise(promise, {
-      loading: 'Deleting voucher...',
-      success: 'Voucher deleted successfully!',
-      error: (error) => error instanceof Error ? error.message : String(error),
+      loading: "Deleting voucher...",
+      success: "Voucher deleted successfully!",
+      error: (error) =>
+        error instanceof Error ? error.message : String(error),
     });
     await promise;
   };
@@ -192,8 +195,8 @@ export default function VoucherPage() {
           }
         }}
       >
-        <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+        <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+          <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div className="space-y-1">
               <h2 className="text-2xl font-bold tracking-tight">
                 Voucher Management
@@ -203,7 +206,7 @@ export default function VoucherPage() {
               </p>
             </div>
             <SheetTrigger asChild>
-              <Button className="bg-infinity w-full md:w-auto">
+              <Button className="w-full bg-infinity md:w-auto">
                 <Plus className="mr-2 h-4 w-4" /> Add Voucher
               </Button>
             </SheetTrigger>

@@ -1,243 +1,248 @@
 "use client";
 
-import { UserEmployee } from "./schema";
+import { type UserEmployee } from "./schema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import {
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { api } from "@/trpc/react";
 import { useState } from "react";
 
 type EmployeeFormProps = {
-    newEmployee: UserEmployee;
-    onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onCreateOrUpdateEmployee: () => void;
-    isEditMode: boolean;
+  newEmployee: UserEmployee;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onCreateOrUpdateEmployee: () => void;
+  isEditMode: boolean;
 };
 
 export const EmployeeForm: React.FC<EmployeeFormProps> = ({
-    newEmployee,
-    onInputChange,
-    onCreateOrUpdateEmployee,
-    isEditMode,
+  newEmployee,
+  onInputChange,
+  onCreateOrUpdateEmployee,
+  isEditMode,
 }) => {
-    // Helper function to format date for input
-    const formatDateForInput = (date: Date | string | null | undefined) => {
-        if (!date) return "";
-        if (typeof date === 'string') {
-            return date.split('T')[0];
-        }
-        return date.toISOString().split('T')[0];
-    };
+  // Helper function to format date for input
+  const formatDateForInput = (date: Date | string | null | undefined) => {
+    if (!date) return "";
+    if (typeof date === "string") {
+      return date.split("T")[0];
+    }
+    return date.toISOString().split("T")[0];
+  };
 
-    return (
-        <SheetContent side="right">
-            <SheetHeader>
-                <SheetTitle>
-                    {isEditMode ? "Edit Employee" : "Create New Employee"}
-                </SheetTitle>
-            </SheetHeader>
+  return (
+    <SheetContent side="right">
+      <SheetHeader>
+        <SheetTitle>
+          {isEditMode ? "Edit Employee" : "Create New Employee"}
+        </SheetTitle>
+      </SheetHeader>
 
-            <div className="flex flex-col gap-4 py-8">
-                {!isEditMode ? (
-                    <>
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium">
-                                Name
-                            </label>
-                            <Input
-                                id="name"
-                                name="name"
-                                value={newEmployee.name}
-                                onChange={onInputChange}
-                                placeholder="Enter name"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium">
-                                Email
-                            </label>
-                            <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                value={newEmployee.email}
-                                onChange={onInputChange}
-                                placeholder="Enter email"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium">
-                                Password
-                            </label>
-                            <Input
-                                id="password"
-                                name="password"
-                                type="password"
-                                value={newEmployee.password}
-                                onChange={onInputChange}
-                                placeholder="Enter password"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="position" className="block text-sm font-medium">
-                                Position
-                            </label>
-                            <Input
-                                id="position"
-                                name="position"
-                                value={newEmployee.position || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter position"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="department" className="block text-sm font-medium">
-                                Department
-                            </label>
-                            <Input
-                                id="department"
-                                name="department"
-                                value={newEmployee.department || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter department"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="address" className="block text-sm font-medium">
-                                Address
-                            </label>
-                            <Input
-                                id="address"
-                                name="address"
-                                value={newEmployee.address || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter address"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="phone" className="block text-sm font-medium">
-                                Phone
-                            </label>
-                            <Input
-                                id="phone"
-                                name="phone"
-                                value={newEmployee.phone || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter phone"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="birthDate" className="block text-sm font-medium">
-                                Birth Date
-                            </label>
-                            <Input
-                                id="birthDate"
-                                name="birthDate"
-                                type="date"
-                                value={formatDateForInput(newEmployee.birthDate)}
-                                onChange={onInputChange}
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="idNumber" className="block text-sm font-medium">
-                                ID Number
-                            </label>
-                            <Input
-                                id="idNumber"
-                                name="idNumber"
-                                value={newEmployee.idNumber || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter ID number"
-                            />
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <div>
-                            <label htmlFor="name" className="block text-sm font-medium">
-                                Name
-                            </label>
-                            <Input
-                                id="name"
-                                name="name"
-                                value={newEmployee.name}
-                                onChange={onInputChange}
-                                placeholder="Enter name"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="position" className="block text-sm font-medium">
-                                Position
-                            </label>
-                            <Input
-                                id="position"
-                                name="position"
-                                value={newEmployee.position || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter position"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="department" className="block text-sm font-medium">
-                                Department
-                            </label>
-                            <Input
-                                id="department"
-                                name="department"
-                                value={newEmployee.department || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter department"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="phone" className="block text-sm font-medium">
-                                Phone
-                            </label>
-                            <Input
-                                id="phone"
-                                name="phone"
-                                value={newEmployee.phone || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter phone"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="idNumber" className="block text-sm font-medium">
-                                ID Number
-                            </label>
-                            <Input
-                                id="idNumber"
-                                name="idNumber"
-                                value={newEmployee.idNumber || ""}
-                                onChange={onInputChange}
-                                placeholder="Enter ID number"
-                            />
-                        </div>
-                    </>
-                )}
+      <div className="flex flex-col gap-4 py-8">
+        {!isEditMode ? (
+          <>
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium">
+                Name
+              </label>
+              <Input
+                id="name"
+                name="name"
+                value={newEmployee.name}
+                onChange={onInputChange}
+                placeholder="Enter name"
+              />
             </div>
 
-            <SheetFooter>
-                <Button
-                    type="button"
-                    onClick={onCreateOrUpdateEmployee}
-                    className="bg-infinity"
-                >
-                    {isEditMode ? "Update" : "Create"} Employee
-                </Button>
-            </SheetFooter>
-        </SheetContent>
-    );
-}; 
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium">
+                Email
+              </label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={newEmployee.email}
+                onChange={onInputChange}
+                placeholder="Enter email"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium">
+                Password
+              </label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={newEmployee.password}
+                onChange={onInputChange}
+                placeholder="Enter password"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="position" className="block text-sm font-medium">
+                Position
+              </label>
+              <Input
+                id="position"
+                name="position"
+                value={newEmployee.position || ""}
+                onChange={onInputChange}
+                placeholder="Enter position"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="department" className="block text-sm font-medium">
+                Department
+              </label>
+              <Input
+                id="department"
+                name="department"
+                value={newEmployee.department || ""}
+                onChange={onInputChange}
+                placeholder="Enter department"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium">
+                Address
+              </label>
+              <Input
+                id="address"
+                name="address"
+                value={newEmployee.address || ""}
+                onChange={onInputChange}
+                placeholder="Enter address"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium">
+                Phone
+              </label>
+              <Input
+                id="phone"
+                name="phone"
+                value={newEmployee.phone || ""}
+                onChange={onInputChange}
+                placeholder="Enter phone"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="birthDate" className="block text-sm font-medium">
+                Birth Date
+              </label>
+              <Input
+                id="birthDate"
+                name="birthDate"
+                type="date"
+                value={formatDateForInput(newEmployee.birthDate)}
+                onChange={onInputChange}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="idNumber" className="block text-sm font-medium">
+                ID Number
+              </label>
+              <Input
+                id="idNumber"
+                name="idNumber"
+                value={newEmployee.idNumber || ""}
+                onChange={onInputChange}
+                placeholder="Enter ID number"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium">
+                Name
+              </label>
+              <Input
+                id="name"
+                name="name"
+                value={newEmployee.name}
+                onChange={onInputChange}
+                placeholder="Enter name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="position" className="block text-sm font-medium">
+                Position
+              </label>
+              <Input
+                id="position"
+                name="position"
+                value={newEmployee.position || ""}
+                onChange={onInputChange}
+                placeholder="Enter position"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="department" className="block text-sm font-medium">
+                Department
+              </label>
+              <Input
+                id="department"
+                name="department"
+                value={newEmployee.department || ""}
+                onChange={onInputChange}
+                placeholder="Enter department"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium">
+                Phone
+              </label>
+              <Input
+                id="phone"
+                name="phone"
+                value={newEmployee.phone || ""}
+                onChange={onInputChange}
+                placeholder="Enter phone"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="idNumber" className="block text-sm font-medium">
+                ID Number
+              </label>
+              <Input
+                id="idNumber"
+                name="idNumber"
+                value={newEmployee.idNumber || ""}
+                onChange={onInputChange}
+                placeholder="Enter ID number"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <SheetFooter>
+        <Button
+          type="button"
+          onClick={onCreateOrUpdateEmployee}
+          className="bg-infinity"
+        >
+          {isEditMode ? "Update" : "Create"} Employee
+        </Button>
+      </SheetFooter>
+    </SheetContent>
+  );
+};

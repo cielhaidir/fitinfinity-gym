@@ -1,7 +1,7 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { Reward } from "./schema";
+import { type ColumnDef } from "@tanstack/react-table";
+import { type Reward } from "./schema";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, MoreHorizontal } from "lucide-react";
@@ -36,11 +36,13 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Icon" />
     ),
     cell: ({ row }) => {
-      const iconName = row.getValue("iconName") as string;
-      const IconComponent = (LucideIcons as unknown as Record<string, React.FC<any>>)[iconName];
+      const iconName = row.getValue("iconName");
+      const IconComponent = (
+        LucideIcons as unknown as Record<string, React.FC<any>>
+      )[iconName];
       return (
         <div className="flex items-center">
-          {IconComponent ? <IconComponent className="h-5 w-5 mr-2" /> : null}
+          {IconComponent ? <IconComponent className="mr-2 h-5 w-5" /> : null}
           {iconName}
         </div>
       );
@@ -52,9 +54,7 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Points Required" />
     ),
     cell: ({ row }) => (
-      <Badge variant="outline">
-        {row.getValue("price")} points
-      </Badge>
+      <Badge variant="outline">{row.getValue("price")} points</Badge>
     ),
   },
   {
@@ -63,7 +63,7 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Stock" />
     ),
     cell: ({ row }) => {
-      const stock = row.getValue("stock") as number;
+      const stock = row.getValue("stock");
       return (
         <Badge variant={stock > 0 ? "default" : "destructive"}>
           {stock} available
@@ -98,4 +98,4 @@ export const createColumns = ({
       );
     },
   },
-]; 
+];

@@ -1,6 +1,14 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "@/server/api/trpc";
-import { emailConfigSchema, emailTemplateSchema, EmailType } from "@/app/(authenticated)/management/config/email/schema";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "@/server/api/trpc";
+import {
+  emailConfigSchema,
+  emailTemplateSchema,
+  EmailType,
+} from "@/app/(authenticated)/management/config/email/schema";
 import { TRPCError } from "@trpc/server";
 import { smtp } from "@/lib/email/smtpProvider";
 import { emailService } from "@/lib/email/emailService";
@@ -16,10 +24,12 @@ export const emailRouter = createTRPCRouter({
     }),
 
   updateConfig: protectedProcedure
-    .input(z.object({
-      id: z.string(),
-      data: emailConfigSchema,
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        data: emailConfigSchema,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.emailConfig.update({
         where: { id: input.id },
@@ -35,12 +45,11 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  listConfigs: protectedProcedure
-    .query(async ({ ctx }) => {
-      return ctx.db.emailConfig.findMany({
-        orderBy: { createdAt: "desc" },
-      });
-    }),
+  listConfigs: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.emailConfig.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+  }),
 
   getConfig: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -104,7 +113,8 @@ export const emailRouter = createTRPCRouter({
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error occurred",
+          error:
+            error instanceof Error ? error.message : "Unknown error occurred",
         };
       }
     }),
@@ -118,10 +128,12 @@ export const emailRouter = createTRPCRouter({
     }),
 
   updateTemplate: protectedProcedure
-    .input(z.object({
-      id: z.string(),
-      data: emailTemplateSchema,
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        data: emailTemplateSchema,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.emailTemplate.update({
         where: { id: input.id },
@@ -137,12 +149,11 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  listTemplates: protectedProcedure
-    .query(async ({ ctx }) => {
-      return ctx.db.emailTemplate.findMany({
-        orderBy: { createdAt: "desc" },
-      });
-    }),
+  listTemplates: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.emailTemplate.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+  }),
 
   getTemplate: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -162,10 +173,12 @@ export const emailRouter = createTRPCRouter({
     }),
 
   sendPasswordResetEmail: publicProcedure
-    .input(z.object({
-      email: z.string().email(),
-      resetBaseUrl: z.string().url(),
-    }))
+    .input(
+      z.object({
+        email: z.string().email(),
+        resetBaseUrl: z.string().url(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // Find user by email
       const user = await ctx.db.user.findUnique({
@@ -178,7 +191,7 @@ export const emailRouter = createTRPCRouter({
       }
 
       // Generate reset token and save it
-      const resetToken = randomBytes(32).toString('hex');
+      const resetToken = randomBytes(32).toString("hex");
       const resetTokenExpiry = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
 
       await ctx.db.user.update({
@@ -219,7 +232,7 @@ export const emailRouter = createTRPCRouter({
             currentYear: new Date().getFullYear(),
             address: "123 Gym Street, Fitness City",
           },
-      });
+        });
 
         return { success: true };
       } catch (error) {

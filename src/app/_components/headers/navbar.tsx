@@ -9,7 +9,7 @@ import { NavUser } from "./nav-user";
 import Image from "next/image";
 import { LayoutDashboard } from "lucide-react";
 
-export default function Navbar({ user }: { user?: any; }) {
+export default function Navbar({ user }: { user?: any }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -46,7 +46,7 @@ export default function Navbar({ user }: { user?: any; }) {
 
   return (
     <nav
-      className={`fixed top-0 z-50 w-full transition-transform duration-300 bg-gradient-to-b from-black to-transparent ${
+      className={`fixed top-0 z-50 w-full bg-gradient-to-b from-black to-transparent transition-transform duration-300 ${
         isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
@@ -66,12 +66,12 @@ export default function Navbar({ user }: { user?: any; }) {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden items-center space-x-8 md:flex">
             {baseNavLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className="text-white hover:text-[#BFFF00] transition-colors font-medium"
+                className="font-medium text-white transition-colors hover:text-[#BFFF00]"
               >
                 {link.name}
               </Link>
@@ -79,50 +79,58 @@ export default function Navbar({ user }: { user?: any; }) {
           </div>
 
           {/* Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden items-center space-x-4 md:flex">
             {user ? (
               <NavUser user={user} />
             ) : (
               <div className="flex space-x-4">
                 {/* Login Button */}
                 <div className="relative flex items-center">
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]" />
+                  <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-[#C9D953]" />
                   <Button
                     variant="outline"
-                    className="border-2 border-[#C9D953] text-[#C9D953] px-5 py-3 rounded-md font-bold bg-transparent transition duration-200 transform hover:scale-105 hover:shadow-xl overflow-hidden hover:border-[#b6c940] hover:text-[#b6c940] relative"
+                    className="relative transform overflow-hidden rounded-md border-2 border-[#C9D953] bg-transparent px-5 py-3 font-bold text-[#C9D953] transition duration-200 hover:scale-105 hover:border-[#b6c940] hover:text-[#b6c940] hover:shadow-xl"
                     asChild
                   >
-                    <Link href="/api/auth/signin" className="relative z-10">Log in</Link>
+                    <Link href="/api/auth/signin" className="relative z-10">
+                      Log in
+                    </Link>
                   </Button>
-                  <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
+                  <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-[#C9D953]" />
                 </div>
                 {/* Register Button */}
                 <div className="relative flex items-center">
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-none rounded-bl-none rounded-tr-[5px] rounded-br-[5px]" />
+                  <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-none rounded-br-[5px] rounded-tl-none rounded-tr-[5px] bg-[#C9D953]" />
                   <Button
                     variant="outline"
-                    className="border-2 border-[#C9D953] text-[#C9D953] px-5 py-3 rounded-md font-bold bg-transparent transition duration-200 transform hover:scale-105 hover:shadow-xl overflow-hidden hover:border-[#b6c940] hover:text-[#b6c940] relative"
+                    className="relative transform overflow-hidden rounded-md border-2 border-[#C9D953] bg-transparent px-5 py-3 font-bold text-[#C9D953] transition duration-200 hover:scale-105 hover:border-[#b6c940] hover:text-[#b6c940] hover:shadow-xl"
                     asChild
                   >
-                    <Link href="/auth/signup" className="relative z-10">Register</Link>
+                    <Link href="/auth/signup" className="relative z-10">
+                      Register
+                    </Link>
                   </Button>
-                  <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-[#C9D953] rounded-tl-[5px] rounded-bl-[5px] rounded-tr-none rounded-br-none" />
+                  <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-bl-[5px] rounded-br-none rounded-tl-[5px] rounded-tr-none bg-[#C9D953]" />
                 </div>
               </div>
             )}
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center space-x-4">
+          <div className="flex items-center space-x-4 md:hidden">
             {user && (
               <Link
                 href="/member/dashboard"
-                className="bg-[#BFFF00] text-black p-2 rounded-lg hover:bg-[#9FDF00]"
+                className="rounded-lg bg-[#BFFF00] p-2 text-black hover:bg-[#9FDF00]"
               >
                 <LayoutDashboard size={20} />
               </Link>
             )}
-            <Button onClick={toggleDrawer} variant="ghost" className="text-white">
+            <Button
+              onClick={toggleDrawer}
+              variant="ghost"
+              className="text-white"
+            >
               ☰
             </Button>
           </div>
@@ -132,16 +140,18 @@ export default function Navbar({ user }: { user?: any; }) {
       {/* Mobile Drawer */}
       <Drawer open={isDrawerOpen} onClose={toggleDrawer}>
         <DrawerContent className="bg-black p-6">
-          <div className="flex items-center justify-between mb-8">
+          <div className="mb-8 flex items-center justify-between">
             <span className="text-xl font-bold text-[#BFFF00]">Menu</span>
-            <DrawerClose onClick={toggleDrawer} className="text-white">&times;</DrawerClose>
+            <DrawerClose onClick={toggleDrawer} className="text-white">
+              &times;
+            </DrawerClose>
           </div>
           <div className="flex flex-col space-y-4">
             {baseNavLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className="text-white hover:text-[#BFFF00] transition-colors py-2"
+                className="py-2 text-white transition-colors hover:text-[#BFFF00]"
                 onClick={toggleDrawer}
               >
                 {link.name}
@@ -151,13 +161,13 @@ export default function Navbar({ user }: { user?: any; }) {
               <div className="flex flex-col space-y-4 pt-4">
                 <Button
                   variant="outline"
-                  className="border-[#BFFF00] text-[#BFFF00] hover:bg-[#BFFF00] hover:text-black w-full"
+                  className="w-full border-[#BFFF00] text-[#BFFF00] hover:bg-[#BFFF00] hover:text-black"
                   asChild
                 >
                   <Link href="/api/auth/signin">Log in</Link>
                 </Button>
                 <Button
-                  className="bg-[#BFFF00] text-black hover:bg-[#9FDF00] w-full"
+                  className="w-full bg-[#BFFF00] text-black hover:bg-[#9FDF00]"
                   asChild
                 >
                   <Link href="/auth/signup">Register</Link>

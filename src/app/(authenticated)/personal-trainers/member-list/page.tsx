@@ -8,7 +8,7 @@ import { DataTable } from "@/components/datatable/data-table";
 import ModalEdit from "./modaledit";
 
 import { getColumns } from "./columns";
-import { Member } from "./schema";
+import { type Member } from "./schema";
 
 interface MemberData {
   id: string;
@@ -35,7 +35,11 @@ export default function MemberListPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: members, isLoading, refetch: refetchMembers } = api.personalTrainer.getMembers.useQuery(undefined, {
+  const {
+    data: members,
+    isLoading,
+    refetch: refetchMembers,
+  } = api.personalTrainer.getMembers.useQuery(undefined, {
     enabled: !!session,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -47,14 +51,17 @@ export default function MemberListPage() {
     if (!members) return [];
 
     const memberMap = new Map<string, Member>();
-    
+
     members.forEach((member: MemberData) => {
       const existingMember = memberMap.get(member.name);
       if (existingMember) {
         // If member already exists, add remaining sessions
         existingMember.remainingSessions += member.remainingSessions;
         // Keep the latest subscription end date
-        if (new Date(member.subscriptionEndDate) > new Date(existingMember.subscriptionEndDate)) {
+        if (
+          new Date(member.subscriptionEndDate) >
+          new Date(existingMember.subscriptionEndDate)
+        ) {
           existingMember.subscriptionEndDate = member.subscriptionEndDate;
         }
       } else {
@@ -72,7 +79,7 @@ export default function MemberListPage() {
         });
       }
     });
-    
+
     return Array.from(memberMap.values());
   }, [members]);
 
@@ -118,8 +125,8 @@ export default function MemberListPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">Member List</h2>
           <p className="text-muted-foreground">
@@ -148,4 +155,4 @@ export default function MemberListPage() {
       />
     </div>
   );
-} 
+}

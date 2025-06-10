@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,13 @@ interface ContinuePaymentButtonProps {
   };
   onSuccess?: () => void;
   buttonText?: string;
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  variant?:
+    | "default"
+    | "destructive"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link";
   className?: string;
 }
 
@@ -36,29 +42,32 @@ export function ContinuePaymentButton({
   className = "",
 }: ContinuePaymentButtonProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   const createPaymentMutation = api.payment.createTransaction.useMutation();
-  const updatePaymentStatusMutation = api.subs.updatePaymentStatus.useMutation();
+  const updatePaymentStatusMutation =
+    api.subs.updatePaymentStatus.useMutation();
   const getPaymentByOrderRef = api.payment.getByOrderReference.useMutation();
-  
+
   const handleContinuePayment = async () => {
     setIsProcessing(true);
     try {
       // Format item details
-      const itemDetails = [{
-        id: packageInfo.id,
-        name: packageInfo.name,
-        price: paymentInfo.totalPayment,
-        quantity: 1
-      }];
+      const itemDetails = [
+        {
+          id: packageInfo.id,
+          name: packageInfo.name,
+          price: paymentInfo.totalPayment,
+          quantity: 1,
+        },
+      ];
 
       // First try to get existing payment data
       let transactionResponse;
       try {
         const existingPayment = await getPaymentByOrderRef.mutateAsync({
-          orderReference
+          orderReference,
         });
-        
+
         // If we have an existing payment with token, use it
         if (existingPayment && existingPayment.token) {
           transactionResponse = { token: existingPayment.token };
@@ -74,8 +83,8 @@ export function ContinuePaymentButton({
           });
         }
       } catch (error) {
-        console.error('Error fetching or creating payment:', error);
-        toast.error('Failed to fetch or create payment');
+        console.error("Error fetching or creating payment:", error);
+        toast.error("Failed to fetch or create payment");
         setIsProcessing(false);
         return;
       }
@@ -87,13 +96,18 @@ export function ContinuePaymentButton({
         }
 
         // Remove any existing scripts to prevent conflicts
-        const existingScripts = document.querySelectorAll('script[src*="midtrans"]');
-        existingScripts.forEach(script => script.remove());
+        const existingScripts = document.querySelectorAll(
+          'script[src*="midtrans"]',
+        );
+        existingScripts.forEach((script) => script.remove());
 
         // Load Snap.js properly with the correct configuration
-        const snapScript = document.createElement('script');
-        snapScript.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
-        snapScript.setAttribute('data-client-key', process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '');
+        const snapScript = document.createElement("script");
+        snapScript.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+        snapScript.setAttribute(
+          "data-client-key",
+          process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "",
+        );
         document.body.appendChild(snapScript);
 
         snapScript.onload = () => {
@@ -102,51 +116,57 @@ export function ContinuePaymentButton({
             skipOrderSummary: true,
             showOrderId: false,
             theme: "#4169E1",
-            
-            onSuccess: async function(result: any) {
+
+            onSuccess: async function (result: any) {
               try {
                 await updatePaymentStatusMutation.mutateAsync({
                   orderReference,
                   status: "SUCCESS",
-                  gatewayResponse: result
+                  gatewayResponse: result,
                 });
-                
-                toast.success('Payment successful!');
+
+                toast.success("Payment successful!");
                 if (onSuccess) onSuccess();
                 else window.location.reload();
               } catch (error) {
-                console.error('Error updating payment status:', error);
-                toast.error('Payment was successful but there was an error updating your subscription');
+                console.error("Error updating payment status:", error);
+                toast.error(
+                  "Payment was successful but there was an error updating your subscription",
+                );
                 window.location.reload();
               }
             },
-            onPending: function(result: any) {
-              toast.info('Payment pending, waiting for confirmation');
+            onPending: function (result: any) {
+              toast.info("Payment pending, waiting for confirmation");
               window.location.reload();
             },
-            onError: function(result: any) {
-              toast.error('Payment failed');
+            onError: function (result: any) {
+              toast.error("Payment failed");
               console.error(result);
             },
-            onClose: function() {
-              toast.info('Payment window closed, transaction may still be processing');
+            onClose: function () {
+              toast.info(
+                "Payment window closed, transaction may still be processing",
+              );
               setIsProcessing(false);
-            }
+            },
           });
         };
       } else {
-        toast.error('Failed to initialize payment');
+        toast.error("Failed to initialize payment");
         setIsProcessing(false);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Payment process failed');
+      toast.error(
+        error instanceof Error ? error.message : "Payment process failed",
+      );
       setIsProcessing(false);
     }
   };
 
   return (
-    <Button 
-      onClick={handleContinuePayment} 
+    <Button
+      onClick={handleContinuePayment}
       disabled={isProcessing}
       variant={variant}
       className={className}
@@ -156,7 +176,9 @@ export function ContinuePaymentButton({
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Processing...
         </>
-      ) : buttonText}
+      ) : (
+        buttonText
+      )}
     </Button>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { DataTable } from "@/app/_components/datatable/data-table";
-import { columns } from "./members-columns";
+import { type FC_Member, columns } from "./columns";
 import { Button } from "@/app/_components/ui/button";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -15,26 +15,19 @@ import {
 } from "@/app/_components/ui/dialog";
 import { FCMemberForm } from "./fc-member-form";
 import type { FcMember } from "@prisma/client";
+// import { createColumns } from "./columns";
 
-interface PageProps {
-  searchParams?: { status?: string };
-}
-
-export default function FCMembersPage({ searchParams }: PageProps) {
+export default function FCMembersPage() {
   const [open, setOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<FcMember | null>(null);
   const { toast } = useToast();
-  
+
   const utils = api.useContext();
 
   const { data: members, isLoading } = api.fcMember.getAll.useQuery(undefined, {
     refetchInterval: false,
     refetchOnWindowFocus: false,
   });
-
-  const filteredMembers = members?.filter(member => 
-    !searchParams?.status || member.status === searchParams.status
-  ) || [];
 
   const deleteMutation = api.fcMember.delete.useMutation({
     onSuccess: () => {
@@ -69,11 +62,11 @@ export default function FCMembersPage({ searchParams }: PageProps) {
     }
   };
 
-  const tableColumns = columns(handleEdit, handleDelete);
+  // const columns = createColumns({ onEditModel: handleEdit, onDeleteModel: handleDelete })
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Member Management</h1>
         <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" />
@@ -82,13 +75,15 @@ export default function FCMembersPage({ searchParams }: PageProps) {
       </div>
 
       <DataTable
-        columns={tableColumns}
+        columns={columns}
         data={{
-          items: filteredMembers,
-          total: filteredMembers.length,
+          items: members || [],
+          total: members?.length || 0,
           page: 1,
-          limit: 10
+          limit: 10,
         }}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>

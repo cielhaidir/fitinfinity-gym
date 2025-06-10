@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
 import { api } from "@/trpc/react";
@@ -35,7 +35,7 @@ export const columns: ColumnDef<ChartAccount>[] = [
     accessorKey: "flow",
     header: "Flow",
     cell: ({ row }) => {
-      const flow = row.getValue("flow") as string;
+      const flow = row.getValue("flow");
       return flow.charAt(0).toUpperCase() + flow.slice(1);
     },
   },
@@ -57,18 +57,14 @@ export const columns: ColumnDef<ChartAccount>[] = [
 
       const handleEdit = () => {
         const event = new CustomEvent("editChartAccount", {
-          detail: { id: account.id }
+          detail: { id: account.id },
         });
         window.dispatchEvent(event);
       };
 
       return (
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleEdit}
-          >
+          <Button variant="ghost" size="icon" onClick={handleEdit}>
             <Pencil className="h-4 w-4" />
           </Button>
           <Button
@@ -86,4 +82,4 @@ export const columns: ColumnDef<ChartAccount>[] = [
       );
     },
   },
-]; 
+];

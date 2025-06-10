@@ -1,14 +1,17 @@
-"use client"
+"use client";
 
-import { ColumnDef } from "@tanstack/react-table"
-import { Button } from "@/components/ui/button"
+import { type ColumnDef } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
 
 interface ColumnsProps {
-  onEdit: (user: any) => void
-  onDelete: (user: any) => void
+  onEdit: (user: any) => void;
+  onDelete: (user: any) => void;
 }
 
-export const createColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<any>[] => [
+export const createColumns = ({
+  onEdit,
+  onDelete,
+}: ColumnsProps): ColumnDef<any>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -23,19 +26,27 @@ export const createColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<any
     cell: ({ row }) => {
       const roles = row.original.roles || [];
       return roles.map((role: { name: string }) => role.name).join(", ");
-    }
+    },
   },
   {
     id: "actions",
     cell: ({ row }) => (
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => onEdit(row.original)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onEdit(row.original)}
+        >
           Edit
         </Button>
-        <Button variant="destructive" size="sm" onClick={() => onDelete(row.original)}>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => onDelete(row.original)}
+        >
           Delete
         </Button>
       </div>
     ),
   },
-]
+];

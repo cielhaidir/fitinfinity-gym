@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/app/_components/datatable/data-table-column-header";
 import { DataTableRowActions } from "@/app/_components/datatable/data-table-row-actions";
 import { Badge } from "@/app/_components/ui/badge";
@@ -14,13 +14,13 @@ const getStatusColor = (status: string) => {
     new: "bg-blue-500",
     contacted: "bg-yellow-500",
     follow_up: "bg-purple-500",
-    interested: "bg-green-500", 
+    interested: "bg-green-500",
     not_interested: "bg-red-500",
     pending: "bg-orange-500",
     scheduled: "bg-indigo-500",
     converted: "bg-emerald-500",
     rejected: "bg-rose-500",
-    inactive: "bg-gray-500"
+    inactive: "bg-gray-500",
   };
   return colors[status as keyof typeof colors] || "bg-gray-500";
 };
@@ -50,7 +50,7 @@ export const columns: ColumnDef<FC_Member>[] = [
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const status = row.getValue("status") as string;
+      const status = row.getValue("status");
       return (
         <Badge className={`${getStatusColor(status)} text-white`}>
           {status.replace("_", " ")}

@@ -35,8 +35,8 @@ export function BalanceAccountForm({
   const [name, setName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [initialBalance, setInitialBalance] = useState("0");
-  const [errors, setErrors] = useState<{ 
-    name?: string; 
+  const [errors, setErrors] = useState<{
+    name?: string;
     account_number?: string;
     initialBalance?: string;
   }>({});
@@ -77,20 +77,21 @@ export function BalanceAccountForm({
   });
 
   const validate = () => {
-    const newErrors: { 
-      name?: string; 
+    const newErrors: {
+      name?: string;
       account_number?: string;
       initialBalance?: string;
     } = {};
-    
+
     if (!name.trim()) newErrors.name = "Name is required";
-    if (!accountNumber.trim()) newErrors.account_number = "Account number is required";
-    
+    if (!accountNumber.trim())
+      newErrors.account_number = "Account number is required";
+
     const balanceValue = parseFloat(initialBalance);
     if (isNaN(balanceValue)) {
       newErrors.initialBalance = "Initial balance must be a valid number";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -98,9 +99,9 @@ export function BalanceAccountForm({
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    
+
     const balanceValue = parseFloat(initialBalance);
-    
+
     if (account) {
       updateAccount.mutate({
         id: account.id,
@@ -125,27 +126,38 @@ export function BalanceAccountForm({
             {account ? "Edit Balance Account" : "Create New Balance Account"}
           </SheetTitle>
           <SheetDescription>
-            {account ? "Edit the balance account details." : "Add a new balance account to the system."}
+            {account
+              ? "Edit the balance account details."
+              : "Add a new balance account to the system."}
           </SheetDescription>
         </SheetHeader>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4 py-8 sm:px-0 px-4">
+        <form
+          onSubmit={onSubmit}
+          className="flex flex-col gap-4 px-4 py-8 sm:px-0"
+        >
           <div>
             <label className="block text-sm font-medium">Name</label>
             <Input
               placeholder="Enter account name"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
             />
-            {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}
+            {errors.name && (
+              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium">Account Number</label>
             <Input
               placeholder="Enter account number"
               value={accountNumber}
-              onChange={e => setAccountNumber(e.target.value)}
+              onChange={(e) => setAccountNumber(e.target.value)}
             />
-            {errors.account_number && <p className="text-sm text-red-500 mt-1">{errors.account_number}</p>}
+            {errors.account_number && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.account_number}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium">Initial Balance</label>
@@ -153,9 +165,13 @@ export function BalanceAccountForm({
               type="number"
               placeholder="Enter initial balance"
               value={initialBalance}
-              onChange={e => setInitialBalance(e.target.value)}
+              onChange={(e) => setInitialBalance(e.target.value)}
             />
-            {errors.initialBalance && <p className="text-sm text-red-500 mt-1">{errors.initialBalance}</p>}
+            {errors.initialBalance && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.initialBalance}
+              </p>
+            )}
           </div>
         </form>
         <SheetFooter className="flex justify-end gap-2">

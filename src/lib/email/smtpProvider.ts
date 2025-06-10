@@ -1,4 +1,4 @@
-import nodemailer, { Transporter } from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 import type { Options } from "nodemailer/lib/smtp-connection";
 import type { EmailConfig } from "@/app/(authenticated)/management/config/email/schema";
 

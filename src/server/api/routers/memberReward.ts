@@ -1,18 +1,24 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  permissionProtectedProcedure,
+} from "@/server/api/trpc";
 
 export const memberRewardRouter = createTRPCRouter({
-  list: permissionProtectedProcedure(['list:reward'])
+  list: permissionProtectedProcedure(["list:reward"])
     .input(
-      z.object({
-        page: z.number().optional().default(1),
-        limit: z.number().optional().default(10),
-        memberId: z.string().optional(),
-      }).optional()
+      z
+        .object({
+          page: z.number().optional().default(1),
+          limit: z.number().optional().default(10),
+          memberId: z.string().optional(),
+        })
+        .optional(),
     )
     .query(async ({ ctx, input }) => {
       const where = input?.memberId ? { memberId: input.memberId } : {};
-      
+
       const items = await ctx.db.memberReward.findMany({
         where,
         include: {
@@ -32,7 +38,7 @@ export const memberRewardRouter = createTRPCRouter({
           },
         },
         orderBy: {
-          claimedAt: 'desc',
+          claimedAt: "desc",
         },
         skip: ((input?.page ?? 1) - 1) * (input?.limit ?? 10),
         take: input?.limit ?? 10,
@@ -48,11 +54,13 @@ export const memberRewardRouter = createTRPCRouter({
       };
     }),
 
-  create: permissionProtectedProcedure(['claim:reward'])
-    .input(z.object({
-      rewardId: z.string(),
-      memberId: z.string(),
-    }))
+  create: permissionProtectedProcedure(["claim:reward"])
+    .input(
+      z.object({
+        rewardId: z.string(),
+        memberId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { rewardId, memberId } = input;
 

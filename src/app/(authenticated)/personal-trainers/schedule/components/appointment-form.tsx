@@ -1,14 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { Calendar, Clock, X } from "lucide-react";
 
@@ -24,28 +30,32 @@ interface Member {
   remainingSessions: number;
 }
 
-export default function AppointmentForm({ selectedDate, onClose }: AppointmentFormProps) {
+export default function AppointmentForm({
+  selectedDate,
+  onClose,
+}: AppointmentFormProps) {
   const { data: session } = useSession();
-  const [selectedMemberId, setSelectedMemberId] = useState('');
-  const [time, setTime] = useState('09:00');
-  const [description, setDescription] = useState('');
-  const [duration, setDuration] = useState('60'); // Default 60 minutes
-  const [formattedDate, setFormattedDate] = useState('');
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [time, setTime] = useState("09:00");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState("60"); // Default 60 minutes
+  const [formattedDate, setFormattedDate] = useState("");
 
-  const { data: members, isLoading: isMembersLoading } = api.personalTrainer.getMembers.useQuery(undefined, {
-    enabled: !!session,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    staleTime: 0,
-  });
-  
+  const { data: members, isLoading: isMembersLoading } =
+    api.personalTrainer.getMembers.useQuery(undefined, {
+      enabled: !!session,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      staleTime: 0,
+    });
+
   // Combine members with same name and sum their remaining sessions
   const combinedMembers = React.useMemo(() => {
     if (!members) return [];
-    
+
     const memberMap = new Map<string, Member>();
-    
-    members.forEach(member => {
+
+    members.forEach((member) => {
       const existingMember = memberMap.get(member.name);
       if (existingMember) {
         // If member already exists, add remaining sessions
@@ -56,16 +66,16 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
           id: member.id,
           name: member.name,
           membershipId: member.membershipId,
-          remainingSessions: member.remainingSessions
+          remainingSessions: member.remainingSessions,
         });
       }
     });
-    
+
     return Array.from(memberMap.values());
   }, [members]);
-  
+
   const utils = api.useUtils();
-  
+
   const createSession = api.trainerSession.create.useMutation({
     onSuccess: () => {
       toast.success("Jadwal berhasil ditambahkan");
@@ -73,41 +83,43 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       utils.trainerSession.getAll.invalidate();
       utils.personalTrainer.getMembers.invalidate(); // Refresh member list to update remaining sessions
       // Reset form
-      setSelectedMemberId('');
-      setDescription('');
+      setSelectedMemberId("");
+      setDescription("");
       onClose();
     },
     onError: (error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   useEffect(() => {
     if (selectedDate) {
-      setFormattedDate(format(selectedDate, 'MMMM do, yyyy'));
-      setTime(format(selectedDate, 'HH:mm'));
+      setFormattedDate(format(selectedDate, "MMMM do, yyyy"));
+      setTime(format(selectedDate, "HH:mm"));
     }
   }, [selectedDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedDate || !selectedMemberId) {
       toast.error("Mohon isi semua field yang diperlukan");
       return;
     }
 
     // Check if member has remaining sessions
-    const selectedMember = combinedMembers.find(member => member.id === selectedMemberId);
+    const selectedMember = combinedMembers.find(
+      (member) => member.id === selectedMemberId,
+    );
     if (selectedMember && selectedMember.remainingSessions <= 0) {
       toast.error("Member tidak memiliki sisa sesi yang tersedia");
       return;
     }
 
-    const [hours = 0, minutes = 0] = time.split(':').map(Number);
+    const [hours = 0, minutes = 0] = time.split(":").map(Number);
     const startTime = new Date(selectedDate);
     startTime.setHours(hours, minutes, 0, 0);
-    
+
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
 
@@ -123,27 +135,29 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       date: selectedDate,
       startTime: startTime,
       endTime: endTime,
-      description: description
+      description: description,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold text-foreground">Tambah Jadwal</h2>
-        <Button 
-          type="button" 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={onClose}
           className="text-muted-foreground hover:text-foreground"
         >
           <X className="h-5 w-5" />
         </Button>
       </div>
-      
+
       <div className="space-y-2">
-        <Label htmlFor="date" className="text-muted-foreground">Tanggal</Label>
+        <Label htmlFor="date" className="text-muted-foreground">
+          Tanggal
+        </Label>
         <div className="relative">
           <Input
             id="date"
@@ -157,7 +171,9 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="time" className="text-muted-foreground">Waktu Mulai</Label>
+        <Label htmlFor="time" className="text-muted-foreground">
+          Waktu Mulai
+        </Label>
         <div className="relative">
           <Input
             id="time"
@@ -171,11 +187,10 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="duration" className="text-muted-foreground">Durasi</Label>
-        <Select 
-          value={duration} 
-          onValueChange={setDuration}
-        >
+        <Label htmlFor="duration" className="text-muted-foreground">
+          Durasi
+        </Label>
+        <Select value={duration} onValueChange={setDuration}>
           <SelectTrigger>
             <SelectValue placeholder="Pilih durasi" />
           </SelectTrigger>
@@ -189,17 +204,18 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="member" className="text-muted-foreground">Nama Member</Label>
-        <Select 
-          value={selectedMemberId} 
-          onValueChange={setSelectedMemberId}
-        >
+        <Label htmlFor="member" className="text-muted-foreground">
+          Nama Member
+        </Label>
+        <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
           <SelectTrigger>
             <SelectValue placeholder="Pilih member" />
           </SelectTrigger>
           <SelectContent>
             {isMembersLoading ? (
-              <SelectItem value="loading" disabled>Loading members...</SelectItem>
+              <SelectItem value="loading" disabled>
+                Loading members...
+              </SelectItem>
             ) : (
               combinedMembers.map((member) => (
                 <SelectItem key={member.id} value={member.id}>
@@ -212,7 +228,9 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description" className="text-muted-foreground">Deskripsi</Label>
+        <Label htmlFor="description" className="text-muted-foreground">
+          Deskripsi
+        </Label>
         <Textarea
           id="description"
           placeholder="Detail sesi latihan..."
@@ -222,13 +240,13 @@ export default function AppointmentForm({ selectedDate, onClose }: AppointmentFo
         />
       </div>
 
-      <Button 
-        type="submit" 
-        className="w-full bg-[#C9D953] hover:bg-[#b8c748] text-black mt-4"
+      <Button
+        type="submit"
+        className="mt-4 w-full bg-[#C9D953] text-black hover:bg-[#b8c748]"
         disabled={createSession.isPending}
       >
-        {createSession.isPending ? 'Menyimpan...' : 'Simpan Jadwal'}
+        {createSession.isPending ? "Menyimpan..." : "Simpan Jadwal"}
       </Button>
     </form>
   );
-} 
+}

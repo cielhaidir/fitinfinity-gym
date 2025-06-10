@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState } from 'react';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday, 
-         startOfMonth, endOfMonth, isSameMonth, addWeeks, subWeeks } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, FileText } from 'lucide-react';
-import { SessionDetailModal } from './session-detail-modal';
-import { TrainerSession } from '@prisma/client';
+import React, { useState } from "react";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  isToday,
+  startOfMonth,
+  endOfMonth,
+  isSameMonth,
+  addWeeks,
+  subWeeks,
+} from "date-fns";
+import { id } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { SessionDetailModal } from "./session-detail-modal";
+import { TrainerSession } from "@prisma/client";
 
-type SessionStatus = 'ENDED' | 'NOT_YET' | 'CANCELED' | 'ONGOING';
+type SessionStatus = "ENDED" | "NOT_YET" | "CANCELED" | "ONGOING";
 
 interface SessionWithTrainer {
   id: string;
@@ -36,14 +47,15 @@ interface CalendarProps {
 const timeSlots = Array.from({ length: 16 }, (_, i) => {
   const hour = i + 6; // Start from 6am
   return {
-    label: `${hour < 12 ? hour : hour === 12 ? 12 : hour - 12}${hour < 12 ? 'am' : 'pm'}`,
-    hour
+    label: `${hour < 12 ? hour : hour === 12 ? 12 : hour - 12}${hour < 12 ? "am" : "pm"}`,
+    hour,
   };
 });
 
 export default function Calendar({ sessionsByDateTime }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedSession, setSelectedSession] = useState<SessionWithTrainer | null>(null);
+  const [selectedSession, setSelectedSession] =
+    useState<SessionWithTrainer | null>(null);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
@@ -69,65 +81,78 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
     setSelectedSession(null);
   };
 
-  const getStatusColor = (status: SessionWithTrainer['status'], exerciseResult: string | null) => {
+  const getStatusColor = (
+    status: SessionWithTrainer["status"],
+    exerciseResult: string | null,
+  ) => {
     if (exerciseResult) {
-      return 'bg-blue-500 hover:bg-blue-600';
+      return "bg-blue-500 hover:bg-blue-600";
     }
-    
+
     switch (status) {
-      case 'ENDED':
-        return 'bg-gray-500 hover:bg-gray-600';
-      case 'CANCELED':
-        return 'bg-destructive hover:bg-destructive/80';
-      case 'ONGOING':
-        return 'bg-yellow-500 hover:bg-yellow-600';
+      case "ENDED":
+        return "bg-gray-500 hover:bg-gray-600";
+      case "CANCELED":
+        return "bg-destructive hover:bg-destructive/80";
+      case "ONGOING":
+        return "bg-yellow-500 hover:bg-yellow-600";
       default:
-        return 'bg-[#C9D953] hover:bg-[#b8c748]';
+        return "bg-[#C9D953] hover:bg-[#b8c748]";
     }
   };
 
-  const getStatusText = (status: SessionWithTrainer['status'], exerciseResult: string | null) => {
+  const getStatusText = (
+    status: SessionWithTrainer["status"],
+    exerciseResult: string | null,
+  ) => {
     if (exerciseResult) {
-      return 'Hasil Terupload';
+      return "Hasil Terupload";
     }
-    
+
     switch (status) {
-      case 'ENDED':
-        return 'Selesai';
-      case 'CANCELED':
-        return 'Dibatalkan';
-      case 'ONGOING':
-        return 'Sedang Berlangsung';
+      case "ENDED":
+        return "Selesai";
+      case "CANCELED":
+        return "Dibatalkan";
+      case "ONGOING":
+        return "Sedang Berlangsung";
       default:
-        return '';
+        return "";
     }
   };
 
   return (
-    <div className="bg-background rounded-lg overflow-hidden">
-      <div className="flex justify-between items-center p-4 border-b border-border">
+    <div className="overflow-hidden rounded-lg bg-background">
+      <div className="flex items-center justify-between border-b border-border p-4">
         <div className="flex space-x-2">
-          <Button 
-            onClick={handlePrevWeek} 
-            variant="outline" 
-            size="icon" 
+          <Button
+            onClick={handlePrevWeek}
+            variant="outline"
+            size="icon"
             className="h-8 w-8"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button 
-            onClick={handleNextWeek} 
-            variant="outline" 
-            size="icon" 
+          <Button
+            onClick={handleNextWeek}
+            variant="outline"
+            size="icon"
             className="h-8 w-8"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button onClick={handleToday} variant="secondary" className="h-8 text-xs">today</Button>
+          <Button
+            onClick={handleToday}
+            variant="secondary"
+            className="h-8 text-xs"
+          >
+            today
+          </Button>
         </div>
-        
-        <div className="bg-muted text-foreground text-sm px-3 py-1 rounded-full">
-          {format(weekStart, 'dd MMMM', { locale: id })} - {format(weekEnd, 'dd MMMM yyyy', { locale: id })}
+
+        <div className="rounded-full bg-muted px-3 py-1 text-sm text-foreground">
+          {format(weekStart, "dd MMMM", { locale: id })} -{" "}
+          {format(weekEnd, "dd MMMM yyyy", { locale: id })}
         </div>
       </div>
 
@@ -137,15 +162,19 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
             <tr>
               <th className="w-20 border-r border-border p-2"></th>
               {days.map((day) => (
-                <th 
-                  key={day.toString()} 
+                <th
+                  key={day.toString()}
                   className={`border-r border-border p-2 text-center ${
-                    isToday(day) ? 'bg-muted' : ''
+                    isToday(day) ? "bg-muted" : ""
                   }`}
                 >
-                  <div className="text-muted-foreground">{format(day, 'EEE', { locale: id })}</div>
-                  <div className={`text-lg ${isToday(day) ? 'text-primary font-bold' : 'text-foreground'}`}>
-                    {format(day, 'd/M')}
+                  <div className="text-muted-foreground">
+                    {format(day, "EEE", { locale: id })}
+                  </div>
+                  <div
+                    className={`text-lg ${isToday(day) ? "font-bold text-primary" : "text-foreground"}`}
+                  >
+                    {format(day, "d/M")}
                   </div>
                 </th>
               ))}
@@ -154,39 +183,41 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
           <tbody>
             {timeSlots.map(({ label, hour }) => (
               <tr key={`time-${hour}`} className="border-t border-border">
-                <td className="border-r border-border p-2 text-right font-medium text-muted-foreground w-20">
+                <td className="w-20 border-r border-border p-2 text-right font-medium text-muted-foreground">
                   {label}
                 </td>
                 {days.map((day) => {
-                  const dateStr = format(day, 'yyyy-MM-dd');
-                  const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const timeStr = `${hour.toString().padStart(2, "0")}:00`;
                   const key = `${dateStr}T${timeStr}`;
                   const sessions = sessionsByDateTime[key] || [];
-                  
+
                   return (
                     <td
                       key={`${dateStr}-${hour}`}
-                      className={`
-                        border-r border-border p-1 
-                        h-[64px] align-top 
-                        ${isToday(day) ? 'bg-muted/50' : ''}
-                      `}
+                      className={`h-[64px] border-r border-border p-1 align-top ${isToday(day) ? "bg-muted/50" : ""} `}
                     >
                       {sessions.map((session) => (
                         <div
                           key={session._uniqueKey}
-                          className={`${getStatusColor(session.status, session.exerciseResult)} text-foreground p-1.5 rounded cursor-pointer transition-colors`}
+                          className={`${getStatusColor(session.status, session.exerciseResult)} cursor-pointer rounded p-1.5 text-foreground transition-colors`}
                           onClick={() => handleSessionClick(session)}
                         >
                           <div className="font-medium">
-                            {format(new Date(session.startTime), 'HH:mm')}
+                            {format(new Date(session.startTime), "HH:mm")}
                           </div>
                           <div className="truncate">
-                            {session.trainer?.user?.name || 'Personal Trainer'}
+                            {session.trainer?.user?.name || "Personal Trainer"}
                           </div>
-                          {getStatusText(session.status, session.exerciseResult) && (
-                            <div className="text-xs font-bold text-foreground mt-1">
-                              {getStatusText(session.status, session.exerciseResult)}
+                          {getStatusText(
+                            session.status,
+                            session.exerciseResult,
+                          ) && (
+                            <div className="mt-1 text-xs font-bold text-foreground">
+                              {getStatusText(
+                                session.status,
+                                session.exerciseResult,
+                              )}
                             </div>
                           )}
                         </div>
@@ -206,4 +237,4 @@ export default function Calendar({ sessionsByDateTime }: CalendarProps) {
       />
     </div>
   );
-} 
+}

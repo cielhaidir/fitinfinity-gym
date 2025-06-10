@@ -1,15 +1,18 @@
 import { z } from "zod";
-import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  permissionProtectedProcedure,
+} from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { VoucherType } from "@prisma/client";
 
 export const voucherRouter = createTRPCRouter({
-  list: permissionProtectedProcedure(['list:voucher'])
+  list: permissionProtectedProcedure(["list:voucher"])
     .input(
       z.object({
         type: z.nativeEnum(VoucherType).optional(),
         isActive: z.boolean().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       // Get all vouchers that match the criteria and haven't been claimed by this user
@@ -17,36 +20,35 @@ export const voucherRouter = createTRPCRouter({
         where: {
           type: input.type,
           isActive: input.isActive,
-          OR: [
-            { expiryDate: null },
-            { expiryDate: { gt: new Date() } }
-          ],
+          OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
           // Exclude vouchers that have been claimed by this user
           claims: {
             none: {
-              memberId: ctx.user.id
-            }
-          }
+              memberId: ctx.user.id,
+            },
+          },
         },
         include: {
           _count: {
             select: {
-              claims: true
-            }
-          }
-        }
+              claims: true,
+            },
+          },
+        },
       });
 
       // Filter out vouchers that have reached max claim
-      return vouchers.filter(voucher => voucher._count.claims < voucher.maxClaim);
+      return vouchers.filter(
+        (voucher) => voucher._count.claims < voucher.maxClaim,
+      );
     }),
 
-  claim: permissionProtectedProcedure(['claim:voucher'])
+  claim: permissionProtectedProcedure(["claim:voucher"])
     .input(
       z.object({
         voucherId: z.string().optional(),
         referralCode: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { voucherId, referralCode } = input;
@@ -58,18 +60,15 @@ export const voucherRouter = createTRPCRouter({
             {
               OR: [
                 { id: voucherId },
-                { referralCode: referralCode, type: VoucherType.REFERRAL }
-              ]
+                { referralCode: referralCode, type: VoucherType.REFERRAL },
+              ],
             },
             { isActive: true },
             {
-              OR: [
-                { expiryDate: null },
-                { expiryDate: { gt: new Date() } }
-              ]
-            }
-          ]
-        }
+              OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+            },
+          ],
+        },
       });
 
       if (!voucher) {
@@ -96,11 +95,11 @@ export const voucherRouter = createTRPCRouter({
       };
     }),
 
-  finalizeVoucherClaim: permissionProtectedProcedure(['claim:voucher'])
+  finalizeVoucherClaim: permissionProtectedProcedure(["claim:voucher"])
     .input(
       z.object({
         voucherId: z.string(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { voucherId } = input;
@@ -110,11 +109,8 @@ export const voucherRouter = createTRPCRouter({
         where: {
           id: voucherId,
           isActive: true,
-          OR: [
-            { expiryDate: null },
-            { expiryDate: { gt: new Date() } }
-          ]
-        }
+          OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+        },
       });
 
       if (!voucher) {
@@ -139,18 +135,18 @@ export const voucherRouter = createTRPCRouter({
           await tx.voucherClaim.create({
             data: {
               memberId: ctx.user.id,
-              voucherId: voucher.id
-            }
+              voucherId: voucher.id,
+            },
           });
 
           // Update voucher with decremented maxClaim
           const updatedVoucher = await tx.voucher.update({
             where: {
-              id: voucher.id
+              id: voucher.id,
             },
             data: {
-              maxClaim: voucher.maxClaim - 1
-            }
+              maxClaim: voucher.maxClaim - 1,
+            },
           });
 
           return updatedVoucher;
@@ -170,13 +166,15 @@ export const voucherRouter = createTRPCRouter({
       }
     }),
 
-  getAll: permissionProtectedProcedure(['list:voucher']).query(async ({ ctx }) => {
-    return ctx.db.voucher.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-  }),
+  getAll: permissionProtectedProcedure(["list:voucher"]).query(
+    async ({ ctx }) => {
+      return ctx.db.voucher.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+    },
+  ),
 
-  create: permissionProtectedProcedure(['create:voucher'])
+  create: permissionProtectedProcedure(["create:voucher"])
     .input(
       z.object({
         name: z.string().min(1, "Name is required"),
@@ -186,7 +184,7 @@ export const voucherRouter = createTRPCRouter({
         referralCode: z.string().optional(),
         amount: z.number().min(1, "Amount must be at least 1"),
         expiryDate: z.date().nullable().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.voucher.create({
@@ -197,7 +195,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(['edit:voucher'])
+  update: permissionProtectedProcedure(["edit:voucher"])
     .input(
       z.object({
         id: z.string(),
@@ -209,7 +207,7 @@ export const voucherRouter = createTRPCRouter({
         amount: z.number().min(1, "Amount must be at least 1"),
         isActive: z.boolean(),
         expiryDate: z.date().nullable().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
@@ -219,7 +217,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  remove: permissionProtectedProcedure(['delete:voucher'])
+  remove: permissionProtectedProcedure(["delete:voucher"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.voucher.delete({
@@ -227,13 +225,14 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  getGeneralVouchers: permissionProtectedProcedure(['list:voucher'])
-    .query(async ({ ctx }) => {
+  getGeneralVouchers: permissionProtectedProcedure(["list:voucher"]).query(
+    async ({ ctx }) => {
       return ctx.db.voucher.findMany({
         where: {
           type: "GENERAL",
           isActive: true,
         },
       });
-    }),
-}); 
+    },
+  ),
+});

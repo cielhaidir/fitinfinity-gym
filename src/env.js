@@ -18,7 +18,7 @@ export const env = createEnv({
     MINIO_ENDPOINT: z.string().url(),
     MINIO_BUCKET: z.string(),
     MINIO_PORT: z.number().default(9000),
-    MINIO_SSL: z.string().default('false'),
+    MINIO_SSL: z.string().default("false"),
     DATABASE_URL: z.string().url(),
     ALLOW_RBAC: z.boolean().default(true),
     NODE_ENV: z

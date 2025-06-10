@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  permissionProtectedProcedure,
+} from "@/server/api/trpc";
 
 const rewardInputSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -9,21 +12,20 @@ const rewardInputSchema = z.object({
 });
 
 export const rewardRouter = createTRPCRouter({
-  
-  list: permissionProtectedProcedure(['list:reward']).query(async ({ ctx }) => {
+  list: permissionProtectedProcedure(["list:reward"]).query(async ({ ctx }) => {
     const items = await ctx.db.reward.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
     const total = await ctx.db.reward.count();
-    return { 
+    return {
       items,
       total,
       page: 1,
-      limit: 10
+      limit: 10,
     };
   }),
 
-  create: permissionProtectedProcedure(['create:reward'])
+  create: permissionProtectedProcedure(["create:reward"])
     .input(rewardInputSchema)
     .mutation(async ({ ctx, input }) => {
       try {
@@ -41,11 +43,13 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  update: permissionProtectedProcedure(['edit:reward'])
-    .input(z.object({
-      id: z.string(),
-      ...rewardInputSchema.shape
-    }))
+  update: permissionProtectedProcedure(["edit:reward"])
+    .input(
+      z.object({
+        id: z.string(),
+        ...rewardInputSchema.shape,
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       try {
@@ -64,7 +68,7 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  delete: permissionProtectedProcedure(['delete:reward'])
+  delete: permissionProtectedProcedure(["delete:reward"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -72,8 +76,8 @@ export const rewardRouter = createTRPCRouter({
         const reward = await ctx.db.reward.findUnique({
           where: { id: input.id },
           include: {
-            memberRewards: true
-          }
+            memberRewards: true,
+          },
         });
 
         if (!reward) {
@@ -82,7 +86,9 @@ export const rewardRouter = createTRPCRouter({
 
         // Check if there are any related member rewards
         if (reward.memberRewards.length > 0) {
-          throw new Error("Cannot delete reward that has been claimed by members");
+          throw new Error(
+            "Cannot delete reward that has been claimed by members",
+          );
         }
 
         // If no related records, proceed with deletion
@@ -100,11 +106,13 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  redeem: permissionProtectedProcedure(['list:reward'])
-    .input(z.object({
-      rewardId: z.string(),
-      memberId: z.string(),
-    }))
+  redeem: permissionProtectedProcedure(["list:reward"])
+    .input(
+      z.object({
+        rewardId: z.string(),
+        memberId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { rewardId, memberId } = input;
 
@@ -164,13 +172,15 @@ export const rewardRouter = createTRPCRouter({
     }),
 
   // Get member rewards
-  getMemberRewards: permissionProtectedProcedure(['list:reward'])
-    .input(z.object({
-      memberId: z.string().optional(),
-    }))
+  getMemberRewards: permissionProtectedProcedure(["list:reward"])
+    .input(
+      z.object({
+        memberId: z.string().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const where = input.memberId ? { memberId: input.memberId } : {};
-      
+
       const items = await ctx.db.memberReward.findMany({
         where,
         include: {
@@ -188,7 +198,7 @@ export const rewardRouter = createTRPCRouter({
           },
         },
         orderBy: {
-          claimedAt: 'desc',
+          claimedAt: "desc",
         },
       });
 
@@ -201,4 +211,4 @@ export const rewardRouter = createTRPCRouter({
         limit: 10,
       };
     }),
-}); 
+});

@@ -10,31 +10,27 @@ export default function ResetPasswordSuccessPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
+    <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
       {/* Logo - Fixed at top right */}
-      <div className="w-full flex justify-end p-4 md:p-6">
-        <img 
-          src="/assets/fitinfinity-lime.png" 
-          alt="Logo" 
-          className="h-8"
-        />
+      <div className="flex w-full justify-end p-4 md:p-6">
+        <img src="/assets/fitinfinity-lime.png" alt="Logo" className="h-8" />
       </div>
 
       {/* Success Message Container */}
-      <div className="flex-1 flex items-center justify-center px-4 md:px-6">
+      <div className="flex flex-1 items-center justify-center px-4 md:px-6">
         <div className="w-full max-w-[500px] text-center">
-          <h1 className="text-3xl font-bold mb-4 dark:text-white">
+          <h1 className="mb-4 text-3xl font-bold dark:text-white">
             Reset Password Succesfull
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-8">
-            Your password has been successfully updated! You can now
-            log in with your new password.
+          <p className="mb-8 text-gray-600 dark:text-gray-300">
+            Your password has been successfully updated! You can now log in with
+            your new password.
           </p>
 
           {/* Login Link */}
           <button
             onClick={handleLogin}
-            className="text-[#BAD45E] hover:text-[#95B640] font-medium"
+            className="font-medium text-[#BAD45E] hover:text-[#95B640]"
           >
             Click here to login!
           </button>

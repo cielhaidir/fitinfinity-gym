@@ -35,4 +35,4 @@ export const memberRewardSchema = z.object({
 export type CreateMemberRewardInput = z.infer<typeof createMemberRewardSchema>;
 export type Reward = z.infer<typeof rewardSchema>;
 export type Member = z.infer<typeof memberSchema>;
-export type MemberReward = z.infer<typeof memberRewardSchema>; 
+export type MemberReward = z.infer<typeof memberRewardSchema>;

@@ -7,7 +7,7 @@ import { api } from "@/trpc/react";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { RewardForm } from "./reward-form";
-import { Reward } from "./schema";
+import { type Reward } from "./schema";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { RewardDialog } from "./reward-dialog";
@@ -27,11 +27,14 @@ export default function RewardPage() {
   const [limit, setLimit] = useState(10);
 
   const utils = api.useUtils();
-  const { data, isLoading, error } = api.reward.list.useQuery({ page, limit }, {
-    staleTime: 5000,
-    refetchOnWindowFocus: false
-  });
-  
+  const { data, isLoading, error } = api.reward.list.useQuery(
+    { page, limit },
+    {
+      staleTime: 5000,
+      refetchOnWindowFocus: false,
+    },
+  );
+
   const createReward = api.reward.create.useMutation({
     onSuccess: () => {
       utils.reward.list.invalidate();
@@ -57,7 +60,7 @@ export default function RewardPage() {
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete reward");
-    }
+    },
   });
 
   const resetForm = () => {
@@ -72,14 +75,14 @@ export default function RewardPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
-    setSelectedReward(prev => ({
+    setSelectedReward((prev) => ({
       ...prev,
-      [name]: type === 'number' ? Number(value) : value,
+      [name]: type === "number" ? Number(value) : value,
     }));
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setSelectedReward(prev => ({
+    setSelectedReward((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -90,7 +93,9 @@ export default function RewardPage() {
       updateReward.mutate(selectedReward as Reward);
     } else {
       const { id, ...createData } = selectedReward;
-      createReward.mutate(createData as Omit<Reward, "id" | "createdAt" | "updatedAt">);
+      createReward.mutate(
+        createData as Omit<Reward, "id" | "createdAt" | "updatedAt">,
+      );
     }
   };
 
@@ -107,8 +112,8 @@ export default function RewardPage() {
         {
           onError: (error) => {
             toast.error(error.message || "Failed to delete reward");
-          }
-        }
+          },
+        },
       );
     }
   };
@@ -141,7 +146,7 @@ export default function RewardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -161,8 +166,8 @@ export default function RewardPage() {
   });
 
   return (
-    <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">
             Reward Management
@@ -171,8 +176,8 @@ export default function RewardPage() {
             Manage rewards that members can claim with their points
           </p>
         </div>
-        <Sheet 
-          open={isSheetOpen} 
+        <Sheet
+          open={isSheetOpen}
           onOpenChange={(open) => {
             setIsSheetOpen(open);
             if (!open) {
@@ -181,7 +186,10 @@ export default function RewardPage() {
           }}
         >
           <SheetTrigger asChild>
-            <Button className="bg-infinity w-full md:w-auto" onClick={handleCreate}>
+            <Button
+              className="w-full bg-infinity md:w-auto"
+              onClick={handleCreate}
+            >
               <Plus className="mr-2 h-4 w-4" /> Add Reward
             </Button>
           </SheetTrigger>
@@ -194,7 +202,7 @@ export default function RewardPage() {
           />
         </Sheet>
       </div>
-      
+
       <DataTable
         columns={columns}
         data={data || { items: [], total: 0, page: 1, limit: 10 }}
@@ -208,4 +216,4 @@ export default function RewardPage() {
       />
     </div>
   );
-} 
+}

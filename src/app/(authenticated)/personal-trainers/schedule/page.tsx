@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { api } from "@/trpc/react";
-import { format, addWeeks, subWeeks, addMonths, subMonths } from 'date-fns';
+import { format, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
 import { useSession } from "next-auth/react";
-import Calendar from './components/calendar';
-import AppointmentForm from './components/appointment-form';
+import Calendar from "./components/calendar";
+import AppointmentForm from "./components/appointment-form";
 import { toast } from "sonner";
 
 export default function JadwalPTPage() {
@@ -13,14 +13,15 @@ export default function JadwalPTPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [viewMode, setViewMode] = useState<'monthly' | 'weekly'>('weekly');
+  const [viewMode, setViewMode] = useState<"monthly" | "weekly">("weekly");
   const [sessions, setSessions] = useState<any[]>([]);
-  
+
   const utils = api.useUtils();
-  
-  const { data: trainerSessions, isLoading } = api.trainerSession.getAll.useQuery(undefined, {
-    enabled: !!session?.user,
-  });
+
+  const { data: trainerSessions, isLoading } =
+    api.trainerSession.getAll.useQuery(undefined, {
+      enabled: !!session?.user,
+    });
 
   const updateSession = api.trainerSession.update.useMutation({
     onSuccess: () => {
@@ -30,7 +31,7 @@ export default function JadwalPTPage() {
     },
     onError: (error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   const deleteSession = api.trainerSession.delete.useMutation({
@@ -41,40 +42,48 @@ export default function JadwalPTPage() {
     },
     onError: (error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   // Group sessions by date and time
   const sessionsByDateTime: Record<string, any[]> = {};
   const sessionsByDate: Record<string, any[]> = {};
-  
-  trainerSessions?.forEach(session => {
-    const dateStr = format(new Date(session.date), 'yyyy-MM-dd');
-    const timeStr = format(new Date(session.startTime), 'HH:mm');
+
+  trainerSessions?.forEach((session) => {
+    const dateStr = format(new Date(session.date), "yyyy-MM-dd");
+    const timeStr = format(new Date(session.startTime), "HH:mm");
     const key = `${dateStr}-${timeStr}`;
-    
+
     if (!sessionsByDateTime[key]) {
       sessionsByDateTime[key] = [];
     }
     if (!sessionsByDate[dateStr]) {
       sessionsByDate[dateStr] = [];
     }
-    
+
     // Create a new session object with a stable key
     const sessionWithKey = {
       ...session,
-      _key: `session-${session.id}-${dateStr}-${timeStr}` // More unique key
+      _key: `session-${session.id}-${dateStr}-${timeStr}`, // More unique key
     };
-    
+
     sessionsByDateTime[key].push(sessionWithKey);
     sessionsByDate[dateStr].push(sessionWithKey);
   });
 
-  const handleNavigate = (direction: 'prev' | 'next') => {
-    if (viewMode === 'weekly') {
-      setCurrentDate(direction === 'prev' ? subWeeks(currentDate, 1) : addWeeks(currentDate, 1));
+  const handleNavigate = (direction: "prev" | "next") => {
+    if (viewMode === "weekly") {
+      setCurrentDate(
+        direction === "prev"
+          ? subWeeks(currentDate, 1)
+          : addWeeks(currentDate, 1),
+      );
     } else {
-      setCurrentDate(direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1));
+      setCurrentDate(
+        direction === "prev"
+          ? subMonths(currentDate, 1)
+          : addMonths(currentDate, 1),
+      );
     }
   };
 
@@ -90,17 +99,17 @@ export default function JadwalPTPage() {
   };
 
   const handleSessionUpdate = async (
-    sessionId: string, 
-    date: Date, 
+    sessionId: string,
+    date: Date,
     startHour: number,
-    endHour: number
+    endHour: number,
   ) => {
     try {
-      console.log('Received update request:', {
+      console.log("Received update request:", {
         sessionId,
         date: date.toISOString(),
         startHour,
-        endHour
+        endHour,
       });
 
       // Create dates in the local timezone
@@ -109,14 +118,14 @@ export default function JadwalPTPage() {
 
       const startTime = new Date(baseDate);
       startTime.setHours(startHour, 0, 0, 0);
-      
+
       const endTime = new Date(baseDate);
       endTime.setHours(endHour, 0, 0, 0);
 
-      console.log('Prepared dates:', {
+      console.log("Prepared dates:", {
         date: baseDate.toISOString(),
         startTime: startTime.toISOString(),
-        endTime: endTime.toISOString()
+        endTime: endTime.toISOString(),
       });
 
       const result = await updateSession.mutateAsync({
@@ -126,16 +135,16 @@ export default function JadwalPTPage() {
         endTime,
       });
 
-      console.log('Update result:', result);
-      toast.success('Jadwal berhasil diperbarui');
+      console.log("Update result:", result);
+      toast.success("Jadwal berhasil diperbarui");
       await utils.trainerSession.getAll.invalidate();
     } catch (error) {
-      console.error('Error updating session:', error);
+      console.error("Error updating session:", error);
       if (error instanceof Error) {
-        console.error('Error details:', error.message);
+        console.error("Error details:", error.message);
         toast.error(error.message);
       } else {
-        toast.error('Gagal mengupdate jadwal');
+        toast.error("Gagal mengupdate jadwal");
       }
     }
   };
@@ -143,12 +152,13 @@ export default function JadwalPTPage() {
   const handleSessionDelete = async (sessionId: string) => {
     try {
       // Find the session to be deleted
-      const sessionToDelete = trainerSessions?.find(s => s.id === sessionId);
+      const sessionToDelete = trainerSessions?.find((s) => s.id === sessionId);
       if (!sessionToDelete) return;
 
       const startTime = new Date(sessionToDelete.startTime);
       const now = new Date();
-      const hoursUntilSession = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const hoursUntilSession =
+        (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
       // If within 12 hours of the session start time, mark as cancelled
       if (hoursUntilSession <= 12 && hoursUntilSession > 0) {
@@ -158,7 +168,7 @@ export default function JadwalPTPage() {
           date: new Date(sessionToDelete.date),
           startTime: new Date(sessionToDelete.startTime),
           endTime: new Date(sessionToDelete.endTime),
-          status: 'CANCELED'
+          status: "CANCELED",
         });
         toast.success("Jadwal telah ditandai sebagai dibatalkan");
       } else if (hoursUntilSession > 12) {
@@ -170,7 +180,7 @@ export default function JadwalPTPage() {
         toast.error("Tidak dapat membatalkan jadwal yang sudah lewat");
         return;
       }
-      
+
       utils.trainerSession.getAll.invalidate();
     } catch (error) {
       console.error("Error handling session deletion:", error);
@@ -181,12 +191,13 @@ export default function JadwalPTPage() {
   // New function to handle session cancellation
   const handleSessionCancel = async (sessionId: string) => {
     try {
-      const sessionToCancel = trainerSessions?.find(s => s.id === sessionId);
+      const sessionToCancel = trainerSessions?.find((s) => s.id === sessionId);
       if (!sessionToCancel) return;
 
       const startTime = new Date(sessionToCancel.startTime);
       const now = new Date();
-      const hoursUntilSession = (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const hoursUntilSession =
+        (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
       if (hoursUntilSession <= 12 && hoursUntilSession > 0) {
         await updateSession.mutateAsync({
@@ -194,12 +205,14 @@ export default function JadwalPTPage() {
           date: new Date(sessionToCancel.date),
           startTime: new Date(sessionToCancel.startTime),
           endTime: new Date(sessionToCancel.endTime),
-          status: 'CANCELED'
+          status: "CANCELED",
         });
         toast.success("Jadwal telah ditandai sebagai dibatalkan");
         utils.trainerSession.getAll.invalidate();
       } else {
-        toast.error("Hanya dapat membatalkan jadwal dalam 12 jam sebelum sesi dimulai");
+        toast.error(
+          "Hanya dapat membatalkan jadwal dalam 12 jam sebelum sesi dimulai",
+        );
       }
     } catch (error) {
       console.error("Error canceling session:", error);
@@ -212,20 +225,23 @@ export default function JadwalPTPage() {
     if (!trainerSessions) return;
 
     const now = new Date();
-    const sessionsToUpdate = trainerSessions.filter(session => {
+    const sessionsToUpdate = trainerSessions.filter((session) => {
       const startTime = new Date(session.startTime);
       const endTime = new Date(session.endTime);
-      
+
       // Check if session is ongoing
-      if (session.status === 'NOT_YET' && now >= startTime && now <= endTime) {
+      if (session.status === "NOT_YET" && now >= startTime && now <= endTime) {
         return true;
       }
-      
+
       // Check if session has ended
-      if ((session.status === 'NOT_YET' || session.status === 'ONGOING') && now > endTime) {
+      if (
+        (session.status === "NOT_YET" || session.status === "ONGOING") &&
+        now > endTime
+      ) {
         return true;
       }
-      
+
       return false;
     });
 
@@ -233,12 +249,12 @@ export default function JadwalPTPage() {
       try {
         const startTime = new Date(session.startTime);
         const endTime = new Date(session.endTime);
-        let newStatus: 'ONGOING' | 'ENDED';
+        let newStatus: "ONGOING" | "ENDED";
 
         if (now >= startTime && now <= endTime) {
-          newStatus = 'ONGOING';
+          newStatus = "ONGOING";
         } else {
-          newStatus = 'ENDED';
+          newStatus = "ENDED";
         }
 
         await updateSession.mutateAsync({
@@ -246,10 +262,10 @@ export default function JadwalPTPage() {
           date: new Date(session.date),
           startTime: startTime,
           endTime: endTime,
-          status: newStatus
+          status: newStatus,
         });
       } catch (error) {
-        console.error('Error updating session status:', error);
+        console.error("Error updating session status:", error);
       }
     }
 
@@ -266,13 +282,14 @@ export default function JadwalPTPage() {
   }, [trainerSessions]);
 
   return (
-    <div className="p-6 relative">
+    <div className="relative p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Jadwal Latihan</h1>
-        <p className="text-muted-foreground">Atur jadwal latihan Anda dengan personal trainer pilihan untuk hasil yang maksimal</p>
+        <p className="text-muted-foreground">
+          Atur jadwal latihan Anda dengan personal trainer pilihan untuk hasil
+          yang maksimal
+        </p>
       </div>
-
-      
 
       <Calendar
         currentDate={currentDate}
@@ -289,21 +306,23 @@ export default function JadwalPTPage() {
       />
 
       {/* Slide-in form */}
-      <div className={`fixed top-0 right-0 h-full w-96 bg-background shadow-lg transform transition-transform duration-300 ease-in-out z-50 border-l border-border ${
-        showForm ? 'translate-x-0' : 'translate-x-full'
-      }`}>
-        <div className="p-6 h-full overflow-y-auto">
-          <AppointmentForm 
-            selectedDate={selectedDate} 
+      <div
+        className={`fixed right-0 top-0 z-50 h-full w-96 transform border-l border-border bg-background shadow-lg transition-transform duration-300 ease-in-out ${
+          showForm ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="h-full overflow-y-auto p-6">
+          <AppointmentForm
+            selectedDate={selectedDate}
             onClose={() => setShowForm(false)}
           />
         </div>
       </div>
-      
+
       {/* Overlay when form is open */}
       {showForm && (
-        <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+        <div
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
           onClick={() => setShowForm(false)}
         ></div>
       )}

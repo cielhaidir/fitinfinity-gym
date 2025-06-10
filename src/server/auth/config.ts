@@ -99,7 +99,7 @@ export const authConfig = {
         // Validate password
         const isPasswordValid = await bcrypt.compare(
           credentials.password as string,
-          user.password as string,
+          user.password!,
         );
         if (!isPasswordValid) {
           throw new Error("Invalid password");
@@ -138,8 +138,8 @@ export const authConfig = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.name = token.name as string;
-        session.user.email = token.email as string;
+        session.user.name = token.name!;
+        session.user.email = token.email!;
         // Fetch user's roles and permissions
         const user = await db.user.findUnique({
           where: { id: token.id as string },
@@ -183,7 +183,6 @@ export const authConfig = {
     },
 
     async signIn({ user, account, profile }) {
-
       console.log("Starting signIn callback for provider:", account?.provider);
 
       try {
@@ -191,7 +190,7 @@ export const authConfig = {
           console.log("Processing Google sign in for email:", user.email);
 
           const existingUser = await db.user.findUnique({
-            where: { email: user.email as string },
+            where: { email: user.email! },
             include: { accounts: true, roles: true },
           });
 
@@ -200,7 +199,7 @@ export const authConfig = {
             try {
               const membership = await createUserMembership(user.id);
               console.log("Membership creation result from event:", membership);
-      
+
               // Assign Member role only during initial user creation
               const memberRole = await db.role.findUnique({
                 where: { name: "Member" },
@@ -215,8 +214,10 @@ export const authConfig = {
             } catch (error) {
               console.error("Error in createUser event:", error);
             }
-          }else{
-            const hasGoogleAccount = existingUser.accounts?.some((acc) => acc.provider === "google");
+          } else {
+            const hasGoogleAccount = existingUser.accounts?.some(
+              (acc) => acc.provider === "google",
+            );
 
             if (!hasGoogleAccount) {
               await db.account.create({
@@ -229,22 +230,21 @@ export const authConfig = {
                   token_type: account.token_type,
                   scope: account.scope,
                   id_token: account.id_token,
-                  session_state: account.session_state ? String(account.session_state) : null,
+                  session_state: account.session_state
+                    ? String(account.session_state)
+                    : null,
                 },
               });
               console.log("Google account linked for user:", existingUser.id);
               return true;
-          }
-
-          
+            }
           }
         }
-
       } catch (error) {
         console.error("Error in signIn callback:", error);
         return false; // Important: Returning false prevents sign-in
       }
-      
+
       // console.log("Starting signIn callback for provider:", account?.provider);
       // try {
       //   if (account?.provider === "google") {
@@ -279,7 +279,7 @@ export const authConfig = {
       //   console.error("Error in signIn callback:", error);
       //   return false;
       // }
-      return true
+      return true;
     },
   },
   events: {
@@ -311,6 +311,6 @@ export const authConfig = {
     error: "/auth/error", // Error code passed in query string as ?error=
     verifyRequest: "/auth/verify-request", // (used for check email message)
     // Remove the newUser line below if you don't have this page implemented
-    // newUser: "/auth/new-user", 
+    // newUser: "/auth/new-user",
   },
 } satisfies NextAuthConfig;

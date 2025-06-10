@@ -1,16 +1,19 @@
-"use client"
+"use client";
 
-import { ColumnDef } from "@tanstack/react-table"
-import { Button } from "@/components/ui/button"
-import { Pencil, Trash2 } from "lucide-react"
-import { BalanceAccount } from "./schema"
+import { type ColumnDef } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
+import { Pencil, Trash2 } from "lucide-react";
+import { type BalanceAccount } from "./schema";
 
 interface ColumnOptions {
-  onEditAccount: (account: BalanceAccount) => void,
-  onDeleteAccount: (account: BalanceAccount) => void,
+  onEditAccount: (account: BalanceAccount) => void;
+  onDeleteAccount: (account: BalanceAccount) => void;
 }
 
-export const createColumns = ({ onEditAccount, onDeleteAccount }: ColumnOptions): ColumnDef<BalanceAccount>[] => [
+export const createColumns = ({
+  onEditAccount,
+  onDeleteAccount,
+}: ColumnOptions): ColumnDef<BalanceAccount>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -52,4 +55,4 @@ export const createColumns = ({ onEditAccount, onDeleteAccount }: ColumnOptions)
       );
     },
   },
-] 
+];

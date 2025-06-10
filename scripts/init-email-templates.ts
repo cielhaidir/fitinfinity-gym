@@ -6,7 +6,7 @@ import { EmailType } from "@prisma/client";
 async function readTemplate(filename: string): Promise<string> {
   const content = await fs.readFile(
     join(process.cwd(), "src/lib/email/templates", filename),
-    "utf-8"
+    "utf-8",
   );
   return content;
 }

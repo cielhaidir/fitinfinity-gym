@@ -111,7 +111,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
           {!isMobile && <SearchForm setOpen={setOpen} />}
         </SidebarHeader>
-        <SidebarContent className="ps-4 pe-2">
+        <SidebarContent className="pe-2 ps-4">
           {/* We create a SidebarGroup for each parent. */}
           {filteredNavMain.map((item) => (
             <SidebarGroup key={item.title}>
@@ -125,16 +125,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       <SidebarMenuButton
                         asChild
                         isActive={pathname === subItem.url}
-                        className="sm:p-2 p-4 sm:text-sm text-base"
+                        className="p-4 text-base sm:p-2 sm:text-sm"
                       >
                         <Link
                           href={subItem.url}
                           className="flex items-center gap-2"
                         >
-                          {"icon" in subItem &&
-                            subItem.icon && (
-                              <subItem.icon className="h-4 w-4" />
-                            )}
+                          {"icon" in subItem && subItem.icon && (
+                            <subItem.icon className="h-4 w-4" />
+                          )}
                           <span>{subItem.title}</span>
                         </Link>
                       </SidebarMenuButton>
@@ -149,7 +148,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <div className="block p-4 md:hidden">
             <Button
               onClick={handleLogout}
-              className="bg-infinity w-full rounded border"
+              className="w-full rounded border bg-infinity"
             >
               Logout
             </Button>
@@ -174,8 +173,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     onSelect={() => runCommand(() => router.push(item.url))}
                   >
                     <div className="flex items-center gap-2">
-                      {"icon" in item &&
-                        item.icon && <item.icon className="h-4 w-4" />}
+                      {"icon" in item && item.icon && (
+                        <item.icon className="h-4 w-4" />
+                      )}
                       <span>{item.title}</span>
                     </div>
                   </CommandItem>

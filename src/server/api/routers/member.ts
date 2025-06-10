@@ -2,363 +2,380 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 
 import {
-    createTRPCRouter,
-    protectedProcedure,
-    publicProcedure,
-    permissionProtectedProcedure
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+  permissionProtectedProcedure,
 } from "@/server/api/trpc";
 
 export const memberRouter = createTRPCRouter({
+  create: permissionProtectedProcedure(["create:member"])
+    .input(
+      z.object({
+        userId: z.string(),
+        registerDate: z.date(),
+        rfidNumber: z.string().optional(),
+        isActive: z.boolean().optional(),
+        createdBy: z.string().optional(),
+        revokedAt: z.date().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the user data first
+      const user = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+      });
 
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
 
-    create: permissionProtectedProcedure(['create:member'])
-        .input(z.object({
-            userId: z.string(),
-            registerDate: z.date(),
-            rfidNumber: z.string().optional(),
-            isActive: z.boolean().optional(),
-            createdBy: z.string().optional(),
-            revokedAt: z.date().optional(),
-        }))
-        .mutation(async ({ ctx, input }) => {
-            // Get the user data first
-            const user = await ctx.db.user.findUnique({
-                where: { id: input.userId },
-            });
+      // Create membership with user data
+      return ctx.db.membership.create({
+        data: {
+          userId: input.userId,
+          registerDate: input.registerDate,
+          rfidNumber: input.rfidNumber ?? null, // Allow null for rfidNumber
+          isActive: true, // Always set to true by default
+          createdBy: input.createdBy ?? ctx.session.user.id,
+          revokedAt: input.revokedAt,
+        },
+        include: {
+          user: true, // Include user data in response
+        },
+      });
+    }),
 
-            if (!user) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'User not found',
-                });
+  edit: permissionProtectedProcedure(["edit:member"])
+    .input(
+      z.object({
+        id: z.string(),
+        userId: z.string().optional(),
+        registerDate: z.date().optional(),
+        rfidNumber: z.string().optional(),
+        isActive: z.boolean().optional(),
+        createdBy: z.string().optional(),
+        revokedAt: z.date().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.membership.update({
+        where: { id: input.id },
+        data: {
+          userId: input.userId,
+          registerDate: input.registerDate,
+          rfidNumber: input.rfidNumber,
+          isActive: input.isActive,
+          createdBy: input.createdBy,
+          revokedAt: input.revokedAt,
+        },
+      });
+    }),
+
+  detail: permissionProtectedProcedure(["show:member"])
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      console.log("id", input.id);
+      const member = await ctx.db.membership.findUnique({
+        where: { id: input.id },
+        include: {
+          user: true,
+          subscriptions: true,
+        },
+      });
+
+      if (!member) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Member not found",
+        });
+      }
+      console.log("member", member);
+
+      return member;
+    }),
+
+  list: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().min(1),
+        limit: z.number().min(1).max(100),
+        search: z.string().optional(),
+        searchColumn: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const whereClause = input.search
+        ? input.searchColumn?.startsWith("user.")
+          ? {
+              user: {
+                [input.searchColumn.replace("user.", "")]: {
+                  contains: input.search,
+                  mode: "insensitive" as const,
+                },
+              },
             }
-
-            // Create membership with user data
-            return ctx.db.membership.create({
-                data: {
-                    userId: input.userId,
-                    registerDate: input.registerDate,
-                    rfidNumber: input.rfidNumber ?? null, // Allow null for rfidNumber
-                    isActive: true, // Always set to true by default
-                    createdBy: input.createdBy ?? ctx.session.user.id,
-                    revokedAt: input.revokedAt,
-                },
-                include: {
-                    user: true, // Include user data in response
-                },
-            });
-        }),
-
-    edit: permissionProtectedProcedure(['edit:member'])
-        .input(z.object({
-            id: z.string(),
-            userId: z.string().optional(),
-            registerDate: z.date().optional(),
-            rfidNumber: z.string().optional(),
-            isActive: z.boolean().optional(),
-            createdBy: z.string().optional(),
-            revokedAt: z.date().optional(),
-        }))
-        .mutation(async ({ ctx, input }) => {
-            return ctx.db.membership.update({
-                where: { id: input.id },
-                data: {
-                    userId: input.userId,
-                    registerDate: input.registerDate,
-                    rfidNumber: input.rfidNumber,
-                    isActive: input.isActive,
-                    createdBy: input.createdBy,
-                    revokedAt: input.revokedAt,
-                },
-            });
-        }),
-
-    detail: permissionProtectedProcedure(['show:member'])
-        .input(z.object({ id: z.string() }))
-        .query(async ({ ctx, input }) => {
-            console.log('id', input.id);
-            const member = await ctx.db.membership.findUnique({
-                where: { id: input.id },
-                include: {
-                    user: true,
-                    subscriptions: true
-                }
-            });
-
-            if (!member) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Member not found',
-                });
+          : {
+              [input.searchColumn ?? "rfidNumber"]: {
+                contains: input.search,
+                mode: "insensitive" as const,
+              },
             }
-            console.log('member', member);
+        : {};
 
-            return member;
-        }),
-
-    list: protectedProcedure
-        .input(z.object({
-            page: z.number().min(1),
-            limit: z.number().min(1).max(100),
-            search: z.string().optional(),
-            searchColumn: z.string().optional(),
-        }))
-        .query(async ({ ctx, input }) => {
-            const whereClause = input.search
-                ? input.searchColumn?.startsWith("user.")
-                    ? {
-                        user: {
-                            [input.searchColumn.replace("user.", "")]: {
-                                contains: input.search,
-                                mode: "insensitive" as const
-                            }
-                        }
-                    }
-                    : {
-                        [input.searchColumn ?? "rfidNumber"]: {
-                            contains: input.search,
-                            mode: "insensitive" as const
-                        }
-                    }
-                : {};
-
-            const items = await ctx.db.membership.findMany({
-                skip: (input.page - 1) * input.limit,
-                take: input.limit,
-                where: whereClause,
-                orderBy: { createdAt: "desc" },
-                include: {
-                    user: true,
-                    fc: {
-                        include: {
-                            user: {
-                                select: {
-                                    name: true,
-                                }
-                            }
-                        }
-                    },
-                    personalTrainer: {
-                        include: {
-                            user: {
-                                select: {
-                                    name: true,
-                                }
-                            }
-                        }
-                    }
+      const items = await ctx.db.membership.findMany({
+        skip: (input.page - 1) * input.limit,
+        take: input.limit,
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: true,
+          fc: {
+            include: {
+              user: {
+                select: {
+                  name: true,
                 },
-            });
-
-            const total = await ctx.db.membership.count({ where: whereClause });
-
-            return {
-                items,
-                total,
-                page: input.page,
-                limit: input.limit,
-            };
-        }),
-
-    getById: permissionProtectedProcedure(['show:member'])
-        .input(z.object({ id: z.string() }))
-        .query(async ({ ctx, input }) => {
-            return ctx.db.membership.findUnique({
-                where: { id: input.id },
-                include: {
-                    user: {
-                        select: {
-                            name: true,
-                            email: true,
-                        }
-                    }
-                }
-            });
-        }),
-
-    update: protectedProcedure
-        .input(z.object({
-            id: z.string(),
-            registerDate: z.date().optional(),
-            rfidNumber: z.string().optional(),
-            isActive: z.boolean().optional(),
-            revokedAt: z.date().optional(),
-            fc: z.object({
-                connect: z.object({ id: z.string() }).optional(),
-                disconnect: z.boolean().optional(),
-            }).optional(),
-            personalTrainer: z.object({
-                connect: z.object({ id: z.string() }).optional(),
-                disconnect: z.boolean().optional(),
-            }).optional(),
-            user: z.object({
-                name: z.string().min(1),
-                email: z.string().email(),
-                address: z.string().optional(),
-                phone: z.string().optional(),
-                birthDate: z.date().optional(),
-                idNumber: z.string().optional(),
-            }).optional(),
-        }))
-        .mutation(async ({ ctx, input }) => {
-            // Get the membership first
-            const membership = await ctx.db.membership.findUnique({
-                where: { id: input.id },
-                include: { user: true },
-            });
-
-            if (!membership) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Membership not found',
-                });
-            }
-
-            // Update membership and user data
-            return ctx.db.membership.update({
-                where: { id: input.id },
-                data: {
-                    registerDate: input.registerDate,
-                    rfidNumber: input.rfidNumber ?? null,
-                    isActive: input.isActive ?? true,
-                    revokedAt: input.revokedAt,
-                    fc: input.fc,
-                    personalTrainer: input.personalTrainer,
-                    user: input.user ? {
-                        update: {
-                            name: input.user.name,
-                            email: input.user.email,
-                            address: input.user.address ?? null,
-                            phone: input.user.phone ?? null,
-                            birthDate: input.user.birthDate ?? null,
-                            idNumber: input.user.idNumber ?? null,
-                        },
-                    } : undefined,
+              },
+            },
+          },
+          personalTrainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
                 },
-                include: {
-                    user: true,
-                    fc: {
-                        include: {
-                            user: {
-                                select: {
-                                    name: true,
-                                }
-                            }
-                        }
-                    },
-                    personalTrainer: {
-                        include: {
-                            user: {
-                                select: {
-                                    name: true,
-                                }
-                            }
-                        }
-                    }
+              },
+            },
+          },
+        },
+      });
+
+      const total = await ctx.db.membership.count({ where: whereClause });
+
+      return {
+        items,
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
+
+  getById: permissionProtectedProcedure(["show:member"])
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.membership.findUnique({
+        where: { id: input.id },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        registerDate: z.date().optional(),
+        rfidNumber: z.string().optional(),
+        isActive: z.boolean().optional(),
+        revokedAt: z.date().optional(),
+        fc: z
+          .object({
+            connect: z.object({ id: z.string() }).optional(),
+            disconnect: z.boolean().optional(),
+          })
+          .optional(),
+        personalTrainer: z
+          .object({
+            connect: z.object({ id: z.string() }).optional(),
+            disconnect: z.boolean().optional(),
+          })
+          .optional(),
+        user: z
+          .object({
+            name: z.string().min(1),
+            email: z.string().email(),
+            address: z.string().optional(),
+            phone: z.string().optional(),
+            birthDate: z.date().optional(),
+            idNumber: z.string().optional(),
+          })
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the membership first
+      const membership = await ctx.db.membership.findUnique({
+        where: { id: input.id },
+        include: { user: true },
+      });
+
+      if (!membership) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Membership not found",
+        });
+      }
+
+      // Update membership and user data
+      return ctx.db.membership.update({
+        where: { id: input.id },
+        data: {
+          registerDate: input.registerDate,
+          rfidNumber: input.rfidNumber ?? null,
+          isActive: input.isActive ?? true,
+          revokedAt: input.revokedAt,
+          fc: input.fc,
+          personalTrainer: input.personalTrainer,
+          user: input.user
+            ? {
+                update: {
+                  name: input.user.name,
+                  email: input.user.email,
+                  address: input.user.address ?? null,
+                  phone: input.user.phone ?? null,
+                  birthDate: input.user.birthDate ?? null,
+                  idNumber: input.user.idNumber ?? null,
                 },
-            });
-        }),
-
-    remove: protectedProcedure
-        .input(z.object({ id: z.string() }))
-        .mutation(async ({ ctx, input }) => {
-            return ctx.db.membership.delete({
-                where: { id: input.id },
-            });
-        }),
-
-    getMembership: permissionProtectedProcedure(['list:member'])
-        .query(async ({ ctx }) => {
-            return await ctx.db.membership.findFirst({
-                where: {
-                    userId: ctx.session.user.id,
-                    isActive: true,
+              }
+            : undefined,
+        },
+        include: {
+          user: true,
+          fc: {
+            include: {
+              user: {
+                select: {
+                  name: true,
                 },
-            });
-        }),
-
-    getAttendanceCount: protectedProcedure
-        .input(z.object({ memberId: z.string() }))
-        .query(async ({ ctx, input }) => {
-            const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-            const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
-
-            const count = await ctx.db.attendanceMember.count({
-                where: {
-                    memberId: input.memberId,
-                    checkin: {
-                        gte: startOfYear,
-                        lte: endOfYear,
-                    },
+              },
+            },
+          },
+          personalTrainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
                 },
-            });
+              },
+            },
+          },
+        },
+      });
+    }),
 
-            return { count };
-        }),
+  remove: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.membership.delete({
+        where: { id: input.id },
+      });
+    }),
 
-    getAll: permissionProtectedProcedure(['list:member'])
-        .query(async ({ ctx }) => {
-            return ctx.db.membership.findMany({
-                include: {
-                    user: {
-                        select: {
-                            name: true,
-                            email: true,
-                            phone: true
-                        }
-                    },
-                    subscriptions: true
-                }
-            });
-        }),
+  getMembership: permissionProtectedProcedure(["list:member"]).query(
+    async ({ ctx }) => {
+      return await ctx.db.membership.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          isActive: true,
+        },
+      });
+    },
+  ),
 
-        getByUserId: permissionProtectedProcedure(['show:member'])
-            .input(z.object({ userId: z.string() }))
-            .query(async ({ ctx, input }) => {
-                return ctx.db.membership.findFirst({
-                    where: { userId: input.userId },
-                    include: {
-                        user: true,
-                        subscriptions: true
-                    }
-                });
-            }),
+  getAttendanceCount: protectedProcedure
+    .input(z.object({ memberId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+      const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
 
-    createSession: permissionProtectedProcedure(['create:session'])
-        .input(z.object({
-            memberId: z.string(),
-            date: z.date(),
-            startTime: z.date(),
-            endTime: z.date(),
-            description: z.string().optional(),
-        }))
-        .mutation(async ({ ctx, input }) => {
-            // Get the trainer ID for the current user
-            const trainer = await ctx.db.personalTrainer.findFirst({
-                where: { 
-                    userId: ctx.session.user.id,
-                    isActive: true
-                }
-            });
+      const count = await ctx.db.attendanceMember.count({
+        where: {
+          memberId: input.memberId,
+          checkin: {
+            gte: startOfYear,
+            lte: endOfYear,
+          },
+        },
+      });
 
-            if (!trainer) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Trainer not found or not active'
-                });
-            }
+      return { count };
+    }),
 
-            // Create the training session
-            return ctx.db.trainerSession.create({
-                data: {
-                    trainerId: trainer.id,
-                    memberId: input.memberId,
-                    date: input.date,
-                    startTime: input.startTime,
-                    endTime: input.endTime,
-                    description: input.description,
-                }
-            });
-        }),
+  getAll: permissionProtectedProcedure(["list:member"]).query(
+    async ({ ctx }) => {
+      return ctx.db.membership.findMany({
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          subscriptions: true,
+        },
+      });
+    },
+  ),
 
+  getByUserId: permissionProtectedProcedure(["show:member"])
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.membership.findFirst({
+        where: { userId: input.userId },
+        include: {
+          user: true,
+          subscriptions: true,
+        },
+      });
+    }),
+
+  createSession: permissionProtectedProcedure(["create:session"])
+    .input(
+      z.object({
+        memberId: z.string(),
+        date: z.date(),
+        startTime: z.date(),
+        endTime: z.date(),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the trainer ID for the current user
+      const trainer = await ctx.db.personalTrainer.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          isActive: true,
+        },
+      });
+
+      if (!trainer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Trainer not found or not active",
+        });
+      }
+
+      // Create the training session
+      return ctx.db.trainerSession.create({
+        data: {
+          trainerId: trainer.id,
+          memberId: input.memberId,
+          date: input.date,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          description: input.description,
+        },
+      });
+    }),
 });

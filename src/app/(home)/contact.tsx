@@ -17,15 +17,15 @@ const Contact = () => {
   return (
     <section className="bg-gradient-to-r from-blue-500 to-indigo-600">
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-center mb-6">Kontak Kami</h1>
-        <p className="text-center text-lg mb-8">
+        <h1 className="mb-6 text-center text-4xl font-bold">Kontak Kami</h1>
+        <p className="mb-8 text-center text-lg">
           We'd love to hear from you. Please fill out the form below or use our
           contact information.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid gap-8 md:grid-cols-2">
           <div>
-            <h2 className="text-2xl font-semibold mb-4">Get in Touch</h2>
+            <h2 className="mb-4 text-2xl font-semibold">Get in Touch</h2>
             <p className="mb-4">
               Have a question or need assistance? Our team is here to help.
               Reach out to us using the contact information below or fill out

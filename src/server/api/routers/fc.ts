@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+} from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const fcRouter = createTRPCRouter({
@@ -10,22 +14,23 @@ export const fcRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(10),
         search: z.string().optional(),
         searchColumn: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, search, searchColumn } = input;
       const skip = (page - 1) * limit;
 
-      const where = search && searchColumn
-        ? {
-            user: {
-              [searchColumn]: {
-                contains: search,
-                mode: "insensitive" as const,
+      const where =
+        search && searchColumn
+          ? {
+              user: {
+                [searchColumn]: {
+                  contains: search,
+                  mode: "insensitive" as const,
+                },
               },
-            },
-          }
-        : {};
+            }
+          : {};
 
       const [items, total] = await Promise.all([
         ctx.db.fC.findMany({
@@ -56,8 +61,10 @@ export const fcRouter = createTRPCRouter({
         userId: z.string(),
         isActive: z.boolean().default(true),
         createdBy: z.string(),
-        referralCode: z.string().min(5, "Referral code must be at least 5 characters"),
-      })
+        referralCode: z
+          .string()
+          .min(5, "Referral code must be at least 5 characters"),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { userId, isActive, createdBy, referralCode } = input;
@@ -123,7 +130,7 @@ export const fcRouter = createTRPCRouter({
           birthDate: z.date().nullable(),
           idNumber: z.string().nullable(),
         }),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, user } = input;
@@ -198,7 +205,7 @@ export const fcRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(10),
         search: z.string().optional(),
         searchColumn: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, search, searchColumn } = input;
@@ -207,10 +214,10 @@ export const fcRouter = createTRPCRouter({
       try {
         // Get the FC ID for the current user
         const fc = await ctx.db.fC.findFirst({
-          where: { 
+          where: {
             userId: ctx.session.user.id,
-            isActive: true
-          }
+            isActive: true,
+          },
         });
 
         if (!fc) {
@@ -261,7 +268,7 @@ export const fcRouter = createTRPCRouter({
         ]);
 
         // Transform the data to match the schema
-        const transformedItems = items.map(item => ({
+        const transformedItems = items.map((item) => ({
           id: item.id,
           name: item.user.name ?? "",
           email: item.user.email ?? "",
@@ -290,4 +297,4 @@ export const fcRouter = createTRPCRouter({
         };
       }
     }),
-}); 
+});

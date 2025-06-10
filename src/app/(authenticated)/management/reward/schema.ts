@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "zod";
 
 export const rewardSchema = z.object({
   id: z.string(),
@@ -8,6 +8,6 @@ export const rewardSchema = z.object({
   stock: z.number(),
   createdAt: z.date(),
   updatedAt: z.date(),
-})
+});
 
-export type Reward = z.infer<typeof rewardSchema> 
+export type Reward = z.infer<typeof rewardSchema>;

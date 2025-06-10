@@ -33,32 +33,36 @@ export default function RewardPage() {
   const utils = api.useUtils();
 
   // Fetch data using tRPC
-  const { data: members, isLoading: isLoadingMembers } = api.member.list.useQuery({
-    page: 1,
-    limit: 100,
-  });
-  const { data: rewards, isLoading: isLoadingRewards } = api.reward.list.useQuery();
-  const { data: memberRewards, isLoading: isLoadingMemberRewards } = api.memberReward.list.useQuery({
-    page: 1,
-    limit: 10,
-  });
+  const { data: members, isLoading: isLoadingMembers } =
+    api.member.list.useQuery({
+      page: 1,
+      limit: 100,
+    });
+  const { data: rewards, isLoading: isLoadingRewards } =
+    api.reward.list.useQuery();
+  const { data: memberRewards, isLoading: isLoadingMemberRewards } =
+    api.memberReward.list.useQuery({
+      page: 1,
+      limit: 10,
+    });
 
-  const { mutate: createMemberReward, isPending: isCreating } = api.memberReward.create.useMutation({
-    onSuccess: () => {
-      toast.success("Reward claimed successfully");
-      setIsOpen(false);
-      // Reset form
-      setSelectedMember("");
-      setSelectedReward("");
-      // Invalidate and refetch data
-      utils.memberReward.list.invalidate();
-      utils.member.list.invalidate();
-      utils.reward.list.invalidate();
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+  const { mutate: createMemberReward, isPending: isCreating } =
+    api.memberReward.create.useMutation({
+      onSuccess: () => {
+        toast.success("Reward claimed successfully");
+        setIsOpen(false);
+        // Reset form
+        setSelectedMember("");
+        setSelectedReward("");
+        // Invalidate and refetch data
+        utils.memberReward.list.invalidate();
+        utils.member.list.invalidate();
+        utils.reward.list.invalidate();
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    });
 
   const handleCreateReward = () => {
     if (!selectedMember || !selectedReward) {
@@ -72,11 +76,12 @@ export default function RewardPage() {
     });
   };
 
-  const isLoading = isLoadingMembers || isLoadingRewards || isLoadingMemberRewards;
+  const isLoading =
+    isLoadingMembers || isLoadingRewards || isLoadingMemberRewards;
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
@@ -85,19 +90,17 @@ export default function RewardPage() {
   const columns = createColumns();
 
   return (
-    <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Member Rewards
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight">Member Rewards</h2>
           <p className="text-muted-foreground">
             Manage member reward claims and track point usage
           </p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-infinity w-full md:w-auto">
+            <Button className="w-full bg-infinity md:w-auto">
               Claim Reward
             </Button>
           </DialogTrigger>
@@ -142,7 +145,7 @@ export default function RewardPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button 
+              <Button
                 onClick={handleCreateReward}
                 disabled={isCreating}
                 className="bg-infinity"

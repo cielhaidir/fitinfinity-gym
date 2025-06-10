@@ -1,29 +1,34 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  permissionProtectedProcedure,
+} from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const balanceAccountRouter = createTRPCRouter({
-  getAll: permissionProtectedProcedure(['list:balances'])
+  getAll: permissionProtectedProcedure(["list:balances"])
     .input(
       z.object({
         page: z.number().default(1),
         limit: z.number().default(10),
         search: z.string().optional(),
         searchColumn: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, search, searchColumn } = input;
       const skip = (page - 1) * limit;
 
-      const where = search && searchColumn
-        ? {
-            [searchColumn]: {
-              contains: search,
-              mode: "insensitive",
-            },
-          }
-        : {};
+      const where =
+        search && searchColumn
+          ? {
+              [searchColumn]: {
+                contains: search,
+                mode: "insensitive",
+              },
+            }
+          : {};
 
       const [items, total] = await Promise.all([
         ctx.db.balanceAccount.findMany({
@@ -45,7 +50,7 @@ export const balanceAccountRouter = createTRPCRouter({
       };
     }),
 
-  getById: permissionProtectedProcedure(['show:balances'])
+  getById: permissionProtectedProcedure(["show:balances"])
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
       const account = await ctx.db.balanceAccount.findUnique({
@@ -62,7 +67,7 @@ export const balanceAccountRouter = createTRPCRouter({
       return account;
     }),
 
-  create: permissionProtectedProcedure(['create:balances'])
+  create: permissionProtectedProcedure(["create:balances"])
     .input(
       z.object({
         name: z.string().min(1, "Name is required"),
@@ -80,7 +85,7 @@ export const balanceAccountRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(['edit:balances'])
+  update: permissionProtectedProcedure(["edit:balances"])
     .input(
       z.object({
         id: z.number(),
@@ -111,7 +116,7 @@ export const balanceAccountRouter = createTRPCRouter({
       });
     }),
 
-  delete: permissionProtectedProcedure(['delete:balances'])
+  delete: permissionProtectedProcedure(["delete:balances"])
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const account = await ctx.db.balanceAccount.findUnique({

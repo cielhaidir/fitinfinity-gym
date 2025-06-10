@@ -1,42 +1,45 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import { createTRPCRouter, permissionProtectedProcedure, publicProcedure } from "@/server/api/trpc"
-import { uploadFile } from "@/lib/upload"
-import bcrypt from "bcryptjs"
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import {
+  createTRPCRouter,
+  permissionProtectedProcedure,
+  publicProcedure,
+} from "@/server/api/trpc";
+import { uploadFile } from "@/lib/upload";
+import bcrypt from "bcryptjs";
 
 export const profileRouter = createTRPCRouter({
-  get: permissionProtectedProcedure(['list:profile'])
-    .query(async ({ ctx }) => {
-      const user = await ctx.db.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          phone: true,
-          address: true,
-          birthDate: true,
-          point: true,
-          createdAt: true,
-          updatedAt: true,
-          height: true,
-          weight: true,
-          gender: true,
-        },
-      })
+  get: permissionProtectedProcedure(["list:profile"]).query(async ({ ctx }) => {
+    const user = await ctx.db.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        phone: true,
+        address: true,
+        birthDate: true,
+        point: true,
+        createdAt: true,
+        updatedAt: true,
+        height: true,
+        weight: true,
+        gender: true,
+      },
+    });
 
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
-        })
-      }
+    if (!user) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found",
+      });
+    }
 
-      return user
-    }),
+    return user;
+  }),
 
-  update: permissionProtectedProcedure(['edit:profile'])
+  update: permissionProtectedProcedure(["edit:profile"])
     .input(
       z.object({
         name: z.string().min(1).optional(),
@@ -47,7 +50,7 @@ export const profileRouter = createTRPCRouter({
         height: z.number().optional(),
         weight: z.number().optional(),
         gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.db.user.update({
@@ -62,24 +65,28 @@ export const profileRouter = createTRPCRouter({
           weight: input.weight,
           gender: input.gender,
         },
-      })
+      });
     }),
 
-  uploadImage: permissionProtectedProcedure(['edit:profile'])
-    .input(z.object({
-      file: z.string().refine(
-        (val) => val.startsWith('data:image/'),
-        'File must be an image'
-      ),
-    }))
+  uploadImage: permissionProtectedProcedure(["edit:profile"])
+    .input(
+      z.object({
+        file: z
+          .string()
+          .refine(
+            (val) => val.startsWith("data:image/"),
+            "File must be an image",
+          ),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
         // Generate a temporary filename
         const tempFileName = `profile-${Date.now()}.jpg`;
-        
+
         // Upload the file
         const imageUrl = await uploadFile(input.file, tempFileName);
-        
+
         // Update user profile with new image URL
         await ctx.db.user.update({
           where: { id: ctx.session.user.id },
@@ -88,29 +95,34 @@ export const profileRouter = createTRPCRouter({
 
         return { imageUrl };
       } catch (error) {
-        console.error('Profile image upload error:', error);
+        console.error("Profile image upload error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Failed to upload image",
+          message:
+            error instanceof Error ? error.message : "Failed to upload image",
         });
       }
     }),
 
-  uploadPTPhoto: permissionProtectedProcedure(['edit:profile'])
-    .input(z.object({
-      file: z.string().refine(
-        (val) => val.startsWith('data:image/'),
-        'File must be an image'
-      ),
-    }))
+  uploadPTPhoto: permissionProtectedProcedure(["edit:profile"])
+    .input(
+      z.object({
+        file: z
+          .string()
+          .refine(
+            (val) => val.startsWith("data:image/"),
+            "File must be an image",
+          ),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
         // Check if user is a PT
         const pt = await ctx.db.personalTrainer.findFirst({
-          where: { 
+          where: {
             userId: ctx.session.user.id,
-            isActive: true
-          }
+            isActive: true,
+          },
         });
 
         if (!pt) {
@@ -122,10 +134,10 @@ export const profileRouter = createTRPCRouter({
 
         // Generate a temporary filename
         const tempFileName = `pt-profile-${Date.now()}.jpg`;
-        
+
         // Upload the file
         const imageUrl = await uploadFile(input.file, tempFileName);
-        
+
         // Update PT profile with new image URL
         await ctx.db.personalTrainer.update({
           where: { id: pt.id },
@@ -134,23 +146,26 @@ export const profileRouter = createTRPCRouter({
 
         return { imageUrl };
       } catch (error) {
-        console.error('PT profile image upload error:', error);
+        console.error("PT profile image upload error:", error);
         if (error instanceof TRPCError) {
           throw error;
         }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Failed to upload image",
+          message:
+            error instanceof Error ? error.message : "Failed to upload image",
         });
       }
     }),
 
-  changePassword: permissionProtectedProcedure(['edit:profile'])
+  changePassword: permissionProtectedProcedure(["edit:profile"])
     .input(
       z.object({
         currentPassword: z.string().min(1, "Current password is required"),
-        newPassword: z.string().min(6, "New password must be at least 6 characters"),
-      })
+        newPassword: z
+          .string()
+          .min(6, "New password must be at least 6 characters"),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.db.user.findUnique({
@@ -167,7 +182,7 @@ export const profileRouter = createTRPCRouter({
       // Verify current password
       const isPasswordValid = await bcrypt.compare(
         input.currentPassword,
-        user.password as string
+        user.password!,
       );
 
       if (!isPasswordValid) {
@@ -192,15 +207,18 @@ export const profileRouter = createTRPCRouter({
     }),
 
   checkPhone: publicProcedure
-    .input(z.object({ 
-      phone: z.string()
-        .min(10, "Phone number must be at least 10 digits")
-        .regex(/^\d+$/, "Phone number must contain only digits")
-    }))
+    .input(
+      z.object({
+        phone: z
+          .string()
+          .min(10, "Phone number must be at least 10 digits")
+          .regex(/^\d+$/, "Phone number must contain only digits"),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const user = await ctx.db.user.findFirst({
         where: { phone: input.phone },
-      })
-      return !!user
+      });
+      return !!user;
     }),
-}) 
+});

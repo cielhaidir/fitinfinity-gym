@@ -3,16 +3,22 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetDescription,
-    SheetFooter,
-    SheetClose,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+  SheetClose,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import type { ChartAccount } from "./schema";
@@ -33,7 +39,12 @@ export function ChartAccountForm({
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [flow, setFlow] = useState<"income" | "outcome" | "both">("income");
-  const [errors, setErrors] = useState<{ reff?: string; name?: string; type?: string; flow?: string }>({});
+  const [errors, setErrors] = useState<{
+    reff?: string;
+    name?: string;
+    type?: string;
+    flow?: string;
+  }>({});
 
   useEffect(() => {
     if (account) {
@@ -82,7 +93,12 @@ export function ChartAccountForm({
   };
 
   const validate = () => {
-    const newErrors: { reff?: string; name?: string; type?: string; flow?: string } = {};
+    const newErrors: {
+      reff?: string;
+      name?: string;
+      type?: string;
+      flow?: string;
+    } = {};
     if (!reff.trim()) newErrors.reff = "Reference is required";
     if (!name.trim()) newErrors.name = "Name is required";
     if (!type.trim()) newErrors.type = "Account type is required";
@@ -120,42 +136,55 @@ export function ChartAccountForm({
             {account ? "Edit Chart Account" : "Create New Chart Account"}
           </SheetTitle>
           <SheetDescription>
-            {account ? "Edit the chart account details." : "Add a new chart account to the system."}
+            {account
+              ? "Edit the chart account details."
+              : "Add a new chart account to the system."}
           </SheetDescription>
         </SheetHeader>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4 py-8 sm:px-0 px-4">
+        <form
+          onSubmit={onSubmit}
+          className="flex flex-col gap-4 px-4 py-8 sm:px-0"
+        >
           <div>
             <label className="block text-sm font-medium">Reference</label>
             <Input
               placeholder="Enter reference"
               value={reff}
-              onChange={e => setReff(e.target.value)}
+              onChange={(e) => setReff(e.target.value)}
             />
-            {errors.reff && <p className="text-sm text-red-500 mt-1">{errors.reff}</p>}
+            {errors.reff && (
+              <p className="mt-1 text-sm text-red-500">{errors.reff}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium">Name</label>
             <Input
               placeholder="Enter name"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
             />
-            {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}
+            {errors.name && (
+              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium">Account Type</label>
             <Input
               placeholder="Enter account type"
               value={type}
-              onChange={e => setType(e.target.value)}
+              onChange={(e) => setType(e.target.value)}
             />
-            {errors.type && <p className="text-sm text-red-500 mt-1">{errors.type}</p>}
+            {errors.type && (
+              <p className="mt-1 text-sm text-red-500">{errors.type}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium">Flow</label>
             <Select
               value={flow}
-              onValueChange={(value: "income" | "outcome" | "both") => setFlow(value)}
+              onValueChange={(value: "income" | "outcome" | "both") =>
+                setFlow(value)
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select flow type" />
@@ -166,7 +195,9 @@ export function ChartAccountForm({
                 <SelectItem value="both">Both</SelectItem>
               </SelectContent>
             </Select>
-            {errors.flow && <p className="text-sm text-red-500 mt-1">{errors.flow}</p>}
+            {errors.flow && (
+              <p className="mt-1 text-sm text-red-500">{errors.flow}</p>
+            )}
           </div>
         </form>
         <SheetFooter className="flex justify-end gap-2">
@@ -180,4 +211,4 @@ export function ChartAccountForm({
       </SheetContent>
     </Sheet>
   );
-} 
+}

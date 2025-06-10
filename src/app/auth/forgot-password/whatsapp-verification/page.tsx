@@ -5,7 +5,9 @@ import { api } from "@/trpc/react";
 
 export default function WhatsappVerificationPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
-  const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
+    "idle",
+  );
 
   // Use the new sendResetPasswordLink procedure
   const resetMutation = api.whatsapp.sendResetPasswordLink.useMutation();
@@ -23,31 +25,31 @@ export default function WhatsappVerificationPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
+    <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
       {/* Logo - Fixed at top right */}
-      <div className="w-full flex justify-end p-4 md:p-6">
-        <img 
-          src="/assets/fitinfinity-lime.png" 
-          alt="Logo" 
-          className="h-8"
-        />
+      <div className="flex w-full justify-end p-4 md:p-6">
+        <img src="/assets/fitinfinity-lime.png" alt="Logo" className="h-8" />
       </div>
 
       {/* Verification Form Container */}
-      <div className="flex-1 flex items-center justify-center px-4 md:px-6">
+      <div className="flex flex-1 items-center justify-center px-4 md:px-6">
         <div className="w-full max-w-[500px]">
-          <h1 className="text-3xl font-bold mb-4 dark:text-white">
+          <h1 className="mb-4 text-3xl font-bold dark:text-white">
             Forget Password?
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-8">
-            Receive a verification code via WhatsApp to reset your password instantly.
+          <p className="mb-8 text-gray-600 dark:text-gray-300">
+            Receive a verification code via WhatsApp to reset your password
+            instantly.
           </p>
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">
               {/* WhatsApp Number Field */}
               <div>
-                <label htmlFor="whatsappNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                <label
+                  htmlFor="whatsappNumber"
+                  className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200"
+                >
                   WhatsApp Number
                 </label>
                 <input
@@ -56,7 +58,7 @@ export default function WhatsappVerificationPage() {
                   value={whatsappNumber}
                   onChange={(e) => setWhatsappNumber(e.target.value)}
                   placeholder="+6281234567890"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
+                  className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   required
                   pattern="^\+?[1-9]\d{1,14}$"
                 />
@@ -66,14 +68,20 @@ export default function WhatsappVerificationPage() {
               <button
                 type="submit"
                 disabled={status === "sending"}
-                className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] font-bold rounded-md dark:text-gray-900"
+                className="w-full rounded-md bg-[#BAD45E] px-4 py-2 font-bold hover:bg-[#95B640] dark:text-gray-900"
               >
                 {status === "sending" ? "Sending…" : "Send Reset Link"}
               </button>
 
               {/* Feedback */}
-              {status === "sent" && <p className="text-green-600">Link sent via WhatsApp!</p>}
-              {status === "error" && <p className="text-red-600">Failed to send link. Please try again.</p>}
+              {status === "sent" && (
+                <p className="text-green-600">Link sent via WhatsApp!</p>
+              )}
+              {status === "error" && (
+                <p className="text-red-600">
+                  Failed to send link. Please try again.
+                </p>
+              )}
             </div>
           </form>
         </div>

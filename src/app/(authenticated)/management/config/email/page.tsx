@@ -2,10 +2,23 @@
 
 import { useState } from "react";
 import { Button } from "@/app/_components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/_components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/_components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/_components/ui/dialog";
 import { DataTable } from "@/app/_components/datatable/data-table";
-import { createEmailConfigColumns, createEmailTemplateColumns } from "./columns";
+import {
+  createEmailConfigColumns,
+  createEmailTemplateColumns,
+} from "./columns";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { EmailConfigForm } from "./email-config-form";
@@ -15,20 +28,22 @@ import type { EmailConfig, EmailTemplate } from "./schema";
 
 export default function EmailConfigPage() {
   const [editingConfig, setEditingConfig] = useState<EmailConfig | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(
+    null,
+  );
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  
+
   // SMTP Config mutations
   const deleteConfigMutation = api.email.deleteConfig.useMutation({
     onSuccess: () => {
       router.refresh();
-    }
+    },
   });
-  
+
   const setActiveMutation = api.email.setActiveConfig.useMutation({
     onSuccess: () => {
       router.refresh();
-    }
+    },
   });
 
   const testConnectionMutation = api.email.testConnection.useMutation();
@@ -39,48 +54,56 @@ export default function EmailConfigPage() {
       setOpen(true);
     },
     onDeleteConfig: (config) => {
-      if (window.confirm("Are you sure you want to delete this configuration?")) {
+      if (
+        window.confirm("Are you sure you want to delete this configuration?")
+      ) {
         deleteConfigMutation.mutateAsync({ id: config.id || "" });
       }
     },
     onTestConnection: async (config) => {
       try {
-        const result = await testConnectionMutation.mutateAsync({ id: config.id  || "" });
+        const result = await testConnectionMutation.mutateAsync({
+          id: config.id || "",
+        });
         if (result.success) {
           alert("Connection test successful!");
         } else {
           alert(`Connection test failed: ${result.error}`);
         }
       } catch (error) {
-        alert(`Error testing connection: ${error instanceof Error ? error.message : "Unknown error"}`);
+        alert(
+          `Error testing connection: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
       }
     },
     onSetActive: (config) => {
-      setActiveMutation.mutateAsync({ id: config.id  || "" });
-    }
+      setActiveMutation.mutateAsync({ id: config.id || "" });
+    },
   });
 
   // Template mutations
   const deleteTemplateMutation = api.email.deleteTemplate.useMutation({
     onSuccess: () => {
       router.refresh();
-    }
+    },
   });
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
   const { data: configs, isLoading } = api.email.listConfigs.useQuery();
-  const { data: templates, isLoading: isLoadingTemplates } = api.email.listTemplates.useQuery();
-return (
-  <div className="container mx-auto py-4 space-y-4">
-    <div className="flex justify-between items-center">
-      <h1 className="text-2xl font-bold">Email Configuration</h1>
-      <div className="space-x-2">
-        <Button onClick={() => setOpen(true)}>Add SMTP Config</Button>
-        <Button onClick={() => setIsTemplateDialogOpen(true)}>Add Template</Button>
+  const { data: templates, isLoading: isLoadingTemplates } =
+    api.email.listTemplates.useQuery();
+  return (
+    <div className="container mx-auto space-y-4 py-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Email Configuration</h1>
+        <div className="space-x-2">
+          <Button onClick={() => setOpen(true)}>Add SMTP Config</Button>
+          <Button onClick={() => setIsTemplateDialogOpen(true)}>
+            Add Template
+          </Button>
+        </div>
       </div>
-    </div>
-
 
       <div className="grid gap-4 md:grid-cols-1">
         <Card>
@@ -99,7 +122,7 @@ return (
                   items: configs || [],
                   total: configs?.length || 0,
                   page: 1,
-                  limit: 10
+                  limit: 10,
                 }}
                 searchKey="name"
               />
@@ -124,7 +147,11 @@ return (
                     setIsTemplateDialogOpen(true);
                   },
                   onDeleteTemplate: (template) => {
-                    if (window.confirm("Are you sure you want to delete this template?")) {
+                    if (
+                      window.confirm(
+                        "Are you sure you want to delete this template?",
+                      )
+                    ) {
                       deleteTemplateMutation.mutateAsync({ id: template.id! });
                     }
                   },
@@ -135,13 +162,13 @@ return (
                       win.document.close();
                       win.document.title = `Preview: ${template.name}`;
                     }
-                  }
+                  },
                 })}
                 data={{
                   items: templates || [],
                   total: templates?.length || 0,
                   page: 1,
-                  limit: 10
+                  limit: 10,
                 }}
                 searchKey="name"
               />
@@ -153,7 +180,9 @@ return (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editingConfig ? "Edit" : "New"} SMTP Configuration</DialogTitle>
+            <DialogTitle>
+              {editingConfig ? "Edit" : "New"} SMTP Configuration
+            </DialogTitle>
           </DialogHeader>
           <EmailConfigForm
             initialData={editingConfig || undefined}
@@ -170,10 +199,15 @@ return (
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+      <Dialog
+        open={isTemplateDialogOpen}
+        onOpenChange={setIsTemplateDialogOpen}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? "Edit" : "New"} Email Template</DialogTitle>
+            <DialogTitle>
+              {editingTemplate ? "Edit" : "New"} Email Template
+            </DialogTitle>
           </DialogHeader>
           <EmailTemplateForm
             initialData={editingTemplate || undefined}

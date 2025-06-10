@@ -1,25 +1,31 @@
-"use client"
+"use client";
 
-import { ColumnDef } from "@tanstack/react-table"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
-import { Edit, Trash2 } from "lucide-react"
-import { Voucher } from "./schema"
-import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header"
-import { format } from "date-fns"
+import { type ColumnDef } from "@tanstack/react-table";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash2 } from "lucide-react";
+import { type Voucher } from "./schema";
+import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
+import { format } from "date-fns";
 
 interface ColumnsProps {
-  onEditVoucher: (voucher: Voucher) => void,
-  onDeleteVoucher: (voucher: Voucher) => void,
+  onEditVoucher: (voucher: Voucher) => void;
+  onDeleteVoucher: (voucher: Voucher) => void;
 }
 
-export const createColumns = ({ onEditVoucher, onDeleteVoucher }: ColumnsProps): ColumnDef<Voucher>[] => [
+export const createColumns = ({
+  onEditVoucher,
+  onDeleteVoucher,
+}: ColumnsProps): ColumnDef<Voucher>[] => [
   {
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
         className="translate-y-[2px]"
@@ -63,11 +69,13 @@ export const createColumns = ({ onEditVoucher, onDeleteVoucher }: ColumnsProps):
       <DataTableColumnHeader column={column} title="Amount" />
     ),
     cell: ({ row }) => {
-      const amount = row.getValue("amount") as number;
-      const discountType = row.getValue("discountType") as string;
+      const amount = row.getValue("amount");
+      const discountType = row.getValue("discountType");
       return (
         <div>
-          {discountType === "PERCENT" ? `${amount}%` : `Rp ${amount.toLocaleString()}`}
+          {discountType === "PERCENT"
+            ? `${amount}%`
+            : `Rp ${amount.toLocaleString()}`}
         </div>
       );
     },
@@ -96,8 +104,14 @@ export const createColumns = ({ onEditVoucher, onDeleteVoucher }: ColumnsProps):
       <DataTableColumnHeader column={column} title="Expiry Date" />
     ),
     cell: ({ row }) => {
-      const expiryDate = row.getValue("expiryDate") as Date | null;
-      return <div>{expiryDate ? format(new Date(expiryDate), "dd/MM/yyyy") : "No expiry"}</div>;
+      const expiryDate = row.getValue("expiryDate");
+      return (
+        <div>
+          {expiryDate
+            ? format(new Date(expiryDate), "dd/MM/yyyy")
+            : "No expiry"}
+        </div>
+      );
     },
   },
   {
@@ -121,7 +135,7 @@ export const createColumns = ({ onEditVoucher, onDeleteVoucher }: ColumnsProps):
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-          
+
           {/* Mobile actions */}
           <div className="md:hidden">
             <Button
@@ -137,4 +151,4 @@ export const createColumns = ({ onEditVoucher, onDeleteVoucher }: ColumnsProps):
       );
     },
   },
-] 
+];

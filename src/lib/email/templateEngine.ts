@@ -4,12 +4,14 @@ export function renderTemplate(template: string, data: TemplateData): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
     const trimmedKey = key.trim();
     const value = data[trimmedKey];
-    
+
     if (value === undefined) {
-      console.warn(`Template variable "${trimmedKey}" not found in provided data`);
+      console.warn(
+        `Template variable "${trimmedKey}" not found in provided data`,
+      );
       return match;
     }
-    
+
     return String(value);
   });
 }

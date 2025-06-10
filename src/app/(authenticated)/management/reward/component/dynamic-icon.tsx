@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   Gift,
@@ -18,10 +18,10 @@ import {
   Book,
   type LucideIcon,
   type LightbulbIcon as LucideProps,
-} from "lucide-react"
+} from "lucide-react";
 
 interface DynamicIconProps extends React.ComponentProps<LucideIcon> {
-  name: string
+  name: string;
 }
 
 export default function DynamicIcon({ name, ...props }: DynamicIconProps) {
@@ -41,10 +41,9 @@ export default function DynamicIcon({ name, ...props }: DynamicIconProps) {
     Smartphone,
     Headphones,
     Book,
-  }
+  };
 
-  const IconComponent = iconMap[name] || Gift
+  const IconComponent = iconMap[name] || Gift;
 
-  return <IconComponent {...props} />
+  return <IconComponent {...props} />;
 }
-

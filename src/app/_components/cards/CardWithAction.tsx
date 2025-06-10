@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 
 export default function CardWithAction() {
   return (
@@ -21,12 +21,14 @@ export default function CardWithAction() {
         </Button>
       </CardHeader>
       <CardContent>
-        <p>This is the main content of the card. You can put any information here.</p>
+        <p>
+          This is the main content of the card. You can put any information
+          here.
+        </p>
       </CardContent>
       <CardFooter>
         <p>Card footer content</p>
       </CardFooter>
     </Card>
-  )
+  );
 }
-

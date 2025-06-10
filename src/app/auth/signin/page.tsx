@@ -6,17 +6,17 @@ import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-      if (status === "authenticated") {
-        router.push("/");
-      }
-    }, [status, router]);
+    if (status === "authenticated") {
+      router.push("/");
+    }
+  }, [status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +57,6 @@ export default function SignInPage() {
         router.push("/");
         router.refresh();
       }
-
     } catch (error) {
       console.error("Login error:", error);
       setError("Terjadi kesalahan saat login. Silakan coba lagi.");
@@ -66,41 +65,44 @@ export default function SignInPage() {
 
   const handleGoogleLogin = () => {
     signIn("google", {
-      callbackUrl: "/"
+      callbackUrl: "/",
     });
   };
 
   return (
-    <div className="min-h-screen flex dark:bg-background">
+    <div className="flex min-h-screen dark:bg-background">
       {/* Left side - gray area (hidden on mobile) */}
-      <div className="hidden md:block md:flex-1 bg-gray-200 dark:bg-gray-800"></div>
-      
+      <div className="hidden bg-gray-200 dark:bg-gray-800 md:block md:flex-1"></div>
+
       {/* Right side - login form */}
-      <div className="flex-1 md:w-[40%] bg-white dark:bg-gray-950">
-        <div className="h-full flex flex-col p-4 md:p-6 max-w-[400px] mx-auto">
+      <div className="flex-1 bg-white dark:bg-gray-950 md:w-[40%]">
+        <div className="mx-auto flex h-full max-w-[400px] flex-col p-4 md:p-6">
           {/* Logo */}
-          <div className="flex justify-end mb-8">
-            <img 
-              src="/assets/fitinfinity-lime.png" 
-              alt="Logo" 
+          <div className="mb-8 flex justify-end">
+            <img
+              src="/assets/fitinfinity-lime.png"
+              alt="Logo"
               className="h-8"
             />
           </div>
 
           {/* Login Form Container */}
-          <div className="flex-1 flex items-center">
+          <div className="flex flex-1 items-center">
             <div className="w-full">
-              <h1 className="text-3xl font-bold mb-8 dark:text-white">Log In</h1>
-              
+              <h1 className="mb-8 text-3xl font-bold dark:text-white">
+                Log In
+              </h1>
+
               <form onSubmit={handleSubmit}>
                 <div className="space-y-6">
-                  {error && (
-                    <p className="text-sm text-red-500">{error}</p>
-                  )}
-                  
+                  {error && <p className="text-sm text-red-500">{error}</p>}
+
                   {/* Email Field */}
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    <label
+                      htmlFor="email"
+                      className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >
                       Email Address
                     </label>
                     <input
@@ -109,13 +111,16 @@ export default function SignInPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="example@example.com"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
+                      className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     />
                   </div>
 
                   {/* Password Field */}
                   <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    <label
+                      htmlFor="password"
+                      className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200"
+                    >
                       Password
                     </label>
                     <input
@@ -124,7 +129,7 @@ export default function SignInPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="********"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 dark:text-white"
+                      className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     />
                   </div>
 
@@ -136,11 +141,17 @@ export default function SignInPage() {
                         id="remember"
                         className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
                       />
-                      <label htmlFor="remember" className="ml-2 text-sm text-gray-700 dark:text-gray-200">
+                      <label
+                        htmlFor="remember"
+                        className="ml-2 text-sm text-gray-700 dark:text-gray-200"
+                      >
                         Remember me
                       </label>
                     </div>
-                    <a href="/auth/forgot-password" className="text-sm text-[#95B640] hover:underline">
+                    <a
+                      href="/auth/forgot-password"
+                      className="text-sm text-[#95B640] hover:underline"
+                    >
                       Forgot Password?
                     </a>
                   </div>
@@ -148,7 +159,7 @@ export default function SignInPage() {
                   {/* Login Button */}
                   <button
                     type="submit"
-                    className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] text-center font-bold rounded-md dark:text-gray-900"
+                    className="w-full rounded-md bg-[#BAD45E] px-4 py-2 text-center font-bold hover:bg-[#95B640] dark:text-gray-900"
                   >
                     Login
                   </button>
@@ -157,9 +168,13 @@ export default function SignInPage() {
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
-                    className="w-full py-2 px-4 border border-gray-300 dark:border-gray-700 rounded-md flex items-center justify-center space-x-2 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-white"
+                    className="flex w-full items-center justify-center space-x-2 rounded-md border border-gray-300 px-4 py-2 hover:bg-gray-50 dark:border-gray-700 dark:text-white dark:hover:bg-gray-800"
                   >
-                    <img src="/assets/google-lime.png" alt="google-icon" className="w-5 h-5" />
+                    <img
+                      src="/assets/google-lime.png"
+                      alt="google-icon"
+                      className="h-5 w-5"
+                    />
                     <span>Log in with Google</span>
                   </button>
                 </div>
@@ -167,8 +182,11 @@ export default function SignInPage() {
 
               {/* Sign up link */}
               <p className="mt-6 text-sm dark:text-gray-300">
-                Not have account yet?{' '}
-                <a href="/auth/signup" className="text-[#95B640] hover:underline">
+                Not have account yet?{" "}
+                <a
+                  href="/auth/signup"
+                  className="text-[#95B640] hover:underline"
+                >
                   Sign up
                 </a>
               </p>
@@ -179,4 +197,3 @@ export default function SignInPage() {
     </div>
   );
 }
-

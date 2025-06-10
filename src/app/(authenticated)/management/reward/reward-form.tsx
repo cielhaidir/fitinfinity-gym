@@ -10,7 +10,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Reward } from "./schema";
+import { type Reward } from "./schema";
 import {
   Select,
   SelectContent,
@@ -85,7 +85,7 @@ export const RewardForm: React.FC<RewardFormProps> = ({
 
       <div className="space-y-4 py-4">
         <div>
-          <label className="text-sm font-medium mb-2 block">Name</label>
+          <label className="mb-2 block text-sm font-medium">Name</label>
           <Input
             name="name"
             value={reward.name ?? ""}
@@ -95,7 +95,7 @@ export const RewardForm: React.FC<RewardFormProps> = ({
           />
         </div>
         <div>
-          <label className="text-sm font-medium mb-2 block">Icon</label>
+          <label className="mb-2 block text-sm font-medium">Icon</label>
           <Select
             value={reward.iconName ?? "Gift"}
             onValueChange={(value) => onSelectChange("iconName", value)}
@@ -103,7 +103,10 @@ export const RewardForm: React.FC<RewardFormProps> = ({
             <SelectTrigger className="w-full">
               <SelectValue>
                 <div className="flex items-center gap-2">
-                  <DynamicIcon name={reward.iconName ?? "Gift"} className="h-4 w-4" />
+                  <DynamicIcon
+                    name={reward.iconName ?? "Gift"}
+                    className="h-4 w-4"
+                  />
                   {reward.iconName ?? "Gift"}
                 </div>
               </SelectValue>
@@ -121,7 +124,9 @@ export const RewardForm: React.FC<RewardFormProps> = ({
           </Select>
         </div>
         <div>
-          <label className="text-sm font-medium mb-2 block">Price (Points)</label>
+          <label className="mb-2 block text-sm font-medium">
+            Price (Points)
+          </label>
           <Input
             type="number"
             name="price"
@@ -133,7 +138,7 @@ export const RewardForm: React.FC<RewardFormProps> = ({
           />
         </div>
         <div>
-          <label className="text-sm font-medium mb-2 block">Stock</label>
+          <label className="mb-2 block text-sm font-medium">Stock</label>
           <Input
             type="number"
             name="stock"
@@ -159,4 +164,4 @@ export const RewardForm: React.FC<RewardFormProps> = ({
       </SheetFooter>
     </SheetContent>
   );
-}; 
+};

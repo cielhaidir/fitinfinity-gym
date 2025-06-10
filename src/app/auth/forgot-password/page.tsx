@@ -14,23 +14,19 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
+    <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
       {/* Logo - Fixed at top right */}
-      <div className="w-full flex justify-end p-4 md:p-6">
-        <img 
-          src="/assets/fitinfinity-lime.png" 
-          alt="Logo" 
-          className="h-8"
-        />
+      <div className="flex w-full justify-end p-4 md:p-6">
+        <img src="/assets/fitinfinity-lime.png" alt="Logo" className="h-8" />
       </div>
 
       {/* Forgot Password Container */}
-      <div className="flex-1 flex items-center justify-center px-4 md:px-6">
+      <div className="flex flex-1 items-center justify-center px-4 md:px-6">
         <div className="w-full max-w-[500px]">
-          <h1 className="text-3xl font-bold mb-4 dark:text-white">
+          <h1 className="mb-4 text-3xl font-bold dark:text-white">
             Forget Password?
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-8">
+          <p className="mb-8 text-gray-600 dark:text-gray-300">
             Choose verification method to reset your password
           </p>
 
@@ -38,18 +34,26 @@ export default function ForgotPasswordPage() {
             {/* Gmail Verification Button */}
             <button
               onClick={handleGmailVerification}
-              className="w-full py-2 px-4 border-2 border-[#BAD45E] text-[#95B640] rounded-md flex items-center justify-center space-x-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="flex w-full items-center justify-center space-x-2 rounded-md border-2 border-[#BAD45E] px-4 py-2 text-[#95B640] hover:bg-gray-50 dark:hover:bg-gray-800"
             >
-              <img src="/assets/google-lime.png" alt="Gmail" className="w-5 h-5" />
+              <img
+                src="/assets/google-lime.png"
+                alt="Gmail"
+                className="h-5 w-5"
+              />
               <span>Send verification in Email</span>
             </button>
 
             {/* Whatsapp Verification Button */}
             <button
               onClick={handleWhatsappVerification}
-              className="w-full py-2 px-4 bg-[#BAD45E] hover:bg-[#95B640] text-white text-center rounded-md flex items-center justify-center space-x-2"
+              className="flex w-full items-center justify-center space-x-2 rounded-md bg-[#BAD45E] px-4 py-2 text-center text-white hover:bg-[#95B640]"
             >
-              <img src="/assets/whatsapp-white.png" alt="Whatsapp" className="w-5 h-5" />
+              <img
+                src="/assets/whatsapp-white.png"
+                alt="Whatsapp"
+                className="h-5 w-5"
+              />
               <span>Send verification in Whatsapp</span>
             </button>
           </div>

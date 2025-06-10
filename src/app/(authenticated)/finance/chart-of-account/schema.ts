@@ -16,4 +16,4 @@ export const updateChartAccountSchema = chartAccountSchema;
 
 export type ChartAccount = z.infer<typeof chartAccountSchema>;
 export type CreateChartAccount = z.infer<typeof createChartAccountSchema>;
-export type UpdateChartAccount = z.infer<typeof updateChartAccountSchema>; 
+export type UpdateChartAccount = z.infer<typeof updateChartAccountSchema>;

@@ -1,59 +1,65 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  permissionProtectedProcedure,
+} from "@/server/api/trpc";
 
 export const memberCalendarRouter = createTRPCRouter({
-    getAll: permissionProtectedProcedure(['list:session']).query(async ({ ctx }) => {
-        const member = await ctx.db.membership.findUnique({
+  getAll: permissionProtectedProcedure(["list:session"]).query(
+    async ({ ctx }) => {
+      const member = await ctx.db.membership.findUnique({
+        where: {
+          userId: ctx.session.user.id,
+        },
+        include: {
+          subscriptions: {
             where: {
-                userId: ctx.session.user.id,
+              endDate: {
+                gt: new Date(),
+              },
+              remainingSessions: {
+                gt: 0,
+              },
             },
-            include: {
-                subscriptions: {
-                    where: {
-                        endDate: {
-                            gt: new Date(),
-                        },
-                        remainingSessions: {
-                            gt: 0,
-                        },
-                    },
-                },
-            },
-        });
+          },
+        },
+      });
 
-        if (!member) {
-            return [];
-        }
+      if (!member) {
+        return [];
+      }
 
-        const sessions = await ctx.db.trainerSession.findMany({
-            where: {
-                memberId: member.id,
-            },
+      const sessions = await ctx.db.trainerSession.findMany({
+        where: {
+          memberId: member.id,
+        },
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          description: true,
+          exerciseResult: true,
+          status: true,
+          trainer: {
             select: {
-                id: true,
-                date: true,
-                startTime: true,
-                endTime: true,
-                description: true,
-                exerciseResult: true,
-                status: true,
-                trainer: {
-                    select: {
-                        user: {
-                            select: {
-                                name: true,
-                                email: true,
-                            },
-                        },
-                    },
+              user: {
+                select: {
+                  name: true,
+                  email: true,
                 },
+              },
             },
-            orderBy: {
-                date: "asc",
-            },
-        });
+          },
+        },
+        orderBy: {
+          date: "asc",
+        },
+      });
 
-        return sessions;
-    }),
-}); 
+      return sessions;
+    },
+  ),
+});

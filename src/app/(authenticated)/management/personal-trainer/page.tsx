@@ -10,18 +10,19 @@ import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
-import { UserPersonalTrainer } from "./schema";
+import { type UserPersonalTrainer } from "./schema";
 import { TrainerForm } from "./trainer-form";
-import { toast } from "sonner"
+import { toast } from "sonner";
 import { SelectUserModal } from "./select-user-modal";
-import { User } from "@prisma/client";
+import { type User } from "@prisma/client";
 
 export default function PersonalTrainerPage() {
   const utils = api.useUtils();
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedTrainer, setSelectedTrainer] = useState<UserPersonalTrainer | null>(null);
+  const [selectedTrainer, setSelectedTrainer] =
+    useState<UserPersonalTrainer | null>(null);
   const [newTrainer, setNewTrainer] = useState<UserPersonalTrainer>({
     name: "",
     email: "",
@@ -39,12 +40,13 @@ export default function PersonalTrainerPage() {
   const [isSelectUserModalOpen, setIsSelectUserModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const { data: trainers = { items: [], total: 0, page: 1, limit: 10 } } = api.personalTrainer.list.useQuery({ 
-    page, 
-    limit,
-    search,
-    searchColumn 
-  });
+  const { data: trainers = { items: [], total: 0, page: 1, limit: 10 } } =
+    api.personalTrainer.list.useQuery({
+      page,
+      limit,
+      search,
+      searchColumn,
+    });
   const createUserMutation = api.user.create.useMutation();
   const createTrainerMutation = api.personalTrainer.create.useMutation({
     onSuccess: () => {
@@ -74,21 +76,21 @@ export default function PersonalTrainerPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const updatedValue = name === 'birthDate' ? new Date(value) : value;
-    
+    const updatedValue = name === "birthDate" ? new Date(value) : value;
+
     if (isEditMode && selectedTrainer) {
-      setSelectedTrainer(prev => {
+      setSelectedTrainer((prev) => {
         if (!prev) return null;
         return {
           ...prev,
           user: {
             ...prev.user,
             [name]: updatedValue,
-          } as UserPersonalTrainer['user'],
+          } as UserPersonalTrainer["user"],
         };
       });
     } else {
-      setNewTrainer(prev => ({
+      setNewTrainer((prev) => ({
         ...prev,
         [name]: updatedValue,
       }));
@@ -108,7 +110,7 @@ export default function PersonalTrainerPage() {
               phone: selectedTrainer.user?.phone ?? undefined,
               birthDate: selectedTrainer.user?.birthDate ?? undefined,
               idNumber: selectedTrainer.user?.idNumber ?? undefined,
-            }
+            },
           });
 
           await utils.personalTrainer.list.invalidate();
@@ -116,8 +118,11 @@ export default function PersonalTrainerPage() {
           setIsEditMode(false);
           setSelectedTrainer(null);
         } else if (selectedUserId) {
-          console.log("Starting creation process with selected user:", selectedUserId);
-          
+          console.log(
+            "Starting creation process with selected user:",
+            selectedUserId,
+          );
+
           // Create personal trainer first
           const trainer = await createTrainerMutation.mutateAsync({
             userId: selectedUserId,
@@ -154,7 +159,7 @@ export default function PersonalTrainerPage() {
           setIsSheetOpen(false);
         } else {
           console.log("Starting creation process with new user");
-          
+
           // Create new user with password
           const user = await createUserMutation.mutateAsync({
             name: newTrainer.name,
@@ -216,9 +221,10 @@ export default function PersonalTrainerPage() {
       };
 
       toast.promise(promise, {
-        loading: 'Loading...',
-        success: 'Trainer has been created/updated successfully!',
-        error: (error) => error instanceof Error ? error.message : String(error),
+        loading: "Loading...",
+        success: "Trainer has been created/updated successfully!",
+        error: (error) =>
+          error instanceof Error ? error.message : String(error),
       });
     } catch (error) {
       console.error("Detailed error in handleCreateOrUpdateTrainer:", {
@@ -245,9 +251,10 @@ export default function PersonalTrainerPage() {
     const promise = deleteTrainerMutation.mutateAsync({ id: trainer.id ?? "" });
 
     toast.promise(promise, {
-      loading: 'Deleting trainer...',
-      success: 'Trainer deleted successfully!',
-      error: (error) => error instanceof Error ? error.message : String(error),
+      loading: "Deleting trainer...",
+      success: "Trainer deleted successfully!",
+      error: (error) =>
+        error instanceof Error ? error.message : String(error),
     });
 
     await promise;
@@ -259,8 +266,11 @@ export default function PersonalTrainerPage() {
     setLimit(newLimit);
   };
 
-  const columns = createColumns({ onEditMember: handleEditTrainer, onDeleteMember: handleDeleteTrainer })
-  
+  const columns = createColumns({
+    onEditMember: handleEditTrainer,
+    onDeleteMember: handleDeleteTrainer,
+  });
+
   const handleSelectUser = async (user: User) => {
     try {
       // Create PT with selected user
@@ -283,8 +293,8 @@ export default function PersonalTrainerPage() {
 
   return (
     <>
-      <Sheet 
-        open={isSheetOpen} 
+      <Sheet
+        open={isSheetOpen}
         onOpenChange={(open) => {
           setIsSheetOpen(open);
           if (!open) {
@@ -293,8 +303,8 @@ export default function PersonalTrainerPage() {
           }
         }}
       >
-        <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+        <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+          <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div className="space-y-1">
               <h2 className="text-2xl font-bold tracking-tight">
                 Personal Trainer Management
@@ -303,8 +313,8 @@ export default function PersonalTrainerPage() {
                 Here&apos;s a list of Fit Infinity Personal Trainers!
               </p>
             </div>
-            <Button 
-              className="bg-infinity w-full md:w-auto"
+            <Button
+              className="w-full bg-infinity md:w-auto"
               onClick={() => setIsSelectUserModalOpen(true)}
             >
               <Plus className="mr-2 h-4 w-4" /> Add Personal Trainer
@@ -316,7 +326,7 @@ export default function PersonalTrainerPage() {
                 items: trainers.items,
                 total: trainers.total,
                 page: trainers.page,
-                limit: trainers.limit
+                limit: trainers.limit,
               }}
               columns={columns}
               onPaginationChange={handlePaginationChange}

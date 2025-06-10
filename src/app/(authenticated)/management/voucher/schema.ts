@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "zod";
 
 export const voucherSchema = z.object({
   id: z.string(),
@@ -12,6 +12,6 @@ export const voucherSchema = z.object({
   expiryDate: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
-})
+});
 
-export type Voucher = z.infer<typeof voucherSchema> 
+export type Voucher = z.infer<typeof voucherSchema>;

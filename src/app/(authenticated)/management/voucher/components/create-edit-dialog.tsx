@@ -120,9 +120,7 @@ export default function CreateEditVoucherDialog({
       }
     } catch (error) {
       toast.error(
-        voucher
-          ? "Gagal mengupdate voucher"
-          : "Gagal membuat voucher"
+        voucher ? "Gagal mengupdate voucher" : "Gagal membuat voucher",
       );
     }
   };
@@ -262,13 +260,11 @@ export default function CreateEditVoucherDialog({
               >
                 Batal
               </Button>
-              <Button type="submit">
-                {voucher ? "Update" : "Tambah"}
-              </Button>
+              <Button type="submit">{voucher ? "Update" : "Tambah"}</Button>
             </div>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
   );
-} 
+}

@@ -1,6 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,8 +12,17 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FileCog, Bot, UserRoundIcon as UserRoundPen, Users } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  FileCog,
+  Bot,
+  UserRoundIcon as UserRoundPen,
+  Users,
+} from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const items = [
   {
@@ -29,8 +38,8 @@ const items = [
       {
         title: "Bot Action",
         url: "/admin/feature/trigger",
-      }
-    ]
+      },
+    ],
   },
 ];
 
@@ -41,7 +50,10 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const MenuItemComponent: React.FC<{ item: MenuItem; depth?: number }> = ({ item, depth = 0 }) => {
+const MenuItemComponent: React.FC<{ item: MenuItem; depth?: number }> = ({
+  item,
+  depth = 0,
+}) => {
   const [isOpen, setIsOpen] = React.useState(false);
 
   if (item.children && item.children.length > 0) {
@@ -50,19 +62,23 @@ const MenuItemComponent: React.FC<{ item: MenuItem; depth?: number }> = ({ item,
         <CollapsibleTrigger asChild>
           <SidebarMenuButton className="w-full">
             <div className="flex items-center">
-              {depth > 0 && (
-                <div className="h-6 w-px bg-sidebar-border" />
-              )}
-                {item.icon && <item.icon className="mr-4 h-4 w-4" />}
+              {depth > 0 && <div className="bg-sidebar-border h-6 w-px" />}
+              {item.icon && <item.icon className="mr-4 h-4 w-4" />}
               <span>{item.title}</span>
             </div>
-            <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            <ChevronDown
+              className={`ml-auto h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="ml-4 border-l border-sidebar-border">
+          <div className="border-sidebar-border ml-4 border-l">
             {item.children.map((child) => (
-              <MenuItemComponent key={child.url} item={child} depth={depth + 1} />
+              <MenuItemComponent
+                key={child.url}
+                item={child}
+                depth={depth + 1}
+              />
             ))}
           </div>
         </CollapsibleContent>
@@ -74,11 +90,9 @@ const MenuItemComponent: React.FC<{ item: MenuItem; depth?: number }> = ({ item,
     <SidebarMenuItem>
       <SidebarMenuButton asChild className="w-full">
         <Link href={item.url} className="flex items-center">
-          {depth > 0 && (
-            <div className=" h-6 w-px bg-sidebar-border" />
-          )}
+          {depth > 0 && <div className="bg-sidebar-border h-6 w-px" />}
           {item.icon && <item.icon className="mr-2 h-4 w-4" />}
-          <span >{item.title}</span>
+          <span>{item.title}</span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -93,8 +107,13 @@ export function AppSidebar({ user }: { user?: any }) {
           <div className="px-2">
             <div className="ms-4 mt-5 text-xl font-semibold text-blue-500">
               <h2>
-                <a href="/"><img src="/assets/fitinfinity-lime.png" alt="FitInfinity Logo" className="h-8 w-auto" /></a>
-              
+                <a href="/">
+                  <img
+                    src="/assets/fitinfinity-lime.png"
+                    alt="FitInfinity Logo"
+                    className="h-8 w-auto"
+                  />
+                </a>
               </h2>
             </div>
           </div>
@@ -127,4 +146,3 @@ export function AppSidebar({ user }: { user?: any }) {
     </Sidebar>
   );
 }
-

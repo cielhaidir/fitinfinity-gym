@@ -12,21 +12,22 @@ export default function AttendanceTrackingPage() {
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
 
-  const { data: attendances = { items: [], total: 0, page: 1, limit: 10 } } = api.attendance.list.useQuery({
-    page: 1,
-    limit: 10,
-    search,
-    searchColumn,
-    date,
-  });
+  const { data: attendances = { items: [], total: 0, page: 1, limit: 10 } } =
+    api.attendance.list.useQuery({
+      page: 1,
+      limit: 10,
+      search,
+      searchColumn,
+      date,
+    });
 
   const handlePaginationChange = (page: number, limit: number) => {
     // Handle pagination change
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-8 min-h-screen bg-background">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">
             Attendance Tracking
@@ -50,7 +51,7 @@ export default function AttendanceTrackingPage() {
             items: attendances.items,
             total: attendances.total,
             page: attendances.page,
-            limit: attendances.limit
+            limit: attendances.limit,
           }}
           columns={columns}
           onPaginationChange={handlePaginationChange}

@@ -7,13 +7,48 @@ import { Button } from "@/app/_components/ui/button";
 import { Input } from "@/app/_components/ui/input";
 import { Label } from "@/app/_components/ui/label";
 import { Switch } from "@/app/_components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/_components/ui/select";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/app/_components/ui/form";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/_components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/_components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/app/_components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/app/_components/ui/card";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/app/_components/ui/alert";
-import { EmailConfig, SMTP_PRESETS, emailConfigSchema, type EmailConfigFormData } from "./schema";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/app/_components/ui/alert";
+import {
+  type EmailConfig,
+  SMTP_PRESETS,
+  emailConfigSchema,
+  type EmailConfigFormData,
+} from "./schema";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 
@@ -23,9 +58,16 @@ interface EmailConfigFormProps {
   onCancel?: () => void;
 }
 
-export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfigFormProps) {
+export function EmailConfigForm({
+  initialData,
+  onSuccess,
+  onCancel,
+}: EmailConfigFormProps) {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message?: string;
+  } | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<string>("custom");
 
   const form = useForm<EmailConfigFormData>({
@@ -78,12 +120,14 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
         await createConfigMutation.mutateAsync(data);
         toast.success("Email configuration created successfully");
       }
-      
+
       if (onSuccess) {
         onSuccess();
       }
     } catch (error) {
-      toast.error(`Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast.error(
+        `Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   };
 
@@ -95,7 +139,9 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
     try {
       if (initialData?.id) {
         // Test existing configuration
-        const result = await testConnectionMutation.mutateAsync({ id: initialData.id });
+        const result = await testConnectionMutation.mutateAsync({
+          id: initialData.id,
+        });
         setTestResult({
           success: result.success,
           message: result.error || "Connection successful!",
@@ -108,8 +154,10 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
           isActive: false,
           isDefault: false,
         });
-        
-        const result = await testConnectionMutation.mutateAsync({ id: config.id });
+
+        const result = await testConnectionMutation.mutateAsync({
+          id: config.id,
+        });
         setTestResult({
           success: result.success,
           message: result.error || "Connection successful!",
@@ -118,7 +166,8 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
     } catch (error) {
       setTestResult({
         success: false,
-        message: error instanceof Error ? error.message : "Failed to test connection",
+        message:
+          error instanceof Error ? error.message : "Failed to test connection",
       });
     } finally {
       setIsTestingConnection(false);
@@ -133,8 +182,8 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
             <TabsTrigger value="basic">Basic Settings</TabsTrigger>
             <TabsTrigger value="advanced">Advanced Settings</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="basic" className="space-y-4 mt-4">
+
+          <TabsContent value="basic" className="mt-4 space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>SMTP Configuration</CardTitle>
@@ -146,7 +195,10 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="preset">Preset Provider</Label>
-                    <Select value={selectedPreset} onValueChange={handlePresetChange}>
+                    <Select
+                      value={selectedPreset}
+                      onValueChange={handlePresetChange}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a preset" />
                       </SelectTrigger>
@@ -199,11 +251,13 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                       <FormItem>
                         <FormLabel>Port</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="587" 
-                            {...field} 
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          <Input
+                            type="number"
+                            placeholder="587"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseInt(e.target.value))
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -220,7 +274,10 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input placeholder="username@example.com" {...field} />
+                          <Input
+                            placeholder="username@example.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -234,7 +291,11 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
+                          <Input
+                            type="password"
+                            placeholder="••••••••"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -260,7 +321,10 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                       <FormItem>
                         <FormLabel>From Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="noreply@fitinfinity.com" {...field} />
+                          <Input
+                            placeholder="noreply@fitinfinity.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -284,8 +348,8 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
               </CardContent>
             </Card>
           </TabsContent>
-          
-          <TabsContent value="advanced" className="space-y-4 mt-4">
+
+          <TabsContent value="advanced" className="mt-4 space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Template Variables</CardTitle>
@@ -302,7 +366,10 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                       <FormItem>
                         <FormLabel>Support Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="support@fitinfinity.com" {...field} />
+                          <Input
+                            placeholder="support@fitinfinity.com"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -331,7 +398,10 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                     <FormItem>
                       <FormLabel>Logo URL</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://fitinfinity.com/logo.png" {...field} />
+                        <Input
+                          placeholder="https://fitinfinity.com/logo.png"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -345,7 +415,10 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
                     <FormItem>
                       <FormLabel>Business Address</FormLabel>
                       <FormControl>
-                        <Input placeholder="123 Gym Street, Fitness City" {...field} />
+                        <Input
+                          placeholder="123 Gym Street, Fitness City"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -486,7 +559,9 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
               <AlertCircle className="h-4 w-4" />
             )}
             <AlertTitle>
-              {testResult.success ? "Connection Successful" : "Connection Failed"}
+              {testResult.success
+                ? "Connection Successful"
+                : "Connection Failed"}
             </AlertTitle>
             <AlertDescription>{testResult.message}</AlertDescription>
           </Alert>
@@ -499,18 +574,26 @@ export function EmailConfigForm({ initialData, onSuccess, onCancel }: EmailConfi
             onClick={handleTestConnection}
             disabled={isTestingConnection}
           >
-            {isTestingConnection && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isTestingConnection && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             Test Connection
           </Button>
-          
+
           <div className="space-x-2">
             {onCancel && (
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
             )}
-            <Button type="submit" disabled={createConfigMutation.isPending || updateConfigMutation.isPending}>
-              {(createConfigMutation.isPending || updateConfigMutation.isPending) && (
+            <Button
+              type="submit"
+              disabled={
+                createConfigMutation.isPending || updateConfigMutation.isPending
+              }
+            >
+              {(createConfigMutation.isPending ||
+                updateConfigMutation.isPending) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {initialData ? "Update" : "Create"} Configuration

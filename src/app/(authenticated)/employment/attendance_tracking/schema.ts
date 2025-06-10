@@ -18,4 +18,4 @@ export const attendanceSchema = z.object({
   updatedAt: z.date(),
 });
 
-export type Attendance = z.infer<typeof attendanceSchema>; 
+export type Attendance = z.infer<typeof attendanceSchema>;

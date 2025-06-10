@@ -21,7 +21,7 @@ export type PaymentReceiptVariables = {
   receiptNumber: string;
   paymentDate: string;
   paymentStatus: string;
-  statusClass: 'success' | 'pending';
+  statusClass: "success" | "pending";
   packageName: string;
   personalTrainer?: boolean;
   trainerName?: string;

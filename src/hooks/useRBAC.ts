@@ -17,6 +17,6 @@ export function useRBAC() {
     hasRole,
     userPermissions: session?.user?.permissions || [],
     userRoles: session?.user?.roles || [],
-    isLoading: !session
+    isLoading: !session,
   };
 }

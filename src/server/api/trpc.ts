@@ -137,87 +137,87 @@ export const protectedProcedure = t.procedure
 
 // Add this middleware to your existing TRPC setup
 
-export const enforcePermissionMiddleware = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.session || !ctx.session.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
-
-  const userId = ctx.session.user.id;
-  
-  const user = await ctx.db.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        include: {
-          permissions: {
-            include: {
-              permission: true
-            }
-          }
-        }
-      }
+export const enforcePermissionMiddleware = t.middleware(
+  async ({ ctx, next }) => {
+    if (!ctx.session || !ctx.session.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
     }
-  });
 
-  if (!user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
+    const userId = ctx.session.user.id;
 
-  // Add user permissions to both context and session
-  const permissions = user.roles.flatMap(role => 
-    role.permissions.map(p => p.permission.name)
-  );
+    const user = await ctx.db.user.findUnique({
+      where: { id: userId },
+      include: {
+        roles: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-  // Update the session with permissions
-  ctx.session.user.permissions = permissions;
+    if (!user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
 
-  return next({
-    ctx: {
-      ...ctx,
-      user,
-      permissions,
-      session: {
-        ...ctx.session,
-        user: {
-          ...ctx.session.user,
-          permissions
-        }
-      }
-    },
-  });
-});
+    // Add user permissions to both context and session
+    const permissions = user.roles.flatMap((role) =>
+      role.permissions.map((p) => p.permission.name),
+    );
+
+    // Update the session with permissions
+    ctx.session.user.permissions = permissions;
+
+    return next({
+      ctx: {
+        ...ctx,
+        user,
+        permissions,
+        session: {
+          ...ctx.session,
+          user: {
+            ...ctx.session.user,
+            permissions,
+          },
+        },
+      },
+    });
+  },
+);
 
 // Create a procedure that requires specific permissions
-export const permissionProtectedProcedure = (requiredPermissions: string[]) => 
-  protectedProcedure
-    .use(enforcePermissionMiddleware)
-    .use(({ ctx, next }) => {
-      if (process.env.ALLOW_RBAC === "false") {
-        return next({ 
-          ctx: {
-            ...ctx,
-            session: ctx.session!
-          } 
-        });
-      }
-
-      const hasPermission = requiredPermissions.some(permission => 
-        ctx.permissions.includes(permission)
-      );
-      
-      if (!hasPermission) {
-        throw new TRPCError({ 
-          code: "FORBIDDEN", 
-          message: "You don't have permission to perform this action" 
-        });
-      }
-      
-      // Since we're using protectedProcedure and enforcePermissionMiddleware,
-      // ctx.session is guaranteed to be non-null at this point
-      return next({ 
+export const permissionProtectedProcedure = (requiredPermissions: string[]) =>
+  protectedProcedure.use(enforcePermissionMiddleware).use(({ ctx, next }) => {
+    if (process.env.ALLOW_RBAC === "false") {
+      return next({
         ctx: {
           ...ctx,
-          session: ctx.session!
-        } 
+          session: ctx.session,
+        },
       });
+    }
+
+    const hasPermission = requiredPermissions.some((permission) =>
+      ctx.permissions.includes(permission),
+    );
+
+    if (!hasPermission) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You don't have permission to perform this action",
+      });
+    }
+
+    // Since we're using protectedProcedure and enforcePermissionMiddleware,
+    // ctx.session is guaranteed to be non-null at this point
+    return next({
+      ctx: {
+        ...ctx,
+        session: ctx.session,
+      },
     });
+  });

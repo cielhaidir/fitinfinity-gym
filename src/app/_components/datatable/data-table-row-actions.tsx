@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import type { Row } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
-import { useEffect, useState } from "react"
+import type { Row } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +22,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { ShortcutBadge } from "../ShorcutBadge"
+} from "@/components/ui/alert-dialog";
+import { ShortcutBadge } from "../ShorcutBadge";
 
 interface ActionItem {
   label: string;
@@ -37,32 +37,32 @@ interface DataTableRowActionsProps<TData> {
   // Keep these for backward compatibility
   onEdit?: ((item: TData) => void) | null;
   onDelete?: ((item: TData) => void) | null;
-  customActions?: { label: string, action: (item: TData) => void }[];
+  customActions?: { label: string; action: (item: TData) => void }[];
   showEdit?: boolean;
 }
 
-export function DataTableRowActions<TData>({ 
-  row, 
+export function DataTableRowActions<TData>({
+  row,
   actions,
-  onEdit, 
-  onDelete, 
+  onEdit,
+  onDelete,
   customActions,
-  showEdit = true 
+  showEdit = true,
 }: DataTableRowActionsProps<TData>) {
-  const [isAlertOpen, setIsAlertOpen] = useState(false)
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [actionToDelete, setActionToDelete] = useState<ActionItem | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "Backspace") {
-        e.preventDefault()
-        setIsAlertOpen(true)
+        e.preventDefault();
+        setIsAlertOpen(true);
       }
-    }
+    };
 
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [])
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleDelete = () => {
     if (actionToDelete) {
@@ -71,8 +71,8 @@ export function DataTableRowActions<TData>({
       onDelete(row.original);
     }
     setIsAlertOpen(false);
-  }
-  
+  };
+
   // Check if we're using the new or old API
   const usingNewAPI = !!actions;
 
@@ -80,56 +80,70 @@ export function DataTableRowActions<TData>({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
+          <Button
+            variant="ghost"
+            className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
+          >
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
           {/* New API with actions array */}
-          {usingNewAPI && actions?.map((action, index) => (
-            <DropdownMenuItem 
-              key={index}
-              onClick={action.label.toLowerCase() === "delete" 
-                ? () => {
-                    setActionToDelete(action);
-                    setIsAlertOpen(true);
-                    document.body.style.pointerEvents = "";
-                  }
-                : action.onClick
-              }
-              disabled={action.disabled}
-            >
-              {action.label}
-              {action.label.toLowerCase() === "delete" && (
-                <DropdownMenuShortcut>
-                  <ShortcutBadge keyChar="⌫" />
-                </DropdownMenuShortcut>
-              )}
-            </DropdownMenuItem>
-          ))}
+          {usingNewAPI &&
+            actions?.map((action, index) => (
+              <DropdownMenuItem
+                key={index}
+                onClick={
+                  action.label.toLowerCase() === "delete"
+                    ? () => {
+                        setActionToDelete(action);
+                        setIsAlertOpen(true);
+                        document.body.style.pointerEvents = "";
+                      }
+                    : action.onClick
+                }
+                disabled={action.disabled}
+              >
+                {action.label}
+                {action.label.toLowerCase() === "delete" && (
+                  <DropdownMenuShortcut>
+                    <ShortcutBadge keyChar="⌫" />
+                  </DropdownMenuShortcut>
+                )}
+              </DropdownMenuItem>
+            ))}
 
           {/* Legacy API support */}
           {!usingNewAPI && (
             <>
               {showEdit && onEdit && (
-                <DropdownMenuItem onClick={() => onEdit(row.original)}>Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                  Edit
+                </DropdownMenuItem>
               )}
-            
-              {customActions && customActions.map((customAction, index) => (
-                <div key={index}>
-                  <DropdownMenuItem onClick={() => customAction.action(row.original)}>{customAction.label}</DropdownMenuItem>
-                </div>
-              ))}
 
-              {customActions && customActions.length > 0 && <DropdownMenuSeparator />}
+              {customActions?.map((customAction, index) => (
+                  <div key={index}>
+                    <DropdownMenuItem
+                      onClick={() => customAction.action(row.original)}
+                    >
+                      {customAction.label}
+                    </DropdownMenuItem>
+                  </div>
+                ))}
+
+              {customActions && customActions.length > 0 && (
+                <DropdownMenuSeparator />
+              )}
 
               {onDelete && (
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onSelect={() => {
-                    setIsAlertOpen(true)
-                    document.body.style.pointerEvents = ""
-                  }}>
+                    setIsAlertOpen(true);
+                    document.body.style.pointerEvents = "";
+                  }}
+                >
                   Delete
                   <DropdownMenuShortcut>
                     <ShortcutBadge keyChar="⌫" />
@@ -146,7 +160,8 @@ export function DataTableRowActions<TData>({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the selected item from our servers.
+              This action cannot be undone. This will permanently delete the
+              selected item from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -156,6 +171,5 @@ export function DataTableRowActions<TData>({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }
-

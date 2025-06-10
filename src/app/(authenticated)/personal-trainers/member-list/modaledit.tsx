@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Member } from "./schema";
+import { type Member } from "./schema";
 import { Check, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +19,12 @@ interface ModalEditProps {
   onSave: (updated: Member) => void;
 }
 
-export default function ModalEdit({ open, onClose, member, onSave }: ModalEditProps) {
+export default function ModalEdit({
+  open,
+  onClose,
+  member,
+  onSave,
+}: ModalEditProps) {
   const [form, setForm] = useState<Member | null>(null);
 
   useEffect(() => {
@@ -25,7 +36,15 @@ export default function ModalEdit({ open, onClose, member, onSave }: ModalEditPr
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm((prev) =>
-      prev ? { ...prev, [name]: (name === "height" || name === "weight") ? Number(value) || null : value } : prev
+      prev
+        ? {
+            ...prev,
+            [name]:
+              name === "height" || name === "weight"
+                ? Number(value) || null
+                : value,
+          }
+        : prev,
     );
   };
 
@@ -38,7 +57,7 @@ export default function ModalEdit({ open, onClose, member, onSave }: ModalEditPr
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[450px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle>Edit Member Details</DialogTitle>
           <DialogDescription>
@@ -77,13 +96,10 @@ export default function ModalEdit({ open, onClose, member, onSave }: ModalEditPr
               onClick={onClose}
               className="flex items-center gap-2"
             >
-              <X className="w-4 h-4" /> Cancel
+              <X className="h-4 w-4" /> Cancel
             </Button>
-            <Button
-              type="submit"
-              className="flex items-center gap-2"
-            >
-              <Check className="w-4 h-4" /> Save Changes
+            <Button type="submit" className="flex items-center gap-2">
+              <Check className="h-4 w-4" /> Save Changes
             </Button>
           </div>
         </form>

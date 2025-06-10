@@ -1,4 +1,9 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FileText, X } from "lucide-react";
 import { format } from "date-fns";
@@ -25,7 +30,10 @@ interface SessionDetailModalProps {
   onClose: () => void;
 }
 
-export function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
+export function SessionDetailModal({
+  session,
+  onClose,
+}: SessionDetailModalProps) {
   const [showImageModal, setShowImageModal] = useState(false);
 
   if (!session) return null;
@@ -40,18 +48,23 @@ export function SessionDetailModal({ session, onClose }: SessionDetailModalProps
           <div className="space-y-4">
             <div>
               <h3 className="font-medium">Trainer</h3>
-              <p className="text-muted-foreground">{session.trainer.user.name}</p>
+              <p className="text-muted-foreground">
+                {session.trainer.user.name}
+              </p>
             </div>
             <div>
               <h3 className="font-medium">Tanggal</h3>
               <p className="text-muted-foreground">
-                {format(new Date(session.date), 'EEEE, d MMMM yyyy', { locale: id })}
+                {format(new Date(session.date), "EEEE, d MMMM yyyy", {
+                  locale: id,
+                })}
               </p>
             </div>
             <div>
               <h3 className="font-medium">Waktu</h3>
               <p className="text-muted-foreground">
-                {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
+                {format(new Date(session.startTime), "HH:mm")} -{" "}
+                {format(new Date(session.endTime), "HH:mm")}
               </p>
             </div>
             {session.description && (
@@ -65,10 +78,10 @@ export function SessionDetailModal({ session, onClose }: SessionDetailModalProps
                 <h3 className="font-medium">Hasil Latihan</h3>
                 <Button
                   variant="outline"
-                  className="w-full mt-2"
+                  className="mt-2 w-full"
                   onClick={() => setShowImageModal(true)}
                 >
-                  <FileText className="w-4 h-4 mr-2" />
+                  <FileText className="mr-2 h-4 w-4" />
                   Lihat Hasil Latihan
                 </Button>
               </div>
@@ -93,17 +106,17 @@ export function SessionDetailModal({ session, onClose }: SessionDetailModalProps
               <X className="h-4 w-4" />
             </Button>
             <div className="mt-4">
-              {session.exerciseResult?.endsWith('.pdf') ? (
+              {session.exerciseResult?.endsWith(".pdf") ? (
                 <iframe
                   src={session.exerciseResult}
-                  className="w-full h-[80vh]"
+                  className="h-[80vh] w-full"
                   title="Exercise Result PDF"
                 />
               ) : (
                 <img
-                  src={session.exerciseResult || ''}
+                  src={session.exerciseResult || ""}
                   alt="Exercise Result"
-                  className="w-full h-auto max-h-[80vh] object-contain"
+                  className="h-auto max-h-[80vh] w-full object-contain"
                 />
               )}
             </div>
@@ -112,4 +125,4 @@ export function SessionDetailModal({ session, onClose }: SessionDetailModalProps
       </Dialog>
     </>
   );
-} 
+}

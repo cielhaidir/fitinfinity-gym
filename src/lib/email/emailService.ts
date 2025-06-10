@@ -1,4 +1,7 @@
-import { EmailTemplate, EmailConfig } from "@/app/(authenticated)/management/config/email/schema";
+import {
+  EmailTemplate,
+  type EmailConfig,
+} from "@/app/(authenticated)/management/config/email/schema";
 import { db } from "@/server/db";
 import { smtp } from "./smtpProvider";
 import { renderTemplate } from "./templateEngine";
@@ -54,7 +57,7 @@ export class EmailService {
       let emailContent: { subject: string; html?: string; text?: string };
 
       let log;
-      
+
       if (templateId) {
         const template = await db.emailTemplate.findUnique({
           where: { id: templateId },
@@ -65,19 +68,22 @@ export class EmailService {
         }
 
         emailContent = {
-          subject: templateData 
+          subject: templateData
             ? renderTemplate(template.subject, templateData)
             : template.subject,
-          html: templateData 
+          html: templateData
             ? renderTemplate(template.htmlContent, templateData)
             : template.htmlContent,
-          text: template.textContent && templateData
-            ? renderTemplate(template.textContent, templateData)
-            : template.textContent || undefined,
+          text:
+            template.textContent && templateData
+              ? renderTemplate(template.textContent, templateData)
+              : template.textContent || undefined,
         };
       } else {
         if (!subject || !html) {
-          throw new Error("Subject and HTML content are required when not using a template");
+          throw new Error(
+            "Subject and HTML content are required when not using a template",
+          );
         }
         emailContent = { subject, html, text };
       }
@@ -108,11 +114,11 @@ export class EmailService {
           sentAt: new Date(),
         },
       });
-
     } catch (error) {
       // Handle error and update log if it exists
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       // if (log?.id) {
       //   await db.emailLog.update({
       //     where: { id: log.id },
