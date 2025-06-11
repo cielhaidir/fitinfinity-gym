@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "init:email": "tsx scripts/init-email-templates.ts",
+    "init:email": "tsx --tsconfig tsconfig.json scripts/init-email-templates.ts",
     "build": "next build",
     "check": "next lint && tsc --noEmit",
     "db:generate": "prisma migrate dev",
