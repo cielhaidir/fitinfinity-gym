@@ -211,11 +211,11 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: UserRound,
           url: "/member/profile",
         },
-        {
-          title: "Personal Trainer List",
-          icon: Contact,
-          url: "/member/personal-trainer",
-        },
+        // {
+        //   title: "Personal Trainer List",
+        //   icon: Contact,
+        //   url: "/member/personal-trainer",
+        // },
         // {
         //     title: "Settings",
         //     url: "/member/settings",
@@ -248,29 +248,29 @@ export const Menu: { navMain: MenuGroup[] } = {
         {
           title: "Dashboard",
           icon: CircleGauge,
-          url: "/PT",
+          url: "/personal-trainers",
           requiredPermission: "list:dashboard-pt",
         },
         {
           title: "Profile",
           icon: UserRound,
-          url: "/PT/profile",
+          url: "/personal-trainers/profile",
           requiredPermission: "list:profile-pt",
         },
         // {
         //     title: "Classes",
-        //     url: "/PT/classes",
+        //     url: "/personal-trainers/classes",
         // },
         {
           title: "Schedule",
           icon: Calendar1,
-          url: "/PT/jadwalPT",
+          url: "/personal-trainers/jadwalPT",
           requiredPermission: "list:schedule-pt",
         },
         {
           title: "Member List",
           icon: Users,
-          url: "/PT/member_list",
+          url: "/personal-trainers/member_list",
           requiredPermission: "list:member-pt",
         },
       ],
