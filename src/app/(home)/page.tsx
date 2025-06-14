@@ -26,7 +26,7 @@ export default async function Home() {
         <Trainers />
         <Facilities />
          */}
-        <body className="dark font-sans transition-colors duration-200">
+        <div className="dark font-sans transition-colors duration-200">
           {/* <nav className="fixed w-full  shadow-md z-50 transition-colors duration-200">
         <div className="container mx-auto px-6 py-3 flex justify-between items-center">
             <div className="flex items-center">
@@ -651,7 +651,7 @@ export default async function Home() {
           >
             <i className="fas fa-arrow-up"></i>
           </button>
-        </body>
+        </div>
       </main>
     </HydrateClient>
   );

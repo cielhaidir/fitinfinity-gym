@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure, deviceProcedure } from "../trpc";
+import { createTRPCRouter, publicProcedure, deviceProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { EnrollmentStatus } from "@prisma/client";
 
@@ -29,11 +29,11 @@ export const esp32Router = createTRPCRouter({
         }),
 
     // New enrollment endpoint
-    requestEnrollment: deviceProcedure
+    requestEnrollment: protectedProcedure
         .input(z.object({
             employeeId: z.string(),
-            deviceId: z.string(),
-            accessKey: z.string()
+            // deviceId: z.string(),
+            // accessKey: z.string()
         }))
         .mutation(async ({ ctx, input }) => {
             try {
@@ -53,7 +53,7 @@ export const esp32Router = createTRPCRouter({
                     where: { id: input.employeeId },
                     data: {
                         enrollmentStatus: EnrollmentStatus.PENDING,
-                        deviceId: input.deviceId
+                        // deviceId: input.deviceId
                     }
                 });
 

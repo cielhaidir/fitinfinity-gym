@@ -41,6 +41,7 @@ datasource db {
 }
 
 enum EnrollmentStatus {
+    NOT_YET
     PENDING
     ENROLLED
     FAILED

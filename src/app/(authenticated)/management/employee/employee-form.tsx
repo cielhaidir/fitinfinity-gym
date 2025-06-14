@@ -55,14 +55,18 @@ export const EmployeeForm = ({
   });
 
   const handleEnrollmentRequest = () => {
-    if (!newEmployee.id || !selectedDevice) {
-      toast.error("Please select a device first");
+    // if (!newEmployee.id || !selectedDevice) {
+    //   toast.error("Please select a device first");
+    //   return;
+    // }
+    if (!newEmployee.id ) {
+      toast.error("Please select a employee");
       return;
     }
     requestEnrollMutation.mutate({
       employeeId: newEmployee.id,
-      deviceId: selectedDevice.id,
-      accessKey: selectedDevice.accessKey
+      // deviceId: selectedDevice.id,
+      // accessKey: selectedDevice.accessKey
     });
   };
 
@@ -93,16 +97,17 @@ export const EmployeeForm = ({
             </div>
             {!newEmployee.enrollmentStatus || newEmployee.enrollmentStatus === "FAILED" ? (
               <div className="space-y-2">
-                <DeviceSelect
+                {/* <DeviceSelect
                   onSelect={setSelectedDevice}
                   disabled={requestEnrollMutation.isPending}
-                />
+                /> */}
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={handleEnrollmentRequest}
-                  disabled={requestEnrollMutation.isPending || !selectedDevice}
+                  // disabled={requestEnrollMutation.isPending || !selectedDevice}
+                  disabled={requestEnrollMutation.isPending }
                   className="w-full"
                 >
                   Enroll Fingerprint

@@ -234,7 +234,7 @@ bool FitInfinityAPI::updateEnrollmentStatus(const char* employeeId, int fingerpr
 uint8_t FitInfinityAPI::scanFingerprint(int* fingerprintId) {
     if (!_fingerSensor) {
         _lastError = "Fingerprint sensor not initialized";
-        return FINGERPRINT_NONE;
+        return FINGERPRINT_NOFINGER;
     }
 
     uint8_t result = _fingerSensor->getImage();
@@ -356,7 +356,6 @@ bool FitInfinityAPI::syncOfflineRecords() {
         // Fallback to memory-based storage (implementation remains same)
         return false;
     }
-    return success;
 }
 
 bool FitInfinityAPI::isConnected() {

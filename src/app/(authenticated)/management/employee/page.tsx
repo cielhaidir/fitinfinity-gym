@@ -39,6 +39,7 @@ export default function EmployeePage() {
   const utils = api.useUtils();
 
   const [newEmployee, setNewEmployee] = useState<UserEmployee>({
+    id: "",
     name: "",
     email: "",
     password: "",
@@ -197,6 +198,7 @@ export default function EmployeePage() {
   const handleEdit = (employee: UserEmployee) => {
     setSelectedEmployee(employee);
     setNewEmployee({
+      id: employee.id ?? "",
       name: employee.user?.name ?? "",
       email: employee.user?.email ?? "",
       password: "",
