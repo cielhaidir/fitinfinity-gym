@@ -39,6 +39,9 @@ export async function POST(req: Request) {
         
       case "bulkLog":
         return Response.json(await caller.esp32.bulkLog(data));
+  
+      case "getPendingEnrollments":
+        return Response.json(await caller.esp32.getPendingEnrollments(data));
         
       default:
         return Response.json(

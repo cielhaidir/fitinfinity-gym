@@ -94,7 +94,7 @@ export const esp32Router = createTRPCRouter({
 
                 return {
                     id: pendingEmployee.id,
-                    name: pendingEmployee.user.name
+                    nama: pendingEmployee.user.name
                 };
             } catch (error) {
                 throw new TRPCError({
