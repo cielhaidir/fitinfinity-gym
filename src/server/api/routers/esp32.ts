@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, deviceProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { EnrollmentStatus } from "@prisma/client";
 
 const deviceAuthInput = z.object({
     deviceId: z.string(),
@@ -23,6 +24,114 @@ export const esp32Router = createTRPCRouter({
                 throw new TRPCError({
                     code: "UNAUTHORIZED",
                     message: "Invalid device credentials",
+                });
+            }
+        }),
+
+    // New enrollment endpoint
+    requestEnrollment: deviceProcedure
+        .input(z.object({
+            employeeId: z.string(),
+            deviceId: z.string(),
+            accessKey: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            try {
+                const employee = await ctx.db.employee.findUnique({
+                    where: { id: input.employeeId }
+                });
+
+                if (!employee) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Employee not found"
+                    });
+                }
+
+                // Update employee status to pending enrollment
+                await ctx.db.employee.update({
+                    where: { id: input.employeeId },
+                    data: {
+                        enrollmentStatus: EnrollmentStatus.PENDING,
+                        deviceId: input.deviceId
+                    }
+                });
+
+                return {
+                    success: true,
+                    message: "Enrollment request initiated"
+                };
+            } catch (error) {
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to initiate enrollment"
+                });
+            }
+        }),
+
+    // Get pending enrollments
+    getPendingEnrollments: deviceProcedure
+        .input(deviceAuthInput)
+        .query(async ({ ctx, input }) => {
+            try {
+                const pendingEmployee = await ctx.db.employee.findFirst({
+                    where: {
+                        enrollmentStatus: "PENDING",
+                        deviceId: input.deviceId
+                    },
+                    include: {
+                        user: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                });
+
+                if (!pendingEmployee) {
+                    return { status: "none" };
+                }
+
+                return {
+                    id: pendingEmployee.id,
+                    name: pendingEmployee.user.name
+                };
+            } catch (error) {
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to get pending enrollments"
+                });
+            }
+        }),
+
+    // Update enrollment status
+    updateEnrollmentStatus: deviceProcedure
+        .input(z.object({
+            employeeId: z.string(),
+            fingerprintId: z.number(),
+            status: z.enum(["ENROLLED", "FAILED"]),
+            deviceId: z.string(),
+            accessKey: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            try {
+                await ctx.db.employee.update({
+                    where: { id: input.employeeId },
+                    data: {
+                        fingerprintId: input.status === EnrollmentStatus.ENROLLED ? input.fingerprintId : null,
+                        enrollmentStatus: input.status,
+                        deviceId: null // Clear device ID after enrollment
+                    }
+                });
+
+                return {
+                    success: true,
+                    message: `Enrollment ${input.status.toLowerCase()}`
+                };
+            } catch (error) {
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Failed to update enrollment status"
                 });
             }
         }),
@@ -150,17 +259,19 @@ export const esp32Router = createTRPCRouter({
 
     // Bulk attendance submission endpoint
     bulkLog: deviceProcedure
-        .input(z.array(z.object({
-            type: z.enum(['fingerprint', 'rfid']),
-            id: z.union([z.number(), z.string()]),
-            timestamp: z.string(),
-            deviceId: z.string(),
-            accessKey: z.string()  // Required for device auth
-        })))
+        .input(z.object({
+            logs: z.array(z.object({
+                type: z.enum(['fingerprint', 'rfid']),
+                id: z.union([z.number(), z.string()]),
+                timestamp: z.string(),
+                deviceId: z.string(),
+                accessKey: z.string()  // Required for device auth
+            }))
+        }))
         .mutation(async ({ ctx, input }) => {
             try {
                 const results = await Promise.all(
-                    input.map(async (log) => {
+                    input.logs.map(async (log) => {
                         if (log.type === 'fingerprint') {
                             return await ctx.db.$transaction(async (tx) => {
                                 const employee = await tx.employee.findFirst({

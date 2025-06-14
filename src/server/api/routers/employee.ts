@@ -52,7 +52,15 @@ export const employeeRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:employees"])
     .input(employeeSchema)
     .mutation(async ({ ctx, input }) => {
-      const { userId, position, department, image, isActive } = input;
+      const {
+        userId,
+        position,
+        department,
+        image,
+        isActive,
+        fingerprintId = null,
+        enrollmentStatus = null
+      } = input;
 
       return ctx.db.employee.create({
         data: {
@@ -61,7 +69,12 @@ export const employeeRouter = createTRPCRouter({
           department,
           image,
           isActive,
+          fingerprintId,
+          enrollmentStatus
         },
+        include: {
+          user: true
+        }
       });
     }),
 
@@ -81,6 +94,9 @@ export const employeeRouter = createTRPCRouter({
       return ctx.db.employee.update({
         where: { id },
         data,
+        include: {
+          user: true
+        }
       });
     }),
 

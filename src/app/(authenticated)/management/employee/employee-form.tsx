@@ -3,6 +3,8 @@
 import { type UserEmployee } from "./schema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EnrollmentStatus } from "@prisma/client";
 import {
   SheetContent,
   SheetHeader,
@@ -11,20 +13,29 @@ import {
 } from "@/components/ui/sheet";
 import { api } from "@/trpc/react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { DeviceSelect } from "./device-select";
 
 type EmployeeFormProps = {
-  newEmployee: UserEmployee;
+  newEmployee: UserEmployee & {
+    id?: string;
+    enrollmentStatus?: "PENDING" | "ENROLLED" | "FAILED" | null;
+    fingerprintId?: number | null;
+  };
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onCreateOrUpdateEmployee: () => void;
+  onCreateOrUpdateEmployee: () => Promise<void>;
   isEditMode: boolean;
+  isLoading?: boolean;
 };
 
-export const EmployeeForm: React.FC<EmployeeFormProps> = ({
+export const EmployeeForm = ({
   newEmployee,
   onInputChange,
   onCreateOrUpdateEmployee,
   isEditMode,
-}) => {
+  isLoading = false,
+}: EmployeeFormProps) => {
+  const [selectedDevice, setSelectedDevice] = useState<{ id: string; accessKey: string } | null>(null);
   // Helper function to format date for input
   const formatDateForInput = (date: Date | string | null | undefined) => {
     if (!date) return "";
@@ -32,6 +43,27 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
       return date.split("T")[0];
     }
     return date.toISOString().split("T")[0];
+  };
+
+  const requestEnrollMutation = api.esp32.requestEnrollment.useMutation({
+    onSuccess: () => {
+      toast.success("Fingerprint enrollment initiated");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleEnrollmentRequest = () => {
+    if (!newEmployee.id || !selectedDevice) {
+      toast.error("Please select a device first");
+      return;
+    }
+    requestEnrollMutation.mutate({
+      employeeId: newEmployee.id,
+      deviceId: selectedDevice.id,
+      accessKey: selectedDevice.accessKey
+    });
   };
 
   return (
@@ -43,6 +75,46 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
       </SheetHeader>
 
       <div className="flex flex-col gap-4 py-8">
+        {isEditMode && (
+          <div className="border rounded-lg p-4 mb-4">
+            <h3 className="text-sm font-medium mb-2">Fingerprint Status</h3>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant={newEmployee.enrollmentStatus ?
+                (newEmployee.enrollmentStatus === "ENROLLED" ? "default" :
+                 newEmployee.enrollmentStatus === "PENDING" ? "outline" : "destructive") :
+                "secondary"}>
+                {newEmployee.enrollmentStatus || "Not Enrolled"}
+              </Badge>
+              {newEmployee.fingerprintId && (
+                <span className="text-sm text-muted-foreground">
+                  ID: {newEmployee.fingerprintId}
+                </span>
+              )}
+            </div>
+            {!newEmployee.enrollmentStatus || newEmployee.enrollmentStatus === "FAILED" ? (
+              <div className="space-y-2">
+                <DeviceSelect
+                  onSelect={setSelectedDevice}
+                  disabled={requestEnrollMutation.isPending}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleEnrollmentRequest}
+                  disabled={requestEnrollMutation.isPending || !selectedDevice}
+                  className="w-full"
+                >
+                  Enroll Fingerprint
+                </Button>
+              </div>
+            ) : newEmployee.enrollmentStatus === "PENDING" && (
+              <span className="text-sm text-muted-foreground">
+                Waiting for device confirmation...
+              </span>
+            )}
+          </div>
+        )}
         {!isEditMode ? (
           <>
             <div>
@@ -69,6 +141,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                 value={newEmployee.email}
                 onChange={onInputChange}
                 placeholder="Enter email"
+                disabled={isEditMode}
               />
             </div>
 
@@ -239,8 +312,9 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           type="button"
           onClick={onCreateOrUpdateEmployee}
           className="bg-infinity"
+          disabled={isLoading || requestEnrollMutation.isPending}
         >
-          {isEditMode ? "Update" : "Create"} Employee
+          {isLoading ? "Saving..." : isEditMode ? "Update" : "Create"} Employee
         </Button>
       </SheetFooter>
     </SheetContent>

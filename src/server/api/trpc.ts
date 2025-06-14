@@ -9,7 +9,7 @@
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { ZodError } from "zod";
+import { ZodError, z } from "zod";
 import { Session } from "next-auth";
 
 import { auth } from "@/server/auth";
@@ -140,16 +140,8 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 /**
  * Device authentication middleware
  */
-const deviceAuthMiddleware = t.middleware(async ({ ctx, next, input }) => {
-  const inputObj = input as { deviceId?: string; accessKey?: string };
-  if (!inputObj?.deviceId || !inputObj?.accessKey) {
-    throw new TRPCError({
-      code: 'UNAUTHORIZED',
-      message: 'Device credentials required',
-    });
-  }
-
-  const { deviceId, accessKey } = inputObj;
+export const deviceAuthMiddleware = t.middleware(async ({ ctx, next, input }) => {
+  const { deviceId, accessKey } = input as { deviceId: string; accessKey: string };
 
   const device = await ctx.db.device.findFirst({
     where: {
@@ -166,7 +158,7 @@ const deviceAuthMiddleware = t.middleware(async ({ ctx, next, input }) => {
     });
   }
 
-  // Update last seen timestamp
+  // Optional: Update last seen timestamp
   await ctx.db.device.update({
     where: { id: device.id },
     data: { lastSeen: new Date() },
@@ -175,7 +167,7 @@ const deviceAuthMiddleware = t.middleware(async ({ ctx, next, input }) => {
   return next({
     ctx: {
       ...ctx,
-      device,
+      device, // Pass the authenticated device into downstream ctx
     },
   });
 });
@@ -195,6 +187,10 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  * Use this for endpoints that require valid device authentication
  */
 export const deviceProcedure = t.procedure
+  .input(z.object({
+    deviceId: z.string(),
+    accessKey: z.string(),
+  }))
   .use(timingMiddleware)
   .use(deviceAuthMiddleware);
 
