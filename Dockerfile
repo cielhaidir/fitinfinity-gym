@@ -13,6 +13,7 @@ FROM base AS deps
 
 # Install dependencies only
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* .npmrc* ./
+COPY prisma ./prisma
 
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
