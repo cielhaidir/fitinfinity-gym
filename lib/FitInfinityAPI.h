@@ -58,7 +58,7 @@ class FitInfinityAPI {
     static const char* OFFLINE_TEMP;
     
     // Internal methods
-    bool makeRequest(const char* endpoint, JsonDocument& doc);
+    bool makeRequest(const char* action, JsonDocument& doc);
     void updateConnectionStatus();
     void initTimeSync();
     bool initSDCard();

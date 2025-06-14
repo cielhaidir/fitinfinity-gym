@@ -51,7 +51,7 @@ bool FitInfinityAPI::authenticate() {
     doc["deviceId"] = _deviceId;
     doc["accessKey"] = _accessKey;
     
-    return makeRequest("/authenticate", doc);
+    return makeRequest("authenticate", doc);
 }
 
 bool FitInfinityAPI::logFingerprint(int fingerId) {
@@ -66,7 +66,7 @@ bool FitInfinityAPI::logFingerprint(int fingerId) {
     doc["fingerId"] = fingerId;
     doc["timestamp"] = getTimestamp();
     
-    return makeRequest("/logFingerprint", doc);
+    return makeRequest("logFingerprint", doc);
 }
 
 bool FitInfinityAPI::logRFID(const char* rfidNumber) {
@@ -81,7 +81,7 @@ bool FitInfinityAPI::logRFID(const char* rfidNumber) {
     doc["rfid"] = rfidNumber;
     doc["timestamp"] = getTimestamp();
     
-    return makeRequest("/logRFID", doc);
+    return makeRequest("logRFID", doc);
 }
 
 void FitInfinityAPI::setOfflineStorageMode(bool useSD) {
@@ -167,7 +167,7 @@ bool FitInfinityAPI::syncOfflineRecords() {
         file.close();
         
         if (recordCount > 0) {
-            bool success = makeRequest("/bulkLog", doc);
+            bool success = makeRequest("bulkLog", doc);
             if (success) {
                 clearProcessedRecords(recordCount);
             }
@@ -214,16 +214,19 @@ void FitInfinityAPI::setTimeout(uint16_t timeoutMs) {
 }
 
 // Private methods
-bool FitInfinityAPI::makeRequest(const char* endpoint, JsonDocument& doc) {
+bool FitInfinityAPI::makeRequest(const char* action, JsonDocument& doc) {
     if (!isConnected()) {
         _lastError = "Not connected to network";
         return false;
     }
     
     HTTPClient http;
-    String url = _baseUrl + endpoint;
+    String url = _baseUrl;
     http.begin(url);
     http.addHeader("Content-Type", "application/json");
+    
+    // Add action to the request body
+    doc["action"] = action;
     
     String jsonStr;
     serializeJson(doc, jsonStr);
@@ -232,7 +235,14 @@ bool FitInfinityAPI::makeRequest(const char* endpoint, JsonDocument& doc) {
     bool success = (_lastResponseCode == HTTP_CODE_OK);
     
     if (!success) {
-        _lastError = http.getString();
+        String response = http.getString();
+        StaticJsonDocument<200> errorDoc;
+        DeserializationError error = deserializeJson(errorDoc, response);
+        if (!error && errorDoc.containsKey("error")) {
+            _lastError = errorDoc["error"].as<String>();
+        } else {
+            _lastError = response;
+        }
     }
     
     http.end();

@@ -145,6 +145,7 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 export const deviceAuthMiddleware = t.middleware(async ({ ctx, next, input }) => {
   const { deviceId, accessKey } = input as { deviceId: string; accessKey: string };
 
+  console.log(`[TRPC] Device authentication for deviceId: ${deviceId}, accessKey: ${accessKey}`);
   const device = await ctx.db.device.findFirst({
     where: {
       id: deviceId,

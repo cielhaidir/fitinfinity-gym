@@ -5,7 +5,7 @@ An Arduino library for ESP32 devices to interact with the FitInfinity attendance
 ## Features
 
 - Easy WiFi connection management
-- Device authentication
+- Device authentication via REST API
 - Employee fingerprint attendance logging
 - Member RFID attendance logging
 - Flexible offline storage:
@@ -13,7 +13,12 @@ An Arduino library for ESP32 devices to interact with the FitInfinity attendance
   * Fallback to memory storage
 - Automatic record syncing
 - NTP time synchronization
-- Error handling and status reporting
+- Error handling with JSON response parsing
+- All API requests include an `action` parameter:
+  * `authenticate` - Device authentication
+  * `logFingerprint` - Log fingerprint attendance
+  * `logRFID` - Log RFID card attendance
+  * `bulkLog` - Sync offline records
 
 ## Installation
 
@@ -31,7 +36,7 @@ An Arduino library for ESP32 devices to interact with the FitInfinity attendance
 
 // Initialize the API client
 FitInfinityAPI api(
-    "https://your-api-domain.com/api/trpc/esp32",
+    "https://your-api-domain.com/api/esp32",  // New REST API endpoint
     "your_device_id",
     "your_access_key"
 );
@@ -85,6 +90,14 @@ api.setTimeout(10000);
 ## Error Handling
 
 ```cpp
+// Request payload format:
+// {
+//   "action": "logFingerprint",  // or other actions
+//   "deviceId": "your_device_id",
+//   "accessKey": "your_access_key",
+//   ... other parameters
+// }
+
 if (!api.logFingerprint(fingerprintId)) {
     Serial.println("Error: " + api.getLastError());
     Serial.println("Response code: " + String(api.getLastResponseCode()));

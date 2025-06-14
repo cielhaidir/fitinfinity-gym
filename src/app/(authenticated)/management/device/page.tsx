@@ -75,6 +75,7 @@ export default function DevicePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Device ID</TableHead>
               <TableHead>Access Key</TableHead>
               <TableHead>Last Seen</TableHead>
               <TableHead>Status</TableHead>
@@ -98,6 +99,7 @@ export default function DevicePage() {
               devices?.map((device) => (
                 <TableRow key={device.id}>
                   <TableCell>{device.name}</TableCell>
+                  <TableCell>{device.id}</TableCell>
                   <TableCell>{device.accessKey}</TableCell>
                   <TableCell>
                     {device.lastSeen

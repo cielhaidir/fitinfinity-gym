@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,35 +41,52 @@ export function DeviceSelect({ onSelect, disabled }: DeviceSelectProps) {
         >
           {selectedDevice
             ? devices?.find((device) => device.id === selectedDevice)?.name
-            : "Select device..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            : isLoading 
+              ? "Loading devices..."
+              : "Select device..."}
+          {isLoading ? (
+            <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+          ) : (
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
           <CommandInput placeholder="Search devices..." />
-          <CommandEmpty>No device found.</CommandEmpty>
-          <CommandGroup>
-            {devices?.map((device) => (
-              <CommandItem
-                key={device.id}
-                value={device.id}
-                onSelect={() => {
-                  setSelectedDevice(device.id);
-                  onSelect({ id: device.id, accessKey: device.accessKey });
-                  setOpen(false);
-                }}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    selectedDevice === device.id ? "opacity-100" : "opacity-0"
-                  )}
-                />
-                {device.name}
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          {isLoading ? (
+            <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading devices...
+            </div>
+          ) : devices && devices.length === 0 ? (
+            <CommandEmpty>No devices found.</CommandEmpty>
+          ) : (
+            <>
+              <CommandEmpty>No device found.</CommandEmpty>
+              <CommandGroup>
+                {devices?.map((device) => (
+                  <CommandItem
+                    key={device.id}
+                    value={device.id}
+                    onSelect={() => {
+                      setSelectedDevice(device.id);
+                      onSelect({ id: device.id, accessKey: device.accessKey });
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedDevice === device.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {device.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
         </Command>
       </PopoverContent>
     </Popover>

@@ -144,7 +144,7 @@ export default function EmployeePage() {
             address: newEmployee.address,
             phone: newEmployee.phone,
             birthDate: newEmployee.birthDate,
-            idNumber: newEmployee.idNumber,
+            fcId: null, // Required property based on the error message
           });
 
           await createEmployeeMutation.mutateAsync({

@@ -149,7 +149,7 @@ export const esp32Router = createTRPCRouter({
                 const logTime = timestamp ? new Date(timestamp) : new Date();
 
                 const employee = await ctx.db.employee.findFirst({
-                    where: { fingerprintId: fingerId }
+                    where: { fingerprintId: input.fingerId }
                 });
 
                 if (!employee) {
