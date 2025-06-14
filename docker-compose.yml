@@ -19,8 +19,8 @@ services:
       context: .
       dockerfile: Dockerfile
       # target: dev
-    volumes:
-      - .:/app
+    # volumes:
+      # - .:/app
     #   - /app/node_modules
     depends_on:
       - db
