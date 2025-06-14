@@ -8,6 +8,8 @@
  */
 
 import { initTRPC, TRPCError } from "@trpc/server";
+import { OpenApiMeta } from 'trpc-to-openapi';
+
 import superjson from "superjson";
 import { ZodError, z } from "zod";
 import { Session } from "next-auth";

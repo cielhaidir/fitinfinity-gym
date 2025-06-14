@@ -55,6 +55,19 @@ export function DeviceForm({ device, onSuccess }: DeviceFormProps) {
     },
   });
 
+  const generateRandomAccessKey = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    const length = 16;
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    setForm((prev) => ({
+      ...prev,
+      accessKey: result,
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -100,13 +113,23 @@ export function DeviceForm({ device, onSuccess }: DeviceFormProps) {
 
         <div className="space-y-2">
           <Label htmlFor="accessKey">Access Key</Label>
-          <Input
-            id="accessKey"
-            name="accessKey"
-            value={form.accessKey}
-            onChange={handleInputChange}
-            placeholder="Enter access key"
-          />
+          <div className="flex gap-2">
+            <Input
+              id="accessKey"
+              name="accessKey"
+              value={form.accessKey}
+              onChange={handleInputChange}
+              placeholder="Enter access key"
+            />
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={generateRandomAccessKey}
+              className="whitespace-nowrap"
+            >
+              Generate Key
+            </Button>
+          </div>
         </div>
 
         {device && (
