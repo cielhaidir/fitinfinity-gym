@@ -56,6 +56,14 @@ export const getColumns = ({
         >
           <Pencil className="h-4 w-4" />
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            window.location.href = `/management/employee/attendance-history?employeeId=${row.original.id}`;
+          }}
+        >
+          History
+        </Button>
         {handleDelete(row.original.id!)}
       </div>
     ),

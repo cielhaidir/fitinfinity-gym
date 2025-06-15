@@ -284,6 +284,15 @@ export default function EmployeePage() {
         }}
         columns={columns}
         onPaginationChange={handlePaginationChange}
+        searchColumns={[
+          { id: "user.name", placeholder: "Search by name..." },
+          { id: "user.email", placeholder: "Search by email..." },
+          { id: "rfidTag", placeholder: "Search by RFID..." },
+        ]}
+        onSearch={(value, column) => {
+          setSearch(value);
+          setSearchColumn(column);
+        }}
       />
 
       <SelectUserModal
