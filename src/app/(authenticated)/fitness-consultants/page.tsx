@@ -130,7 +130,7 @@ export default function FCDashboard() {
 
         <div className="mt-8">
           <Link
-            href="/fc/members"
+            href="/fitness-consultants/members"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             View All Members

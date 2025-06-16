@@ -270,13 +270,13 @@ export const Menu: { navMain: MenuGroup[] } = {
         {
           title: "Schedule",
           icon: Calendar1,
-          url: "/personal-trainers/jadwalPT",
+          url: "/personal-trainers/schedule",
           requiredPermission: "list:schedule-pt",
         },
         {
           title: "Member List",
           icon: Users,
-          url: "/personal-trainers/member_list",
+          url: "/personal-trainers/member-list",
           requiredPermission: "list:member-pt",
         },
       ],
