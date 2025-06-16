@@ -40,6 +40,13 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
+enum EnrollmentStatus {
+    NOT_YET
+    PENDING
+    ENROLLED
+    FAILED
+}
+
 enum RoleType {
     EMPLOYEE
     MEMBER
@@ -449,16 +456,18 @@ model Reward {
 }
 
 model Employee {
-    id          String       @id @default(cuid())
-    userId      String       @unique
-    position    String?
-    department  String?
-    image       String?
-    fingerprintId Int? @unique
-    rfidTag    String? @unique
-    isActive    Boolean      @default(true)
-    createdAt   DateTime     @default(now())
-    updatedAt   DateTime     @updatedAt
+    id              String           @id @default(cuid())
+    userId          String           @unique
+    position        String?
+    department      String?
+    image           String?
+    fingerprintId   Int?            @unique
+    rfidTag         String?         @unique
+    isActive        Boolean         @default(true)
+    enrollmentStatus EnrollmentStatus?
+    deviceId        String?         // For tracking which device is enrolling
+    createdAt       DateTime        @default(now())
+    updatedAt       DateTime        @updatedAt
     attendances Attendance[]
 
     user User @relation("EmployeeToUser", fields: [userId], references: [id])

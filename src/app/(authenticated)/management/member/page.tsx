@@ -224,9 +224,9 @@ export default function MemberPage() {
             columns={columns}
             onPaginationChange={handlePaginationChange}
             searchColumns={[
+              { id: "rfidNumber", placeholder: "Search by RFID..." },
               { id: "user.name", placeholder: "Search by name..." },
               { id: "user.email", placeholder: "Search by email..." },
-              { id: "rfidNumber", placeholder: "Search by RFID..." },
             ]}
             onSearch={(value, column) => {
               setSearch(value);

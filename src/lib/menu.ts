@@ -71,6 +71,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "list:employees",
         },
         {
+          title: "Fingerprint Device",
+          url: "/management/device",
+          icon: ContactRound,
+          requiredPermission: "list:employees",
+        },
+        {
           title: "Users",
           url: "/management/user",
           icon: Dumbbell,

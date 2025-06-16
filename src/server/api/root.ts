@@ -30,6 +30,8 @@ import { whatsappRouter } from "./routers/whatsapp";
 import { fcRouter } from "./routers/fc";
 import { paymentRouter } from "./routers/payment";
 import { configRouter } from "./routers/config";
+import { esp32Router } from "./routers/esp32";
+import { deviceRouter } from "./routers/device";
 
 /**
  * This is the primary router for your server.
@@ -68,6 +70,8 @@ export const appRouter = createTRPCRouter({
   auth: authRouter,
   config: configRouter,
   fcMember: fcMemberRouter,
+  esp32: esp32Router,
+  device: deviceRouter,
 });
 
 // export type definition of API

@@ -5,7 +5,7 @@ This guide explains how to integrate your ESP32 device with the attendance syste
 
 ## API Base URL
 ```
-https://your-api-domain.com/api/trpc/esp32
+https://your-api-domain.com/api/esp32
 ```
 
 ## Authentication
@@ -18,201 +18,305 @@ Every request requires device credentials:
 Content-Type: application/json
 ```
 
-## Endpoints
+## REST API Endpoints
 
 ### 1. Device Authentication
-Verify your device credentials before starting operations.
+**POST /api/esp32**
+Verify your device credentials.
 
-```cpp
-// ESP32 Arduino Code
-HTTPClient http;
-StaticJsonDocument<200> doc;
-doc["deviceId"] = "your_device_id";
-doc["accessKey"] = "your_access_key";
+Request body:
+```json
+{
+  "action": "authenticate",
+  "deviceId": "your_device_id",
+  "accessKey": "your_access_key"
+}
+```
 
-String json;
-serializeJson(doc, json);
-
-http.begin("https://your-api-domain.com/api/trpc/esp32.authenticate");
-http.addHeader("Content-Type", "application/json");
-int httpCode = http.POST(json);
-
-if (httpCode == HTTP_CODE_OK) {
-    // Authentication successful
+Response:
+```json
+{
+  "authenticated": true,
+  "message": "Device authenticated successfully"
 }
 ```
 
 ### 2. Log Employee Fingerprint
+**POST /api/esp32**
 Record employee attendance using fingerprint.
 
-```cpp
-// ESP32 Arduino Code
-HTTPClient http;
-StaticJsonDocument<200> doc;
-doc["deviceId"] = "your_device_id";
-doc["accessKey"] = "your_access_key";
-doc["fingerId"] = fingerprint_id;  // ID from fingerprint sensor
-doc["timestamp"] = getTimestamp();  // Current timestamp in ISO format
+Request body:
+```json
+{
+  "action": "logFingerprint",
+  "deviceId": "your_device_id",
+  "accessKey": "your_access_key",
+  "fingerId": 123,
+  "timestamp": "2025-06-14T06:40:00.000Z"
+}
+```
 
-String json;
-serializeJson(doc, json);
-
-http.begin("https://your-api-domain.com/api/trpc/esp32.logFingerprint");
-http.addHeader("Content-Type", "application/json");
-int httpCode = http.POST(json);
-
-if (httpCode == HTTP_CODE_OK) {
-    // Attendance logged successfully
+Response:
+```json
+{
+  "id": "attendance_id",
+  "checkIn": "2025-06-14T06:40:00.000Z",
+  "deviceId": "your_device_id"
 }
 ```
 
 ### 3. Log Member RFID
+**POST /api/esp32**
 Record member check-in using RFID card.
 
-```cpp
-// ESP32 Arduino Code
-HTTPClient http;
-StaticJsonDocument<200> doc;
-doc["deviceId"] = "your_device_id";
-doc["accessKey"] = "your_access_key";
-doc["rfid"] = rfid_number;  // RFID card number
-doc["timestamp"] = getTimestamp();  // Current timestamp in ISO format
-
-String json;
-serializeJson(doc, json);
-
-http.begin("https://your-api-domain.com/api/trpc/esp32.logRFID");
-http.addHeader("Content-Type", "application/json");
-int httpCode = http.POST(json);
-
-if (httpCode == HTTP_CODE_OK) {
-    // Member check-in logged successfully
+Request body:
+```json
+{
+  "action": "logRFID",
+  "deviceId": "your_device_id", 
+  "accessKey": "your_access_key",
+  "rfid": "rfid_number",
+  "timestamp": "2025-06-14T06:40:00.000Z"
 }
 ```
 
-### 4. Batch Upload (Offline Mode)
-Upload multiple attendance records when reconnecting after offline operation.
-
-```cpp
-// ESP32 Arduino Code
-HTTPClient http;
-StaticJsonDocument<1024> doc;  // Larger document for array
-doc["deviceId"] = "your_device_id";
-doc["accessKey"] = "your_access_key";
-
-JsonArray records = doc.createNestedArray("records");
-
-// Add stored records from offline mode
-JsonObject record1 = records.createNestedObject();
-record1["type"] = "fingerprint";  // or "rfid"
-record1["id"] = stored_id;
-record1["timestamp"] = stored_timestamp;
-
-String json;
-serializeJson(doc, json);
-
-http.begin("https://your-api-domain.com/api/trpc/esp32.bulkLog");
-http.addHeader("Content-Type", "application/json");
-int httpCode = http.POST(json);
-```
-
-## Helper Functions
-
-```cpp
-String getTimestamp() {
-    // Get timestamp from NTP server
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
-        char timestamp[25];
-        strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S.000Z", &timeinfo);
-        return String(timestamp);
-    }
-    return "";
+Response:
+```json
+{
+  "success": true,
+  "message": "Member attendance logged successfully",
+  "data": {
+    "id": "attendance_id",
+    "checkin": "2025-06-14T06:40:00.000Z"
+  }
 }
 ```
 
-## Error Handling
-Handle common HTTP response codes:
-- 200: Success
-- 401: Unauthorized (invalid device credentials)
-- 404: Not found (invalid fingerprint/RFID)
-- 500: Server error
+### 4. Get Pending Enrollments
+**GET /api/esp32?deviceId=your_device_id&accessKey=your_access_key**
+Get list of pending fingerprint enrollments.
 
-```cpp
-void handleResponse(int httpCode, String payload) {
-    switch (httpCode) {
-        case HTTP_CODE_OK:
-            // Process success response
-            break;
-        case HTTP_CODE_UNAUTHORIZED:
-            // Handle authentication error
-            break;
-        case HTTP_CODE_NOT_FOUND:
-            // Handle invalid ID
-            break;
-        default:
-            // Handle other errors
-            break;
+Response:
+```json
+{
+  "id": "employee_id",
+  "name": "Employee Name"
+}
+```
+
+Or if no pending enrollments:
+```json
+{
+  "status": "none"
+}
+```
+
+### 5. Request Enrollment
+**POST /api/esp32**
+Request new fingerprint enrollment.
+
+Request body:
+```json
+{
+  "action": "requestEnrollment",
+  "deviceId": "your_device_id",
+  "accessKey": "your_access_key",
+  "employeeId": "employee_id"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Enrollment request initiated"
+}
+```
+
+### 6. Update Enrollment Status
+**POST /api/esp32**
+Update enrollment status after capturing fingerprint.
+
+Request body:
+```json
+{
+  "action": "updateEnrollmentStatus",
+  "deviceId": "your_device_id",
+  "accessKey": "your_access_key",
+  "employeeId": "employee_id",
+  "fingerprintId": 123,
+  "status": "ENROLLED"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Enrollment enrolled"
+}
+```
+
+### 7. Bulk Log
+**POST /api/esp32**
+Upload multiple attendance records.
+
+Request body:
+```json
+{
+  "action": "bulkLog",
+  "logs": [
+    {
+      "type": "fingerprint",
+      "id": 123,
+      "timestamp": "2025-06-14T06:40:00.000Z",
+      "deviceId": "your_device_id",
+      "accessKey": "your_access_key"
+    },
+    {
+      "type": "rfid",
+      "id": "rfid_number",
+      "timestamp": "2025-06-14T06:41:00.000Z", 
+      "deviceId": "your_device_id",
+      "accessKey": "your_access_key"
     }
+  ]
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "success": true,
+      "message": "Check-in recorded for fingerprint 123"
+    },
+    {
+      "success": true, 
+      "message": "Check-in recorded for RFID rfid_number"
+    }
+  ]
+}
+```
+
+## Error Responses
+
+### 400 Bad Request
+```json
+{
+  "error": "Invalid action"
+}
+```
+
+### 401 Unauthorized
+```json
+{
+  "code": "UNAUTHORIZED",
+  "message": "Invalid device credentials"
+}
+```
+
+### 404 Not Found
+```json
+{
+  "code": "NOT_FOUND",
+  "message": "Employee not found"
+}
+```
+
+### 500 Internal Server Error
+```json
+{
+  "error": "Internal server error"
 }
 ```
 
 ## Best Practices
-1. Implement offline storage for when network is unavailable
-2. Add retry logic for failed requests
-3. Use NTP to maintain accurate device time
-4. Implement proper error handling and user feedback (LCD/LED)
-5. Store credentials securely in ESP32 memory
+1. Always include deviceId and accessKey in requests
+2. Handle error responses appropriately
+3. Use proper error handling and retry logic
+4. Include request timeouts
+5. Store failed requests for retry when offline
 
-## Required Libraries
-```cpp
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
-```
-
-## Complete Example
+## Sample ESP32 Code for REST API
 
 ```cpp
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <time.h>
 
-const char* ssid = "your_wifi_ssid";
-const char* password = "your_wifi_password";
-const char* deviceId = "your_device_id";
-const char* accessKey = "your_access_key";
-const char* ntpServer = "pool.ntp.org";
+const char* API_URL = "https://your-api-domain.com/api/esp32";
+const char* DEVICE_ID = "your_device_id";
+const char* ACCESS_KEY = "your_access_key";
 
-void setup() {
-    Serial.begin(115200);
-    WiFi.begin(ssid, password);
-    
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    
-    // Init time
-    configTime(0, 0, ntpServer);
+// Log fingerprint attendance
+void logFingerprint(int fingerId) {
+  HTTPClient http;
+  
+  // Create JSON document
+  StaticJsonDocument<200> doc;
+  doc["action"] = "logFingerprint";
+  doc["deviceId"] = DEVICE_ID;
+  doc["accessKey"] = ACCESS_KEY;
+  doc["fingerId"] = fingerId;
+  doc["timestamp"] = getTimestamp();
+
+  String jsonString;
+  serializeJson(doc, jsonString);
+
+  // Send POST request
+  http.begin(API_URL);
+  http.addHeader("Content-Type", "application/json");
+  int httpCode = http.POST(jsonString);
+
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.println(response);
+  }
+
+  http.end();
 }
 
-void loop() {
-    if (WiFi.status() == WL_CONNECTED) {
-        // Handle fingerprint scan
-        if (fingerprintDetected) {
-            logFingerprint(fingerprintId);
-        }
-        
-        // Handle RFID scan
-        if (rfidDetected) {
-            logRFID(rfidNumber);
-        }
-    } else {
-        // Store offline records
-        storeOfflineRecord();
-    }
-    
-    delay(100);
+// Log RFID attendance
+void logRFID(String rfidNumber) {
+  HTTPClient http;
+  
+  StaticJsonDocument<200> doc;
+  doc["action"] = "logRFID";
+  doc["deviceId"] = DEVICE_ID;
+  doc["accessKey"] = ACCESS_KEY;
+  doc["rfid"] = rfidNumber;
+  doc["timestamp"] = getTimestamp();
+
+  String jsonString;
+  serializeJson(doc, jsonString);
+
+  http.begin(API_URL);
+  http.addHeader("Content-Type", "application/json");
+  int httpCode = http.POST(jsonString);
+
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.println(response);
+  }
+
+  http.end();
+}
+
+// Check for pending enrollments
+void checkPendingEnrollments() {
+  HTTPClient http;
+  String url = String(API_URL) + "?deviceId=" + DEVICE_ID + "&accessKey=" + ACCESS_KEY;
+  
+  http.begin(url);
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.println(response);
+  }
+
+  http.end();
 }

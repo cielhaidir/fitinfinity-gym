@@ -7,6 +7,52 @@ import {
 import { employeeSchema } from "@/app/(authenticated)/management/employee/schema";
 
 export const employeeRouter = createTRPCRouter({
+  getAttendanceHistory: permissionProtectedProcedure(["list:employees"])
+    .input(
+      z.object({
+        employeeId: z.string(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).default(10),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { employeeId, startDate, endDate, page, limit } = input;
+      const skip = (page - 1) * limit;
+
+      const where = {
+        employeeId,
+        ...(startDate && endDate
+          ? {
+              date: {
+                gte: startDate,
+                lte: endDate,
+              },
+            }
+          : {}),
+      };
+
+      const [items, total] = await Promise.all([
+        ctx.db.attendance.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: {
+            date: 'desc'
+          }
+        }),
+        ctx.db.attendance.count({ where }),
+      ]);
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    }),
+
   list: permissionProtectedProcedure(["list:employees"])
     .input(
       z.object({
@@ -25,6 +71,7 @@ export const employeeRouter = createTRPCRouter({
             OR: [
               { user: { name: { contains: search } } },
               { user: { email: { contains: search } } },
+              { rfidTag: { contains: search } },
             ],
           }
         : {};
@@ -52,7 +99,15 @@ export const employeeRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:employees"])
     .input(employeeSchema)
     .mutation(async ({ ctx, input }) => {
-      const { userId, position, department, image, isActive } = input;
+      const {
+        userId,
+        position,
+        department,
+        image,
+        isActive,
+        fingerprintId = null,
+        enrollmentStatus = null
+      } = input;
 
       return ctx.db.employee.create({
         data: {
@@ -61,7 +116,12 @@ export const employeeRouter = createTRPCRouter({
           department,
           image,
           isActive,
+          fingerprintId,
+          enrollmentStatus
         },
+        include: {
+          user: true
+        }
       });
     }),
 
@@ -81,6 +141,9 @@ export const employeeRouter = createTRPCRouter({
       return ctx.db.employee.update({
         where: { id },
         data,
+        include: {
+          user: true
+        }
       });
     }),
 

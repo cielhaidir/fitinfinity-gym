@@ -39,6 +39,7 @@ export default function EmployeePage() {
   const utils = api.useUtils();
 
   const [newEmployee, setNewEmployee] = useState<UserEmployee>({
+    id: "",
     name: "",
     email: "",
     password: "",
@@ -144,7 +145,7 @@ export default function EmployeePage() {
             address: newEmployee.address,
             phone: newEmployee.phone,
             birthDate: newEmployee.birthDate,
-            idNumber: newEmployee.idNumber,
+            fcId: null, // Required property based on the error message
           });
 
           await createEmployeeMutation.mutateAsync({
@@ -197,6 +198,7 @@ export default function EmployeePage() {
   const handleEdit = (employee: UserEmployee) => {
     setSelectedEmployee(employee);
     setNewEmployee({
+      id: employee.id ?? "",
       name: employee.user?.name ?? "",
       email: employee.user?.email ?? "",
       password: "",
@@ -282,6 +284,15 @@ export default function EmployeePage() {
         }}
         columns={columns}
         onPaginationChange={handlePaginationChange}
+        searchColumns={[
+          { id: "user.name", placeholder: "Search by name..." },
+          { id: "user.email", placeholder: "Search by email..." },
+          { id: "rfidTag", placeholder: "Search by RFID..." },
+        ]}
+        onSearch={(value, column) => {
+          setSearch(value);
+          setSearchColumn(column);
+        }}
       />
 
       <SelectUserModal
