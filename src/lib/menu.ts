@@ -53,12 +53,6 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "list:packages",
         },
         {
-          title: "Member",
-          url: "/management/member",
-          icon: UserPlus,
-          requiredPermission: "list:members",
-        },
-        {
           title: "Class",
           url: "/management/class",
           icon: Dumbbell,
@@ -159,6 +153,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/admin/payment-validation",
           icon: CreditCard,
           requiredPermission: "list:payment-validation",
+        },
+        {
+          title: "Member",
+          url: "/admin/member",
+          icon: UserPlus,
+          requiredPermission: "list:members",
         },
         {
           title: "Reward",

@@ -116,6 +116,11 @@ export const memberRouter = createTRPCRouter({
                   contains: input.search,
                   mode: "insensitive" as const,
                 },
+                roles: {
+                  some: {
+                    name: "Member"
+                  }
+                }
               },
             }
           : {
@@ -123,8 +128,23 @@ export const memberRouter = createTRPCRouter({
                 contains: input.search,
                 mode: "insensitive" as const,
               },
+              user: {
+                roles: {
+                  some: {
+                    name: "Member"
+                  }
+                }
+              }
             }
-        : {};
+        : {
+            user: {
+              roles: {
+                some: {
+                  name: "Member"
+                }
+              }
+            }
+          };
 
       const items = await ctx.db.membership.findMany({
         skip: (input.page - 1) * input.limit,
