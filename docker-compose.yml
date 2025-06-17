@@ -42,7 +42,8 @@ services:
         condition: service_healthy
     env_file:
       - .env
-    command: ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts"]
+    user: root
+    command: ["sh", "-c", "prisma migrate deploy && tsx prisma/seed.ts"]
     profiles:
       - seed
 

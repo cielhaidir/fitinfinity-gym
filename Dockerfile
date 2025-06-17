@@ -49,7 +49,7 @@ ENV NODE_ENV=production
 # ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN adduser --system --uid 1001 --home /home/nextjs nextjs
 
 COPY --from=builder /app/public ./public
 COPY prisma ./prisma
@@ -63,6 +63,9 @@ COPY --from=builder /app/scripts ./scripts
 
 # Install global packages as root before switching user
 RUN npm install -g tsx prisma
+
+# Create npm cache directory for nextjs user
+RUN mkdir -p /home/nextjs/.npm && chown -R nextjs:nodejs /home/nextjs
 
 USER nextjs
 
