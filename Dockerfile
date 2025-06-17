@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
   libssl3 openssl \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g tsx
+# RUN npm install -g tsx
 
 WORKDIR /app
 
@@ -63,6 +63,7 @@ COPY prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/scripts ./scripts
+RUN npm install -g tsx
 
 USER nextjs
 
