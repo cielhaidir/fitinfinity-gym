@@ -43,7 +43,7 @@ services:
     env_file:
       - .env
     user: root
-    command: ["sh", "-c", "prisma migrate deploy && tsx prisma/seed.ts"]
+    command: ["sh", "-c", "npx prisma db seed"]
     profiles:
       - seed
 
