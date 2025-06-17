@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
   libssl3 openssl \
   && rm -rf /var/lib/apt/lists/*
 
+RUN npm install -g tsx
+
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
