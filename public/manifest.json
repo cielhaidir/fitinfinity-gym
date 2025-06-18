@@ -1,9 +1,10 @@
 {
-  "name": "Fit Infinity",
-  "short_name": "Fitinfinity",
-  "description": "An app to help you stay fit and healthy.",
+  "name": "Fit Infinity - Premium Fitness & Gym in Makassar",
+  "short_name": "Fit Infinity",
+  "description": "Makassar's largest mega gym with professional trainers, modern equipment, and unlimited fitness classes. Transform your body and forge your legacy.",
   "orientation": "portrait",
   "display_override": ["window-controls-overlay"],
+  "categories": ["fitness", "health", "lifestyle"],
   "screenshots": [
     {
       "src": "/screenshot1.png",
@@ -57,8 +58,8 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "theme_color": "#C9D953",
+  "background_color": "#000000",
   "display": "standalone",
   "start_url": "/?launchscreen=true"
 }

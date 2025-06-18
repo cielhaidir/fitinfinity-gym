@@ -8,6 +8,87 @@ import Facilities from "./facilities";
 import Trainers from "./trainers";
 //import Footer from "@/components/footer/footer";
 
+// Structured Data for SEO
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "Gym",
+  "name": "Fit Infinity",
+  "alternateName": "Fit Infinity Gym",
+  "description": "Largest mega gym in Makassar with state-of-the-art equipment, certified personal trainers, and comprehensive fitness classes. Transform your body and forge your legacy.",
+  "url": "https://fitinfinity.id",
+  "logo": "https://fitinfinity.id/assets/fitinfinity-lime.png",
+  "image": [
+    "https://fitinfinity.id/assets/landingpage-hero.png",
+    "https://fitinfinity.id/assets/dashboard/img1.png",
+    "https://fitinfinity.id/assets/dashboard/img2.png"
+  ],
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Jl. Sungai Saddang Lama No.102",
+    "addressLocality": "Makassar",
+    "addressRegion": "South Sulawesi",
+    "addressCountry": "ID"
+  },
+  "telephone": "+62-123-456-7890",
+  "email": "info@fitinfinity.id",
+  "openingHoursSpecification": {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": [
+      "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    ],
+    "opens": "07:00",
+    "closes": "22:00"
+  },
+  "amenityFeature": [
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "Personal Training",
+      "value": true
+    },
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "Group Classes",
+      "value": true
+    },
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "CrossFit",
+      "value": true
+    },
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "Yoga Classes",
+      "value": true
+    },
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "Weight Training",
+      "value": true
+    },
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "Cardio Equipment",
+      "value": true
+    },
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "Locker Rooms",
+      "value": true
+    },
+    {
+      "@type": "LocationFeatureSpecification",
+      "name": "Towel Service",
+      "value": true
+    }
+  ],
+  "priceRange": "$$",
+  "sameAs": [
+    "https://www.facebook.com/fitinfinity",
+    "https://www.instagram.com/fitinfinity",
+    "https://www.youtube.com/fitinfinity"
+  ]
+};
+
 export default async function Home() {
   const session = await auth();
   
@@ -18,6 +99,10 @@ export default async function Home() {
 
   return (
     <HydrateClient>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <main className="bg-black text-white">
         <Navbar user={session?.user ?? undefined} />
 

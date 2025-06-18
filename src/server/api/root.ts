@@ -32,6 +32,9 @@ import { paymentRouter } from "./routers/payment";
 import { configRouter } from "./routers/config";
 import { esp32Router } from "./routers/esp32";
 import { deviceRouter } from "./routers/device";
+import { posCategoryRouter } from "./routers/posCategory";
+import { posItemRouter } from "./routers/posItem";
+import { posSaleRouter } from "./routers/posSale";
 
 /**
  * This is the primary router for your server.
@@ -72,6 +75,9 @@ export const appRouter = createTRPCRouter({
   fcMember: fcMemberRouter,
   esp32: esp32Router,
   device: deviceRouter,
+  posCategory: posCategoryRouter,
+  posItem: posItemRouter,
+  posSale: posSaleRouter,
 });
 
 // export type definition of API

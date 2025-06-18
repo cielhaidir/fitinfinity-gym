@@ -1,0 +1,163 @@
+import { z } from "zod";
+import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+
+export const posItemRouter = createTRPCRouter({
+  list: permissionProtectedProcedure(["list:pos-item"])
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+        search: z.string().optional(),
+        categoryId: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, limit, search, categoryId } = input;
+      const skip = (page - 1) * limit;
+
+      const where = {
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+          ],
+        }),
+        ...(categoryId && { categoryId }),
+      };
+
+      const [items, total] = await Promise.all([
+        ctx.db.pOSItem.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            category: true,
+          },
+        }),
+        ctx.db.pOSItem.count({ where }),
+      ]);
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }),
+
+  getById: permissionProtectedProcedure(["show:pos-item"])
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.pOSItem.findUnique({
+        where: { id: input.id },
+        include: {
+          category: true,
+        },
+      });
+    }),
+
+  create: permissionProtectedProcedure(["create:pos-item"])
+    .input(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        price: z.number().min(0),
+        cost: z.number().min(0).optional(),
+        stock: z.number().int().min(0).default(0),
+        minStock: z.number().int().min(0).optional(),
+        categoryId: z.string(),
+        isActive: z.boolean().default(true),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.pOSItem.create({
+        data: input,
+      });
+    }),
+
+  update: permissionProtectedProcedure(["edit:pos-item"])
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1),
+        description: z.string().optional(),
+        price: z.number().min(0),
+        cost: z.number().min(0).optional(),
+        stock: z.number().int().min(0),
+        minStock: z.number().int().min(0).optional(),
+        categoryId: z.string(),
+        isActive: z.boolean(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      return ctx.db.pOSItem.update({
+        where: { id },
+        data,
+      });
+    }),
+
+  delete: permissionProtectedProcedure(["delete:pos-item"])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.pOSItem.delete({
+        where: { id: input.id },
+      });
+    }),
+
+  updateStock: permissionProtectedProcedure(["edit:pos-item"])
+    .input(
+      z.object({
+        id: z.string(),
+        stock: z.number().int().min(0),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.pOSItem.update({
+        where: { id: input.id },
+        data: { stock: input.stock },
+      });
+    }),
+
+  getLowStock: permissionProtectedProcedure(["list:pos-item"])
+    .query(async ({ ctx }) => {
+      return ctx.db.pOSItem.findMany({
+        where: {
+          isActive: true,
+          AND: [
+            { minStock: { not: null } },
+            { stock: { lte: ctx.db.pOSItem.fields.minStock } },
+          ],
+        },
+        include: {
+          category: true,
+        },
+        orderBy: { stock: "asc" },
+      });
+    }),
+
+  getByCategory: permissionProtectedProcedure(["list:pos-item"])
+    .input(z.object({ categoryId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.pOSItem.findMany({
+        where: {
+          categoryId: input.categoryId,
+          isActive: true,
+        },
+        orderBy: { name: "asc" },
+      });
+    }),
+
+  getAll: permissionProtectedProcedure(["list:pos-item"])
+    .query(async ({ ctx }) => {
+      return ctx.db.pOSItem.findMany({
+        where: { isActive: true },
+        include: {
+          category: true,
+        },
+        orderBy: { name: "asc" },
+      });
+    }),
+});

@@ -301,7 +301,7 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
-  getMembership: permissionProtectedProcedure(["list:member"]).query(
+  getMembership: permissionProtectedProcedure(["get:member"]).query(
     async ({ ctx }) => {
       return await ctx.db.membership.findFirst({
         where: {
@@ -312,7 +312,7 @@ export const memberRouter = createTRPCRouter({
     },
   ),
 
-  getAttendanceCount: permissionProtectedProcedure(["list:attendance"])
+  getAttendanceCount: permissionProtectedProcedure(["get:attedance"])
     .input(z.object({ memberId: z.string() }))
     .query(async ({ ctx, input }) => {
       const startOfYear = new Date(new Date().getFullYear(), 0, 1);

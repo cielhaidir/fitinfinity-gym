@@ -1,0 +1,41 @@
+# Robots.txt for Fit Infinity
+# https://fitinfinity.id/robots.txt
+
+User-agent: *
+Allow: /
+
+# Disallow private/sensitive areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /management/
+Disallow: /personal-trainers/
+Disallow: /fitness-consultants/
+Disallow: /finance/
+Disallow: /pos/
+Disallow: /member/
+Disallow: /auth/
+
+# Allow public assets
+Allow: /assets/
+Allow: /favicon.ico
+Allow: /manifest.json
+Allow: /_next/static/
+
+# Sitemap location
+Sitemap: https://fitinfinity.id/sitemap.xml
+
+# Crawl delay (optional - helps prevent server overload)
+Crawl-delay: 1
+
+# Specific rules for different search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1

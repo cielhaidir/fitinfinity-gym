@@ -9,7 +9,7 @@ import { uploadFile } from "@/lib/upload";
 import bcrypt from "bcryptjs";
 
 export const profileRouter = createTRPCRouter({
-  get: permissionProtectedProcedure(["list:profile"]).query(async ({ ctx }) => {
+  get: permissionProtectedProcedure(["get:profile"]).query(async ({ ctx }) => {
     const user = await ctx.db.user.findUnique({
       where: { id: ctx.session.user.id },
       select: {

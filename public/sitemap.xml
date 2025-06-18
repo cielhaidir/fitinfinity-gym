@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.news.google.org/schemas/sitemap-news/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://fitinfinity.id/</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://fitinfinity.id/assets/landingpage-hero.png</image:loc>
+      <image:title>Fit Infinity - Premium Fitness Center</image:title>
+      <image:caption>Makassar's largest mega gym with professional trainers and modern equipment</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Authentication Pages -->
+  <url>
+    <loc>https://fitinfinity.id/auth/signin</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://fitinfinity.id/auth/signup</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Member Dashboard -->
+  <url>
+    <loc>https://fitinfinity.id/member</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://fitinfinity.id/member/classes</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://fitinfinity.id/member/calendar-session</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://fitinfinity.id/member/payment-history</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://fitinfinity.id/member/profile</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Personal Trainer Pages -->
+  <url>
+    <loc>https://fitinfinity.id/personal-trainers</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://fitinfinity.id/personal-trainers/schedule</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Fitness Consultant Pages -->
+  <url>
+    <loc>https://fitinfinity.id/fitness-consultants</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Management Pages (for authorized users) -->
+  <url>
+    <loc>https://fitinfinity.id/management/package</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <url>
+    <loc>https://fitinfinity.id/management/class</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- Point of Sale -->
+  <url>
+    <loc>https://fitinfinity.id/pos</loc>
+    <lastmod>2025-01-18T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+</urlset>

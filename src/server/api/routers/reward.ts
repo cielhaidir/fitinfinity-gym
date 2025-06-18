@@ -106,7 +106,7 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  redeem: permissionProtectedProcedure(["list:reward"])
+  redeem: permissionProtectedProcedure(["claim:reward"])
     .input(
       z.object({
         rewardId: z.string(),

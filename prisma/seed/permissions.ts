@@ -153,6 +153,27 @@ const permissions = [
   "edit:voucher",
   "delete:voucher",
   "claim:voucher",
+
+  // POS Category
+  "list:pos-category",
+  "create:pos-category",
+  "edit:pos-category",
+  "delete:pos-category",
+  "show:pos-category",
+
+  // POS Item
+  "list:pos-item",
+  "create:pos-item",
+  "edit:pos-item",
+  "delete:pos-item",
+  "show:pos-item",
+
+  // POS Sale
+  "list:pos-sale",
+  "create:pos-sale",
+  "edit:pos-sale",
+  "delete:pos-sale",
+  "show:pos-sale",
 ];
 
 export async function seedPermissions(prisma: PrismaClient) {

@@ -182,6 +182,7 @@ model User {
     height             Float?
     weight             Float?
     gender             Gender?
+    posSales           POSSale[]
 }
 
 model Class {
@@ -498,6 +499,7 @@ model BalanceAccount {
     totalTransaction Float         @default(0)
     bankTransactions Transaction[] @relation("BankTransactions")
     paymentValidations PaymentValidation[]
+    posSales         POSSale[]
 }
 
 model ChartAccount {
@@ -660,4 +662,77 @@ model Device {
     lastSeen   DateTime?
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
+}
+
+// POS Models for Additional Items (Drinks, Snacks, etc.)
+model POSCategory {
+    id          String      @id @default(cuid())
+    name        String      @unique
+    description String?
+    isActive    Boolean     @default(true)
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+    
+    items       POSItem[]
+}
+
+model POSItem {
+    id          String      @id @default(cuid())
+    name        String
+    description String?
+    price       Float
+    cost        Float?      @default(0)
+    stock       Int         @default(0)
+    minStock    Int?        @default(0)
+    categoryId  String
+    isActive    Boolean     @default(true)
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+    
+    category    POSCategory @relation(fields: [categoryId], references: [id])
+    saleItems   POSSaleItem[]
+    
+    @@index([categoryId])
+    @@index([name])
+}
+
+model POSSale {
+    id            String        @id @default(cuid())
+    saleNumber    String        @unique
+    subtotal      Float
+    tax           Float         @default(0)
+    discount      Float         @default(0)
+    total         Float
+    amountPaid    Float
+    change        Float         @default(0)
+    paymentMethod String        // "cash", "card", "digital_wallet", etc.
+    balanceId     Int?          // Reference to balance account
+    cashierId     String?       // Employee who processed the sale
+    notes         String?
+    saleDate      DateTime      @default(now())
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
+    
+    balanceAccount BalanceAccount? @relation(fields: [balanceId], references: [id], onDelete: SetNull)
+    cashier       User?          @relation(fields: [cashierId], references: [id], onDelete: SetNull)
+    items         POSSaleItem[]
+    
+    @@index([saleDate])
+    @@index([saleNumber])
+    @@index([cashierId])
+}
+
+model POSSaleItem {
+    id       String  @id @default(cuid())
+    saleId   String
+    itemId   String
+    quantity Int
+    price    Float   // Price at time of sale
+    subtotal Float   // quantity * price
+    
+    sale     POSSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+    item     POSItem @relation(fields: [itemId], references: [id])
+    
+    @@index([saleId])
+    @@index([itemId])
 }

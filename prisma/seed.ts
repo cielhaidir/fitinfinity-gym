@@ -8,7 +8,7 @@ async function main() {
   const permissions = [
     // Attendance
     { name: "list:attedance" },
-    
+    { name: "get:attedance" },    
     // Balance Account
     { name: "list:balances" },
     { name: "show:balances" },
@@ -62,6 +62,7 @@ async function main() {
     { name: "delete:member" },
     { name: "show:member" },
     { name: "list:member" },
+    { name: "get:member" },
     
     // Payment Validation Management
     { name: "create:payment" },
@@ -81,6 +82,7 @@ async function main() {
     // Profile Management
     { name: "list:profile" },
     { name: "edit:profile" },
+    { name: "get:profile" },
     
     // Session Management
     { name: "list:session" },
@@ -158,6 +160,63 @@ async function main() {
     { name: "edit:voucher" },
     { name: "delete:voucher" },
     { name: "claim:voucher" },
+    
+    // POS Category Management
+    { name: "list:pos-category" },
+    { name: "create:pos-category" },
+    { name: "edit:pos-category" },
+    { name: "delete:pos-category" },
+    { name: "show:pos-category" },
+    
+    // POS Item Management
+    { name: "list:pos-item" },
+    { name: "create:pos-item" },
+    { name: "edit:pos-item" },
+    { name: "delete:pos-item" },
+    { name: "show:pos-item" },
+    
+    // POS Sale Management
+    { name: "list:pos-sale" },
+    { name: "create:pos-sale" },
+    { name: "edit:pos-sale" },
+    { name: "delete:pos-sale" },
+    { name: "show:pos-sale" },
+
+
+    // Menu Permissions for Navigation
+    { name: "menu:trainers" },
+    { name: "menu:packages" },
+    { name: "menu:classes" },
+    { name: "menu:employees" },
+    { name: "menu:user" },
+    { name: "menu:voucher" },
+    { name: "menu:role-permission" },
+    { name: "menu:permission" },
+    { name: "menu:role" },
+    { name: "menu:fc-member" },
+    { name: "menu:subscription" },
+    { name: "menu:reward" },
+    { name: "menu:pos-sale" },
+    { name: "menu:pos-category" },
+    { name: "menu:pos-item" },
+    { name: "menu:payment" },
+    { name: "menu:member" },
+    { name: "menu:session" },
+    { name: "menu:profile" },
+    { name: "menu:balances" },
+    { name: "menu:coa" },
+    { name: "menu:transaction" },
+    { name: "menu:payment-history" },
+    { name: "menu:manage-classes" },
+    { name: "menu:config" },
+    { name: "menu:dashboard-fc" },
+    { name: "menu:dashboard-pt" },
+    { name: "menu:dashboard-finance" },
+    { name: "menu:dashboard-admin" },
+    { name: "menu:profile-pt" },
+    { name: "menu:schedule-pt" },
+    { name: "member:profile" },
+
   ];
 
   console.log("🌱 Seeding permissions...");
@@ -178,37 +237,55 @@ async function main() {
     {
       name: "Member",
       permissions: [
-        "list:classes",
-        "regist:classes",
+        "menu:classes",
         "edit:profile",
-        "list:profile",
-        "list:packages",
+        "show:user",
         "show:packages",
         "claim:reward",
         "list:reward",
-        "show:post",
-        "list:post",
-        "upload:payment",
         "list:session",
+        "get:member",
+        "upload:payment",
+        "menu:session",
+        "get:membership",
+        "menu:payment-history",
+        "member:profile",
+        "get:profile",
+        "list:packages",
+        "get:attedance"
+      ],
+    },
+    {
+      name: "Employee",
+      permissions: [
+        "edit:profile",
+        "list:profile",
+        "show:user",
+        "list:attedance",
+        "get:attedance",
       ],
     },
     {
       name: "Finance",
       permissions: [
+        "menu:balances",
         "list:balances",
         "show:balances",
         "create:balances",
         "edit:balances",
         "delete:balances",
+        "menu:coa",
         "list:coa",
         "show:coa",
         "create:coa",
         "edit:coa",
         "delete:coa",
+        "menu:payment",
         "list:payment",
         "show:payment",
         "accept:payment",
         "decline:payment",
+        "menu:transaction",
         "create:transaction",
         "edit:transaction",
         "list:transaction",
@@ -218,12 +295,15 @@ async function main() {
     {
       name: "Personal Trainer",
       permissions: [
+        "menu:session",
         "list:session",
         "create:session",
         "edit:session",
         "delete:session",
+        "menu:profile",
         "list:profile",
         "edit:profile",
+        "menu:member",
         "show:member",
         "list:member",
       ],
@@ -231,11 +311,13 @@ async function main() {
     {
       name: "Fitness Consultant",
       permissions: [
+        "menu:fc-member",
         "create:fc-member",
         "edit:fc-member",
         "delete:fc-member",
         "show:fc-member",
         "list:fc-member",
+        "menu:packages",
         "list:packages",
         "show:packages",
       ],
@@ -243,10 +325,13 @@ async function main() {
     {
       name: "Customer Service",
       permissions: [
+        "menu:member",
         "list:member",
         "show:member",
+        "menu:packages",
         "list:packages",
         "show:packages",
+        "menu:payment",
         "list:payment",
         "show:payment",
         "send:whatsapp",
