@@ -58,7 +58,7 @@ export const chartAccountRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:coa"])
+  update: permissionProtectedProcedure(["update:coa"])
     .input(updateChartAccountSchema)
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;

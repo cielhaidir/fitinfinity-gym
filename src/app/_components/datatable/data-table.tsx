@@ -110,71 +110,89 @@ export function DataTable<TData, TValue>({
         searchColumns={searchColumns}
         onSearch={onSearch}
       />
-      <div className="grid grid-cols-1 rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead
-                      key={header.id}
-                      colSpan={header.colSpan}
-                      className="bg-infinity text-secondary"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
+       <div className="w-full overflow-auto rounded-md border">
+
+{/* Desktop table */}
+<div className="hidden sm:block">
+  <Table className="min-w-full">
+    <TableHeader>
+      {table.getHeaderGroups().map((headerGroup) => (
+        <TableRow key={headerGroup.id}>
+          {headerGroup.headers.map((header) => (
+            <TableHead
+              key={header.id}
+              colSpan={header.colSpan}
+              className="bg-infinity text-secondary whitespace-nowrap"
+            >
+              {header.isPlaceholder
+                ? null
+                : flexRender(header.column.columnDef.header, header.getContext())}
+            </TableHead>
+          ))}
+        </TableRow>
+      ))}
+    </TableHeader>
+
+    <TableBody>
+      {isLoading ? (
+        <TableRow>
+          <TableCell colSpan={columns.length} className="h-24 text-center">
+            Loading...
+          </TableCell>
+        </TableRow>
+      ) : table.getRowModel().rows?.length ? (
+        table.getRowModel().rows.map((row, rowIndex) => (
+          <TableRow
+            key={row.id}
+            onClick={() => onRowClick?.(row.original)}
+            data-state={row.getIsSelected() && "selected"}
+            className={rowIndex % 2 === 0 ? "bg-muted/55" : ""}
+          >
+            {row.getVisibleCells().map((cell) => (
+              <TableCell key={cell.id} className="py-2">
+                <div className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </div>
+              </TableCell>
             ))}
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  Loading...
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row, rowIndex) => (
-                <TableRow
-                  onClick={() => onRowClick?.(row.original)}
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={rowIndex % 2 === 0 ? "bg-muted/55" : ""}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+          </TableRow>
+        ))
+      ) : (
+        <TableRow>
+          <TableCell colSpan={columns.length} className="h-24 text-center">
+            No results.
+          </TableCell>
+        </TableRow>
+      )}
+    </TableBody>
+  </Table>
+</div>
+
+{/* Mobile card view */}
+<div className="sm:hidden p-4">
+  {isLoading ? (
+    <div className="text-center py-8 text-muted-foreground">Loading...</div>
+  ) : table.getRowModel().rows?.length ? (
+    table.getRowModel().rows.map((row) => (
+      <div key={row.id} className="rounded-md border p-4 mb-4 bg-card">
+        {row.getVisibleCells().map((cell) => (
+          <div key={cell.id} className="mb-2 last:mb-0">
+            <div className="font-semibold text-sm text-muted-foreground">
+              {cell.column.columnDef.header as string}
+            </div>
+            <div className="text-sm text-foreground">
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </div>
+          </div>
+        ))}
       </div>
+    ))
+  ) : (
+    <div className="text-center py-8 text-muted-foreground">No results.</div>
+  )}
+</div>
+
+</div>
       <DataTablePagination table={table} />
     </div>
   );

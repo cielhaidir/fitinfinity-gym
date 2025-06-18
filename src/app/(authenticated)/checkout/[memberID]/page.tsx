@@ -46,15 +46,44 @@ export default function SubscriptionPage({
     type: "PERSONAL_TRAINER",
   });
   const { data: trainers } = api.personalTrainer.listAll.useQuery();
+  
+  // Check for active gym membership
+  const { data: memberSubscriptions } = api.subs.getByIdMember.useQuery({
+    memberId: memberID,
+    page: 1,
+    limit: 100, // Get all subscriptions to check for active ones
+  });
+
+  // Check if member has active gym membership
+  const hasActiveGymMembership = memberSubscriptions?.items?.some(subscription => {
+    // Check if it's a gym membership package
+    const isGymMembership = subscription.package.type === "GYM_MEMBERSHIP";
+    // Check if it's currently active (not expired)
+    const isActive = subscription.endDate ? new Date(subscription.endDate) > new Date() : false;
+    // Check if payment is successful
+    const isPaid = subscription.payments?.some(payment => payment.status === "SUCCESS");
+    
+    return isGymMembership && isActive && isPaid;
+  }) ?? false;
+
+  const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer">(
+    "gym",
+  );
+  // Reset subscription type to gym if no active membership and currently on trainer
+  useEffect(() => {
+    if (!hasActiveGymMembership && subscriptionType === "trainer") {
+      setSubscriptionType("gym");
+      setSelectedPackage("");
+      setSelectedTrainer("");
+    }
+  }, [hasActiveGymMembership, subscriptionType]);
 
   const createSubscriptionMutation = api.subs.create.useMutation();
   const createPaymentMutation = api.payment.createTransaction.useMutation();
   const updatePaymentStatusMutation =
     api.subs.updatePaymentStatus.useMutation();
 
-  const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer">(
-    "gym",
-  );
+
   const [selectedPackage, setSelectedPackage] = useState("");
   const [selectedTrainer, setSelectedTrainer] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("midtrans");
@@ -90,6 +119,10 @@ export default function SubscriptionPage({
   const handleSubmit = async () => {
     if (!selectedPackageDetails) {
       toast.error("Please select a package.");
+      return;
+    }
+    if (subscriptionType === "trainer" && !hasActiveGymMembership) {
+      toast.error("You need an active gym membership to purchase personal training sessions.");
       return;
     }
     if (subscriptionType === "trainer" && !selectedTrainer) {
@@ -190,7 +223,7 @@ export default function SubscriptionPage({
         if (transactionResponse.token) {
           // Load Snap.js when needed
           const snapScript = document.createElement("script");
-          snapScript.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+          snapScript.src = process.env.NEXT_PUBLIC_SNAP || "https://app.sandbox.midtrans.com/snap/snap.js";
           snapScript.setAttribute(
             "data-client-key",
             process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "",
@@ -317,15 +350,31 @@ export default function SubscriptionPage({
                 <Tabs
                   defaultValue="gym"
                   onValueChange={(value) => {
+                    // Only allow switching to trainer if member has active gym membership
+                    if (value === "trainer" && !hasActiveGymMembership) {
+                      return;
+                    }
                     setSubscriptionType(value as "gym" | "trainer");
                     setSelectedPackage("");
                     setSelectedTrainer("");
                   }}
                 >
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className={`grid w-full ${hasActiveGymMembership ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <TabsTrigger value="gym">Gym Membership</TabsTrigger>
-                    <TabsTrigger value="trainer">Personal Trainer</TabsTrigger>
+                    {hasActiveGymMembership && (
+                      <TabsTrigger value="trainer">Personal Trainer</TabsTrigger>
+                    )}
                   </TabsList>
+                  
+                  {!hasActiveGymMembership && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Note:</strong> Personal Trainer sessions require an active gym membership.
+                        Please purchase a gym membership first to access personal training services.
+                      </p>
+                    </div>
+                  )}
+                  
                   <TabsContent value="gym" className="pt-6">
                     <div className="space-y-4">
                       <div>

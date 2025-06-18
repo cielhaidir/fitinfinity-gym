@@ -98,7 +98,7 @@ export const userRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:user"])
+  update: permissionProtectedProcedure(["update:user"])
     .input(
       z.object({
         id: z.string(),

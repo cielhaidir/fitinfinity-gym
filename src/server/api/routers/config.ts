@@ -16,7 +16,7 @@ export const configRouter = createTRPCRouter({
     return configs;
   }),
 
-  update: permissionProtectedProcedure(["edit:config"])
+  update: permissionProtectedProcedure(["update:config"])
     .input(
       z.object({
         key: z.string(),
@@ -36,7 +36,7 @@ export const configRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  resetToDefaults: permissionProtectedProcedure(["edit:config"]).mutation(async ({ ctx }) => {
+  resetToDefaults: permissionProtectedProcedure(["update:config"]).mutation(async ({ ctx }) => {
     await configService.initializeDefaults();
 
     return { success: true };

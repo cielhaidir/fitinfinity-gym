@@ -3,47 +3,58 @@ import { hash } from "bcrypt";
 
 const prisma = new PrismaClient();
 
+async function truncateTables() {
+  console.log("🗑️  Truncating tables...");
+  await prisma.$executeRaw`TRUNCATE "RolePermission", "Permission" CASCADE`;
+  console.log("✅ Tables truncated successfully!");
+}
+
 async function main() {
+  // Truncate tables before seeding
+  await truncateTables();
+
   // Create all permissions first
   const permissions = [
     // Attendance
-    { name: "list:attedance" },
-    { name: "get:attedance" },    
+    { name: "list:attendance" },
+    { name: "get:attendance" },
+    { name: "create:attendance" },
+    
     // Balance Account
     { name: "list:balances" },
     { name: "show:balances" },
     { name: "create:balances" },
-    { name: "edit:balances" },
+    { name: "update:balances" },
     { name: "delete:balances" },
     
     // Chart of Account
     { name: "list:coa" },
     { name: "show:coa" },
     { name: "create:coa" },
-    { name: "edit:coa" },
+    { name: "update:coa" },
     { name: "delete:coa" },
     
     // Configuration Management
-    { name: "edit:config" },
+    { name: "update:config" },
     { name: "list:config" },
     
     // Class Management
     { name: "create:classes" },
     { name: "list:classes" },
-    { name: "edit:classes" },
+    { name: "update:classes" },
     { name: "delete:classes" },
-    { name: "regist:classes" },
+    { name: "create:class-registration" },
     
     // FC Member Management
     { name: "create:fc-member" },
-    { name: "edit:fc-member" },
+    { name: "update:fc-member" },
     { name: "delete:fc-member" },
     { name: "show:fc-member" },
     { name: "list:fc-member" },
     
     // Email Management
     { name: "create:email" },
-    { name: "edit:email" },
+    { name: "update:email" },
     { name: "delete:email" },
     { name: "show:email" },
     { name: "list:email" },
@@ -53,16 +64,16 @@ async function main() {
     // Employee Management
     { name: "list:employees" },
     { name: "create:employees" },
-    { name: "edit:employees" },
+    { name: "update:employees" },
     { name: "delete:employees" },
     
     // Member Management
     { name: "create:member" },
-    { name: "edit:member" },
+    { name: "update:member" },
     { name: "delete:member" },
     { name: "show:member" },
     { name: "list:member" },
-    { name: "get:member" },
+
     
     // Payment Validation Management
     { name: "create:payment" },
@@ -76,24 +87,24 @@ async function main() {
     { name: "create:packages" },
     { name: "list:packages" },
     { name: "show:packages" },
-    { name: "edit:packages" },
+    { name: "update:packages" },
     { name: "delete:packages" },
     
     // Profile Management
     { name: "list:profile" },
-    { name: "edit:profile" },
-    { name: "get:profile" },
+    { name: "update:profile" },
+    { name: "show:profile" },
     
     // Session Management
     { name: "list:session" },
     { name: "create:session" },
-    { name: "edit:session" },
+    { name: "update:session" },
     { name: "delete:session" },
     
     // Reward Management
     { name: "list:reward" },
     { name: "create:reward" },
-    { name: "edit:reward" },
+    { name: "update:reward" },
     { name: "delete:reward" },
     { name: "claim:reward" },
     
@@ -101,12 +112,12 @@ async function main() {
     { name: "create:subscription" },
     { name: "show:subscription" },
     { name: "list:subscription" },
-    { name: "edit:subscription" },
+    { name: "update:subscription" },
     { name: "delete:subscription" },
     
     // Transaction Management
     { name: "create:transaction" },
-    { name: "edit:transaction" },
+    { name: "update:transaction" },
     { name: "list:transaction" },
     { name: "delete:transaction" },
     
@@ -114,8 +125,7 @@ async function main() {
     { name: "list:trainers" },
     { name: "show:trainers" },
     { name: "create:trainers" },
-    { name: "edit:trainers" },
-    { name: "remove:trainers" },
+    { name: "update:trainers" },
     { name: "delete:trainers" },
     
     // Post Management
@@ -124,7 +134,7 @@ async function main() {
     { name: "list:post" },
     
     // User Management
-    { name: "edit:user" },
+    { name: "update:user" },
     { name: "delete:user" },
     { name: "show:user" },
     { name: "list:user" },
@@ -135,21 +145,21 @@ async function main() {
     
     // Role-Permission Management
     { name: "create:role-permission" },
-    { name: "edit:role-permission" },
+    { name: "update:role-permission" },
     { name: "delete:role-permission" },
     { name: "show:role-permission" },
     { name: "list:role-permission" },
     
     // Role Management
     { name: "create:role" },
-    { name: "edit:role" },
+    { name: "update:role" },
     { name: "delete:role" },
     { name: "show:role" },
     { name: "list:role" },
     
     // Permission Management
     { name: "create:permission" },
-    { name: "edit:permission" },
+    { name: "update:permission" },
     { name: "delete:permission" },
     { name: "show:permission" },
     { name: "list:permission" },
@@ -157,28 +167,28 @@ async function main() {
     // Voucher Management
     { name: "list:voucher" },
     { name: "create:voucher" },
-    { name: "edit:voucher" },
+    { name: "update:voucher" },
     { name: "delete:voucher" },
     { name: "claim:voucher" },
     
     // POS Category Management
     { name: "list:pos-category" },
     { name: "create:pos-category" },
-    { name: "edit:pos-category" },
+    { name: "update:pos-category" },
     { name: "delete:pos-category" },
     { name: "show:pos-category" },
     
     // POS Item Management
     { name: "list:pos-item" },
     { name: "create:pos-item" },
-    { name: "edit:pos-item" },
+    { name: "update:pos-item" },
     { name: "delete:pos-item" },
     { name: "show:pos-item" },
     
     // POS Sale Management
     { name: "list:pos-sale" },
     { name: "create:pos-sale" },
-    { name: "edit:pos-sale" },
+    { name: "update:pos-sale" },
     { name: "delete:pos-sale" },
     { name: "show:pos-sale" },
 
@@ -213,9 +223,17 @@ async function main() {
     { name: "menu:dashboard-pt" },
     { name: "menu:dashboard-finance" },
     { name: "menu:dashboard-admin" },
+    { name: "menu:dashboard-member" },
     { name: "menu:profile-pt" },
     { name: "menu:schedule-pt" },
+    { name: "menu:member-list-pt" },
     { name: "member:profile" },
+
+
+
+    { name: "show:membership" },
+    { name: "show:attedance" },
+  
 
   ];
 
@@ -238,31 +256,46 @@ async function main() {
       name: "Member",
       permissions: [
         "menu:classes",
-        "edit:profile",
+        "menu:session",
+        "menu:payment-history",
+        "menu:dashboard-member",
+
         "show:user",
         "show:packages",
-        "claim:reward",
+        "show:attedance",
+        "show:member",
+        "show:profile",
+        "show:payment",
+
         "list:reward",
         "list:session",
-        "get:member",
-        "upload:payment",
-        "menu:session",
-        "get:membership",
-        "menu:payment-history",
-        "member:profile",
-        "get:profile",
+        "list:trainers",
         "list:packages",
-        "get:attedance"
+        "list:voucher",
+        "list:subscription",
+        "list:classes",
+        
+        "create:subscription",
+        "update:subscription",
+        "show:subscription",
+        "update:subscription",
+        
+
+        "claim:reward",
+        "upload:payment",
+        "update:profile",
+        "checkout:subscription",
+        "create:class-registration"
       ],
     },
     {
       name: "Employee",
       permissions: [
-        "edit:profile",
+        "update:profile",
         "list:profile",
         "show:user",
-        "list:attedance",
-        "get:attedance",
+        "list:attendance",
+        "get:attendance",
       ],
     },
     {
@@ -272,13 +305,13 @@ async function main() {
         "list:balances",
         "show:balances",
         "create:balances",
-        "edit:balances",
+        "update:balances",
         "delete:balances",
         "menu:coa",
         "list:coa",
         "show:coa",
         "create:coa",
-        "edit:coa",
+        "update:coa",
         "delete:coa",
         "menu:payment",
         "list:payment",
@@ -287,7 +320,7 @@ async function main() {
         "decline:payment",
         "menu:transaction",
         "create:transaction",
-        "edit:transaction",
+        "update:transaction",
         "list:transaction",
         "delete:transaction",
       ],
@@ -295,17 +328,10 @@ async function main() {
     {
       name: "Personal Trainer",
       permissions: [
-        "menu:session",
-        "list:session",
-        "create:session",
-        "edit:session",
-        "delete:session",
-        "menu:profile",
-        "list:profile",
-        "edit:profile",
-        "menu:member",
-        "show:member",
-        "list:member",
+        "menu:dashboard-pt",
+        "menu:profile-pt",
+        "menu:schedule-pt",
+        "menu:member-list-pt",
       ],
     },
     {
@@ -313,7 +339,7 @@ async function main() {
       permissions: [
         "menu:fc-member",
         "create:fc-member",
-        "edit:fc-member",
+        "update:fc-member",
         "delete:fc-member",
         "show:fc-member",
         "list:fc-member",

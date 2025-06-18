@@ -22,7 +22,7 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     }),
 
-  edit: permissionProtectedProcedure(["edit:trainers"])
+  edit: permissionProtectedProcedure(["update:trainers"])
     .input(
       z.object({
         id: z.string(),
@@ -82,7 +82,7 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:trainers"])
+  update: permissionProtectedProcedure(["update:trainers"])
     .input(
       z.object({
         id: z.string(),

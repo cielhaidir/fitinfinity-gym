@@ -77,7 +77,7 @@ export const posItemRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:pos-item"])
+  update: permissionProtectedProcedure(["update:pos-item"])
     .input(
       z.object({
         id: z.string(),
@@ -107,7 +107,7 @@ export const posItemRouter = createTRPCRouter({
       });
     }),
 
-  updateStock: permissionProtectedProcedure(["edit:pos-item"])
+  updateStock: permissionProtectedProcedure(["update:pos-item"])
     .input(
       z.object({
         id: z.string(),

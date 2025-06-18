@@ -75,7 +75,7 @@ export const posCategoryRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:pos-category"])
+  update: permissionProtectedProcedure(["update:pos-category"])
     .input(
       z.object({
         id: z.string(),

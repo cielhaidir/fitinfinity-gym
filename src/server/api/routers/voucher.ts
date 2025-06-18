@@ -195,7 +195,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:voucher"])
+  update: permissionProtectedProcedure(["update:voucher"])
     .input(
       z.object({
         id: z.string(),
@@ -217,7 +217,7 @@ export const voucherRouter = createTRPCRouter({
       });
     }),
 
-  remove: permissionProtectedProcedure(["delete:voucher"])
+  delete: permissionProtectedProcedure(["delete:voucher"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.voucher.delete({

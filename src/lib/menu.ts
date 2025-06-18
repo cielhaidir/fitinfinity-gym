@@ -208,6 +208,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Dashboard",
           icon: CircleGauge,
           url: "/member",
+          requiredPermission: "menu:dashboard-member",
         },
         {
           title: "Classes",
@@ -306,7 +307,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Member List",
           icon: Users,
           url: "/personal-trainers/member-list",
-          requiredPermission: "menu:member",
+          requiredPermission: "menu:member-list-pt",
         },
       ],
     },

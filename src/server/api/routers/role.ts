@@ -16,7 +16,7 @@ export const roleRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:role"])
+  update: permissionProtectedProcedure(["update:role"])
     .input(
       z.object({
         id: z.string(),
@@ -91,7 +91,7 @@ export const roleRouter = createTRPCRouter({
       };
     }),
 
-  remove: permissionProtectedProcedure(["delete:role"])
+  delete: permissionProtectedProcedure(["delete:role"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.role.delete({

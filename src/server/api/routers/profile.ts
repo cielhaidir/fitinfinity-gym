@@ -9,7 +9,7 @@ import { uploadFile } from "@/lib/upload";
 import bcrypt from "bcryptjs";
 
 export const profileRouter = createTRPCRouter({
-  get: permissionProtectedProcedure(["get:profile"]).query(async ({ ctx }) => {
+  get: permissionProtectedProcedure(["show:profile"]).query(async ({ ctx }) => {
     const user = await ctx.db.user.findUnique({
       where: { id: ctx.session.user.id },
       select: {
@@ -39,7 +39,7 @@ export const profileRouter = createTRPCRouter({
     return user;
   }),
 
-  update: permissionProtectedProcedure(["edit:profile"])
+  update: permissionProtectedProcedure(["update:profile"])
     .input(
       z.object({
         name: z.string().min(1).optional(),
@@ -68,7 +68,7 @@ export const profileRouter = createTRPCRouter({
       });
     }),
 
-  uploadImage: permissionProtectedProcedure(["edit:profile"])
+  uploadImage: permissionProtectedProcedure(["update:profile"])
     .input(
       z.object({
         file: z
@@ -104,7 +104,7 @@ export const profileRouter = createTRPCRouter({
       }
     }),
 
-  uploadPTPhoto: permissionProtectedProcedure(["edit:profile"])
+  uploadPTPhoto: permissionProtectedProcedure(["update:profile"])
     .input(
       z.object({
         file: z
@@ -158,7 +158,7 @@ export const profileRouter = createTRPCRouter({
       }
     }),
 
-  changePassword: permissionProtectedProcedure(["edit:profile"])
+  changePassword: permissionProtectedProcedure(["update:profile"])
     .input(
       z.object({
         currentPassword: z.string().min(1, "Current password is required"),

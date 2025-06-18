@@ -102,7 +102,7 @@ export const subscriptionRouter = createTRPCRouter({
       return subscription;
     }),
 
-  updatePaymentStatus: permissionProtectedProcedure(["edit:subscription"])
+  updatePaymentStatus: permissionProtectedProcedure(["update:subscription"])
     .input(
       z.object({
         orderReference: z.string(),
@@ -527,7 +527,7 @@ export const subscriptionRouter = createTRPCRouter({
       };
     }),
 
-  update: permissionProtectedProcedure(["edit:subscription"])
+  update: permissionProtectedProcedure(["update:subscription"])
     .input(
       z.object({
         id: z.string(),

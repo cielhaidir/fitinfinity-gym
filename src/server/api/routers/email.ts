@@ -23,7 +23,7 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  updateConfig: permissionProtectedProcedure(["edit:email"])
+  updateConfig: permissionProtectedProcedure(["update:email"])
     .input(
       z.object({
         id: z.string(),
@@ -127,7 +127,7 @@ export const emailRouter = createTRPCRouter({
       });
     }),
 
-  updateTemplate: permissionProtectedProcedure(["edit:email"])
+  updateTemplate: permissionProtectedProcedure(["update:email"])
     .input(
       z.object({
         id: z.string(),

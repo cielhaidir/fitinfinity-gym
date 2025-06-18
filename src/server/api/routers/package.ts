@@ -90,7 +90,7 @@ export const packageRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:packages"])
+  update: permissionProtectedProcedure(["update:packages"])
     .input(
       z.object({
         id: z.string(),

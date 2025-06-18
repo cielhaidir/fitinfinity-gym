@@ -95,11 +95,33 @@ export default function MemberClassesPage() {
     });
   };
 
-  // Filter kelas yang belum lewat
+  // Check if class registration is enabled (H-1 only)
+  const isRegistrationEnabled = (class_: Class) => {
+    const classDate = new Date(class_.schedule);
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    
+    // Set time to start of day for accurate comparison
+    const classDayStart = new Date(classDate);
+    classDayStart.setHours(0, 0, 0, 0);
+    
+    const tomorrowStart = new Date(tomorrow);
+    tomorrowStart.setHours(0, 0, 0, 0);
+    
+    // Enable registration only if class is exactly tomorrow (H-1)
+    return classDayStart.getTime() === tomorrowStart.getTime();
+  };
+
+  // Filter classes for next 7 days only
   const upcomingClasses = classes?.items.filter((class_) => {
     const classDate = new Date(class_.schedule);
     const now = new Date();
-    return classDate > now;
+    const sevenDaysFromNow = new Date(now);
+    sevenDaysFromNow.setDate(now.getDate() + 7);
+    
+    // Class must be in the future and within 7 days
+    return classDate > now && classDate <= sevenDaysFromNow;
   });
 
   const handleClassClick = (class_: Class) => {
@@ -146,6 +168,7 @@ export default function MemberClassesPage() {
               class_={class_}
               onClick={() => handleClassClick(class_)}
               hasValidSubscription={hasValidSubscription(class_)}
+              isRegistrationEnabled={isRegistrationEnabled(class_)}
             />
           ))}
         </div>
@@ -157,6 +180,9 @@ export default function MemberClassesPage() {
         onOpenChange={setIsDialogOpen}
         hasValidSubscription={
           selectedClass ? hasValidSubscription(selectedClass) : false
+        }
+        isRegistrationEnabled={
+          selectedClass ? isRegistrationEnabled(selectedClass) : false
         }
       />
     </div>

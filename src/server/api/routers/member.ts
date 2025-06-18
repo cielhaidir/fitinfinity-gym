@@ -49,7 +49,7 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
-  edit: permissionProtectedProcedure(["edit:member"])
+  edit: permissionProtectedProcedure(["update:member"])
     .input(
       z.object({
         id: z.string(),
@@ -200,7 +200,7 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:member"])
+  update: permissionProtectedProcedure(["update:member"])
     .input(
       z.object({
         id: z.string(),
@@ -301,7 +301,7 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
-  getMembership: permissionProtectedProcedure(["get:member"]).query(
+  getMembership: permissionProtectedProcedure(["show:member"]).query(
     async ({ ctx }) => {
       return await ctx.db.membership.findFirst({
         where: {
@@ -312,7 +312,7 @@ export const memberRouter = createTRPCRouter({
     },
   ),
 
-  getAttendanceCount: permissionProtectedProcedure(["get:attedance"])
+  getAttendanceCount: permissionProtectedProcedure(["show:attedance"])
     .input(z.object({ memberId: z.string() }))
     .query(async ({ ctx, input }) => {
       const startOfYear = new Date(new Date().getFullYear(), 0, 1);

@@ -85,7 +85,7 @@ export const balanceAccountRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:balances"])
+  update: permissionProtectedProcedure(["update:balances"])
     .input(
       z.object({
         id: z.number(),

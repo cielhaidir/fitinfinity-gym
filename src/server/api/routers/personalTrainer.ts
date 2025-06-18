@@ -19,17 +19,40 @@ export const personalTrainerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.personalTrainer.create({
-        data: {
-          userId: input.userId,
-          isActive: input.isActive ?? true,
-          description: input.description,
-          expertise: input.expertise,
-        },
+      return ctx.db.$transaction(async (tx) => {
+        // Create the personal trainer record
+        const personalTrainer = await tx.personalTrainer.create({
+          data: {
+            userId: input.userId,
+            isActive: input.isActive ?? true,
+            description: input.description,
+            expertise: input.expertise,
+          },
+        });
+
+        // Find the "Personal Trainer" role
+        const personalTrainerRole = await tx.role.findFirst({
+          where: {
+            name: "Personal Trainer",
+          },
+        });
+
+
+        if (personalTrainerRole) {
+          await tx.user.update({
+            where: { id: input.userId },
+            data: { roles: { connect: { id: personalTrainerRole.id } } },
+          });
+
+        }
+
+        
+
+        return personalTrainer;
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:trainers"])
+  update: permissionProtectedProcedure(["update:trainers"])
     .input(
       z.object({
         id: z.string(),
@@ -111,7 +134,7 @@ export const personalTrainerRouter = createTRPCRouter({
       };
     }),
 
-  remove: permissionProtectedProcedure(["remove:trainers"])
+  remove: permissionProtectedProcedure(["delete:trainers"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       // Use a transaction to ensure all related data is deleted properly

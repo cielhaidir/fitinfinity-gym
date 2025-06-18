@@ -23,8 +23,7 @@ export default function ClientThemeProvider({
     <SessionProvider>
       <ThemeProvider
         attribute="class"
-        defaultTheme="light"
-        enableSystem
+        defaultTheme="dark"
         disableTransitionOnChange
       >
         {children}

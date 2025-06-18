@@ -126,7 +126,7 @@ export const rolePermissionRouter = createTRPCRouter({
       return rolePermissions;
     }),
 
-  update: permissionProtectedProcedure(["edit:role-permission"])
+  update: permissionProtectedProcedure(["update:role-permission"])
     .input(
       z.object({
         roleId: z.string(),
@@ -158,7 +158,7 @@ export const rolePermissionRouter = createTRPCRouter({
       return rolePermissions;
     }),
 
-  remove: permissionProtectedProcedure(["delete:role-permission"])
+  delete: permissionProtectedProcedure(["delete:role-permission"])
     .input(
       z.object({
         roleId: z.string(),

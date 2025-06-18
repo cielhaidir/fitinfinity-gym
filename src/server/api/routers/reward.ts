@@ -43,7 +43,7 @@ export const rewardRouter = createTRPCRouter({
       }
     }),
 
-  update: permissionProtectedProcedure(["edit:reward"])
+  update: permissionProtectedProcedure(["update:reward"])
     .input(
       z.object({
         id: z.string(),

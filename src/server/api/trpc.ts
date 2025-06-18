@@ -290,9 +290,12 @@ export const permissionProtectedProcedure = (requiredPermissions: string[]) =>
     );
 
     if (!hasPermission) {
+      if (process.env.NODE_ENV === "development") {
+      console.log(`[TRPC] Missing permissions: ${requiredPermissions}`);
+      }
       throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "You don't have permission to perform this action",
+      code: "FORBIDDEN",
+      message: "You don't have permission to perform this action",
       });
     }
 

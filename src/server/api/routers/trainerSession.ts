@@ -300,7 +300,7 @@ export const trainerSessionRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:session"])
+  update: permissionProtectedProcedure(["update:session"])
     .input(
       z.object({
         id: z.string(),

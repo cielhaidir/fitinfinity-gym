@@ -70,7 +70,7 @@ export const memberClassRouter = createTRPCRouter({
       };
     }),
 
-  register: permissionProtectedProcedure(["regist:classes"])
+  register: permissionProtectedProcedure(["create:class-registration"])
     .input(z.object({ classId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const membership = await ctx.db.membership.findUnique({
@@ -135,7 +135,7 @@ export const memberClassRouter = createTRPCRouter({
       });
     }),
 
-  joinWaitlist: permissionProtectedProcedure(["regist:classes"])
+  joinWaitlist: permissionProtectedProcedure(["create:class-registration"])
     .input(z.object({ classId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const membership = await ctx.db.membership.findUnique({

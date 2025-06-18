@@ -7,7 +7,7 @@ import {
 import { TRPCError } from "@trpc/server";
 
 export const attendanceRouter = createTRPCRouter({
-  list: permissionProtectedProcedure(["list:attedance"])
+  list: permissionProtectedProcedure(["list:attendance"])
     .input(
       z.object({
         page: z.number().default(1),

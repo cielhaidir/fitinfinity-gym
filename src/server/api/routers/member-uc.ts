@@ -54,19 +54,34 @@ export const memberUcRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const now = new Date();
 
-      return await ctx.db.subscription.findFirst({
+      // Get all active subscriptions (both gym and trainer)
+      const subscriptions = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
           endDate: {
             gte: now,
           },
-          package: {
-            type: PackageType.GYM_MEMBERSHIP,
+          payments: {
+            some: {
+              status: "SUCCESS",
+            },
           },
         },
         include: {
           package: true,
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
           payments: {
+            where: {
+              status: "SUCCESS",
+            },
             orderBy: {
               createdAt: "desc",
             },
@@ -77,5 +92,7 @@ export const memberUcRouter = createTRPCRouter({
           endDate: "asc",
         },
       });
+
+      return subscriptions;
     }),
 });

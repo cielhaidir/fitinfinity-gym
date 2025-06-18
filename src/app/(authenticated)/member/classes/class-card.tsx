@@ -7,12 +7,14 @@ interface ClassCardProps {
   class_: Class;
   onClick: () => void;
   hasValidSubscription: boolean;
+  isRegistrationEnabled?: boolean;
 }
 
 export function ClassCard({
   class_,
   onClick,
   hasValidSubscription,
+  isRegistrationEnabled = true,
 }: ClassCardProps) {
   const registeredCount = class_.registeredMembers?.length ?? 0;
   const availableSpots = class_.limit ? class_.limit - registeredCount : "∞";
@@ -20,13 +22,24 @@ export function ClassCard({
 
   return (
     <Card
-      className="cursor-pointer transition-shadow hover:shadow-md"
-      onClick={onClick}
+      className={`transition-shadow ${
+        isRegistrationEnabled
+          ? "cursor-pointer hover:shadow-md"
+          : "cursor-not-allowed opacity-60"
+      }`}
+      onClick={isRegistrationEnabled ? onClick : undefined}
     >
       <CardHeader>
         <div className="flex items-start justify-between">
-          <CardTitle>{class_.name}</CardTitle>
+          <CardTitle className={isRegistrationEnabled ? "" : "text-gray-500"}>
+            {class_.name}
+          </CardTitle>
           <div className="flex gap-2">
+            {/* {!isRegistrationEnabled && (
+              <Badge variant="outline" className="text-orange-600 border-orange-600">
+                Registration Opens H-1
+              </Badge>
+            )} */}
             {isFull ? (
               <Badge variant="destructive">Full</Badge>
             ) : (

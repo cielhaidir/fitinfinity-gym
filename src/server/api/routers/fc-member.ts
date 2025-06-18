@@ -108,7 +108,7 @@ export const fcMemberRouter = createTRPCRouter({
     }),
 
   // Update FC Member
-  update: permissionProtectedProcedure(["edit:fc-member"])
+  update: permissionProtectedProcedure(["update:fc-member"])
     .input(
       z.object({
         id: z.string(),

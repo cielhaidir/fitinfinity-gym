@@ -82,7 +82,7 @@ export const classRouter = createTRPCRouter({
       }
     }),
 
-  update: permissionProtectedProcedure(["edit:classes"])
+  update: permissionProtectedProcedure(["update:classes"])
     .input(
       createClassSchema.extend({
         id: z.string(),

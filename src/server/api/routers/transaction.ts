@@ -70,7 +70,7 @@ export const transactionRouter = createTRPCRouter({
       });
     }),
 
-  update: permissionProtectedProcedure(["edit:transaction"])
+  update: permissionProtectedProcedure(["update:transaction"])
     .input(
       z.object({
         id: z.number(),
@@ -146,7 +146,7 @@ export const transactionRouter = createTRPCRouter({
       };
     }),
 
-  remove: permissionProtectedProcedure(["delete:transaction"])
+  delete: permissionProtectedProcedure(["delete:transaction"])
     .input(
       z.object({
         id: z.number(),

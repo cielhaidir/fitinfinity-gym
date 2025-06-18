@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/components/datatable/data-table";
+import { DataTable } from "@/app/_components/datatable/data-table";
 import { Receipt, Package, ExternalLink, CreditCard } from "lucide-react";
 import {
   Dialog,

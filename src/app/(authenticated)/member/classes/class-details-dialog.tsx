@@ -21,6 +21,7 @@ interface ClassDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   hasValidSubscription: boolean;
+  isRegistrationEnabled?: boolean;
 }
 
 export function ClassDetailsDialog({
@@ -28,6 +29,7 @@ export function ClassDetailsDialog({
   open,
   onOpenChange,
   hasValidSubscription,
+  isRegistrationEnabled = true,
 }: ClassDetailsDialogProps) {
   const [activeTab, setActiveTab] = useState("details");
   const utils = api.useUtils();
@@ -157,7 +159,16 @@ export function ClassDetailsDialog({
         </Tabs>
 
         <DialogFooter>
-          {isRegistered ? (
+          {!isRegistrationEnabled ? (
+            <div className="w-full text-center">
+              <Button disabled className="w-full">
+                Registration Opens H-1 (1 Day Before)
+              </Button>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Registration will be available 1 day before the class
+              </p>
+            </div>
+          ) : isRegistered ? (
             <Button disabled>Already Registered</Button>
           ) : isOnWaitlist ? (
             <Button disabled>On Waiting List</Button>
