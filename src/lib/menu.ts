@@ -21,7 +21,6 @@ import {
   ShoppingCart,
   Package2,
   Store,
-  FileText,
 } from "lucide-react";
 import { type LucideIcon, HandCoins } from "lucide-react";
 
@@ -193,12 +192,6 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/admin/reward",
           icon: Gift,
           requiredPermission: "menu:reward",
-        },
-        {
-          title: "Public Forms",
-          url: "/admin/forms",
-          icon: FileText,
-          requiredPermission: "list:public-form",
         },
 
         // {
