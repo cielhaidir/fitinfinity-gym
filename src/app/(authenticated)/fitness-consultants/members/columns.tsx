@@ -42,9 +42,9 @@ export const columns = (
     ),
   },
   {
-    accessorKey: "member_email",
+    accessorKey: "address",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Email" />
+      <DataTableColumnHeader column={column} title="Alamat" />
     ),
   },
   {

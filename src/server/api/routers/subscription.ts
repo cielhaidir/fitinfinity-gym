@@ -683,4 +683,20 @@ export const subscriptionRouter = createTRPCRouter({
         return deletedSubscription;
       });
     }),
+
+  // Tambahkan procedure untuk menonaktifkan subscription yang sudah expired
+  deactivateExpired: permissionProtectedProcedure(["update:subscription"])
+    .mutation(async ({ ctx }) => {
+      const now = new Date();
+      const result = await ctx.db.subscription.updateMany({
+        where: {
+          isActive: true,
+          endDate: { lt: now },
+        },
+        data: {
+          isActive: false,
+        },
+      });
+      return { count: result.count };
+    }),
 });

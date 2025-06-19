@@ -126,14 +126,17 @@ export const createColumns = ({
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Active" />
     ),
-    cell: ({ row }) => (
-      <Badge
-        variant={row.getValue("isActive") ? "default" : "destructive"}
-        className="w-[100px] justify-center"
-      >
-        {row.getValue("isActive") ? "Active" : "Inactive"}
-      </Badge>
-    ),
+    cell: ({ row }) => {
+      const hasActiveSubscription = Array.isArray(row.original.subscriptions) && row.original.subscriptions.some((sub) => sub.isActive);
+      return (
+        <Badge
+          variant={hasActiveSubscription ? "default" : "destructive"}
+          className="w-[100px] justify-center"
+        >
+          {hasActiveSubscription ? "Active" : "Inactive"}
+        </Badge>
+      );
+    },
   },
   {
     id: "rfidNumber",

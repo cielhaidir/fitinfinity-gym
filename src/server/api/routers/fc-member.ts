@@ -22,7 +22,7 @@ export const fcMemberRouter = createTRPCRouter({
       z.object({
         member_name: z.string(),
         member_phone: z.string(),
-        member_email: z.string().email(),
+        address: z.string(),
         status: z.enum([
           "new",
           "contacted",
@@ -114,7 +114,7 @@ export const fcMemberRouter = createTRPCRouter({
         id: z.string(),
         member_name: z.string().optional(),
         member_phone: z.string().optional(),
-        member_email: z.string().email().optional(),
+        address: z.string().optional(),
         status: z
           .enum([
             "new",
