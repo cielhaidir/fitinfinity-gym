@@ -234,6 +234,16 @@ async function main() {
 
     { name: "show:membership" },
     { name: "show:attedance" },
+
+    // Public Form Management
+    { name: "create:public-form" },
+    { name: "update:public-form" },
+    { name: "delete:public-form" },
+    { name: "list:public-form" },
+    { name: "show:public-form" },
+    { name: "list:form-response" },
+    { name: "show:form-response" },
+    { name: "export:form-response" },
   
 
   ];

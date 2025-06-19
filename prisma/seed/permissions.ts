@@ -174,6 +174,16 @@ const permissions = [
   "edit:pos-sale",
   "delete:pos-sale",
   "show:pos-sale",
+
+  // Public Form Management
+  "create:public-form",
+  "update:public-form",
+  "delete:public-form",
+  "list:public-form",
+  "show:public-form",
+  "list:form-response",
+  "show:form-response",
+  "export:form-response",
 ];
 
 export async function seedPermissions(prisma: PrismaClient) {

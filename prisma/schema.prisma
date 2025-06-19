@@ -183,6 +183,7 @@ model User {
     weight             Float?
     gender             Gender?
     posSales           POSSale[]
+    createdForms       PublicForm[]      @relation("PublicFormCreator")
 }
 
 model Class {
@@ -733,4 +734,132 @@ model POSSaleItem {
     
     @@index([saleId])
     @@index([itemId])
+}
+
+// Public Form Management System Models
+enum FormFieldType {
+    TEXT
+    EMAIL
+    PHONE
+    NUMBER
+    TEXTAREA
+    SELECT
+    RADIO
+    CHECKBOX
+    DATE
+    TIME
+    FILE
+    RATING
+}
+
+enum FormStatus {
+    DRAFT
+    PUBLISHED
+    ARCHIVED
+}
+
+model PublicForm {
+    id          String      @id @default(cuid())
+    title       String
+    description String?
+    slug        String      @unique
+    status      FormStatus  @default(DRAFT)
+    isActive    Boolean     @default(true)
+    
+    // Design settings
+    backgroundColor String?  @default("#ffffff")
+    primaryColor    String?  @default("#BAD45E")
+    logoUrl         String?
+    
+    // Behavior settings
+    requireAuth     Boolean  @default(false)
+    allowMultiple   Boolean  @default(true)
+    showProgress    Boolean  @default(true)
+    
+    // Email notifications
+    notifyOnSubmit  Boolean  @default(false)
+    notifyEmails    String[] // JSON array of emails
+    
+    // Thank you page
+    thankYouTitle   String?  @default("Thank you!")
+    thankYouMessage String?  @default("Your response has been recorded.")
+    redirectUrl     String?
+    
+    createdBy       String
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+    
+    creator         User           @relation("PublicFormCreator", fields: [createdBy], references: [id])
+    fields          FormField[]
+    responses       FormResponse[]
+    
+    @@index([slug])
+    @@index([status])
+    @@index([createdBy])
+}
+
+model FormField {
+    id          String        @id @default(cuid())
+    formId      String
+    type        FormFieldType
+    label       String
+    placeholder String?
+    helpText    String?
+    
+    // Validation
+    required    Boolean       @default(false)
+    minLength   Int?
+    maxLength   Int?
+    minValue    Decimal?
+    maxValue    Decimal?
+    pattern     String?       // Regex pattern
+    
+    // Options for SELECT, RADIO, CHECKBOX
+    options     Json?         // Array of {value, label}
+    
+    // Display settings
+    order       Int
+    width       String?       @default("full") // "full", "half", "third"
+    
+    createdAt   DateTime      @default(now())
+    updatedAt   DateTime      @updatedAt
+    
+    form        PublicForm    @relation(fields: [formId], references: [id], onDelete: Cascade)
+    responses   FieldResponse[]
+    
+    @@index([formId])
+    @@index([order])
+}
+
+model FormResponse {
+    id          String          @id @default(cuid())
+    formId      String
+    
+    // Respondent info (if not anonymous)
+    respondentEmail String?
+    respondentName  String?
+    ipAddress       String?
+    userAgent       String?
+    
+    submittedAt DateTime        @default(now())
+    
+    form        PublicForm      @relation(fields: [formId], references: [id], onDelete: Cascade)
+    fieldResponses FieldResponse[]
+    
+    @@index([formId])
+    @@index([submittedAt])
+}
+
+model FieldResponse {
+    id         String       @id @default(cuid())
+    responseId String
+    fieldId    String
+    value      String       // JSON string for complex values
+    
+    response   FormResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+    field      FormField    @relation(fields: [fieldId], references: [id])
+    
+    @@unique([responseId, fieldId])
+    @@index([responseId])
+    @@index([fieldId])
 }

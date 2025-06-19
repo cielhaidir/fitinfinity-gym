@@ -83,7 +83,7 @@ export default function AppNavbar() {
         )}
         {/* Tampilkan NavUser jika user login */}
         {session?.user?.name && session.user.email ? (
-          <NavUser
+          <NavzUser
             user={{
               name: session.user.name,
               email: session.user.email,
