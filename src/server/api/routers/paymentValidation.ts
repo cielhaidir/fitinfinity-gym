@@ -262,6 +262,7 @@ export const paymentValidationRouter = createTRPCRouter({
             startDate: startDate,
             endDate: endDate,
             remainingSessions: remainingSessions,
+            isActive: true,
           },
         });
 

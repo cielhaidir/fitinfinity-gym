@@ -27,7 +27,7 @@ import {
 const fcMemberFormSchema = z.object({
   member_name: z.string().min(1, "Name is required"),
   member_phone: z.string().min(1, "Phone is required"),
-  member_email: z.string().email("Invalid email address"),
+  address: z.string().min(1, "Alamat wajib diisi"),
   status: z.enum([
     "new",
     "contacted",
@@ -76,7 +76,7 @@ export function FCMemberForm({
     defaultValues: initialData || {
       member_name: "",
       member_phone: "",
-      member_email: "",
+      address: "",
       status: "new",
     },
   });
@@ -161,12 +161,12 @@ export function FCMemberForm({
 
         <FormField
           control={form.control}
-          name="member_email"
+          name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Address</FormLabel>
               <FormControl>
-                <Input {...field} type="email" />
+                <Input {...field} placeholder="" />
               </FormControl>
               <FormMessage />
             </FormItem>

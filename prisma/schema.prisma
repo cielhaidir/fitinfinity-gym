@@ -607,20 +607,17 @@ model EmailTemplate {
 }
 
 model FcMember {
-    id           String        @id @default(cuid())
+    id           String   @id @default(cuid())
     fc_id        String
     member_name  String
     member_phone String
-    member_email String
+    address      String
     status       FCMemberStatus
-    createdAt    DateTime     @default(now())
-    updatedAt    DateTime     @updatedAt
-
-    fc           FC           @relation(fields: [fc_id], references: [id])
-
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+    fc           FC       @relation(fields: [fc_id], references: [id])
     @@index([fc_id])
 }
-
 
 model EmailLog {
     id          String      @id @default(cuid())
