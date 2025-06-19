@@ -23,20 +23,24 @@ export const memberSchema = z.object({
       }),
     })
     .nullable(),
-  personalTrainer: z
-    .object({
-      id: z.string(),
-      user: z.object({
-        name: z.string().nullable(),
-      }),
-    })
-    .nullable(),
+  
   revokedAt: z.date().nullable(),
   createdAt: z.date().default(new Date()),
   updatedAt: z.date().default(new Date()),
-  // subscriptions: z.array(z.object({
-  //     // Define the Subscription schema here if needed
-  // }))
+  subscriptions: z.array(z.object({
+      id: z.string(),
+      startDate: z.date(),
+      endDate: z.date().nullable(),
+      isActive: z.boolean(),
+      trainer: z
+        .object({
+          id: z.string(),
+          user: z.object({
+            name: z.string().nullable(),
+          }),
+        })
+        .nullable(),
+  }))
 });
 
 export const UserSchema = z.object({

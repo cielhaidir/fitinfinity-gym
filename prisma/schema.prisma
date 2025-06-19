@@ -228,8 +228,6 @@ model Membership {
     createdBy         String?
     fcId              String?
     fc                FC?                @relation(fields: [fcId], references: [id])
-    personalTrainerId String?
-    personalTrainer   PersonalTrainer?   @relation(fields: [personalTrainerId], references: [id])
     revokedAt         DateTime?
     creator           User?              @relation("MembershipCreator", fields: [createdBy], references: [id])
     createdAt         DateTime           @default(now())
@@ -319,7 +317,7 @@ model PersonalTrainer {
     subscriptions Subscription[]
     sessions      TrainerSession[]
     paymentValidations PaymentValidation[]
-    memberships   Membership[]
+
 }
 
 enum MembershipStatus {

@@ -2,12 +2,32 @@ import React from "react";
 import Link from "next/link";
 import { auth } from "@/server/auth";
 
-const Hero = async () => {
+const Hero = async ( ) => {
   const session = await auth();
   
   // Helper function untuk menentukan URL tujuan
   const getAuthUrl = () => {
-    return session?.user ? "/member/dashboard" : "/auth/signin";
+    if (!session?.user) {
+      return "/auth/signin";
+    }
+    
+    // Check user permissions to determine appropriate dashboard
+    const userPermissions = session.user.permissions || [];
+    
+    if (userPermissions.includes("menu:dashboard-admin")) {
+      return "/admin";
+    } else if (userPermissions.includes("menu:dashboard-finance")) {
+      return "/finance";
+    } else if (userPermissions.includes("menu:dashboard-fc")) {
+      return "/fitness-consultants";
+    } else if (userPermissions.includes("menu:dashboard-pt")) {
+      return "/personal-trainers";
+    } else if (userPermissions.includes("menu:dashboard-member")) {
+      return "/member";
+    } else {
+      // Default fallback to member dashboard
+      return "/member";
+    }
   };
 
   return (

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@/server/auth";
 import { HydrateClient } from "@/trpc/server";
 import Navbar from "@/components/headers/navbar";
-import Hero from "./hero";
+import Hero from "./hero"; // Ensure this is the correct path and the component is properly exported
 import Classes from "./clasess";
 import Facilities from "./facilities";
 import Trainers from "./trainers";
@@ -92,9 +92,29 @@ const structuredData = {
 export default async function Home() {
   const session = await auth();
   
-  // Helper function untuk menentukan URL tujuan
+  // Helper function untuk menentukan URL tujuan berdasarkan role
   const getAuthUrl = () => {
-    return session?.user ? "/member/dashboard" : "/auth/signin";
+    if (!session?.user) {
+      return "/auth/signin";
+    }
+    
+    // Check user permissions to determine appropriate dashboard
+    const userPermissions = session.user.permissions || [];
+    
+    if (userPermissions.includes("menu:dashboard-admin")) {
+      return "/admin";
+    } else if (userPermissions.includes("menu:dashboard-finance")) {
+      return "/finance";
+    } else if (userPermissions.includes("menu:dashboard-fc")) {
+      return "/fitness-consultants";
+    } else if (userPermissions.includes("menu:dashboard-pt")) {
+      return "/personal-trainers";
+    } else if (userPermissions.includes("menu:dashboard-member")) {
+      return "/member";
+    } else {
+      // Default fallback to member dashboard
+      return "/member";
+    }
   };
 
   return (
@@ -140,7 +160,7 @@ export default async function Home() {
         </div>
     </nav> */}
 
-          <Hero />
+          <Hero /> {/* Replace 'someProp' and 'someValue' with the actual required prop(s) */}
           {/* <section id="home" className="hero-image pt-24 flex items-center justify-center">
         <div className="container mx-auto px-6 text-center">
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">FORGE YOUR <span className="text-infinity">LEGACY</span></h1>

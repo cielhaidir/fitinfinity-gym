@@ -39,6 +39,7 @@ export default function MemberPage() {
       searchColumn,
     });
 
+
   const updateMemberMutation = api.member.update.useMutation({
     onSuccess: () => {
       utils.member.list.invalidate();
@@ -116,12 +117,13 @@ export default function MemberPage() {
       email: member.user.email ?? "",
       rfidNumber: member.rfidNumber ?? "",
       fcId: member.fc?.id ?? null,
-      personalTrainerId: member.personalTrainer?.id ?? null,
+      personalTrainerId: member.subscriptions[0]?.trainer?.id ?? "",
       address: member.user.address ?? "",
       phone: member.user.phone ?? "",
       birthDate: member.user.birthDate ?? null,
       idNumber: member.user.idNumber ?? "",
     });
+    // console.log("selected ",selectedMember);
     setShowForm(true);
     setIsSheetOpen(true);
   };

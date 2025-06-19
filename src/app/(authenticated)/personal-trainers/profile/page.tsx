@@ -120,12 +120,6 @@ export default function PTProfilePage() {
     return <div>Loading...</div>;
   }
 
-  // Check if user is an active personal trainer
-  if (!ptData || !ptData.isActive) {
-    toast.error("You are not authorized to access this page");
-    router.push("/member/profile");
-    return null;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -25,7 +25,10 @@ const getStatusColor = (status: string) => {
   return colors[status as keyof typeof colors] || "bg-gray-500";
 };
 
-export const columns: ColumnDef<FC_Member>[] = [
+export const columns = (
+  onEdit?: (member: FcMember) => void,
+  onDelete?: (member: FcMember) => void,
+): ColumnDef<FC_Member>[] => [
   {
     accessorKey: "member_name",
     header: ({ column }) => (
@@ -50,7 +53,7 @@ export const columns: ColumnDef<FC_Member>[] = [
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const status = row.getValue("status");
+      const status = row.getValue("status") as string;
       return (
         <Badge className={`${getStatusColor(status)} text-white`}>
           {status.replace("_", " ")}
@@ -74,8 +77,8 @@ export const columns: ColumnDef<FC_Member>[] = [
       return (
         <DataTableRowActions
           row={row}
-          onEdit={undefined}
-          onDelete={undefined}
+          onEdit={() => onEdit?.(row.original)}
+          onDelete={() => onDelete?.(row.original)}
         />
       );
     },

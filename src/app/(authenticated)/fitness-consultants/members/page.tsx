@@ -17,7 +17,11 @@ import { FCMemberForm } from "./fc-member-form";
 import type { FcMember } from "@prisma/client";
 // import { createColumns } from "./columns";
 
-export default function FCMembersPage() {
+interface FCMembersPageProps {
+  searchParams?: { status?: string };
+}
+
+export default function FCMembersPage({ searchParams }: FCMembersPageProps) {
   const [open, setOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<FcMember | null>(null);
   const { toast } = useToast();
@@ -75,15 +79,17 @@ export default function FCMembersPage() {
       </div>
 
       <DataTable
-        columns={columns}
+        columns={columns(handleEdit, handleDelete)}
         data={{
-          items: members || [],
-          total: members?.length || 0,
+          items: (members || []).filter(member =>
+            !searchParams?.status || member.status === searchParams.status
+          ),
+          total: (members || []).filter(member =>
+            !searchParams?.status || member.status === searchParams.status
+          ).length,
           page: 1,
           limit: 10,
         }}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>

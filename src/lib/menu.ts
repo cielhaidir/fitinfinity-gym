@@ -113,7 +113,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Fitness Consultant",
           url: "/management/fitness-consultant",
           icon: Badge,
-          requiredPermission: "menu:fc-member",
+          requiredPermission: "menu:manage-fc",
         },
         {
           title: "Payment List",

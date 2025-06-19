@@ -71,7 +71,7 @@ export function NavUser({
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-gray-800" />
         <DropdownMenuGroup className="p-1">
-          <DropdownMenuItem asChild>
+          {/* <DropdownMenuItem asChild>
             <Link
               href="/member/dashboard"
               className="flex w-full cursor-pointer items-center gap-3 px-4 py-2 text-[#BFFF00] hover:bg-gray-800 hover:text-[#9FDF00]"
@@ -79,7 +79,7 @@ export function NavUser({
               <LayoutDashboard size={18} />
               Dashboard
             </Link>
-          </DropdownMenuItem>
+          </DropdownMenuItem> */}
           <DropdownMenuItem asChild>
             <Link
               href="/member/profile"
@@ -89,7 +89,7 @@ export function NavUser({
               Profile
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
+          {/* <DropdownMenuItem asChild>
             <Link
               href="/workouts"
               className="flex w-full cursor-pointer items-center gap-3 px-4 py-2 text-gray-200 hover:bg-gray-800 hover:text-[#BFFF00]"
@@ -97,7 +97,7 @@ export function NavUser({
               <Dumbbell size={18} />
               My Workouts
             </Link>
-          </DropdownMenuItem>
+          </DropdownMenuItem> */}
           <DropdownMenuItem asChild>
             <Link
               href="/notifications"

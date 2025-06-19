@@ -75,7 +75,7 @@ export default function FCDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Link href="/fc/members" search="status=new">
+          <Link href="/fitness-consultants/members?status=new">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">New Leads</CardTitle>
@@ -87,7 +87,7 @@ export default function FCDashboard() {
             </Card>
           </Link>
 
-          <Link href="/fc/members" search="status=contacted">
+          <Link href="/fitness-consultants/members?status=contacted">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -101,7 +101,7 @@ export default function FCDashboard() {
             </Card>
           </Link>
 
-          <Link href="/fc/members" search="status=converted">
+          <Link href="/fitness-consultants/members?status=converted">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Converted</CardTitle>
@@ -113,7 +113,7 @@ export default function FCDashboard() {
             </Card>
           </Link>
 
-          <Link href="/fc/members" search="status=not_interested">
+          <Link href="/fitness-consultants/members?status=not_interested">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">

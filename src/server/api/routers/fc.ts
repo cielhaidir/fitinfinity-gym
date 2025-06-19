@@ -105,6 +105,21 @@ export const fcRouter = createTRPCRouter({
         });
       }
 
+      const fcRole = await ctx.db.role.findFirst({
+        where: {
+          name: "Fitness Consultant",
+        },
+      });
+
+
+      if (fcRole) {
+        await ctx.db.user.update({
+          where: { id: input.userId },
+          data: { roles: { connect: { id: fcRole.id } } },
+        });
+
+      }
+
       return ctx.db.fC.create({
         data: {
           userId,

@@ -227,6 +227,7 @@ async function main() {
     { name: "menu:profile-pt" },
     { name: "menu:schedule-pt" },
     { name: "menu:member-list-pt" },
+    { name: "menu:manage-fc" },
     { name: "member:profile" },
 
 
@@ -259,12 +260,13 @@ async function main() {
         "menu:session",
         "menu:payment-history",
         "menu:dashboard-member",
-
+        
+        "update:profile",
+        "show:profile",
         "show:user",
         "show:packages",
         "show:attedance",
         "show:member",
-        "show:profile",
         "show:payment",
 
         "list:reward",
@@ -289,13 +291,55 @@ async function main() {
       ],
     },
     {
+      name: "Personal Trainer",
+      permissions: [
+        "menu:dashboard-pt",
+        "menu:profile-pt",
+        "menu:schedule-pt",
+        "menu:member-list-pt",
+
+        "list:session",
+        "create:session",
+        "update:session",
+        "delete:session",
+
+        "list:trainers",
+        "show:trainers",
+
+
+        "show:user",
+        "show:profile",
+        "update:profile",
+      ],
+    },
+    {
+      name: "Fitness Consultant",
+      permissions: [
+        "menu:fc-member",
+        "menu:dashboard-fc",
+
+        "create:fc-member",
+        "update:fc-member",
+        "delete:fc-member",
+        "show:fc-member",
+        "list:fc-member",
+        "list:packages",
+        "show:packages",
+
+        "show:user",
+        "show:profile",
+        "update:profile",
+      ],
+    },
+    {
       name: "Employee",
       permissions: [
-        "update:profile",
-        "list:profile",
         "show:user",
-        "list:attendance",
-        "get:attendance",
+        "show:profile",
+        "update:profile",
+
+
+       
       ],
     },
     {
@@ -326,41 +370,50 @@ async function main() {
       ],
     },
     {
-      name: "Personal Trainer",
-      permissions: [
-        "menu:dashboard-pt",
-        "menu:profile-pt",
-        "menu:schedule-pt",
-        "menu:member-list-pt",
-      ],
-    },
-    {
-      name: "Fitness Consultant",
-      permissions: [
-        "menu:fc-member",
-        "create:fc-member",
-        "update:fc-member",
-        "delete:fc-member",
-        "show:fc-member",
-        "list:fc-member",
-        "menu:packages",
-        "list:packages",
-        "show:packages",
-      ],
-    },
-    {
       name: "Customer Service",
       permissions: [
+        "show:user",
+        "show:profile",
+        "update:profile",
+
+        "menu:dashboard-admin",
+        "menu:payment",
         "menu:member",
+        "menu:reward",
+        "menu:pos-sale",
+        "menu:pos-category",
+        "menu:pos-item",
+
         "list:member",
         "show:member",
-        "menu:packages",
-        "list:packages",
-        "show:packages",
-        "menu:payment",
+        "update:member",
+
+        "list:employees",
+        "list:subscription",
+
+        "list:pos-item",
+        "show:pos-item",
+        "create:pos-item",
+        "update:pos-item",
+        "delete:pos-item",
+
+        "list:pos-category",
+        "show:pos-category",
+        "create:pos-category",
+        "update:pos-category",
+        "delete:pos-category",
+
+        "list:pos-sale",
+        "show:pos-sale",
+        "create:pos-sale",
+        "update:pos-sale",
+        "delete:pos-sale",
+
+        "list:balances",
+        "list:trainers",
         "list:payment",
-        "show:payment",
-        "send:whatsapp",
+        "list:reward",
+        
       ],
     },
   ];

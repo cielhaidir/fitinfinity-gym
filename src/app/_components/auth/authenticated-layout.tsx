@@ -28,7 +28,34 @@ export default function AuthenticatedLayout({
       return;
     }
 
-    if (!isLoading) {
+    if (status === "authenticated" && !isLoading && session?.user) {
+      // Role-based dashboard redirect logic
+      const isOnAuthRoot = pathname === "/" || pathname === "/auth";
+      
+      if (isOnAuthRoot) {
+        // Determine dashboard route based on user permissions (priority order)
+        if (hasPermission("menu:dashboard-admin")) {
+          router.push("/admin");
+          return;
+        } else if (hasPermission("menu:dashboard-finance")) {
+          router.push("/finance");
+          return;
+        } else if (hasPermission("menu:dashboard-fc")) {
+          router.push("/fitness-consultants");
+          return;
+        } else if (hasPermission("menu:dashboard-pt")) {
+          router.push("/personal-trainers");
+          return;
+        } else if (hasPermission("menu:dashboard-member")) {
+          router.push("/member");
+          return;
+        } else {
+          // Default fallback to member dashboard if no specific permission is found
+          router.push("/member");
+          return;
+        }
+      }
+
       // Find the current route in the menu
       const currentRoute = Menu.navMain
         .flatMap((group) => group.items)
@@ -42,7 +69,7 @@ export default function AuthenticatedLayout({
         // router.push("/unauthorized")
       }
     }
-  }, [status, router, pathname, hasPermission, isLoading]);
+  }, [status, router, pathname, hasPermission, isLoading, session]);
 
   if (isLoading || status === "loading") {
     return (

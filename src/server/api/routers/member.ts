@@ -162,14 +162,25 @@ export const memberRouter = createTRPCRouter({
               },
             },
           },
-          personalTrainer: {
+          subscriptions: {
+            where: {
+              isActive: true,
+            },
             include: {
-              user: {
-                select: {
-                  name: true,
+              trainer: {
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
                 },
               },
             },
+            orderBy: {
+              startDate: "desc", // Replace with a valid field from SubscriptionOrderByWithRelationInput
+            },
+            take: 1,
           },
         },
       });
@@ -214,12 +225,7 @@ export const memberRouter = createTRPCRouter({
             disconnect: z.boolean().optional(),
           })
           .optional(),
-        personalTrainer: z
-          .object({
-            connect: z.object({ id: z.string() }).optional(),
-            disconnect: z.boolean().optional(),
-          })
-          .optional(),
+          personalTrainer: z.any(),
         user: z
           .object({
             name: z.string().min(1),
@@ -246,6 +252,40 @@ export const memberRouter = createTRPCRouter({
         });
       }
 
+      // Update personal trainer from the subscription if provided
+      if (input.personalTrainer) {
+        console.log("Updating personal trainer for membership:", input.personalTrainer);
+        const subscription = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: input.id,
+            isActive: true,
+            trainerId: { not: null },
+          },
+        });
+
+        if (!subscription) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Active subscription not found for the member",
+          });
+        }
+
+        if (input.personalTrainer.connect) {
+          await ctx.db.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              trainerId: input.personalTrainer.connect.id,
+            },
+          });
+        } else if (input.personalTrainer.disconnect) {
+          await ctx.db.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              trainerId: null,
+            },
+          });
+        }
+      }
       // Update membership and user data
       return ctx.db.membership.update({
         where: { id: input.id },
@@ -255,14 +295,13 @@ export const memberRouter = createTRPCRouter({
           isActive: input.isActive ?? true,
           revokedAt: input.revokedAt,
           fc: input.fc,
-          personalTrainer: input.personalTrainer,
           user: input.user
             ? {
                 update: {
                   name: input.user.name,
                   email: input.user.email,
                   address: input.user.address ?? null,
-                  phone: input.user.phone ?? null,
+                  phone: input.user.phone ?? null,  
                   birthDate: input.user.birthDate ?? null,
                   idNumber: input.user.idNumber ?? null,
                 },
@@ -280,14 +319,25 @@ export const memberRouter = createTRPCRouter({
               },
             },
           },
-          personalTrainer: {
+          subscriptions: {
+            where: {
+              isActive: true,
+            },
             include: {
-              user: {
-                select: {
-                  name: true,
+              trainer: {
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
                 },
               },
             },
+            orderBy: {
+              startDate: "desc",
+            },
+            take: 1,
           },
         },
       });

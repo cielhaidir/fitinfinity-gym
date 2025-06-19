@@ -91,12 +91,12 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="PT" />
     ),
     cell: ({ row }) => {
-      const pt = row.original.personalTrainer;
+      const pt = row.original.subscriptions[0]?.trainer?.user.name;
       return (
         <div className="flex items-center justify-center">
           {pt ? (
             <Badge variant="outline" className="w-[100px] justify-center">
-              {pt.user.name}
+              {pt}
             </Badge>
           ) : (
             <Badge
