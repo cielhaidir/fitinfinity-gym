@@ -21,6 +21,13 @@ export const env = createEnv({
     MINIO_SSL: z.string().default("false"),
     DATABASE_URL: z.string().url(),
     ALLOW_RBAC: z.boolean().default(true),
+    // MQTT Configuration
+    MQTT_HOST: z.string().default("localhost"),
+    MQTT_PORT: z.string().default("1883"),
+    MQTT_USERNAME: z.string().default("fitinfinity_mqtt"),
+    MQTT_PASSWORD: z.string().default("mqtt_p@ssw0rd_f1n1t3"),
+    MQTT_WEBSOCKET_PORT: z.string().default("8083"),
+    NEXTAUTH_URL: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -52,6 +59,13 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     ALLOW_RBAC: process.env.ALLOW_RBAC,
+    // MQTT Configuration
+    MQTT_HOST: process.env.MQTT_HOST,
+    MQTT_PORT: process.env.MQTT_PORT,
+    MQTT_USERNAME: process.env.MQTT_USERNAME,
+    MQTT_PASSWORD: process.env.MQTT_PASSWORD,
+    MQTT_WEBSOCKET_PORT: process.env.MQTT_WEBSOCKET_PORT,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

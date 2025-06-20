@@ -16,6 +16,32 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - fitinfinity-network
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: fitinfinity-mqtt
+    restart: always
+    ports:
+      - "1883:1883"      # MQTT
+      - "8883:8883"      # MQTT over SSL
+      - "8083:8083"      # WebSocket
+    volumes:
+      - ./mqtt/config:/mosquitto/config
+      - ./mqtt/data:/mosquitto/data
+      - ./mqtt/log:/mosquitto/log
+      - mosquitto_data:/mosquitto/data
+    environment:
+      - MOSQUITTO_USERNAME=fitinfinity_mqtt
+      - MOSQUITTO_PASSWORD=mqtt_p@ssw0rd_f1n1t3
+    networks:
+      - fitinfinity-network
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t test -m 'health check' -u fitinfinity_mqtt -P mqtt_p@ssw0rd_f1n1t3 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   app:
     image: fitinfinity
@@ -26,10 +52,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mosquitto:
+        condition: service_healthy
     ports:
       - "3099:3000"
     env_file:
       - .env
+    networks:
+      - fitinfinity-network
 
   seed:
     image: fitinfinity
@@ -46,6 +76,13 @@ services:
     command: ["sh", "-c", "npx prisma db seed"]
     profiles:
       - seed
+    networks:
+      - fitinfinity-network
 
 volumes:
   postgres_data:
+  mosquitto_data:
+
+networks:
+  fitinfinity-network:
+    driver: bridge
