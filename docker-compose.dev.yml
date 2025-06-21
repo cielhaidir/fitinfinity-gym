@@ -1,30 +1,7 @@
 version: "3.9"
 
 services:
-  mosquitto:
-    image: eclipse-mosquitto:2.0
-    container_name: fitinfinity-mqtt-dev
-    restart: always
-    ports:
-      - "1883:1883"      # MQTT (pakai port beda supaya tidak bentrok)
-      - "8883:8883"      # MQTT over SSL
-      - "8083:8083"      # WebSocket
-    volumes:
-      - ./mqtt/config:/mosquitto/config
-      - ./mqtt/data:/mosquitto/data
-      - ./mqtt/log:/mosquitto/log
-      - mosquitto_data_dev:/mosquitto/data
-    environment:
-      - MOSQUITTO_USERNAME=fitinfinity_mqtt
-      - MOSQUITTO_PASSWORD=mqtt_p@ssw0rd_f1n1t3
-    networks:
-      - fitinfinity-dev-network
-    healthcheck:
-      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t test -m 'health check' -u fitinfinity_mqtt -P mqtt_p@ssw0rd_f1n1t3 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
+ 
   app:
     image: fitinfinity
     container_name: fitinfinity-app-dev
@@ -40,9 +17,6 @@ services:
       - .env.dev
     networks:
       - fitinfinity-dev-network
-
-volumes:
-  mosquitto_data_dev:
 
 networks:
   fitinfinity-dev-network:
