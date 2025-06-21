@@ -6,9 +6,9 @@ services:
     container_name: fitinfinity-mqtt-dev
     restart: always
     ports:
-      - "1884:1883"      # MQTT (pakai port beda supaya tidak bentrok)
-      - "8884:8883"      # MQTT over SSL
-      - "8084:8083"      # WebSocket
+      - "1883:1883"      # MQTT (pakai port beda supaya tidak bentrok)
+      - "8883:8883"      # MQTT over SSL
+      - "8083:8083"      # WebSocket
     volumes:
       - ./mqtt/config:/mosquitto/config
       - ./mqtt/data:/mosquitto/data
