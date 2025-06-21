@@ -8,9 +8,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    depends_on:
-      mosquitto:
-        condition: service_healthy
     ports:
       - "3100:3000"  # Pakai port 3100 untuk dev
     env_file:
