@@ -9,6 +9,20 @@ import { emailService } from "@/lib/email/emailService"; // Add this import
 import { format } from "date-fns"; // Add this import
 import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
 
+// Fungsi untuk mengupdate subscription yang sudah expired
+async function updateExpiredSubscriptions(ctx: any) {
+  const now = new Date();
+  await ctx.db.subscription.updateMany({
+    where: {
+      isActive: true,
+      endDate: { lt: now },
+    },
+    data: {
+      isActive: false,
+    },
+  });
+}
+
 export const subscriptionRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:subscription"])
     .input(
@@ -323,6 +337,9 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      // Update expired subscriptions sebelum query
+      await updateExpiredSubscriptions(ctx);
+
       const whereClause: any = input.search
         ? input.searchColumn?.startsWith("user.")
           ? {
@@ -401,6 +418,9 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      // Update expired subscriptions sebelum query
+      await updateExpiredSubscriptions(ctx);
+
       const items = await ctx.db.subscription.findMany({
         where: { memberId: input.memberId },
         skip: (input.page - 1) * input.limit,
@@ -445,6 +465,9 @@ export const subscriptionRouter = createTRPCRouter({
   getById: permissionProtectedProcedure(["show:subscription"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Update expired subscriptions sebelum query
+      await updateExpiredSubscriptions(ctx);
+
       const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.id },
         include: {

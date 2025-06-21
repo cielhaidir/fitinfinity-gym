@@ -8,6 +8,20 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 
+// Fungsi untuk mengupdate subscription yang sudah expired
+async function updateExpiredSubscriptions(ctx: any) {
+  const now = new Date();
+  await ctx.db.subscription.updateMany({
+    where: {
+      isActive: true,
+      endDate: { lt: now },
+    },
+    data: {
+      isActive: false,
+    },
+  });
+}
+
 export const memberRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:member"])
     .input(
@@ -108,6 +122,9 @@ export const memberRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      // Update expired subscriptions sebelum query
+      await updateExpiredSubscriptions(ctx);
+
       const whereClause = input.search
         ? input.searchColumn?.startsWith("user.")
           ? {

@@ -13,7 +13,17 @@ import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
 import { type Member, type UserMember } from "./schema";
 import { MemberForm } from "./member-form";
+import { MemberNewMemberForm } from "./member-new-member-form";
 import { toast } from "sonner";
+
+function generateRandomPassword(length = 10) {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 export default function MemberPage() {
   const utils = api.useUtils();
@@ -27,6 +37,9 @@ export default function MemberPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [showForm, setShowForm] = useState(false);
+  const [isAddMode, setIsAddMode] = useState(false);
+  const [addMemberLoading, setAddMemberLoading] = useState(false);
+  const [addMemberError, setAddMemberError] = useState<string | null>(null);
 
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
@@ -46,6 +59,18 @@ export default function MemberPage() {
       setIsSheetOpen(false);
       setSelectedMember(null);
       toast.success("Member updated successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const createUserMutation = api.user.create.useMutation({
+    onSuccess: () => {
+      utils.member.list.invalidate();
+      setIsSheetOpen(false);
+      setSelectedMember(null);
+      toast.success("Member created successfully");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -110,6 +135,52 @@ export default function MemberPage() {
     }
   };
 
+  const handleCreateMember = async (form: any) => {
+    setAddMemberLoading(true);
+    setAddMemberError(null);
+    try {
+      const randomPassword = generateRandomPassword();
+      const createData = {
+        name: form.name,
+        email: form.email,
+        password: randomPassword,
+        address: form.address || undefined,
+        phone: form.phone || undefined,
+        birthDate: form.birthDate || undefined,
+        fcId: form.fcId ?? null,
+        rfidNumber: form.rfidNumber || undefined,
+        personalTrainerId: form.personalTrainerId ?? null,
+        idNumber: form.idNumber || undefined,
+      };
+      await createUserMutation.mutateAsync(createData);
+      setShowForm(false);
+      setIsSheetOpen(false);
+    } catch (error: any) {
+      setAddMemberError(error?.message || "Gagal menambah member");
+      toast.error("Failed to create member");
+    } finally {
+      setAddMemberLoading(false);
+    }
+  };
+
+  const handleAddMember = () => {
+    setSelectedMember({
+      id: "",
+      name: "",
+      email: "",
+      rfidNumber: "",
+      fcId: null,
+      personalTrainerId: null,
+      address: "",
+      phone: "",
+      birthDate: null,
+      idNumber: "",
+    });
+    setShowForm(true);
+    setIsSheetOpen(true);
+    setIsAddMode(true);
+  };
+
   const handleEditMember = (member: Member) => {
     setSelectedMember({
       id: member.id,
@@ -123,9 +194,9 @@ export default function MemberPage() {
       birthDate: member.user.birthDate ?? null,
       idNumber: member.user.idNumber ?? "",
     });
-    // console.log("selected ",selectedMember);
     setShowForm(true);
     setIsSheetOpen(true);
+    setIsAddMode(false);
   };
 
   const deleteMemberMutation = api.member.remove.useMutation({
@@ -152,7 +223,7 @@ export default function MemberPage() {
   };
 
   const directToSubs = (member: Member) => {
-    router.push(`/management/subscription/${member.id}`);
+    router.push(`/checkout/${member.id}`);
   };
 
   const directToLogs = (member: Member) => {
@@ -185,6 +256,7 @@ export default function MemberPage() {
           if (!open) {
             setSelectedMember(null);
             setShowForm(false);
+            setIsAddMode(false);
           }
         }}
       >
@@ -198,6 +270,9 @@ export default function MemberPage() {
                 Here&apos;s a list of Fit Infinity Member!
               </p>
             </div>
+            <Button className="bg-infinity" onClick={handleAddMember}>
+              <Plus className="mr-2 h-4 w-4" /> Tambah Member
+            </Button>
           </div>
           {isSelectingForSubscription && (
             <div className="mb-4">
@@ -209,7 +284,19 @@ export default function MemberPage() {
               </p>
             </div>
           )}
-          {showForm && selectedMember && (
+          {showForm && isAddMode && (
+            <MemberNewMemberForm
+              onSubmit={handleCreateMember}
+              onCancel={() => {
+                setShowForm(false);
+                setIsSheetOpen(false);
+                setIsAddMode(false);
+              }}
+              loading={addMemberLoading}
+              error={addMemberError || ""}
+            />
+          )}
+          {showForm && !isAddMode && selectedMember && (
             <MemberForm
               newMember={selectedMember}
               onInputChange={handleInputChange}
@@ -218,6 +305,7 @@ export default function MemberPage() {
                 setSelectedMember(null);
                 setShowForm(false);
                 setIsSheetOpen(false);
+                setIsAddMode(false);
               }}
             />
           )}

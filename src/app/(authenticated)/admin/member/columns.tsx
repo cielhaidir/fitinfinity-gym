@@ -127,7 +127,11 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Active" />
     ),
     cell: ({ row }) => {
-      const hasActiveSubscription = Array.isArray(row.original.subscriptions) && row.original.subscriptions.some((sub) => sub.isActive);
+      const hasActiveSubscription = Array.isArray(row.original.subscriptions) && row.original.subscriptions.some((sub) => {
+        const now = new Date();
+        const isNotExpired = sub.endDate ? new Date(sub.endDate) > now : true;
+        return sub.isActive && isNotExpired;
+      });
       return (
         <Badge
           variant={hasActiveSubscription ? "default" : "destructive"}

@@ -27,6 +27,7 @@ type MemberFormProps = {
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onUpdate: () => void;
   onCancel: () => void;
+  isAddMode?: boolean;
 };
 
 export const MemberForm: React.FC<MemberFormProps> = ({
@@ -34,6 +35,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
   onInputChange,
   onUpdate,
   onCancel,
+  isAddMode = false,
 }) => {
   const { data: fcs } = api.fc.list.useQuery({
     page: 1,
@@ -53,8 +55,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
   return (
     <SheetContent side="right" className="w-full overflow-y-auto">
       <SheetHeader>
-        <SheetTitle>Edit Member</SheetTitle>
-        <SheetDescription>Update the member's information.</SheetDescription>
+        <SheetTitle>{isAddMode ? "Tambah Member" : "Edit Member"}</SheetTitle>
+        <SheetDescription>
+          {isAddMode ? "Masukkan data member baru." : "Update the member's information."}
+        </SheetDescription>
       </SheetHeader>
       <div className="flex flex-col gap-4 px-4 py-8 sm:px-0">
         <div className="md:col-span-2">
@@ -133,7 +137,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
       </div>
       <SheetFooter className="flex justify-end gap-2">
         <Button onClick={onUpdate} className="bg-infinity">
-          Update Member
+          {isAddMode ? "Tambah Member" : "Update Member"}
         </Button>
         <SheetClose asChild>
           <Button variant="outline" onClick={onCancel}>
