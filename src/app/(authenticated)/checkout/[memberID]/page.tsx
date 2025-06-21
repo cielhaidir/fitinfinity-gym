@@ -3,7 +3,7 @@
 import { useState, use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, CreditCard, QrCode } from "lucide-react";
-
+//nah you found me
 import { Button } from "@/components/ui/button";
 import {
   Card,
