@@ -85,4 +85,5 @@ volumes:
 
 networks:
   fitinfinity-network:
-    driver: bridge
+    name: fitinfinity-shared
+    external: true

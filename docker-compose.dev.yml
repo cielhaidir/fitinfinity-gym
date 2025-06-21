@@ -17,4 +17,5 @@ services:
 
 networks:
   fitinfinity-dev-network:
-    driver: bridge
+    name: fitinfinity-shared
+    external: true
