@@ -658,7 +658,6 @@ enum DeviceStatus {
 
 model Device {
     id                 String       @id @default(cuid())
-    deviceId           String       @unique // ESP32 device identifier
     name               String
     type               String       @default("ESP32") // Device type
     accessKey          String
@@ -694,7 +693,6 @@ model Device {
     createdAt          DateTime     @default(now())
     updatedAt          DateTime     @updatedAt
     
-    @@index([deviceId])
     @@index([status])
     @@index([lastSeen])
 }

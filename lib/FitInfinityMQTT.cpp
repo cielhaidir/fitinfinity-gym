@@ -1,7 +1,7 @@
 #include "FitInfinityMQTT.h"
 
-FitInfinityMQTT::FitInfinityMQTT(const char* baseUrl, const char* deviceId, const char* accessKey) 
-    : FitInfinityAPI(baseUrl, accessKey), mqttClient(wifiClient), deviceId(deviceId) {
+FitInfinityMQTT::FitInfinityMQTT(const char* baseUrl, const char* deviceId, const char* accessKey)
+    : FitInfinityAPI(baseUrl, deviceId, accessKey), mqttClient(wifiClient), deviceId(deviceId) {
     
     // Initialize variables
     lastHeartbeat = 0;
