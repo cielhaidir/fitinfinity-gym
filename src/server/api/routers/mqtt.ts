@@ -124,8 +124,17 @@ export const mqttRouter = createTRPCRouter({
           releaseNotes: input.releaseNotes,
         };
 
-        // TODO: Store firmware file in a proper location/service
-        // For now, we'll just simulate the deployment
+        // Store firmware file in the firmware directory
+        const fs = require('fs');
+        const path = require('path');
+        
+        const firmwareDir = path.join(process.cwd(), 'firmware');
+        if (!fs.existsSync(firmwareDir)) {
+          fs.mkdirSync(firmwareDir, { recursive: true });
+        }
+        
+        const firmwareFilePath = path.join(firmwareDir, `${input.version}.bin`);
+        fs.writeFileSync(firmwareFilePath, firmwareBuffer);
 
         // Broadcast to all specified devices
         const deploymentPromises = input.deviceIds.map(deviceId => 
@@ -221,7 +230,7 @@ export const mqttRouter = createTRPCRouter({
       try {
         const devices = await ctx.db.device.findMany({
           select: {
-            deviceId: true,
+            id: true,
             name: true,
             type: true,
             status: true,
@@ -259,7 +268,7 @@ export const mqttRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       try {
         const device = await ctx.db.device.findUnique({
-          where: { deviceId: input.deviceId },
+          where: { id: input.deviceId },
         });
 
         if (!device) {

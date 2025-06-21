@@ -81,6 +81,8 @@ services:
 
 volumes:
   postgres_data:
+      external: true
+      name: fitinfinity_postgres_data
   mosquitto_data:
 
 networks:

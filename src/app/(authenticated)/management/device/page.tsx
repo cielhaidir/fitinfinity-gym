@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { DeviceForm } from "./device-form";
+import { FirmwareManagement } from "./firmware-management";
 
 export default function DevicePage() {
   const [open, setOpen] = useState(false);
@@ -50,24 +51,28 @@ export default function DevicePage() {
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">ESP32 Devices</h1>
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button
-              onClick={() => {
+        <div className="flex gap-2">
+          <FirmwareManagement devices={devices || []} />
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedDevice(null);
+                }}
+              >
+                Add Device
+              </Button>
+            </SheetTrigger>
+            <DeviceForm
+              device={selectedDevice}
+              onSuccess={() => {
+                setOpen(false);
                 setSelectedDevice(null);
               }}
-            >
-              Add Device
-            </Button>
-          </SheetTrigger>
-          <DeviceForm
-            device={selectedDevice}
-            onSuccess={() => {
-              setOpen(false);
-              setSelectedDevice(null);
-            }}
-          />
-        </Sheet>
+            />
+          </Sheet>
+        </div>
       </div>
 
       <div className="rounded-md border">
@@ -77,6 +82,8 @@ export default function DevicePage() {
               <TableHead>Name</TableHead>
               <TableHead>Device ID</TableHead>
               <TableHead>Access Key</TableHead>
+              <TableHead>Firmware</TableHead>
+              <TableHead>MQTT</TableHead>
               <TableHead>Last Seen</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -91,7 +98,7 @@ export default function DevicePage() {
               </TableRow>
             ) : devices?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   No devices found
                 </TableCell>
               </TableRow>
@@ -101,6 +108,22 @@ export default function DevicePage() {
                   <TableCell>{device.name}</TableCell>
                   <TableCell>{device.id}</TableCell>
                   <TableCell>{device.accessKey}</TableCell>
+                  <TableCell>
+                    <span className="text-sm text-gray-600">
+                      {(device as any).firmwareVersion || "Unknown"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        (device as any).mqttConnected
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {(device as any).mqttConnected ? "Connected" : "Offline"}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     {device.lastSeen
                       ? new Date(device.lastSeen).toLocaleString()
