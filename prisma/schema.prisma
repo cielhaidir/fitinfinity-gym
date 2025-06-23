@@ -611,7 +611,7 @@ model FcMember {
     fc_id        String
     member_name  String
     member_phone String
-    address      String
+    address      String?
     status       FCMemberStatus
     createdAt    DateTime @default(now())
     updatedAt    DateTime @updatedAt
