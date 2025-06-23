@@ -82,6 +82,12 @@ class ConfigService {
         category: "site",
         description: "Physical address",
       },
+      {
+        key: "rfid_point",
+        value: "10",  // Default 10 point per attendance
+        category: "attendance",
+        description: "Point earned per RFID attendance"
+      }
     ];
 
     for (const config of defaults) {

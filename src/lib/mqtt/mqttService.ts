@@ -414,12 +414,25 @@ class MQTTService extends EventEmitter {
       throw new Error('MQTT client not connected');
     }
 
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+  });
+
+  let fingerprintSlot = 1;
+
+  if (employee?.fingerprintId) {
+      fingerprintSlot = employee.fingerprintId;
+  } else {
+      // Cari slot baru
+      fingerprintSlot = await this.getNextFingerprintSlot(deviceId);
+  }
+
     const topic = `fitinfinity/devices/${deviceId}/enrollment/request`;
     const payload = JSON.stringify({
-      employeeId,
-      employeeName,
-      timestamp: new Date().toISOString(),
-      fingerprintSlot: await this.getNextFingerprintSlot(deviceId),
+        employeeId,
+        employeeName,
+        timestamp: new Date().toISOString(),
+        fingerprintSlot: fingerprintSlot,
     });
 
     return new Promise((resolve, reject) => {

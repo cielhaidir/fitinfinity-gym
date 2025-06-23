@@ -244,56 +244,106 @@ export const esp32Router = createTRPCRouter({
             }
         }),
 
-    // RFID attendance endpoint
-    logRFID: deviceProcedure
-        .input(z.object({
-            rfid: z.string(),
-            timestamp: z.string().optional(),
-            deviceId: z.string(),
-            accessKey: z.string()  // Required for device auth
-        }))
-        .mutation(async ({ ctx, input }) => {
-            try {
-                const { rfid, timestamp, deviceId } = input;
-                const logTime = timestamp ? new Date(timestamp) : new Date();
+        logRFID: deviceProcedure
+  .input(z.object({
+    rfid: z.string(),
+    timestamp: z.string().optional(),
+    deviceId: z.string(),
+    accessKey: z.string()
+  }))
+  .mutation(async ({ ctx, input }) => {
+    try {
+      const { rfid, timestamp, deviceId } = input;
+      const logTime = timestamp ? new Date(timestamp) : new Date();
 
-                // Find member by RFID
-                const membership = await ctx.db.membership.findFirst({
-                    where: {
-                        rfidNumber: rfid,
-                        isActive: true
-                    }
-                });
+      // Find member by RFID
+      const membership = await ctx.db.membership.findFirst({
+        where: {
+          rfidNumber: rfid,
+          isActive: true
+        },
+        include: {
+          user: true  // <--- penting: ambil relasi user juga
+        }
+      });
 
-                if (!membership) {
-                    throw new TRPCError({
-                        code: "NOT_FOUND",
-                        message: "Active member not found",
-                    });
-                }
+      if (!membership) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Active member not found",
+        });
+      }
 
-                // Log member attendance
-                const memberAttendance = await ctx.db.attendanceMember.create({
-                    data: {
-                        memberId: membership.id,
-                        checkin: logTime
-                    }
-                });
+      // Check if attendance already exists for today
+      const todayStart = new Date(logTime);
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(todayStart);
+      todayEnd.setDate(todayStart.getDate() + 1);
 
-                return {
-                    success: true,
-                    message: "Member attendance logged successfully",
-                    data: memberAttendance
-                };
+      const existingAttendance = await ctx.db.attendanceMember.findFirst({
+        where: {
+          memberId: membership.id,
+          checkin: {
+            gte: todayStart,
+            lt: todayEnd
+          }
+        }
+      });
 
-            } catch (error) {
-                if (error instanceof TRPCError) throw error;
-                throw new TRPCError({
-                    code: "INTERNAL_SERVER_ERROR",
-                    message: "Failed to log member attendance",
-                });
-            }
-        }),
+      if (existingAttendance) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Member has already checked in today",
+        });
+      }
+
+      // Log attendance
+      const memberAttendance = await ctx.db.attendanceMember.create({
+        data: {
+          memberId: membership.id,
+          checkin: logTime
+        }
+      });
+
+      // Fetch config point
+      const config = await ctx.db.config.findUnique({
+        where: { key: "rfid_point" }
+      });
+
+      if (!config) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Config for RFID point not found",
+        });
+      }
+
+      // Parse value string ke number
+      const pointValue = parseInt(config.value) || 0;
+
+      // Update user point
+      await ctx.db.user.update({
+        where: { id: membership.user.id },
+        data: {
+          point: { increment: pointValue }
+        }
+      });
+
+      return {
+        success: true,
+        message: "Member attendance logged successfully",
+        data: memberAttendance
+      };
+
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to log member attendance",
+      });
+    }
+  }),
+
+    
 
     // Bulk attendance submission endpoint
     bulkLog: deviceProcedure
