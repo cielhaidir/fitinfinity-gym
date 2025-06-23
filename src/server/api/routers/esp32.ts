@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure, deviceProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { EnrollmentStatus } from "@prisma/client";
+import { mqttService } from "@/lib/mqtt/mqttService";
 
 const deviceAuthInput = z.object({
     deviceId: z.string(),
@@ -28,17 +29,23 @@ export const esp32Router = createTRPCRouter({
             }
         }),
 
-    // New enrollment endpoint
+    // New enrollment endpoint with MQTT integration
     requestEnrollment: protectedProcedure
         .input(z.object({
             employeeId: z.string(),
-            // deviceId: z.string(),
-            // accessKey: z.string()
+            deviceId: z.string().optional(), // Make optional for now
         }))
         .mutation(async ({ ctx, input }) => {
             try {
                 const employee = await ctx.db.employee.findUnique({
-                    where: { id: input.employeeId }
+                    where: { id: input.employeeId },
+                    include: {
+                        user: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
                 });
 
                 if (!employee) {
@@ -48,20 +55,51 @@ export const esp32Router = createTRPCRouter({
                     });
                 }
 
+                // Get an available device or use provided deviceId
+                let targetDeviceId = input.deviceId;
+                
+                if (!targetDeviceId) {
+                    // Find an online device to use for enrollment
+                    const onlineDevice = await ctx.db.device.findFirst({
+                        where: {
+                            status: 'ONLINE',
+                            mqttConnected: true
+                        }
+                    });
+                    
+                    if (!onlineDevice) {
+                        throw new TRPCError({
+                            code: "NOT_FOUND",
+                            message: "No online devices available for enrollment"
+                        });
+                    }
+                    
+                    targetDeviceId = onlineDevice.id;
+                }
+
                 // Update employee status to pending enrollment
                 await ctx.db.employee.update({
                     where: { id: input.employeeId },
                     data: {
                         enrollmentStatus: EnrollmentStatus.PENDING,
-                        // deviceId: input.deviceId
+                        deviceId: targetDeviceId
                     }
                 });
 
+                // Send MQTT enrollment request to device
+                await mqttService.sendEnrollmentRequest(
+                    targetDeviceId,
+                    input.employeeId,
+                    employee.user.name || 'Unknown Employee'
+                );
+
                 return {
                     success: true,
-                    message: "Enrollment request initiated"
+                    message: "Enrollment request sent to device",
+                    deviceId: targetDeviceId
                 };
             } catch (error) {
+                if (error instanceof TRPCError) throw error;
                 throw new TRPCError({
                     code: "INTERNAL_SERVER_ERROR",
                     message: "Failed to initiate enrollment"

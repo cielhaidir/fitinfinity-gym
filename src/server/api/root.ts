@@ -35,6 +35,7 @@ import { deviceRouter } from "./routers/device";
 import { posCategoryRouter } from "./routers/posCategory";
 import { posItemRouter } from "./routers/posItem";
 import { posSaleRouter } from "./routers/posSale";
+import { mqttRouter } from "./routers/mqtt";
 
 /**
  * This is the primary router for your server.
@@ -78,6 +79,7 @@ export const appRouter = createTRPCRouter({
   posCategory: posCategoryRouter,
   posItem: posItemRouter,
   posSale: posSaleRouter,
+  mqtt: mqttRouter,
 });
 
 // export type definition of API

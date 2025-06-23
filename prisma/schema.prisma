@@ -649,14 +649,52 @@ model Config {
 }
 
 
+enum DeviceStatus {
+    ONLINE
+    OFFLINE
+    ERROR
+    MAINTENANCE
+}
+
 model Device {
-    id         String   @id @default(cuid())
-    name       String
-    accessKey  String
-    isActive   Boolean  @default(true)
-    lastSeen   DateTime?
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+    id                 String       @id @default(cuid())
+    name               String
+    type               String       @default("ESP32") // Device type
+    accessKey          String
+    status             DeviceStatus @default(OFFLINE)
+    isActive           Boolean      @default(true)
+    lastSeen           DateTime?
+    
+    // WiFi Configuration
+    configuredWifi     String?      // Currently configured WiFi SSID
+    wifiStatus         String?      // WiFi connection status
+    availableNetworks  String?      @db.Text // JSON string of available networks
+    lastNetworkScan    DateTime?
+    lastConfigured     DateTime?
+    
+    // Firmware Management
+    firmwareVersion    String?      // Current firmware version
+    availableFirmware  String?      // Available firmware version
+    lastFirmwareUpdate DateTime?
+    
+    // Device Health
+    batteryLevel       Int?         // Battery percentage (if applicable)
+    signalStrength     Int?         // WiFi signal strength
+    uptime             Int?         // Device uptime in seconds
+    temperature        Float?       // Device temperature
+    errorMessage       String?      // Last error message
+    errorCount         Int          @default(0)
+    
+    // MQTT Configuration
+    mqttConnected      Boolean      @default(false)
+    lastMqttMessage    DateTime?
+    mqttClientId       String?
+    
+    createdAt          DateTime     @default(now())
+    updatedAt          DateTime     @updatedAt
+    
+    @@index([status])
+    @@index([lastSeen])
 }
 
 // POS Models for Additional Items (Drinks, Snacks, etc.)

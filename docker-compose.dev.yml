@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+ 
+  app:
+    image: fitinfinity
+    container_name: fitinfinity-app-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3100:3000"  # Pakai port 3100 untuk dev
+    env_file:
+      - .env.dev
+    networks:
+      - fitinfinity-dev-network
+
+networks:
+  fitinfinity-dev-network:
+    name: fitinfinity-shared
+    external: true

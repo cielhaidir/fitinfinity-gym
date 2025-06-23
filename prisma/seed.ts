@@ -268,6 +268,7 @@ async function main() {
         "show:attedance",
         "show:member",
         "show:payment",
+        "create:payment",
 
         "list:reward",
         "list:session",
