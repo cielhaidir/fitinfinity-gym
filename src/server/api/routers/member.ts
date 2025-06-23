@@ -253,7 +253,7 @@ export const memberRouter = createTRPCRouter({
       }
 
       // Update personal trainer from the subscription if provided
-      if (input.personalTrainer) {
+      if (input.personalTrainer?.connect) {
         console.log("Updating personal trainer for membership:", input.personalTrainer);
         const subscription = await ctx.db.subscription.findFirst({
           where: {

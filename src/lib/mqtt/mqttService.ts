@@ -1,6 +1,7 @@
 import mqtt from 'mqtt';
 import { EventEmitter } from 'events';
 import { prisma } from '../prisma';
+import { DeviceStatus } from '@prisma/client';
 
 interface EnrollmentData {
   employeeId: string;
@@ -22,14 +23,6 @@ interface AttendanceLog {
   id: string;
   timestamp: string;
   deviceId: string;
-}
-
-interface DeviceStatus {
-  deviceId: string;
-  status: 'online' | 'offline' | 'error';
-  lastSeen: string;
-  version?: string;
-  error?: string;
 }
 
 class MQTTService extends EventEmitter {
@@ -160,15 +153,15 @@ class MQTTService extends EventEmitter {
           // Update enrollment status in database
           await this.handleEnrollmentStatus(deviceId, payload);
           // Update device lastSeen for enrollment activity
-          await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
+          await this.updateDeviceStatus(deviceId, DeviceStatus.ONLINE, payload);
         }
         break;
 
       case 'status':
         if (action === 'online' || action === 'heartbeat') {
-          await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
+          await this.updateDeviceStatus(deviceId, DeviceStatus.ONLINE, payload);
         } else if (action === 'error') {
-          await this.updateDeviceStatus(deviceId, 'ERROR', payload);
+          await this.updateDeviceStatus(deviceId, DeviceStatus.ERROR, payload);
         }
         break;
 
@@ -179,7 +172,7 @@ class MQTTService extends EventEmitter {
           ...payload
         });
         // Update device lastSeen for OTA activity
-        await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
+        await this.updateDeviceStatus(deviceId, DeviceStatus.ONLINE, payload);
         break;
 
       case 'config':
@@ -189,7 +182,7 @@ class MQTTService extends EventEmitter {
             ...payload
           });
           // Update device lastSeen for wifi config activity
-          await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
+          await this.updateDeviceStatus(deviceId, DeviceStatus.ONLINE, payload);
         }
         break;
     }
