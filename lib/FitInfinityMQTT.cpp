@@ -296,8 +296,7 @@ void FitInfinityMQTT::publishAttendanceLog(String type, String id, String timest
     String payload;
     serializeJson(doc, payload);
     
-    String topic = getTopicPrefix() + "/attendance/" + type;
-    mqttClient.publish(topic.c_str(), payload.c_str());
+
     
     Serial.println("Published " + type + " attendance: " + id);
 }

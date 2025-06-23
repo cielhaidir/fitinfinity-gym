@@ -1,5 +1,6 @@
 import mqtt from 'mqtt';
 import { EventEmitter } from 'events';
+import { prisma } from '../prisma';
 
 interface EnrollmentData {
   employeeId: string;
@@ -105,7 +106,6 @@ class MQTTService extends EventEmitter {
     // Subscribe to all device topics
     const subscriptions = [
       'fitinfinity/devices/+/enrollment/status',
-      'fitinfinity/devices/+/attendance/+',
       'fitinfinity/devices/+/status/+',
       'fitinfinity/devices/+/ota/+',
       'fitinfinity/devices/+/config/wifi/+',
@@ -123,7 +123,7 @@ class MQTTService extends EventEmitter {
     });
   }
 
-  private handleMessage(topic: string, message: Buffer): void {
+  private async handleMessage(topic: string, message: Buffer): Promise<void> {
     try {
       const payload = JSON.parse(message.toString());
       console.log(`MQTT Message received - Topic: ${topic}, Payload:`, payload);
@@ -137,7 +137,7 @@ class MQTTService extends EventEmitter {
         const action = topicParts[4];
 
         if (deviceId && category && action) {
-          this.handleDeviceMessage(deviceId, category, action, payload);
+          await this.handleDeviceMessage(deviceId, category, action, payload);
         }
       } else if (topicParts[0] === 'fitinfinity' && topicParts[1] === 'admin') {
         const adminAction = topicParts[2];
@@ -152,38 +152,23 @@ class MQTTService extends EventEmitter {
     }
   }
 
-  private handleDeviceMessage(deviceId: string, category: string, action: string, payload: any): void {
+  private async handleDeviceMessage(deviceId: string, category: string, action: string, payload: any): Promise<void> {
     switch (category) {
       case 'enrollment':
         if (action === 'status') {
           this.emit('enrollmentStatus', { deviceId, ...payload });
+          // Update enrollment status in database
+          await this.handleEnrollmentStatus(deviceId, payload);
+          // Update device lastSeen for enrollment activity
+          await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
         }
-        break;
-
-      case 'attendance':
-        this.emit('attendanceLog', { 
-          deviceId, 
-          type: action, 
-          ...payload 
-        } as AttendanceLog);
         break;
 
       case 'status':
         if (action === 'online' || action === 'heartbeat') {
-          this.emit('deviceStatus', {
-            deviceId,
-            status: 'online',
-            lastSeen: new Date().toISOString(),
-            ...payload
-          } as DeviceStatus);
+          await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
         } else if (action === 'error') {
-          this.emit('deviceStatus', {
-            deviceId,
-            status: 'error',
-            lastSeen: new Date().toISOString(),
-            error: payload.error || 'Unknown error',
-            ...payload
-          } as DeviceStatus);
+          await this.updateDeviceStatus(deviceId, 'ERROR', payload);
         }
         break;
 
@@ -193,6 +178,8 @@ class MQTTService extends EventEmitter {
           action,
           ...payload
         });
+        // Update device lastSeen for OTA activity
+        await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
         break;
 
       case 'config':
@@ -201,6 +188,8 @@ class MQTTService extends EventEmitter {
             deviceId,
             ...payload
           });
+          // Update device lastSeen for wifi config activity
+          await this.updateDeviceStatus(deviceId, 'ONLINE', payload);
         }
         break;
     }
@@ -345,6 +334,132 @@ class MQTTService extends EventEmitter {
           resolve();
         });
       });
+    }
+  }
+
+  // Update device status in database
+  private async updateDeviceStatus(deviceId: string, status: 'ONLINE' | 'OFFLINE' | 'ERROR', payload: any): Promise<void> {
+    try {
+      const updateData: any = {
+        lastSeen: new Date(),
+        status: status,
+        mqttConnected: status === 'ONLINE',
+        lastMqttMessage: new Date(),
+      };
+
+      // Add optional fields if present in payload
+      if (payload.uptime) {
+        updateData.uptime = payload.uptime;
+      }
+      if (payload.wifiRSSI) {
+        updateData.signalStrength = payload.wifiRSSI;
+      }
+      if (payload.freeHeap) {
+        // Store free heap info in a way that fits the schema
+      }
+      if (payload.temperature) {
+        updateData.temperature = payload.temperature;
+      }
+      if (payload.version) {
+        updateData.firmwareVersion = payload.version;
+      }
+      if (status === 'ERROR' && payload.error) {
+        updateData.errorMessage = payload.error;
+        updateData.errorCount = { increment: 1 };
+      } else if (status === 'ONLINE') {
+        updateData.errorMessage = null; // Clear error when device is online
+      }
+
+      // Update or create device record
+      await prisma.device.upsert({
+        where: { id: deviceId },
+        update: updateData,
+        create: {
+          id: deviceId,
+          name: `Device ${deviceId.slice(-8)}`, // Use last 8 chars as name
+          accessKey: 'auto-generated', // Will need to be updated manually
+          ...updateData,
+        },
+      });
+
+      console.log(`Device ${deviceId} updated - Status: ${status}`);
+    } catch (error) {
+      console.error(`Error updating device ${deviceId}:`, error);
+    }
+  }
+
+  // Handle enrollment status updates from ESP32 devices
+  private async handleEnrollmentStatus(deviceId: string, payload: any): Promise<void> {
+    try {
+      const { employeeId, status, fingerprintId } = payload;
+      
+      if (!employeeId || !status) {
+        console.error('Enrollment status missing required fields');
+        return;
+      }
+
+      // Update employee enrollment status in database
+      await prisma.employee.update({
+        where: { id: employeeId },
+        data: {
+          enrollmentStatus: status,
+          fingerprintId: status === 'ENROLLED' ? fingerprintId : null,
+          deviceId: status === 'PENDING' ? deviceId : null,
+        },
+      });
+
+      console.log(`Enrollment status updated for employee ${employeeId}: ${status}`);
+      
+    } catch (error) {
+      console.error('Error handling enrollment status:', error);
+    }
+  }
+
+  // Send enrollment request to specific device (called from employee management)
+  async sendEnrollmentRequest(deviceId: string, employeeId: string, employeeName: string): Promise<boolean> {
+    if (!this.isConnected || !this.client) {
+      throw new Error('MQTT client not connected');
+    }
+
+    const topic = `fitinfinity/devices/${deviceId}/enrollment/request`;
+    const payload = JSON.stringify({
+      employeeId,
+      employeeName,
+      timestamp: new Date().toISOString(),
+      fingerprintSlot: await this.getNextFingerprintSlot(deviceId),
+    });
+
+    return new Promise((resolve, reject) => {
+      this.client!.publish(topic, payload, { qos: 1 }, (error?: Error) => {
+        if (error) {
+          console.error('Failed to publish enrollment request:', error);
+          reject(error);
+        } else {
+          console.log(`Enrollment request sent to device ${deviceId} for employee ${employeeName}`);
+          resolve(true);
+        }
+      });
+    });
+  }
+
+  // Helper to get next available fingerprint slot for device
+  private async getNextFingerprintSlot(deviceId: string): Promise<number> {
+    try {
+      // Get highest fingerprint ID used by this device
+      const lastEmployee = await prisma.employee.findFirst({
+        where: {
+          deviceId: deviceId,
+          fingerprintId: { not: null },
+        },
+        orderBy: {
+          fingerprintId: 'desc',
+        },
+      });
+
+      return lastEmployee?.fingerprintId ? lastEmployee.fingerprintId + 1 : 1;
+    } catch (error) {
+      console.error('Failed to get next fingerprint slot:', error);
+      return 1; // Default to slot 1
     }
   }
 
