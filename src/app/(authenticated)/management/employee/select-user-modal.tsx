@@ -31,6 +31,8 @@ export const SelectUserModal = ({
   const [searchColumn, setSearchColumn] = useState<string>("");
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const utils = api.useUtils();
 
   const createEmployeeMutation = api.employee.create.useMutation({
@@ -78,10 +80,15 @@ export const SelectUserModal = ({
     }
   };
 
+  const handlePaginationChange = (newPage: number, newLimit: number) => {
+    setPage(newPage);
+    setLimit(newLimit);
+  };
+
   const { data: users = { items: [], total: 0, page: 1, limit: 10 } } =
     api.user.list.useQuery({
-      page: 1,
-      limit: 10,
+      page,
+      limit,
       search,
       searchColumn,
     });
@@ -166,7 +173,9 @@ export const SelectUserModal = ({
             onSearch={(value, column) => {
               setSearch(value);
               setSearchColumn(column);
+              setPage(1); // Reset to first page when searching
             }}
+            onPaginationChange={handlePaginationChange}
           />
         </div>
         <div className="mt-4 flex justify-end">
