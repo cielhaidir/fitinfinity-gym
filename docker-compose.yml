@@ -58,6 +58,10 @@ services:
       - "3099:3000"
     env_file:
       - .env
+    volumes:
+      - /development/data-fit/uploads:/app/public/uploads
+      - /development/data-fit/assets:/app/public/assets
+
     networks:
       - fitinfinity-network
 
@@ -84,6 +88,12 @@ volumes:
       external: true
       name: fitinfinity_postgres_data
   mosquitto_data:
+  uploads_data:
+      external: true
+      name: fitinfinity_uploads_data
+  assets_data:
+      external: true
+      name: fitinfinity_assets_data
 
 networks:
   fitinfinity-network:

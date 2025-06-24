@@ -53,6 +53,15 @@ export default function MemberPage() {
     });
 
 
+  const manualCheckInMutation = api.esp32.manualCheckIn.useMutation({
+    onSuccess: () => {
+      toast.success("Member checked in successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const updateMemberMutation = api.member.update.useMutation({
     onSuccess: () => {
       utils.member.list.invalidate();
@@ -230,9 +239,20 @@ export default function MemberPage() {
     router.push(`/management/access-log/${member.id}`);
   };
 
+  const handleManualCheckIn = async (member: Member) => {
+    try {
+      await manualCheckInMutation.mutateAsync({
+        memberId: member.id,
+      });
+    } catch (error) {
+      console.error("Error during manual check-in:", error);
+    }
+  };
+
   const customActions = [
     { label: "Subscription", action: directToSubs },
     { label: "Access Log", action: directToLogs },
+    { label: "Check In Manually", action: handleManualCheckIn },
   ];
 
   const handleMemberSelect = (member: Member) => {

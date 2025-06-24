@@ -116,7 +116,7 @@ export default function SubscriptionPage({
     return Math.max(0, total);
   };
 
-  const handleSubmit = async () => {
+  const l = async () => {
     if (!selectedPackageDetails) {
       toast.error("Please select a package.");
       return;
@@ -616,7 +616,7 @@ export default function SubscriptionPage({
                     (subscriptionType === "trainer" && !selectedTrainer) ||
                     isProcessingPayment
                   }
-                  onClick={handleSubmit}
+                  onClick={l}
                 >
                   {isProcessingPayment
                     ? "Processing..."

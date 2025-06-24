@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,23 +24,42 @@ function CheckoutValidateContent() {
   const router = useRouter();
   const utils = api.useUtils();
 
-  const memberID = params.memberID as string;
+  const memberID = params?.memberID as string;
 
-  // Extract details from query parameters
-  const packageId = searchParams.get("packageId") || "";
-  const packageName = searchParams.get("packageName") || "N/A";
-  const packagePrice = searchParams.get("packagePrice") || "0";
-  const packageType = searchParams.get("packageType") || "N/A";
-  const duration = searchParams.get("duration") || "0";
-  const sessions = searchParams.get("sessions") || "0";
-  const totalPayment = searchParams.get("totalPayment") || "0";
-  const paymentMethod = searchParams.get("paymentMethod") || "N/A";
-  const trainerId = searchParams.get("trainerId");
-  const trainerName = searchParams.get("trainerName");
-  const voucherId = searchParams.get("voucherId");
-  const voucherName = searchParams.get("voucherName");
-  const voucherAmount = searchParams.get("voucherAmount");
-  const voucherDiscountType = searchParams.get("voucherDiscountType");
+  // Early return if memberID is not available
+  if (!memberID) {
+    return (
+      <div className="container mx-auto max-w-2xl p-5">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600">Error</h2>
+          <p>Member ID is required to proceed with payment validation.</p>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/admin/member')}
+            className="mt-4"
+          >
+            Go to Members
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract details from query parameters with null checks
+  const packageId = searchParams?.get("packageId") || "";
+  const packageName = searchParams?.get("packageName") || "N/A";
+  const packagePrice = searchParams?.get("packagePrice") || "0";
+  const packageType = searchParams?.get("packageType") || "N/A";
+  const duration = searchParams?.get("duration") || "0";
+  const sessions = searchParams?.get("sessions") || "0";
+  const totalPayment = searchParams?.get("totalPayment") || "0";
+  const paymentMethod = searchParams?.get("paymentMethod") || "N/A";
+  const trainerId = searchParams?.get("trainerId");
+  const trainerName = searchParams?.get("trainerName");
+  const voucherId = searchParams?.get("voucherId");
+  const voucherName = searchParams?.get("voucherName");
+  const voucherAmount = searchParams?.get("voucherAmount");
+  const voucherDiscountType = searchParams?.get("voucherDiscountType");
 
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -259,7 +278,16 @@ function CheckoutValidateContent() {
 
 export default function CheckoutValidatePage() {
   return (
-    <Suspense fallback={<div>Loading payment details...</div>}>
+    <Suspense fallback={
+      <div className="container mx-auto max-w-2xl p-5">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <p>Loading payment details...</p>
+          </div>
+        </div>
+      </div>
+    }>
       <CheckoutValidateContent />
     </Suspense>
   );
