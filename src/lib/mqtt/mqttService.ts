@@ -457,7 +457,7 @@ class MQTTService extends EventEmitter {
       // Get highest fingerprint ID used by this device
       const lastEmployee = await prisma.employee.findFirst({
         where: {
-          deviceId: deviceId,
+          // deviceId: deviceId,
           fingerprintId: { not: null },
         },
         orderBy: {
