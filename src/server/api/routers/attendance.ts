@@ -3,203 +3,268 @@ import {
   createTRPCRouter,
   protectedProcedure,
   permissionProtectedProcedure,
-} from "../trpc";
+} from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import * as XLSX from "xlsx";
 
 export const attendanceRouter = createTRPCRouter({
-  list: permissionProtectedProcedure(["list:attendance"])
+  getAllHistory: permissionProtectedProcedure(["list:employees"])
     .input(
       z.object({
-        page: z.number().default(1),
-        limit: z.number().default(10),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).default(20),
         search: z.string().optional(),
-        searchColumn: z.string().optional(),
-        date: z.string().optional(),
-      }),
+        searchType: z.enum(["employee", "device", "fingerprint"]).default("employee"),
+        attendanceType: z.enum(["all", "checkin", "checkout"]).default("all"),
+      })
     )
     .query(async ({ ctx, input }) => {
-      const { page, limit, search, searchColumn, date } = input;
+      const { startDate, endDate, page, limit, search, searchType, attendanceType } = input;
       const skip = (page - 1) * limit;
 
-      try {
-        const where = {
-          ...(date && {
-            date: {
-              gte: new Date(date + "T00:00:00.000Z"),
-              lt: new Date(date + "T23:59:59.999Z"),
-            },
-          }),
-          ...(search &&
-            searchColumn && {
-              employee: {
+      // Build where clause
+      let where: any = {};
+
+      // Date filter
+      if (startDate && endDate) {
+        where.date = {
+          gte: startDate,
+          lte: endDate,
+        };
+      }
+
+      // Search filter
+      if (search) {
+        switch (searchType) {
+          case "employee":
+            where.employee = {
+              user: {
+                name: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            };
+            break;
+          case "device":
+            where.deviceId = {
+              contains: search,
+              mode: "insensitive",
+            };
+            break;
+          case "fingerprint":
+            where.employee = {
+              fingerprintId: parseInt(search) || undefined,
+            };
+            break;
+        }
+      }
+
+      // Attendance type filter
+      if (attendanceType === "checkin") {
+        where.checkIn = { not: null };
+        where.checkOut = null;
+      } else if (attendanceType === "checkout") {
+        where.checkOut = { not: null };
+      }
+
+      const [items, total] = await Promise.all([
+        ctx.db.attendance.findMany({
+          where,
+          skip,
+          take: limit,
+          include: {
+            employee: {
+              include: {
                 user: {
-                  [searchColumn]: {
-                    contains: search,
-                    mode: "insensitive",
+                  select: {
+                    name: true,
+                    email: true,
                   },
                 },
               },
-            }),
-        };
+            },
+          },
+          orderBy: {
+            date: "desc",
+          },
+        }),
+        ctx.db.attendance.count({ where }),
+      ]);
 
-        const [items, total] = await Promise.all([
-          ctx.db.attendance.findMany({
-            where,
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    }),
+
+  exportToExcel: permissionProtectedProcedure(["list:employees"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        search: z.string().optional(),
+        searchType: z.enum(["employee", "device", "fingerprint"]).default("employee"),
+        attendanceType: z.enum(["all", "checkin", "checkout"]).default("all"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { startDate, endDate, search, searchType, attendanceType } = input;
+
+      // Build where clause (same as getAllHistory)
+      let where: any = {};
+
+      if (startDate && endDate) {
+        where.date = {
+          gte: startDate,
+          lte: endDate,
+        };
+      }
+
+      if (search) {
+        switch (searchType) {
+          case "employee":
+            where.employee = {
+              user: {
+                name: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            };
+            break;
+          case "device":
+            where.deviceId = {
+              contains: search,
+              mode: "insensitive",
+            };
+            break;
+          case "fingerprint":
+            where.employee = {
+              fingerprintId: parseInt(search) || undefined,
+            };
+            break;
+        }
+      }
+
+      if (attendanceType === "checkin") {
+        where.checkIn = { not: null };
+        where.checkOut = null;
+      } else if (attendanceType === "checkout") {
+        where.checkOut = { not: null };
+      }
+
+      // Get all records for export (no pagination)
+      const records = await ctx.db.attendance.findMany({
+        where,
+        include: {
+          employee: {
             include: {
-              employee: {
-                include: {
-                  user: true,
+              user: {
+                select: {
+                  name: true,
+                  email: true,
                 },
               },
             },
-            orderBy: {
-              date: "desc",
-            },
-            skip,
-            take: limit,
-          }),
-          ctx.db.attendance.count({ where }),
-        ]);
+          },
+        },
+        orderBy: {
+          date: "desc",
+        },
+      });
 
-        return {
-          items,
-          total,
-          page,
-          limit,
-        };
-      } catch (error) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch attendance records",
-        });
-      }
+      // Prepare data for Excel
+      const excelData = records.map((record) => ({
+        "Employee Name": record.employee.user.name,
+        "Employee Email": record.employee.user.email,
+        "Fingerprint ID": record.employee.fingerprintId || "-",
+        "Date": record.date.toLocaleDateString("id-ID"),
+        "Check In": record.checkIn ? record.checkIn.toLocaleString("id-ID") : "-",
+        "Check Out": record.checkOut ? record.checkOut.toLocaleString("id-ID") : "-",
+        "Device ID": record.deviceId || "-",
+        "Status": record.checkOut ? "Complete" : "Checked In",
+        "Duration (Hours)": record.checkOut && record.checkIn 
+          ? ((record.checkOut.getTime() - record.checkIn.getTime()) / (1000 * 60 * 60)).toFixed(2)
+          : "-",
+      }));
+
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Auto-size columns
+      const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+        wch: Math.max(key.length, 15),
+      }));
+      worksheet["!cols"] = colWidths;
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Records");
+
+      // Generate buffer
+      const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+      // Generate filename
+      const dateRange = startDate && endDate 
+        ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`
+        : "";
+      const filename = `attendance_records${dateRange}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      return {
+        buffer: Array.from(buffer),
+        filename,
+      };
     }),
 
-  checkIn: permissionProtectedProcedure(["create:attendance"]).mutation(async ({ ctx }) => {
-    try {
-      // First check if user exists and has employee role
-      const user = await ctx.db.user.findUnique({
-        where: { id: ctx.session.user.id },
-        include: {
-          roles: true,
-          employee: true,
-        },
-      });
+  getStats: permissionProtectedProcedure(["list:employees"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { startDate, endDate } = input;
 
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
-        });
+      let where: any = {};
+      if (startDate && endDate) {
+        where.date = {
+          gte: startDate,
+          lte: endDate,
+        };
       }
 
-      if (!user.employee) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only employees can check in",
-        });
-      }
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const existingAttendance = await ctx.db.attendance.findFirst({
-        where: {
-          employeeId: user.employee.id,
-          date: {
-            gte: today,
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      const [totalRecords, checkedInOnly, completedRecords, uniqueEmployees] = await Promise.all([
+        ctx.db.attendance.count({ where }),
+        ctx.db.attendance.count({
+          where: {
+            ...where,
+            checkIn: { not: null },
+            checkOut: null,
           },
-        },
-      });
-
-      if (existingAttendance) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "You have already checked in today",
-        });
-      }
-
-      const attendance = await ctx.db.attendance.create({
-        data: {
-          employeeId: user.employee.id,
-          checkIn: new Date(),
-          date: new Date(),
-        },
-      });
-
-      return attendance;
-    } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to check in",
-      });
-    }
-  }),
-
-  checkOut: permissionProtectedProcedure(["create:attendance"]).mutation(async ({ ctx }) => {
-    try {
-      // First check if user exists and has employee role
-      const user = await ctx.db.user.findUnique({
-        where: { id: ctx.session.user.id },
-        include: {
-          roles: true,
-          employee: true,
-        },
-      });
-
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
-        });
-      }
-
-      if (!user.employee) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only employees can check out",
-        });
-      }
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const attendance = await ctx.db.attendance.findFirst({
-        where: {
-          employeeId: user.employee.id,
-          date: {
-            gte: today,
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        }),
+        ctx.db.attendance.count({
+          where: {
+            ...where,
+            checkOut: { not: null },
           },
-          checkOut: null,
-        },
-      });
+        }),
+        ctx.db.attendance.groupBy({
+          by: ["employeeId"],
+          where,
+          _count: true,
+        }),
+      ]);
 
-      if (!attendance) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No check-in record found for today",
-        });
-      }
-
-      const updatedAttendance = await ctx.db.attendance.update({
-        where: {
-          id: attendance.id,
-        },
-        data: {
-          checkOut: new Date(),
-        },
-      });
-
-      return updatedAttendance;
-    } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to check out",
-      });
-    }
-  }),
+      return {
+        totalRecords,
+        checkedInOnly,
+        completedRecords,
+        uniqueEmployees: uniqueEmployees.length,
+      };
+    }),
 });

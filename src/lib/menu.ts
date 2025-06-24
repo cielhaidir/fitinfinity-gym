@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   Package2,
   Store,
+  Clock,
 } from "lucide-react";
 import { type LucideIcon, HandCoins } from "lucide-react";
 
@@ -71,6 +72,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Fingerprint Device",
           url: "/management/device",
           icon: ContactRound,
+          requiredPermission: "menu:employees",
+        },
+        {
+          title: "Attendance Management",
+          url: "/management/attendance",
+          icon: Clock,
           requiredPermission: "menu:employees",
         },
         {
