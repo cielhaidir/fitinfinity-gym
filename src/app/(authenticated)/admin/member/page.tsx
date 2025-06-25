@@ -7,6 +7,15 @@ import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/_components/ui/dialog";
+import { Textarea } from "@/app/_components/ui/textarea";
 
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
@@ -40,6 +49,9 @@ export default function MemberPage() {
   const [isAddMode, setIsAddMode] = useState(false);
   const [addMemberLoading, setAddMemberLoading] = useState(false);
   const [addMemberError, setAddMemberError] = useState<string | null>(null);
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [facilityDescription, setFacilityDescription] = useState("");
+  const [selectedMemberForCheckIn, setSelectedMemberForCheckIn] = useState<Member | null>(null);
 
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
@@ -56,6 +68,9 @@ export default function MemberPage() {
   const manualCheckInMutation = api.esp32.manualCheckIn.useMutation({
     onSuccess: () => {
       toast.success("Member checked in successfully");
+      setIsCheckInModalOpen(false);
+      setFacilityDescription("");
+      setSelectedMemberForCheckIn(null);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -239,14 +254,28 @@ export default function MemberPage() {
     router.push(`/management/access-log/${member.id}`);
   };
 
-  const handleManualCheckIn = async (member: Member) => {
+  const handleManualCheckIn = (member: Member) => {
+    setSelectedMemberForCheckIn(member);
+    setIsCheckInModalOpen(true);
+  };
+
+  const handleConfirmCheckIn = async () => {
+    if (!selectedMemberForCheckIn) return;
+
     try {
       await manualCheckInMutation.mutateAsync({
-        memberId: member.id,
+        memberId: selectedMemberForCheckIn.id,
+        facilityDescription: facilityDescription.trim() || undefined,
       });
     } catch (error) {
       console.error("Error during manual check-in:", error);
     }
+  };
+
+  const handleCancelCheckIn = () => {
+    setIsCheckInModalOpen(false);
+    setFacilityDescription("");
+    setSelectedMemberForCheckIn(null);
   };
 
   const customActions = [
@@ -345,6 +374,55 @@ export default function MemberPage() {
           />
         </div>
       </Sheet>
+
+      {/* Check-in Modal */}
+      <Dialog open={isCheckInModalOpen} onOpenChange={setIsCheckInModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Manual Check-in</DialogTitle>
+            <DialogDescription>
+              {selectedMemberForCheckIn && (
+                <>
+                  Check in <strong>{selectedMemberForCheckIn.user.name}</strong> manually.
+                  Please specify which facility they are using (optional).
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="facility" className="text-sm font-medium">
+                Facility Description
+              </label>
+              <Textarea
+                id="facility"
+                placeholder="e.g., Gym equipment, Swimming pool, Basketball court..."
+                value={facilityDescription}
+                onChange={(e) => setFacilityDescription(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelCheckIn}
+              disabled={manualCheckInMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmCheckIn}
+              disabled={manualCheckInMutation.isPending}
+              className="bg-infinity"
+            >
+              {manualCheckInMutation.isPending ? "Checking in..." : "Check In"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

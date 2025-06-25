@@ -530,7 +530,7 @@ model AttendanceMember {
     id        String     @id @default(cuid())
     memberId  String
     checkin   DateTime
-
+    facilityDescription String?
     member    Membership @relation("AttendanceMemberToMembership", fields: [memberId], references: [id])
 
     @@index([memberId])

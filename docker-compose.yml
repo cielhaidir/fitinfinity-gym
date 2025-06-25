@@ -60,7 +60,7 @@ services:
       - .env
     volumes:
       - /development/data-fit/uploads:/app/public/uploads
-      - /development/data-fit/assets:/app/public/assets
+      - /development/data-fit/assets/transaction:/app/public/assets/transaction
 
     networks:
       - fitinfinity-network

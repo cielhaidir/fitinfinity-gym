@@ -175,74 +175,91 @@ export const esp32Router = createTRPCRouter({
         }),
 
     logFingerprint: deviceProcedure
-        .input(z.object({
-            fingerId: z.number(),
-            timestamp: z.string().optional(),
-            deviceId: z.string(),
-            accessKey: z.string()  // Required for device auth
-        }))
-        .mutation(async ({ ctx, input }) => {
-            try {
-                const { fingerId, timestamp, deviceId } = input;
-                const logTime = timestamp ? new Date(timestamp) : new Date();
-
-                const employee = await ctx.db.employee.findFirst({
-                    where: { fingerprintId: input.fingerId }
-                });
-
-                if (!employee) {
-                    throw new TRPCError({
-                        code: "NOT_FOUND",
-                        message: "Employee not found",
-                    });
-                }
-
-                const today = new Date(logTime);
-                today.setHours(0, 0, 0, 0);
-
-                const existingAttendance = await ctx.db.attendance.findFirst({
-                    where: {
-                        employeeId: employee.id,
-                        date: {
-                            gte: today,
-                            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-                        },
-                    },
-                });
-
-                if (!existingAttendance) {
-                    // Check in
-                    return await ctx.db.attendance.create({
-                        data: {
-                            employeeId: employee.id,
-                            checkIn: logTime,
-                            date: today,
-                            deviceId: deviceId
-                        },
-                    });
-                } else if (!existingAttendance.checkOut) {
-                    // Check out
-                    return await ctx.db.attendance.update({
-                        where: { id: existingAttendance.id },
-                        data: {
-                            checkOut: logTime,
-                            deviceId: deviceId
-                        },
-                    });
-                }
-
+    .input(z.object({
+        fingerId: z.number(),
+        timestamp: z.string().optional(),
+        deviceId: z.string(),
+        accessKey: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+        try {
+            const { fingerId, timestamp, deviceId, accessKey } = input;
+    
+            const device = await ctx.db.device.findFirst({
+                where: { id: deviceId, accessKey }
+            });
+    
+            if (!device) {
                 throw new TRPCError({
-                    code: "BAD_REQUEST",
-                    message: "Already checked in and out today",
-                });
-            } catch (error) {
-                if (error instanceof TRPCError) throw error;
-                throw new TRPCError({
-                    code: "INTERNAL_SERVER_ERROR",
-                    message: "Failed to log attendance",
+                    code: "UNAUTHORIZED",
+                    message: "Invalid device access",
                 });
             }
-        }),
+    
+            const logTime = timestamp ? new Date(timestamp) : new Date();
+            const startOfDay = new Date(logTime);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(startOfDay);
+            endOfDay.setDate(endOfDay.getDate() + 1);
+    
+            const employee = await ctx.db.employee.findFirst({
+                where: { fingerprintId: fingerId },
+            });
+    
+            if (!employee) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Employee not found",
+                });
+            }
+    
+            const existingAttendance = await ctx.db.attendance.findFirst({
+                where: {
+                    employeeId: employee.id,
+                    date: {
+                        gte: startOfDay,
+                        lt: endOfDay,
+                    },
+                },
+            });
+    
+            if (!existingAttendance) {
+                return await ctx.db.attendance.create({
+                    data: {
+                        employeeId: employee.id,
+                        checkIn: logTime,
+                        date: startOfDay,
+                        deviceId,
+                    },
+                });
+            }
+    
+            if (!existingAttendance.checkOut) {
+                return await ctx.db.attendance.update({
+                    where: { id: existingAttendance.id },
+                    data: {
+                        checkOut: logTime,
+                        deviceId,
+                    },
+                });
+            }
+    
+            throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "Already checked in and out today",
+            });
+    
+        } catch (error) {
+            console.error("Attendance logging error:", error);
+            if (error instanceof TRPCError) throw error;
+    
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Failed to log attendance",
+            });
+        }
+    }),
+    
 
         logRFID: deviceProcedure
   .input(z.object({
@@ -347,6 +364,7 @@ export const esp32Router = createTRPCRouter({
   manualCheckIn: protectedProcedure
     .input(z.object({
       memberId: z.string(),
+      facilityDescription: z.string().optional(),
       timestamp: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -399,7 +417,8 @@ export const esp32Router = createTRPCRouter({
         const memberAttendance = await ctx.db.attendanceMember.create({
           data: {
             memberId: membership.id,
-            checkin: logTime
+            checkin: logTime,
+            facilityDescription: input.facilityDescription || undefined
           }
         });
 

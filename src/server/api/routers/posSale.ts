@@ -247,6 +247,97 @@ export const posSaleRouter = createTRPCRouter({
       };
     }),
 
+  update: permissionProtectedProcedure(["update:pos-sale"])
+    .input(
+      z.object({
+        id: z.string(),
+        items: z.array(
+          z.object({
+            itemId: z.string(),
+            quantity: z.number().int().min(1),
+            price: z.number().min(0),
+          })
+        ),
+        subtotal: z.number().min(0),
+        tax: z.number().min(0).default(0),
+        discount: z.number().min(0).default(0),
+        total: z.number().min(0),
+        amountPaid: z.number().min(0),
+        paymentMethod: z.string(),
+        balanceId: z.number().optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, items, ...saleData } = input;
+      
+      return ctx.db.$transaction(async (tx) => {
+        // Get the existing sale to restore stock
+        const existingSale = await tx.pOSSale.findUnique({
+          where: { id },
+          include: { items: true },
+        });
+
+        if (!existingSale) {
+          throw new Error("Sale not found");
+        }
+
+        // Restore stock for existing items
+        for (const existingItem of existingSale.items) {
+          await tx.pOSItem.update({
+            where: { id: existingItem.itemId },
+            data: {
+              stock: {
+                increment: existingItem.quantity,
+              },
+            },
+          });
+        }
+
+        // Delete existing sale items
+        await tx.pOSSaleItem.deleteMany({
+          where: { saleId: id },
+        });
+
+        // Calculate change
+        const change = saleData.amountPaid - saleData.total;
+
+        // Update the sale
+        const updatedSale = await tx.pOSSale.update({
+          where: { id },
+          data: {
+            ...saleData,
+            change,
+          },
+        });
+
+        // Create new sale items and update stock
+        for (const item of items) {
+          await tx.pOSSaleItem.create({
+            data: {
+              saleId: id,
+              itemId: item.itemId,
+              quantity: item.quantity,
+              price: item.price,
+              subtotal: item.quantity * item.price,
+            },
+          });
+
+          // Update item stock
+          await tx.pOSItem.update({
+            where: { id: item.itemId },
+            data: {
+              stock: {
+                decrement: item.quantity,
+              },
+            },
+          });
+        }
+
+        return updatedSale;
+      });
+    }),
+
   delete: permissionProtectedProcedure(["delete:pos-sale"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

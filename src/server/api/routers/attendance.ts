@@ -64,10 +64,10 @@ export const attendanceRouter = createTRPCRouter({
 
       // Attendance type filter
       if (attendanceType === "checkin") {
-        where.checkIn = { not: null };
+        where.NOT = [{ checkIn: null }];
         where.checkOut = null;
       } else if (attendanceType === "checkout") {
-        where.checkOut = { not: null };
+        where.NOT = [{ checkOut: null }];
       }
 
       const [items, total] = await Promise.all([
@@ -152,10 +152,10 @@ export const attendanceRouter = createTRPCRouter({
       }
 
       if (attendanceType === "checkin") {
-        where.checkIn = { not: null };
+        where.NOT = [{ checkIn: null }];
         where.checkOut = null;
       } else if (attendanceType === "checkout") {
-        where.checkOut = { not: null };
+        where.NOT = [{ checkOut: null }];
       }
 
       // Get all records for export (no pagination)
@@ -243,14 +243,14 @@ export const attendanceRouter = createTRPCRouter({
         ctx.db.attendance.count({
           where: {
             ...where,
-            checkIn: { not: null },
+            NOT: [{ checkIn: null }],
             checkOut: null,
           },
         }),
         ctx.db.attendance.count({
           where: {
             ...where,
-            checkOut: { not: null },
+            NOT: [{ checkOut: null }],
           },
         }),
         ctx.db.attendance.groupBy({
