@@ -101,13 +101,25 @@ export default function MemberPage() {
     },
   });
 
+  // Subscription update mutation for fixing TypeScript error
+  const updateSubsMutation = api.subs.update.useMutation();
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (selectedMember) {
       const { name, value } = e.target;
+      let parsedValue: any = value;
+      // Handle date fields
+      if (
+        name === "registerDate" ||
+        name === "subscriptionStartDate" ||
+        name === "subscriptionEndDate"
+      ) {
+        parsedValue = value ? new Date(value) : null;
+      }
       setSelectedMember({
         ...selectedMember,
         id: selectedMember.id,
-        [name]: value === "" ? null : value,
+        [name]: parsedValue === "" ? null : parsedValue,
       });
     }
   };
@@ -123,6 +135,7 @@ export default function MemberPage() {
       const updateData = {
         id: selectedMember.id,
         rfidNumber: selectedMember.rfidNumber || undefined,
+        registerDate: selectedMember.registerDate || undefined,
         fc: selectedMember.fcId
           ? {
               connect: { id: selectedMember.fcId },
@@ -148,6 +161,23 @@ export default function MemberPage() {
       };
 
       await updateMemberMutation.mutateAsync(updateData);
+
+      // Update subscription dates if present
+      if (
+        selectedMember.subscriptionStartDate ||
+        selectedMember.subscriptionEndDate
+      ) {
+        // Find the latest active subscription
+        const memberDetail = member.items.find((m) => m.id === selectedMember.id);
+        const subscriptionId = memberDetail?.subscriptions?.[0]?.id;
+        if (subscriptionId) {
+          await updateSubsMutation.mutateAsync({
+            id: subscriptionId,
+            startDate: selectedMember.subscriptionStartDate || undefined,
+            endDate: selectedMember.subscriptionEndDate || undefined,
+          });
+        }
+      }
 
       toast.success("Member updated successfully");
       setSelectedMember(null);
@@ -199,6 +229,9 @@ export default function MemberPage() {
       phone: "",
       birthDate: null,
       idNumber: "",
+      registerDate: null,
+      subscriptionStartDate: null,
+      subscriptionEndDate: null,
     });
     setShowForm(true);
     setIsSheetOpen(true);
@@ -217,6 +250,9 @@ export default function MemberPage() {
       phone: member.user.phone ?? "",
       birthDate: member.user.birthDate ?? null,
       idNumber: member.user.idNumber ?? "",
+      registerDate: member.registerDate ?? null,
+      subscriptionStartDate: member.subscriptions[0]?.startDate ?? null,
+      subscriptionEndDate: member.subscriptions[0]?.endDate ?? null,
     });
     setShowForm(true);
     setIsSheetOpen(true);

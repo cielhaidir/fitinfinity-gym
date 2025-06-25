@@ -67,6 +67,9 @@ export const UserMemberSchema = z.object({
   rfidNumber: z.string().nullable(),
   fcId: z.string().nullable(),
   personalTrainerId: z.string().nullable(),
+  registerDate: z.date().nullable(),
+  subscriptionStartDate: z.date().nullable(),
+  subscriptionEndDate: z.date().nullable(),
 });
 
 export type UserMember = z.infer<typeof UserMemberSchema>;

@@ -4,6 +4,16 @@ import { TRPCError } from "@trpc/server";
 import { EnrollmentStatus } from "@prisma/client";
 import { mqttService } from "@/lib/mqtt/mqttService";
 
+// Output schema for getMemberCheckinLogs
+const memberCheckinLogSchema = z.object({
+  id: z.string(),
+  checkin: z.date(),
+  memberId: z.string(),
+  memberName: z.string().nullable(),
+  userName: z.string().nullable(),
+  facilityDescription: z.string().nullable(),
+});
+
 const deviceAuthInput = z.object({
     deviceId: z.string(),
     accessKey: z.string()
@@ -468,6 +478,34 @@ export const esp32Router = createTRPCRouter({
       }
     }),
 
+    /**
+                                       * Admin: Get all member check-in logs
+                                       * Returns: check-in time, member ID, member name, user name, facility description (if any)
+                                       */
+    getMemberCheckinLogs: protectedProcedure
+    .output(z.array(memberCheckinLogSchema))
+    .query(async ({ ctx }) => {
+      const logs = await ctx.db.attendanceMember.findMany({
+        orderBy: { checkin: "desc" },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      return logs.map((log) => ({
+        id: log.id,
+        checkin: log.checkin,
+        memberId: log.memberId,
+        memberName: log.member?.user?.name ?? null,
+        userName: log.member?.user?.name ?? null,
+        facilityDescription: log.facilityDescription ?? null,
+      }));
+    }),
+
     // Bulk attendance submission endpoint
     bulkLog: deviceProcedure
         .input(z.object({
@@ -564,6 +602,8 @@ export const esp32Router = createTRPCRouter({
                                             checkOut: logTime,
                                             deviceId: log.deviceId
                                         },
+                                      
+                                      
                                     });
                                     return { success: true, message: `Check-out recorded for RFID ${log.id}` };
                                 }
@@ -583,5 +623,54 @@ export const esp32Router = createTRPCRouter({
                     message: "Failed to process bulk attendance logs",
                 });
             }
+        }),
+
+        /**
+                                       * Admin: Update a member check-in log
+                                       * Accepts: log ID, new check-in time (optional), new facility description (optional)
+                                       * Returns: updated log entry with member and user info
+                                       */
+        updateMemberCheckinLog: protectedProcedure
+        .input(
+          z.object({
+            id: z.string(),
+            checkin: z.string().optional(),
+            facilityDescription: z.string().optional(),
+          })
+        )
+        .mutation(async ({ ctx, input }) => {
+     
+          const updateData: Record<string, any> = {};
+          if (input.checkin) updateData.checkin = new Date(input.checkin);
+          if (input.facilityDescription !== undefined)
+            updateData.facilityDescription = input.facilityDescription;
+    
+          if (Object.keys(updateData).length === 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "No fields to update",
+            });
+          }
+    
+          const updated = await ctx.db.attendanceMember.update({
+            where: { id: input.id },
+            data: updateData,
+            include: {
+              member: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          });
+    
+          return {
+            id: updated.id,
+            checkin: updated.checkin,
+            memberId: updated.memberId,
+            memberName: updated.member?.user?.name ?? null,
+            userName: updated.member?.user?.name ?? null,
+            facilityDescription: updated.facilityDescription ?? null,
+          };
         }),
 });

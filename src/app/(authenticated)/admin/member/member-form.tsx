@@ -62,6 +62,63 @@ export const MemberForm: React.FC<MemberFormProps> = ({
       </SheetHeader>
       <div className="flex flex-col gap-4 px-4 py-8 sm:px-0">
         <div className="md:col-span-2">
+          <label htmlFor="registerDate" className="block text-sm font-medium">
+            Registration Date
+          </label>
+          <Input
+            id="registerDate"
+            name="registerDate"
+            type="date"
+            value={newMember.registerDate ? newMember.registerDate.toISOString().split('T')[0] : ""}
+            onChange={(e) => {
+              onInputChange({
+                target: {
+                  name: "registerDate",
+                  value: e.target.value ? new Date(e.target.value) : null,
+                },
+              } as unknown as React.ChangeEvent<HTMLInputElement>);
+            }}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label htmlFor="subscriptionStartDate" className="block text-sm font-medium">
+            Subscription Start Date
+          </label>
+          <Input
+            id="subscriptionStartDate"
+            name="subscriptionStartDate"
+            type="date"
+            value={newMember.subscriptionStartDate ? newMember.subscriptionStartDate.toISOString().split('T')[0] : ""}
+            onChange={(e) => {
+              onInputChange({
+                target: {
+                  name: "subscriptionStartDate",
+                  value: e.target.value ? new Date(e.target.value) : null,
+                },
+              } as unknown as React.ChangeEvent<HTMLInputElement>);
+            }}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label htmlFor="subscriptionEndDate" className="block text-sm font-medium">
+            Subscription End Date
+          </label>
+          <Input
+            id="subscriptionEndDate"
+            name="subscriptionEndDate"
+            type="date"
+            value={newMember.subscriptionEndDate ? newMember.subscriptionEndDate.toISOString().split('T')[0] : ""}
+            onChange={(e) => {
+              onInputChange({
+                target: {
+                  name: "subscriptionEndDate",
+                  value: e.target.value ? new Date(e.target.value) : null,
+                },
+              } as unknown as React.ChangeEvent<HTMLInputElement>);
+            }}
+          />
+        </div>
+        <div className="md:col-span-2">
           <label htmlFor="rfidNumber" className="block text-sm font-medium">
             RFID Number
           </label>

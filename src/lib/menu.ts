@@ -195,6 +195,36 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:member",
         },
         {
+          title: "Check-in Logs",
+          url: "/admin/checkin-logs",
+          icon: UserCog,
+          requiredPermission: "menu:member",
+        },
+        {
+          title: "Class Attendance",
+          url: "/admin/class-attendance",
+          icon: UserCog,
+          requiredPermission: "menu:class-attendance",
+        },
+        {
+          title: "Classes",
+          url: "/admin/classes",
+          icon: Dumbbell,
+          requiredPermission: "menu:classes-admin",
+        },
+        {
+          title: "Package Management",
+          url: "/admin/package-management",
+          icon: Package,
+          requiredPermission: "menu:package-management",
+        },
+        {
+          title: "Personal Trainer Management",
+          url: "/admin/personal-trainer-management",
+          icon: Contact,
+          requiredPermission: "menu:personal-trainer-management",
+        },
+        {
           title: "Reward",
           url: "/admin/reward",
           icon: Gift,
