@@ -234,19 +234,27 @@ export const esp32Router = createTRPCRouter({
                 });
             }
     
-            if (!existingAttendance.checkOut) {
-                return await ctx.db.attendance.update({
-                    where: { id: existingAttendance.id },
-                    data: {
-                        checkOut: logTime,
-                        deviceId,
-                    },
-                });
-            }
+            // if (!existingAttendance.checkOut) {
+            //     return await ctx.db.attendance.update({
+            //         where: { id: existingAttendance.id },
+            //         data: {
+            //             checkOut: logTime,
+            //             deviceId,
+            //         },
+            //     });
+            // }
     
-            throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "Already checked in and out today",
+            // throw new TRPCError({
+            //     code: "BAD_REQUEST",
+            //     message: "Already checked in and out today",
+            // });
+
+            return await ctx.db.attendance.update({
+                where: { id: existingAttendance.id },
+                data: {
+                    checkOut: logTime,
+                    deviceId, // Perbarui juga deviceId jika checkout dilakukan di mesin berbeda
+                },
             });
     
         } catch (error) {
