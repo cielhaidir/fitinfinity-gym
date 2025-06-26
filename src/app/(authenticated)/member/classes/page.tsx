@@ -41,6 +41,12 @@ export default function MemberClassesPage() {
     {
       staleTime: 5000,
       refetchOnWindowFocus: false,
+      onSuccess: (data) => {
+        console.log('Classes API success:', data);
+      },
+      onError: (error) => {
+        console.error('Classes API error:', error);
+      },
     },
   );
 
@@ -61,7 +67,7 @@ export default function MemberClassesPage() {
     const now = new Date();
     const validSubscriptions = subscriptions.items.filter((sub) => {
       const startDate = new Date(sub.startDate);
-      const endDate = new Date(sub.endDate);
+      const endDate = sub.endDate ? new Date(sub.endDate) : null;
       const hasValidPayment = sub.payments?.some(
         (p) => p.status === PaymentStatus.SUCCESS,
       );
@@ -70,7 +76,7 @@ export default function MemberClassesPage() {
       // Check if subscription is active, paid, and belongs to current user
       return (
         now >= startDate &&
-        now <= endDate &&
+        (endDate ? now <= endDate : true) && // Handle null endDate
         hasValidPayment &&
         isUserSubscription
       );
@@ -81,14 +87,6 @@ export default function MemberClassesPage() {
       // Gym membership gives access to all classes
       if (sub.package?.type === PackageType.GYM_MEMBERSHIP) {
         return true;
-      }
-
-      // Personal trainer subscription gives access to their classes
-      if (
-        sub.package?.type === PackageType.PERSONAL_TRAINER &&
-        sub.package.trainerId
-      ) {
-        return sub.package.trainerId === class_.trainerId;
       }
 
       return false;
@@ -120,9 +118,16 @@ export default function MemberClassesPage() {
     const sevenDaysFromNow = new Date(now);
     sevenDaysFromNow.setDate(now.getDate() + 7);
     
-    // Class must be in the future and within 7 days
-    return classDate > now && classDate <= sevenDaysFromNow;
+    console.log('Class:', class_.name, 'Schedule:', classDate, 'Now:', now, 'Future:', classDate > now);
+    
+    // Temporarily show all future classes for debugging
+    return classDate > now;
+    // Original filter: return classDate > now && classDate <= sevenDaysFromNow;
   });
+
+  console.log('Total classes:', classes?.items?.length);
+  console.log('Upcoming classes:', upcomingClasses?.length);
+  console.log('Classes data:', classes);
 
   const handleClassClick = (class_: Class) => {
     setSelectedClass(class_);
@@ -156,9 +161,22 @@ export default function MemberClassesPage() {
         </p>
       </div>
 
+      {/* Debug information */}
+      {/* <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded">
+        <p>Total classes from API: {classes?.items?.length || 0}</p>
+        <p>Filtered upcoming classes: {upcomingClasses?.length || 0}</p>
+        <p>Classes loading: {classesLoading ? 'Yes' : 'No'}</p>
+        <p>Classes error: {classesError ? classesError.message : 'None'}</p>
+      </div> */}
+
       {upcomingClasses?.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400">
-          No upcoming classes available at the moment
+          <p>No upcoming classes available at the moment</p>
+          {classes?.items?.length > 0 && (
+            <p className="mt-2 text-sm">
+              Found {classes.items.length} total classes, but none are upcoming
+            </p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

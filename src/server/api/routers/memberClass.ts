@@ -26,11 +26,6 @@ export const memberClassRouter = createTRPCRouter({
           schedule: "asc", // Urutkan berdasarkan jadwal terdekat
         },
         include: {
-          trainer: {
-            include: {
-              user: true,
-            },
-          },
           registeredMembers: {
             include: {
               member: {
@@ -122,15 +117,7 @@ export const memberClassRouter = createTRPCRouter({
           memberId: membership.id,
         },
         include: {
-          class: {
-            include: {
-              trainer: {
-                include: {
-                  user: true,
-                },
-              },
-            },
-          },
+          class: true,
         },
       });
     }),
@@ -192,15 +179,7 @@ export const memberClassRouter = createTRPCRouter({
           memberId: membership.id,
         },
         include: {
-          class: {
-            include: {
-              trainer: {
-                include: {
-                  user: true,
-                },
-              },
-            },
-          },
+          class: true,
         },
       });
     }),
@@ -225,15 +204,7 @@ export const memberClassRouter = createTRPCRouter({
           },
         },
         include: {
-          class: {
-            include: {
-              trainer: {
-                include: {
-                  user: true,
-                },
-              },
-            },
-          },
+          class: true,
         },
         orderBy: {
           class: {

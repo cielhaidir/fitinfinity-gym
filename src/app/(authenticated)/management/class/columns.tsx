@@ -63,10 +63,8 @@ export const columns = ({
       <DataTableColumnHeader column={column} title="Schedule" />
     ),
     cell: ({ row }) => (
-      <div className="hidden md:block">
+      <div className="">
         {new Date(row.getValue("schedule")).toLocaleString("id-ID", {
-          weekday: "long",
-          year: "numeric",
           month: "long",
           day: "numeric",
           hour: "2-digit",
@@ -75,15 +73,15 @@ export const columns = ({
       </div>
     ),
   },
-  {
-    accessorKey: "duration",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Duration" />
-    ),
-    cell: ({ row }) => (
-      <div className="hidden md:block">{row.getValue("duration")} minutes</div>
-    ),
-  },
+  // {
+  //   accessorKey: "duration",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Duration" />
+  //   ),
+  //   cell: ({ row }) => (
+  //     <div className="hidden md:block">{row.getValue("duration")} minutes</div>
+  //   ),
+  // },
   {
     accessorKey: "price",
     header: ({ column }) => (

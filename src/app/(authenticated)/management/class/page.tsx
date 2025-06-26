@@ -53,11 +53,14 @@ export default function ClassPage() {
   // Update form data when selected class changes
   useEffect(() => {
     if (selectedClass) {
+      // Preserve the exact date/time from the database without timezone conversion
+      // Convert to local timezone to match what's displayed in the table
+      const scheduleDate = new Date(selectedClass.schedule);
       setFormData({
         name: selectedClass.name,
         limit: selectedClass.limit,
         instructorName: selectedClass.instructorName,
-        schedule: new Date(selectedClass.schedule),
+        schedule: scheduleDate,
         duration: selectedClass.duration,
         price: selectedClass.price,
       });

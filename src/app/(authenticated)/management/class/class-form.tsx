@@ -202,12 +202,16 @@ export const ClassForm = ({
           <Input
             type="datetime-local"
             id="schedule"
-            value={localSchedule.toISOString().slice(0, 16)}
+            value={
+              new Date(localSchedule.getTime() - localSchedule.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16)
+            }
             onChange={(e) => {
               const date = new Date(e.target.value);
-              // Adjust for timezone offset
+              // Convert from local time to UTC for consistent storage
               const adjustedDate = new Date(
-                date.getTime() - date.getTimezoneOffset() * 60000,
+                date.getTime() + date.getTimezoneOffset() * 60000
               );
               handleScheduleChange(adjustedDate);
             }}

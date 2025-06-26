@@ -2,18 +2,10 @@ export interface Class {
   id?: string;
   name: string;
   limit: number | null;
-  trainerId: string;
+  instructorName: string;
   schedule: Date;
   duration: number;
   price: number;
-  trainer: {
-    id: string;
-    userId: string;
-    description: string | null;
-    user: {
-      name: string | null;
-    };
-  };
   registeredMembers?: ClassMember[];
   waitingList?: ClassWaitingList[];
   createdAt: Date;

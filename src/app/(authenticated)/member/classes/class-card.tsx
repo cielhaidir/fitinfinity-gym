@@ -78,7 +78,7 @@ export function ClassCard({
             {registeredCount}/{class_.limit ?? "∞"} registered
           </div>
           <div className="mt-4 text-sm font-medium">
-            Instructor: {class_.trainer.user.name}
+            Instructor: {class_.instructorName}
           </div>
         </div>
       </CardContent>

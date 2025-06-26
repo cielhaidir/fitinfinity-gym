@@ -15,6 +15,7 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import type { Class } from "./types";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface ClassDetailsDialogProps {
   class_: Class | null;
@@ -34,6 +35,7 @@ export function ClassDetailsDialog({
   const [activeTab, setActiveTab] = useState("details");
   const utils = api.useUtils();
   const router = useRouter();
+  const { data: session } = useSession();
 
   const registerMutation = api.memberClass.register.useMutation({
     onSuccess: () => {
@@ -64,11 +66,11 @@ export function ClassDetailsDialog({
   const waitlistCount = class_.waitingList?.length ?? 0;
 
   const isRegistered = class_.registeredMembers?.some(
-    (member) => member.member.user.name === class_.trainer.user.name,
+    (member) => member.member.user.name === session?.user?.name,
   );
 
   const isOnWaitlist = class_.waitingList?.some(
-    (member) => member.member.user.name === class_.trainer.user.name,
+    (member) => member.member.user.name === session?.user?.name,
   );
 
   const handleRegister = () => {
@@ -88,7 +90,7 @@ export function ClassDetailsDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{class_.name}</DialogTitle>
-          <DialogDescription>with {class_.trainer.user.name}</DialogDescription>
+          <DialogDescription>with {class_.instructorName}</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
