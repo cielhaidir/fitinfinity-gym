@@ -51,13 +51,13 @@ type ClassName = (typeof CLASS_OPTIONS)[number];
 type ClassFormProps = {
   name: ClassName;
   limit: number | null;
-  trainerId: string;
+  instructorName: string;
   schedule: Date;
   duration: number;
   price: number;
   onNameChange: (name: ClassName) => void;
   onLimitChange: (limit: number | null) => void;
-  onTrainerChange: (trainerId: string) => void;
+  onInstructorNameChange: (instructorName: string) => void;
   onScheduleChange: (schedule: Date) => void;
   onDurationChange: (duration: number) => void;
   onPriceChange: (price: number) => void;
@@ -68,13 +68,13 @@ type ClassFormProps = {
 export const ClassForm = ({
   name,
   limit,
-  trainerId,
+  instructorName,
   schedule,
   duration,
   price,
   onNameChange,
   onLimitChange,
-  onTrainerChange,
+  onInstructorNameChange,
   onScheduleChange,
   onDurationChange,
   onPriceChange,
@@ -84,7 +84,7 @@ export const ClassForm = ({
   // Local state
   const [localName, setLocalName] = useState(name);
   const [localLimit, setLocalLimit] = useState<number | null>(limit);
-  const [localTrainerId, setLocalTrainerId] = useState(trainerId);
+  const [localInstructorName, setLocalInstructorName] = useState(instructorName);
   const [localSchedule, setLocalSchedule] = useState(schedule);
   const [localDuration, setLocalDuration] = useState(duration);
   const [localPrice, setLocalPrice] = useState(price);
@@ -93,11 +93,11 @@ export const ClassForm = ({
   useEffect(() => {
     setLocalName(name);
     setLocalLimit(limit);
-    setLocalTrainerId(trainerId);
+    setLocalInstructorName(instructorName);
     setLocalSchedule(schedule);
     setLocalDuration(duration);
     setLocalPrice(price);
-  }, [name, limit, trainerId, schedule, duration, price]);
+  }, [name, limit, instructorName, schedule, duration, price]);
 
   // Handle local changes and propagate to parent
   const handleNameChange = (value: ClassName) => {
@@ -111,9 +111,9 @@ export const ClassForm = ({
     onLimitChange(newLimit);
   };
 
-  const handleTrainerChange = (value: string) => {
-    setLocalTrainerId(value);
-    onTrainerChange(value);
+  const handleInstructorNameChange = (value: string) => {
+    setLocalInstructorName(value);
+    onInstructorNameChange(value);
   };
 
   const handleScheduleChange = (value: Date) => {
@@ -140,13 +140,7 @@ export const ClassForm = ({
     onPriceChange(newPrice);
   };
 
-  const { data: trainers } = api.personalTrainer.list.useQuery(
-    { page: 1, limit: 100 },
-    {
-      suspense: false,
-      staleTime: 5000, // Add stale time to prevent frequent refetches
-    },
-  );
+  // Removed trainer list query
 
   return (
     <SheetContent side="right">
@@ -189,19 +183,16 @@ export const ClassForm = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Trainer</label>
-          <Select value={localTrainerId} onValueChange={handleTrainerChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a trainer" />
-            </SelectTrigger>
-            <SelectContent>
-              {trainers?.items.map((trainer) => (
-                <SelectItem key={trainer.id} value={trainer.id}>
-                  {trainer.user.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <label htmlFor="instructorName" className="block text-sm font-medium">
+            Instructor Name
+          </label>
+          <Input
+            type="text"
+            id="instructorName"
+            value={localInstructorName}
+            onChange={(e) => handleInstructorNameChange(e.target.value)}
+            placeholder="Enter instructor name"
+          />
         </div>
 
         <div>
@@ -261,7 +252,7 @@ export const ClassForm = ({
           type="button"
           onClick={onCreateOrUpdateClass}
           className="bg-infinity"
-          disabled={!localName || !localTrainerId}
+          disabled={!localName || !localInstructorName}
         >
           {isEditMode ? "Update" : "Create"} Class
         </Button>

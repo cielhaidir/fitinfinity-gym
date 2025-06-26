@@ -189,13 +189,12 @@ model Class {
     id                String             @id @default(cuid())
     name              String
     limit             Int?
-    trainerId         String
+    instructorName    String
     schedule          DateTime
     duration          Int
     price             Float              @default(0)
     createdAt         DateTime           @default(now())
     updatedAt         DateTime           @updatedAt
-    trainer           PersonalTrainer    @relation(fields: [trainerId], references: [id])
     registeredMembers ClassMember[]
     waitingList       ClassWaitingList[]
 }
@@ -311,7 +310,7 @@ model PersonalTrainer {
     isActive    Boolean  @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
-    class       Class[]
+    // class       Class[]  // Removed: no longer a relation to Class
 
     user          User             @relation("PersonalTrainerToUser", fields: [userId], references: [id])
     subscriptions Subscription[]

@@ -38,11 +38,11 @@ export const columns = ({
   {
     accessorKey: "trainer.user.name",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trainer" />
+      <DataTableColumnHeader column={column} title="Instructor" />
     ),
     cell: ({ row }) => (
       <div className="hidden md:block">
-        {row.original.trainer?.user?.name || "N/A"}
+        {row.original.instructorName || "N/A"}
       </div>
     ),
   },
@@ -91,7 +91,7 @@ export const columns = ({
     ),
     cell: ({ row }) => (
       <div className="hidden md:block">
-        Rp {((row.getValue("price")) || 0).toLocaleString("id-ID")}
+        Rp {((row.getValue("price")) || 0).toLocaleString()}
       </div>
     ),
   },

@@ -19,7 +19,7 @@ export default function ClassPage() {
   const [formData, setFormData] = useState({
     name: "",
     limit: null as number | null,
-    trainerId: "",
+    instructorName: "",
     schedule: new Date(),
     duration: 60,
     price: 100000,
@@ -56,7 +56,7 @@ export default function ClassPage() {
       setFormData({
         name: selectedClass.name,
         limit: selectedClass.limit,
-        trainerId: selectedClass.trainerId,
+        instructorName: selectedClass.instructorName,
         schedule: new Date(selectedClass.schedule),
         duration: selectedClass.duration,
         price: selectedClass.price,
@@ -65,7 +65,7 @@ export default function ClassPage() {
       setFormData({
         name: "",
         limit: null,
-        trainerId: "",
+        instructorName: "",
         schedule: new Date(),
         duration: 60,
         price: 100000,
@@ -82,8 +82,9 @@ export default function ClassPage() {
     setFormData((prev) => ({ ...prev, limit }));
   };
 
-  const handleTrainerChange = (trainerId: string) => {
-    setFormData((prev) => ({ ...prev, trainerId }));
+  // Removed handleTrainerChange
+  const handleInstructorNameChange = (instructorName: string) => {
+    setFormData((prev) => ({ ...prev, instructorName }));
   };
 
   const handleScheduleChange = (schedule: Date) => {
@@ -122,7 +123,7 @@ export default function ClassPage() {
             | "thaiboxig"
             | "cardio u",
           limit: formData.limit,
-          trainerId: formData.trainerId,
+          instructorName: formData.instructorName,
           schedule: formData.schedule,
           duration: formData.duration,
           price: formData.price,
@@ -146,7 +147,7 @@ export default function ClassPage() {
             | "thaiboxig"
             | "cardio u",
           limit: formData.limit,
-          trainerId: formData.trainerId,
+          instructorName: formData.instructorName,
           schedule: formData.schedule,
           duration: formData.duration,
           price: formData.price,
@@ -161,7 +162,7 @@ export default function ClassPage() {
       setFormData({
         name: "",
         limit: null,
-        trainerId: "",
+        instructorName: "",
         schedule: new Date(),
         duration: 60,
         price: 100000,
@@ -245,7 +246,7 @@ export default function ClassPage() {
             setFormData({
               name: "",
               limit: null,
-              trainerId: "",
+              instructorName: "",
               schedule: new Date(),
               duration: 60,
               price: 100000,
@@ -272,13 +273,13 @@ export default function ClassPage() {
               | "cardio u"
           }
           limit={formData.limit}
-          trainerId={formData.trainerId}
+          instructorName={formData.instructorName}
           schedule={formData.schedule}
           duration={formData.duration}
           price={formData.price}
           onNameChange={handleNameChange}
           onLimitChange={handleLimitChange}
-          onTrainerChange={handleTrainerChange}
+          onInstructorNameChange={handleInstructorNameChange}
           onScheduleChange={handleScheduleChange}
           onDurationChange={handleDurationChange}
           onPriceChange={handlePriceChange}

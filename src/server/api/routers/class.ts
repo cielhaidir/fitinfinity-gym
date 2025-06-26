@@ -16,18 +16,12 @@ export const classRouter = createTRPCRouter({
           data: {
             name: input.name,
             limit: input.limit,
-            trainerId: input.trainerId,
+            instructorName: input.instructorName,
             schedule: input.schedule,
             duration: input.duration,
             price: input.price,
           },
-          include: {
-            trainer: {
-              include: {
-                user: true,
-              },
-            },
-          },
+          // No trainer relation to include
         });
         return newClass;
       } catch (error) {
@@ -59,13 +53,7 @@ export const classRouter = createTRPCRouter({
             skip,
             take: limit,
             where,
-            include: {
-              trainer: {
-                include: {
-                  user: true,
-                },
-              },
-            },
+            // No trainer relation to include
             orderBy: { createdAt: "desc" },
           }),
           ctx.db.class.count({ where }),
@@ -96,17 +84,11 @@ export const classRouter = createTRPCRouter({
           data: {
             name: data.name,
             limit: data.limit,
-            trainerId: data.trainerId,
+            instructorName: data.instructorName,
             schedule: data.schedule,
             duration: data.duration,
           },
-          include: {
-            trainer: {
-              include: {
-                user: true,
-              },
-            },
-          },
+          // No trainer relation to include
         });
         return updatedClass;
       } catch (error) {
@@ -120,13 +102,7 @@ export const classRouter = createTRPCRouter({
       try {
         const deletedClass = await ctx.db.class.delete({
           where: { id: input.id },
-          include: {
-            trainer: {
-              include: {
-                user: true,
-              },
-            },
-          },
+          // No trainer relation to include
         });
         return deletedClass;
       } catch (error) {
