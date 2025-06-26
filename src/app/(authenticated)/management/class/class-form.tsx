@@ -203,17 +203,15 @@ export const ClassForm = ({
             type="datetime-local"
             id="schedule"
             value={
-              new Date(localSchedule.getTime() - localSchedule.getTimezoneOffset() * 60000)
-                .toISOString()
-                .slice(0, 16)
+              localSchedule
+                ? new Date(localSchedule.getTime() - localSchedule.getTimezoneOffset() * 60000)
+                    .toISOString()
+                    .slice(0, 16)
+                : ""
             }
             onChange={(e) => {
               const date = new Date(e.target.value);
-              // Convert from local time to UTC for consistent storage
-              const adjustedDate = new Date(
-                date.getTime() + date.getTimezoneOffset() * 60000
-              );
-              handleScheduleChange(adjustedDate);
+              handleScheduleChange(date);
             }}
           />
         </div>
