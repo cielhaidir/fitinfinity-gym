@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/trpc/react";
-import { DataTable } from "@/app/_components/datatable/data-table";
+import { DataTable } from "@/components/datatable/data-table";
 import { type FC_Member, columns } from "./columns";
 import { Button } from "@/app/_components/ui/button";
 import { Plus } from "lucide-react";
@@ -24,14 +24,21 @@ interface FCMembersPageProps {
 export default function FCMembersPage({ searchParams }: FCMembersPageProps) {
   const [open, setOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<FcMember | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
   const { toast } = useToast();
+
 
   const utils = api.useContext();
 
-  const { data: members, isLoading } = api.fcMember.getAll.useQuery(undefined, {
-    refetchInterval: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data, isLoading } = api.fcMember.getAll.useQuery(
+    { page, limit },
+    {
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const deleteMutation = api.fcMember.delete.useMutation({
     onSuccess: () => {
@@ -80,16 +87,12 @@ export default function FCMembersPage({ searchParams }: FCMembersPageProps) {
 
       <DataTable
         columns={columns(handleEdit, handleDelete)}
-        data={{
-          items: (members || []).filter(member =>
-            !searchParams?.status || member.status === searchParams.status
-          ),
-          total: (members || []).filter(member =>
-            !searchParams?.status || member.status === searchParams.status
-          ).length,
-          page: 1,
-          limit: 10,
+        data={data ? { ...data, page, limit } : { items: [], total: 0, page, limit }}
+        onPaginationChange={(newPage: number, newLimit: number) => {
+          setPage(newPage);
+          setLimit(newLimit);
         }}
+        isLoading={isLoading}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>

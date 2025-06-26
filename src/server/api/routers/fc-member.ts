@@ -58,26 +58,38 @@ export const fcMemberRouter = createTRPCRouter({
     }),
 
   // Get all FC Members for current FC
-  getAll: permissionProtectedProcedure(["list:fc-member"]).query(async ({ ctx }) => {
-    const fc = await ctx.db.fC.findFirst({
-      where: {
-        userId: ctx.session.user.id,
-      },
-    });
+  getAll: permissionProtectedProcedure(["list:fc-member"])
+    .input(
+      z.object({
+        page: z.number().min(1),
+        limit: z.number().min(1).max(100),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const fc = await ctx.db.fC.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+        },
+      });
 
-    if (!fc) {
-      throw new Error("FC not found");
-    }
+      if (!fc) {
+        throw new Error("FC not found");
+      }
 
-    return ctx.db.fcMember.findMany({
-      where: {
-        fc_id: fc.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-  }),
+      const where = { fc_id: fc.id };
+
+      const [items, total] = await Promise.all([
+        ctx.db.fcMember.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip: (input.page - 1) * input.limit,
+          take: input.limit,
+        }),
+        ctx.db.fcMember.count({ where }),
+      ]);
+
+      return { items, total };
+    }),
 
   // Get FC Member by ID
   getById: permissionProtectedProcedure(["show:fc-member"])
