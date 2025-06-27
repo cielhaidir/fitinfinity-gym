@@ -61,6 +61,7 @@ export default function MemberClassesPage() {
     );
 
   // Check if current user has a valid subscription for a specific class
+  // Only allow checkout for members with active subscription
   const hasValidSubscription = (class_: Class) => {
     if (!subscriptions?.items || !session?.user?.email) return false;
 
@@ -82,15 +83,8 @@ export default function MemberClassesPage() {
       );
     });
 
-    // Check if any valid subscription gives access to this class
-    return validSubscriptions.some((sub) => {
-      // Gym membership gives access to all classes
-      if (sub.package?.type === PackageType.GYM_MEMBERSHIP) {
-        return true;
-      }
-
-      return false;
-    });
+    // Only allow if at least one valid subscription for GYM_MEMBERSHIP
+    return validSubscriptions.some((sub) => sub.package?.type === PackageType.GYM_MEMBERSHIP);
   };
 
   // Check if class registration is enabled (H-1 only)

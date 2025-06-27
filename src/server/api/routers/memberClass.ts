@@ -214,4 +214,123 @@ export const memberClassRouter = createTRPCRouter({
       });
     },
   ),
+  /**
+   * Admin: Add any member to a class manually
+   * Requires: classId, memberId
+   */
+  adminAddMember: protectedProcedure
+    .input(z.object({ classId: z.string(), memberId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Only allow admins (add your own admin check if needed)
+      // Example: if (!ctx.session.user.isAdmin) throw new Error("Unauthorized");
+
+      const class_ = await ctx.db.class.findUnique({
+        where: { id: input.classId },
+        include: { registeredMembers: true },
+      });
+
+      if (!class_) {
+        throw new Error("Class not found");
+      }
+
+      if (class_.schedule < new Date()) {
+        throw new Error("Cannot register for past classes");
+      }
+
+      if (class_.limit && class_.registeredMembers.length >= class_.limit) {
+        throw new Error("Class is full");
+      }
+
+      // Check if already registered
+      const existingRegistration = await ctx.db.classMember.findFirst({
+        where: {
+          classId: input.classId,
+          memberId: input.memberId,
+        },
+      });
+
+      if (existingRegistration) {
+        throw new Error("Member is already registered for this class");
+      }
+
+      return ctx.db.classMember.create({
+        data: {
+          classId: input.classId,
+          memberId: input.memberId,
+        },
+        include: {
+          class: true,
+        },
+          
+      });
+    }),
+    /**
+     * Admin: Remove a member from a class manually
+     * Requires: classId, memberId
+     */
+    adminRemoveMember: protectedProcedure
+      .input(z.object({ classId: z.string(), memberId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        // Only allow admins (add your own admin check if needed)
+        // Example: if (!ctx.session.user.isAdmin) throw new Error("Unauthorized");
+
+        const class_ = await ctx.db.class.findUnique({
+          where: { id: input.classId },
+        });
+
+        if (!class_) {
+          throw new Error("Class not found");
+        }
+
+        // Check if member is registered
+        const existingRegistration = await ctx.db.classMember.findFirst({
+          where: {
+            classId: input.classId,
+            memberId: input.memberId,
+          },
+        });
+
+        if (!existingRegistration) {
+          throw new Error("Member is not registered for this class");
+        }
+
+        await ctx.db.classMember.delete({
+          where: { id: existingRegistration.id },
+        });
+
+        return { success: true };
+      }),
+      /**
+           * Member: Cancel their own registration from a class
+           * Requires: classId
+           */
+      cancelRegistration: protectedProcedure
+      .input(z.object({ classId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const membership = await ctx.db.membership.findUnique({
+          where: { userId: ctx.session.user.id },
+        });
+
+        if (!membership) {
+          throw new Error("Membership not found");
+        }
+
+        // Check if registered
+        const existingRegistration = await ctx.db.classMember.findFirst({
+          where: {
+            classId: input.classId,
+            memberId: membership.id,
+          },
+        });
+
+        if (!existingRegistration) {
+          throw new Error("You are not registered for this class");
+        }
+
+        await ctx.db.classMember.delete({
+          where: { id: existingRegistration.id },
+        });
+
+        return { success: true };
+      }),
 });

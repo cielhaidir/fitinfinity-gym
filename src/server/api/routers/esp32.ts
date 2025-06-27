@@ -8,10 +8,12 @@ import { mqttService } from "@/lib/mqtt/mqttService";
 const memberCheckinLogSchema = z.object({
   id: z.string(),
   checkin: z.date(),
+  checkout: z.date().nullable(),
   memberId: z.string(),
   memberName: z.string().nullable(),
   userName: z.string().nullable(),
   facilityDescription: z.string().nullable(),
+  status: z.string(),
 });
 
 const deviceAuthInput = z.object({
@@ -315,24 +317,7 @@ export const esp32Router = createTRPCRouter({
       const todayEnd = new Date(todayStart);
       todayEnd.setDate(todayStart.getDate() + 1);
 
-      const existingAttendance = await ctx.db.attendanceMember.findFirst({
-        where: {
-          memberId: membership.id,
-          checkin: {
-            gte: todayStart,
-            lt: todayEnd
-          }
-        }
-      });
-
-      if (existingAttendance) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Member has already checked in today",
-        });
-      }
-
-      // Log attendance
+      // Allow multiple check-ins per day
       const memberAttendance = await ctx.db.attendanceMember.create({
         data: {
           memberId: membership.id,
@@ -340,28 +325,42 @@ export const esp32Router = createTRPCRouter({
         }
       });
 
-      // Fetch config point
-      const config = await ctx.db.config.findUnique({
-        where: { key: "rfid_point" }
-      });
-
-      if (!config) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Config for RFID point not found",
-        });
-      }
-
-      // Parse value string ke number
-      const pointValue = parseInt(config.value) || 0;
-
-      // Update user point
-      await ctx.db.user.update({
-        where: { id: membership.user.id },
-        data: {
-          point: { increment: pointValue }
+      // Only increment points if this is the first check-in today
+      const alreadyCheckedInToday = await ctx.db.attendanceMember.findFirst({
+        where: {
+          memberId: membership.id,
+          checkin: {
+            gte: todayStart,
+            lt: todayEnd
+          },
+          id: { not: memberAttendance.id }
         }
       });
+
+      if (!alreadyCheckedInToday) {
+        // Fetch config point
+        const config = await ctx.db.config.findUnique({
+          where: { key: "rfid_point" }
+        });
+
+        if (!config) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Config for RFID point not found",
+          });
+        }
+
+        // Parse value string ke number
+        const pointValue = parseInt(config.value) || 0;
+
+        // Update user point
+        await ctx.db.user.update({
+          where: { id: membership.user.id },
+          data: {
+            point: { increment: pointValue }
+          }
+        });
+      }
 
       return {
         success: true,
@@ -414,24 +413,7 @@ export const esp32Router = createTRPCRouter({
         const todayEnd = new Date(todayStart);
         todayEnd.setDate(todayStart.getDate() + 1);
 
-        const existingAttendance = await ctx.db.attendanceMember.findFirst({
-          where: {
-            memberId: membership.id,
-            checkin: {
-              gte: todayStart,
-              lt: todayEnd
-            }
-          }
-        });
-
-        if (existingAttendance) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Member has already checked in today",
-          });
-        }
-
-        // Log attendance
+        // Allow multiple check-ins per day
         const memberAttendance = await ctx.db.attendanceMember.create({
           data: {
             memberId: membership.id,
@@ -440,28 +422,42 @@ export const esp32Router = createTRPCRouter({
           }
         });
 
-        // Fetch config point
-        const config = await ctx.db.config.findUnique({
-          where: { key: "rfid_point" }
-        });
-
-        if (!config) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Config for RFID point not found",
-          });
-        }
-
-        // Parse value string to number
-        const pointValue = parseInt(config.value) || 0;
-
-        // Update user point
-        await ctx.db.user.update({
-          where: { id: membership.user.id },
-          data: {
-            point: { increment: pointValue }
+        // Only increment points if this is the first check-in today
+        const alreadyCheckedInToday = await ctx.db.attendanceMember.findFirst({
+          where: {
+            memberId: membership.id,
+            checkin: {
+              gte: todayStart,
+              lt: todayEnd
+            },
+            id: { not: memberAttendance.id }
           }
         });
+
+        if (!alreadyCheckedInToday) {
+          // Fetch config point
+          const config = await ctx.db.config.findUnique({
+            where: { key: "rfid_point" }
+          });
+
+          if (!config) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Config for RFID point not found",
+            });
+          }
+
+          // Parse value string to number
+          const pointValue = parseInt(config.value) || 0;
+
+          // Update user point
+          await ctx.db.user.update({
+            where: { id: membership.user.id },
+            data: {
+              point: { increment: pointValue }
+            }
+          });
+        }
 
         return {
           success: true,
@@ -479,9 +475,62 @@ export const esp32Router = createTRPCRouter({
     }),
 
     /**
-                                       * Admin: Get all member check-in logs
-                                       * Returns: check-in time, member ID, member name, user name, facility description (if any)
-                                       */
+     * Manual checkout endpoint for admin use
+     * Accepts: attendanceId, timestamp (optional)
+     * Sets checkout time for the attendance record if not already checked out
+     */
+    manualCheckout: protectedProcedure
+      .input(z.object({
+        attendanceId: z.string(),
+        timestamp: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const attendance = await ctx.db.attendanceMember.findUnique({
+          where: { id: input.attendanceId },
+          include: {
+            member: {
+              include: { user: true },
+            },
+          },
+        });
+        if (!attendance) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Attendance record not found",
+          });
+        }
+        if (attendance.checkout) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Already checked out",
+          });
+        }
+        const checkoutTime = input.timestamp ? new Date(input.timestamp) : new Date();
+        const updated = await ctx.db.attendanceMember.update({
+          where: { id: input.attendanceId },
+          data: { checkout: checkoutTime },
+          include: {
+            member: {
+              include: { user: true },
+            },
+          },
+        });
+        return {
+          id: updated.id,
+          checkin: updated.checkin,
+          checkout: updated.checkout,
+          memberId: updated.memberId,
+          memberName: updated.member?.user?.name ?? null,
+          userName: updated.member?.user?.name ?? null,
+          facilityDescription: updated.facilityDescription ?? null,
+          status: updated.checkout ? "Checked Out" : "Checked In",
+        };
+      }),
+
+    /**
+     * Admin: Get all member check-in logs
+     * Returns: check-in time, checkout time, member ID, member name, user name, facility description (if any), status
+     */
     getMemberCheckinLogs: protectedProcedure
     .output(z.array(memberCheckinLogSchema))
     .query(async ({ ctx }) => {
@@ -499,10 +548,12 @@ export const esp32Router = createTRPCRouter({
       return logs.map((log) => ({
         id: log.id,
         checkin: log.checkin,
+        checkout: log.checkout ?? null,
         memberId: log.memberId,
         memberName: log.member?.user?.name ?? null,
         userName: log.member?.user?.name ?? null,
         facilityDescription: log.facilityDescription ?? null,
+        status: log.checkout ? "Checked Out" : "Checked In",
       }));
     }),
 

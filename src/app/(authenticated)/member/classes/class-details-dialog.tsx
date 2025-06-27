@@ -48,6 +48,17 @@ export function ClassDetailsDialog({
     },
   });
 
+  const cancelMutation = api.memberClass.cancelRegistration.useMutation({
+    onSuccess: () => {
+      toast.success("Registration cancelled");
+      void utils.memberClass.list.invalidate();
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const joinWaitlistMutation = api.memberClass.joinWaitlist.useMutation({
     onSuccess: () => {
       toast.success("Successfully joined waitlist");
@@ -171,7 +182,16 @@ export function ClassDetailsDialog({
               </p>
             </div>
           ) : isRegistered ? (
-            <Button disabled>Already Registered</Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (!class_?.id) return;
+                cancelMutation.mutate({ classId: class_.id });
+              }}
+              disabled={cancelMutation.isPending}
+            >
+              Cancel Registration
+            </Button>
           ) : isOnWaitlist ? (
             <Button disabled>On Waiting List</Button>
           ) : isFull ? (
@@ -188,11 +208,12 @@ export function ClassDetailsDialog({
           ) : (
             <Button
               onClick={handleRegister}
-              disabled={registerMutation.isPending}
+              disabled={hasValidSubscription == false}
               className="bg-infinity"
             >
-              {hasValidSubscription ? "Register for Class" : "Pay & Register"}
+              Register for Class
             </Button>
+            
           )}
         </DialogFooter>
       </DialogContent>

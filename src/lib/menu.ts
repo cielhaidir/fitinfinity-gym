@@ -195,6 +195,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:member",
         },
         {
+          title: "Class Registration",
+          url: "/admin/class/register",
+          icon: UserPlus,
+          requiredPermission: "menu:member",
+        },
+        {
           title: "Check-in Logs",
           url: "/admin/checkin-logs",
           icon: UserCog,
@@ -205,12 +211,6 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/admin/class-attendance",
           icon: UserCog,
           requiredPermission: "menu:class-attendance",
-        },
-        {
-          title: "Classes",
-          url: "/admin/classes",
-          icon: Dumbbell,
-          requiredPermission: "menu:classes-admin",
         },
         {
           title: "Package Management",

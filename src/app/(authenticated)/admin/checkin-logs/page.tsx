@@ -22,15 +22,18 @@ import { Pencil } from "lucide-react";
 type MemberCheckinLog = {
   id: string;
   checkin: string | Date;
+  checkout: string | Date | null;
   memberId: string;
   memberName: string | null;
   userName: string | null;
   facilityDescription: string | null;
+  status: string;
 };
 
 export default function CheckinLogsPage() {
   const { data, isLoading, error, refetch } = api.esp32.getMemberCheckinLogs.useQuery();
   const updateMutation = api.esp32.updateMemberCheckinLog.useMutation();
+  const checkoutMutation = api.esp32.manualCheckout.useMutation();
   const [editingLog, setEditingLog] = useState<MemberCheckinLog | null>(null);
   const [editCheckin, setEditCheckin] = useState<string>("");
   const [editFacility, setEditFacility] = useState<string>("");
@@ -90,6 +93,8 @@ export default function CheckinLogsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Check-in Time</TableHead>
+                    <TableHead>Checkout Time</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Member ID</TableHead>
                     <TableHead>Member Name</TableHead>
                     <TableHead>User Name</TableHead>
@@ -108,11 +113,21 @@ export default function CheckinLogsPage() {
                               : format(log.checkin, "yyyy-MM-dd HH:mm")
                             : "-"}
                         </TableCell>
+                        <TableCell>
+                          {log.checkout
+                            ? typeof log.checkout === "string"
+                              ? format(new Date(log.checkout), "yyyy-MM-dd HH:mm")
+                              : format(log.checkout, "yyyy-MM-dd HH:mm")
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {log.status}
+                        </TableCell>
                         <TableCell>{log.memberId}</TableCell>
                         <TableCell>{log.memberName ?? "-"}</TableCell>
                         <TableCell>{log.userName ?? "-"}</TableCell>
                         <TableCell>{log.facilityDescription ?? "-"}</TableCell>
-                        <TableCell>
+                        <TableCell className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
@@ -121,12 +136,32 @@ export default function CheckinLogsPage() {
                             <Pencil className="w-4 h-4 mr-1" />
                             Edit
                           </Button>
+                          {!log.checkout && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={checkoutMutation.isPending}
+                              onClick={async () => {
+                                try {
+                                  await checkoutMutation.mutateAsync({
+                                    attendanceId: log.id,
+                                  });
+                                  toast.success("Checked out successfully");
+                                  await refetch();
+                                } catch (err: any) {
+                                  toast.error("Failed to checkout");
+                                }
+                              }}
+                            >
+                              Checkout
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={8} className="text-center">
                         No check-in logs found.
                       </TableCell>
                     </TableRow>
@@ -144,14 +179,14 @@ export default function CheckinLogsPage() {
             <DialogTitle>Edit Check-in Log</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            {/* <div>
               <Label>Check-in Time</Label>
               <Input
                 type="datetime-local"
                 value={editCheckin}
                 onChange={(e) => setEditCheckin(e.target.value)}
               />
-            </div>
+            </div> */}
             <div>
               <Label>Facility Description</Label>
               <Input
