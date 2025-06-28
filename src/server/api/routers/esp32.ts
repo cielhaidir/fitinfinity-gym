@@ -186,99 +186,90 @@ export const esp32Router = createTRPCRouter({
             }
         }),
 
-    logFingerprint: deviceProcedure
-    .input(z.object({
-        fingerId: z.number(),
-        timestamp: z.string().optional(),
-        deviceId: z.string(),
-        accessKey: z.string(),
-    }))
-    .mutation(async ({ ctx, input }) => {
-        try {
+        logFingerprint : deviceProcedure
+        .input(z.object({
+          fingerId: z.number(),
+          timestamp: z.string().optional(),
+          deviceId: z.string(),
+          accessKey: z.string(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+          try {
             const { fingerId, timestamp, deviceId, accessKey } = input;
-    
+      
+            // Validasi akses perangkat
             const device = await ctx.db.device.findFirst({
-                where: { id: deviceId, accessKey }
+              where: { id: deviceId, accessKey },
             });
-    
+      
             if (!device) {
-                throw new TRPCError({
-                    code: "UNAUTHORIZED",
-                    message: "Invalid device access",
-                });
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "Invalid device access",
+              });
             }
-    
+      
             const logTime = timestamp ? new Date(timestamp) : new Date();
             const startOfDay = new Date(logTime);
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(startOfDay);
             endOfDay.setDate(endOfDay.getDate() + 1);
-    
+      
+            // Temukan karyawan dari fingerprint
             const employee = await ctx.db.employee.findFirst({
-                where: { fingerprintId: fingerId },
+              where: { fingerprintId: fingerId },
             });
-    
+      
             if (!employee) {
-                throw new TRPCError({
-                    code: "NOT_FOUND",
-                    message: "Employee not found",
-                });
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Employee not found",
+              });
             }
-    
+      
+            // Cek absensi hari ini
             const existingAttendance = await ctx.db.attendance.findFirst({
-                where: {
-                    employeeId: employee.id,
-                    date: {
-                        gte: startOfDay,
-                        lt: endOfDay,
-                    },
+              where: {
+                employeeId: employee.id,
+                date: {
+                  gte: startOfDay,
+                  lt: endOfDay,
                 },
+              },
             });
-    
+      
             if (!existingAttendance) {
-                return await ctx.db.attendance.create({
-                    data: {
-                        employeeId: employee.id,
-                        checkIn: logTime,
-                        date: startOfDay,
-                        deviceId,
-                    },
-                });
-            }
-    
-            // if (!existingAttendance.checkOut) {
-            //     return await ctx.db.attendance.update({
-            //         where: { id: existingAttendance.id },
-            //         data: {
-            //             checkOut: logTime,
-            //             deviceId,
-            //         },
-            //     });
-            // }
-    
-            // throw new TRPCError({
-            //     code: "BAD_REQUEST",
-            //     message: "Already checked in and out today",
-            // });
-
-            return await ctx.db.attendance.update({
-                where: { id: existingAttendance.id },
+              // Belum ada data, buat check-in
+              return await ctx.db.attendance.create({
                 data: {
-                    checkOut: logTime,
-                    deviceId, // Perbarui juga deviceId jika checkout dilakukan di mesin berbeda
+                  employeeId: employee.id,
+                  checkIn: logTime,
+                  date: startOfDay,
+                  deviceId,
                 },
+              });
+            }
+      
+            // Sudah ada attendance => update checkOut (overwrite jika perlu)
+            return await ctx.db.attendance.update({
+              where: { id: existingAttendance.id },
+              data: {
+                checkOut: logTime,
+                deviceId,
+              },
             });
-    
-        } catch (error) {
+      
+          } catch (error) {
             console.error("Attendance logging error:", error);
+      
             if (error instanceof TRPCError) throw error;
-    
+      
             throw new TRPCError({
-                code: "INTERNAL_SERVER_ERROR",
-                message: "Failed to log attendance",
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to log attendance",
             });
-        }
-    }),
+          }
+        }),
     
 
         logRFID: deviceProcedure

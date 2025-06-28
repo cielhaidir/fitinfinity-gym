@@ -39,7 +39,10 @@ export function DataTableToolbar<TData>({
     <div className="flex items-center justify-between">
       {searchColumns && (
         <div className="flex flex-1 items-center space-x-2">
-          <Select>
+          <Select value={selectedColumn} onValueChange={(value) => {
+            console.log("TOOLBAR COLUMN CHANGE:", { from: selectedColumn, to: value });
+            setSelectedColumn(value);
+          }}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
@@ -55,7 +58,10 @@ export function DataTableToolbar<TData>({
           </Select>
           <Input
             placeholder="Search..."
-            onChange={(event) => onSearch?.(event.target.value, selectedColumn)}
+            onChange={(event) => {
+              console.log("TOOLBAR SEARCH:", { value: event.target.value, selectedColumn });
+              onSearch?.(event.target.value, selectedColumn);
+            }}
             className="h-8 w-[150px] lg:w-[200px]"
           />
           {isFiltered && (

@@ -404,6 +404,7 @@ export default function MemberPage() {
               { id: "user.email", placeholder: "Search by email..." },
             ]}
             onSearch={(value, column) => {
+              console.log("FRONTEND SEARCH:", { value, column });
               setSearch(value);
               setSearchColumn(column);
             }}

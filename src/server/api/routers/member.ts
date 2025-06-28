@@ -132,11 +132,6 @@ export const memberRouter = createTRPCRouter({
                 [input.searchColumn.replace("user.", "")]: {
                   contains: input.search,
                   mode: "insensitive" as const,
-                },
-                roles: {
-                  some: {
-                    name: "Member"
-                  }
                 }
               },
             }
@@ -145,23 +140,10 @@ export const memberRouter = createTRPCRouter({
                 contains: input.search,
                 mode: "insensitive" as const,
               },
-              user: {
-                roles: {
-                  some: {
-                    name: "Member"
-                  }
-                }
-              }
             }
-        : {
-            user: {
-              roles: {
-                some: {
-                  name: "Member"
-                }
-              }
-            }
-          };
+        : {};
+
+      console.log("MEMBER SEARCH whereClause:", JSON.stringify(whereClause, null, 2));
 
       const items = await ctx.db.membership.findMany({
         skip: (input.page - 1) * input.limit,
