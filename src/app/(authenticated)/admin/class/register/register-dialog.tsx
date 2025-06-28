@@ -145,7 +145,7 @@ export function AdminClassRegisterDialog({
   onOpenChange,
 }: AdminClassRegisterDialogProps) {
   const utils = api.useUtils();
-  const { data: members, isLoading: membersLoading } = api.member.getAll.useQuery();
+  const { data: members, isLoading: membersLoading } = api.member.getAllActive.useQuery();
   const removeMutation = api.memberClass.adminRemoveMember.useMutation();
   const addMutation = api.memberClass.adminAddMember.useMutation();
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");

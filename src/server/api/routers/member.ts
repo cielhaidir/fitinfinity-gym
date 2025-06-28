@@ -397,6 +397,53 @@ export const memberRouter = createTRPCRouter({
     },
   ),
 
+
+  getAllActive: permissionProtectedProcedure(["list:member"]).query(
+    async ({ ctx }) => {
+      // Update expired subscriptions sebelum query
+      await updateExpiredSubscriptions(ctx);
+
+
+      return await ctx.db.membership.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: true,
+          fc: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          subscriptions: {
+            where: {
+              isActive: true,
+            },
+            include: {
+              trainer: {
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: {
+              startDate: "desc", // Replace with a valid field from SubscriptionOrderByWithRelationInput
+            },
+            take: 1,
+          },
+        },
+      });
+
+    },
+
+  ),
+
   getByUserId: permissionProtectedProcedure(["show:member"])
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
