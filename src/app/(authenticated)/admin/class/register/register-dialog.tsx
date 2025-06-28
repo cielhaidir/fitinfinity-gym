@@ -26,21 +26,18 @@ export function AdminClassRegisterDialog({
   open,
   onOpenChange,
 }: AdminClassRegisterDialogProps) {
-
   const utils = api.useUtils();
   const removeMutation = api.memberClass.adminRemoveMember.useMutation();
 
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
-  
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   const { data: members, isLoading: membersLoading } = api.member.getAll.useQuery();
   const addMutation = api.memberClass.adminAddMember.useMutation();
-  
+
   if (!class_) return null;
-  
 
-
- 
-  const handleRemove = async (classId: string,memberId: string) => {
+  const handleRemove = async (classId: string, memberId: string) => {
     try {
       await removeMutation.mutateAsync({ classId, memberId });
       toast.success("Member removed from class");
@@ -49,7 +46,7 @@ export function AdminClassRegisterDialog({
       toast.error(err?.message || "Failed to remove member");
     }
   };
-  
+
   const handleRegister = async () => {
     if (!selectedMemberId) return;
     try {
@@ -62,6 +59,12 @@ export function AdminClassRegisterDialog({
       toast.error(err?.message || "Failed to register member");
     }
   };
+
+  const filteredMembers = members?.filter((member: any) =>
+    (member.user?.name || member.user?.email || member.id)
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,7 +92,7 @@ export function AdminClassRegisterDialog({
             <strong>Capacity:</strong> {class_.limit ?? "Unlimited"}
           </p>
         </div>
-        <hr/>
+        <hr />
         <div className="">
           <div>
             <strong>Registered Members ({class_.registeredMembers?.length ?? 0}):</strong>
@@ -98,18 +101,20 @@ export function AdminClassRegisterDialog({
                 ? class_.registeredMembers.map((member) => (
                     <li key={member.id}>
                       {member.member.user.name || member.member.user.email || member.member.id}
-                        <span
+                      <span
                         className="ml-2 inline-block px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs cursor-pointer hover:bg-red-200 transition"
                         onClick={() => handleRemove(class_.id, member.memberId)}
-                        style={{ opacity: removeMutation.isPending ? 0.5 : 1, pointerEvents: removeMutation.isPending ? "none" : "auto" }}
-                        >
+                        style={{
+                          opacity: removeMutation.isPending ? 0.5 : 1,
+                          pointerEvents: removeMutation.isPending ? "none" : "auto",
+                        }}
+                      >
                         Remove
-                        </span>
+                      </span>
                     </li>
                   ))
                 : <li className="text-gray-400">No registered members</li>}
             </ul>
-
           </div>
           <div>
             <strong>Waiting List ({class_.waitingList?.length ?? 0}):</strong>
@@ -132,7 +137,16 @@ export function AdminClassRegisterDialog({
               <SelectValue placeholder={membersLoading ? "Loading..." : "Select a member"} />
             </SelectTrigger>
             <SelectContent>
-              {members?.map((member: any) => (
+              <div className="px-2 py-1">
+                <input
+                  type="text"
+                  placeholder="Search members..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-2 py-1 border rounded"
+                />
+              </div>
+              {filteredMembers?.map((member: any) => (
                 <SelectItem key={member.id} value={member.id}>
                   {member.user?.name || member.user?.email || member.id}
                 </SelectItem>
@@ -153,4 +167,3 @@ export function AdminClassRegisterDialog({
     </Dialog>
   );
 }
-

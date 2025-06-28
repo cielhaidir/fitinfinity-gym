@@ -243,10 +243,13 @@ export const attendanceRouter = createTRPCRouter({
         ctx.db.attendance.count({
           where: {
             ...where,
-            NOT: [{ checkIn: null }],
+            checkIn: {
+              not: null,
+            },
             checkOut: null,
           },
         }),
+        
         ctx.db.attendance.count({
           where: {
             ...where,

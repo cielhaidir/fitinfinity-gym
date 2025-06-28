@@ -236,7 +236,13 @@ export const esp32Router = createTRPCRouter({
                   lt: endOfDay,
                 },
               },
+              orderBy: {
+                date: "desc",
+              },
             });
+
+            console.log("Existing attendance:", existingAttendance);
+
       
             if (!existingAttendance) {
               // Belum ada data, buat check-in
