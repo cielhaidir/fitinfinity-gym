@@ -141,12 +141,12 @@ export function ClassDetailsDialog({
               <p>
                 <strong>Waiting List:</strong> {waitlistCount} members
               </p>
-              {!hasValidSubscription && (
+              {/* {!hasValidSubscription && (
                 <p>
                   <strong>Price:</strong> Rp{" "}
                   {class_.price.toLocaleString("id-ID")}
                 </p>
-              )}
+              )} */}
             </div>
           </TabsContent>
 

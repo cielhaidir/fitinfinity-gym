@@ -384,8 +384,9 @@ export const esp32Router = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       try {
         const { memberId, timestamp } = input;
-        const logTime = timestamp ? new Date(timestamp) : new Date();
+        // const logTime = timestamp ? new Date(timestamp) : new Date();
 
+        const checkinTime = timestamp ? new Date(timestamp) : new Date();
         // Find member by ID
         const membership = await ctx.db.membership.findFirst({
           where: {
@@ -405,7 +406,7 @@ export const esp32Router = createTRPCRouter({
         }
 
         // Check if attendance already exists for today
-        const todayStart = new Date(logTime);
+        const todayStart = new Date(checkinTime);
         todayStart.setHours(0, 0, 0, 0);
         const todayEnd = new Date(todayStart);
         todayEnd.setDate(todayStart.getDate() + 1);
@@ -414,7 +415,7 @@ export const esp32Router = createTRPCRouter({
         const memberAttendance = await ctx.db.attendanceMember.create({
           data: {
             memberId: membership.id,
-            checkin: logTime,
+            checkin: checkinTime,
             facilityDescription: input.facilityDescription || undefined
           }
         });

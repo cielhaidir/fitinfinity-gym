@@ -54,7 +54,7 @@ export default function CheckinLogsPage() {
     try {
       await updateMutation.mutateAsync({
         id: editingLog.id,
-        checkin: editCheckin ? new Date(editCheckin).toISOString() : undefined,
+        // checkin: editCheckin ? new Date(editCheckin).toISOString() : undefined,
         facilityDescription: editFacility,
       });
       toast.success("Check-in log updated");

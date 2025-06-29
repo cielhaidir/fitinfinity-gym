@@ -302,6 +302,7 @@ export default function MemberPage() {
       await manualCheckInMutation.mutateAsync({
         memberId: selectedMemberForCheckIn.id,
         facilityDescription: facilityDescription.trim() || undefined,
+        // timestamp: new Date(),
       });
     } catch (error) {
       console.error("Error during manual check-in:", error);
@@ -433,7 +434,7 @@ export default function MemberPage() {
               </label>
               <Textarea
                 id="facility"
-                placeholder="e.g., Gym equipment, Swimming pool, Basketball court..."
+                placeholder="e.g., Loker, Handuk.."
                 value={facilityDescription}
                 onChange={(e) => setFacilityDescription(e.target.value)}
                 className="min-h-[80px]"

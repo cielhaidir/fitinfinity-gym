@@ -91,19 +91,24 @@ export default function MemberClassesPage() {
   const isRegistrationEnabled = (class_: Class) => {
     const classDate = new Date(class_.schedule);
     const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(now.getDate() + 1);
-    
+  
     // Set time to start of day for accurate comparison
     const classDayStart = new Date(classDate);
     classDayStart.setHours(0, 0, 0, 0);
-    
-    const tomorrowStart = new Date(tomorrow);
-    tomorrowStart.setHours(0, 0, 0, 0);
-    
-    // Enable registration only if class is exactly tomorrow (H-1)
-    return classDayStart.getTime() === tomorrowStart.getTime();
+  
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+  
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(todayStart.getDate() + 1);
+  
+    // Enable registration if class is today (H-0) or tomorrow (H-1)
+    return (
+      classDayStart.getTime() === todayStart.getTime() ||
+      classDayStart.getTime() === tomorrowStart.getTime()
+    );
   };
+  
 
   // Filter classes for next 7 days only
   const upcomingClasses = classes?.items.filter((class_) => {
