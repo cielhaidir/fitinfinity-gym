@@ -170,19 +170,48 @@ export class DokuPaymentService {
     httpMethod?: string,
     endpointUrl?: string,
     requestBody?: string,
+    accessToken?: string,
   ): string {
-    const privateKeyContent = this.getPrivateKey();
-
     try {
       let stringToSign: string;
       
       if (method === 'ACCESS_TOKEN') {
-        // For access token: client_ID + "|" + X-TIMESTAMP
+        // For access token: client_ID + "|" + X-TIMESTAMP (uses RSA signature)
+        const privateKeyContent = this.getPrivateKey();
         stringToSign = `${clientId}|${timestamp}`;
+        
+        // Format the private key
+        let privateKey = privateKeyContent.trim();
+        
+        // Replace any \n in the environment variable with actual newlines
+        privateKey = privateKey.replace(/\\n/g, '\n');
+        
+        // If the key doesn't have proper headers, add them
+        if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+          // Clean the key content
+          const keyContent = privateKey.replace(/\s+/g, '');
+          // Add proper PKCS#8 headers and format with line breaks every 64 characters
+          privateKey = `-----BEGIN PRIVATE KEY-----\n${keyContent.match(/.{1,64}/g)?.join('\n') || keyContent}\n-----END PRIVATE KEY-----`;
+        }
+        
+        // Validate the key format
+        if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
+          throw new Error('Invalid private key format. Key must be in PKCS#8 format.');
+        }
+
+        console.log('Generating ACCESS_TOKEN signature with RSA');
+        console.log('String to sign:', stringToSign);
+        
+        const sign = crypto.createSign('SHA256');
+        sign.update(stringToSign);
+        sign.end();
+        
+        return sign.sign(privateKey, 'base64');
+        
       } else if (method === 'TRANSACTIONAL') {
-        // For transactional: HTTPMethod + ":" + EndpointUrl + ":" + Lowercase(HexEncode(SHA256(minify(RequestBody)))) + ":" + Timestamp
-        if (!httpMethod || !endpointUrl || !requestBody) {
-          throw new Error('HTTP method, endpoint URL, and request body are required for transactional signature');
+        // For transactional: HTTPMethod + ":" + EndpointUrl + ":" + AccessToken + ":" + Lowercase(HexEncode(SHA256(minify(RequestBody)))) + ":" + Timestamp (uses HMAC)
+        if (!httpMethod || !endpointUrl || !requestBody || !accessToken) {
+          throw new Error('HTTP method, endpoint URL, request body, and access token are required for transactional signature');
         }
         
         // Minify the request body (remove unnecessary whitespace)
@@ -191,41 +220,21 @@ export class DokuPaymentService {
         // Generate SHA256 hash of minified body
         const bodyHash = crypto.createHash('sha256').update(minifiedBody).digest('hex').toLowerCase();
         
-        stringToSign = `${httpMethod}:${endpointUrl}:${bodyHash}:${timestamp}`;
+        stringToSign = `${httpMethod}:${endpointUrl}:${accessToken}:${bodyHash}:${timestamp}`;
+        
+        console.log('Generating TRANSACTIONAL signature with HMAC');
+        console.log('String to sign:', stringToSign);
+        
+        // Use HMAC-SHA512 with client secret
+        const hmac = crypto.createHmac('sha512', this.config.secretKey);
+        hmac.update(stringToSign);
+        
+        return hmac.digest('base64');
       } else {
         throw new Error('Invalid signature method');
       }
-
-      // Format the private key
-      let privateKey = privateKeyContent.trim();
-      
-      // Replace any \n in the environment variable with actual newlines
-      privateKey = privateKey.replace(/\\n/g, '\n');
-      
-      // If the key doesn't have proper headers, add them
-      if (!privateKey.includes('BEGIN PRIVATE KEY')) {
-        // Clean the key content
-        const keyContent = privateKey.replace(/\s+/g, '');
-        // Add proper PKCS#8 headers and format with line breaks every 64 characters
-        privateKey = `-----BEGIN PRIVATE KEY-----\n${keyContent.match(/.{1,64}/g)?.join('\n') || keyContent}\n-----END PRIVATE KEY-----`;
-      }
-      
-      // Validate the key format
-      if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
-        throw new Error('Invalid private key format. Key must be in PKCS#8 format.');
-      }
-
-      console.log(`Generating ${method} signature`);
-      console.log('String to sign:', stringToSign);
-      
-      const sign = crypto.createSign('SHA256');
-      sign.update(stringToSign);
-      sign.end();
-      
-      return sign.sign(privateKey, 'base64');
     } catch (error) {
       console.error(`Error generating ${method} signature:`, error);
-      console.error('Private key starts with:', privateKeyContent?.substring(0, 30) + '...');
       
       // Check if it's a key format issue
       if (error instanceof Error && error.message.includes('unsupported')) {
@@ -405,7 +414,8 @@ export class DokuPaymentService {
       timestamp,
       'POST',
       endpointUrl,
-      JSON.stringify(requestBody)
+      JSON.stringify(requestBody),
+      accessToken
     );
 
     const headers = {
@@ -483,7 +493,8 @@ export class DokuPaymentService {
       timestamp,
       'POST',
       endpointUrl,
-      JSON.stringify(requestBody)
+      JSON.stringify(requestBody),
+      accessToken
     );
 
     const headers = {
@@ -555,7 +566,8 @@ export class DokuPaymentService {
       timestamp,
       'POST',
       endpointUrl,
-      JSON.stringify(requestBody)
+      JSON.stringify(requestBody),
+      accessToken
     );
 
     const headers = {
