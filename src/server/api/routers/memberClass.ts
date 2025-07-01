@@ -333,4 +333,65 @@ export const memberClassRouter = createTRPCRouter({
 
         return { success: true };
       }),
+      /**
+       * Admin: Add a trial member to a class manually with just a name
+       * Requires: classId, memberName
+       */
+      adminAddTrialMember: protectedProcedure
+        .input(z.object({ classId: z.string(), memberName: z.string().min(1) }))
+        .mutation(async ({ ctx, input }) => {
+          // Only allow admins (add your own admin check if needed)
+          // Example: if (!ctx.session.user.isAdmin) throw new Error("Unauthorized");
+
+          const class_ = await ctx.db.class.findUnique({
+            where: { id: input.classId },
+            include: { registeredMembers: true },
+          });
+
+          if (!class_) {
+            throw new Error("Class not found");
+          }
+
+          if (class_.schedule < new Date()) {
+            throw new Error("Cannot register for past classes");
+          }
+
+          if (class_.limit && class_.registeredMembers.length >= class_.limit) {
+            throw new Error("Class is full");
+          }
+
+          // Create a temporary user and membership for trial member
+          const trialUser = await ctx.db.user.create({
+            data: {
+              name: input.memberName.trim(),
+              email: null,
+              phone: null,
+            },
+          });
+
+          const trialMembership = await ctx.db.membership.create({
+            data: {
+              userId: trialUser.id,
+              registerDate: new Date(),
+              isActive: false, // Trial members don't have active memberships
+              createdBy: ctx.session.user.id,
+            },
+          });
+
+          // Register the trial member to the class
+          return ctx.db.classMember.create({
+            data: {
+              classId: input.classId,
+              memberId: trialMembership.id,
+            },
+            include: {
+              class: true,
+              member: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          });
+        }),
 });
