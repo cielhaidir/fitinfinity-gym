@@ -1,0 +1,3 @@
+# This directory is for storing private keys
+# Add your DOKU private key file here (e.g., doku-private.pem)
+# Private key files should NOT be committed to version control

@@ -13,6 +13,7 @@ import { PaymentStatus, EmailType } from "@prisma/client"; // Import the correct
 import { emailService } from "@/lib/email/emailService";
 import { format } from "date-fns";
 import { siteConfig } from "@/lib/config/siteConfig";
+import { dokuPaymentService } from "@/lib/payment/doku";
 
 export const paymentRouter = createTRPCRouter({
   createTransaction: publicProcedure
@@ -20,6 +21,7 @@ export const paymentRouter = createTRPCRouter({
       z.object({
         orderId: z.string(),
         amount: z.number(),
+        subscriptionId: z.string(),
         customerName: z.string().optional(),
         customerEmail: z.string().optional(),
         itemDetails: z
@@ -33,66 +35,200 @@ export const paymentRouter = createTRPCRouter({
           )
           .optional(),
         callbackUrl: z.string().optional(),
+        paymentGateway: z.enum(["midtrans", "doku", "shopee", "kredivo", "akulaku"]).default("midtrans"),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const snap = new midtransClient.Snap({
-        isProduction: false, // true di production
-        serverKey: process.env.MIDTRANS_SERVER_KEY,
-      });
-
-      const parameter = {
-        transaction_details: {
-          order_id: input.orderId,
-          gross_amount: input.amount,
-        },
-        credit_card: {
-          secure: true,
-        },
-        customer_details: input.customerName
-          ? {
-              first_name: input.customerName,
-              email: input.customerEmail,
-            }
-          : undefined,
-        item_details: input.itemDetails,
-        callbacks: input.callbackUrl
-          ? {
-              finish: input.callbackUrl,
-            }
-          : undefined,
-      };
-
       try {
-        const transaction = await snap.createTransaction(parameter);
-
-        // Find existing payment record and update it with the token
-        const payment = await ctx.db.payment.findFirst({
+        // Check if payment already exists, if not create it
+        let payment = await ctx.db.payment.findFirst({
           where: { orderReference: input.orderId },
         });
 
-        if (payment) {
-          // Store token directly in the payment record
-          await ctx.db.payment.update({
-            where: { id: payment.id },
+        if (!payment) {
+          payment = await ctx.db.payment.create({
             data: {
-              token: transaction.token,
-              tokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
-              gatewayResponse: {
-                ...(typeof payment.gatewayResponse === "object" &&
-                payment.gatewayResponse !== null
-                  ? payment.gatewayResponse
-                  : {}),
-                redirect_url: transaction.redirect_url,
-              },
+              subscriptionId: input.subscriptionId,
+              orderReference: input.orderId,
+              method: input.paymentGateway,
+              totalPayment: input.amount,
+              status: "PENDING",
             },
           });
         }
 
-        return {
-          token: transaction.token,
-          redirect_url: transaction.redirect_url,
-        };
+        // Handle different payment gateways
+        switch (input.paymentGateway) {
+          case "midtrans": {
+            const snap = new midtransClient.Snap({
+              isProduction: false, // true di production
+              serverKey: process.env.MIDTRANS_SERVER_KEY,
+            });
+
+            const parameter = {
+              transaction_details: {
+                order_id: input.orderId,
+                gross_amount: input.amount,
+              },
+              credit_card: {
+                secure: true,
+              },
+              customer_details: input.customerName
+                ? {
+                    first_name: input.customerName,
+                    email: input.customerEmail,
+                  }
+                : undefined,
+              item_details: input.itemDetails,
+              callbacks: input.callbackUrl
+                ? {
+                    finish: input.callbackUrl,
+                  }
+                : undefined,
+            };
+
+            const transaction = await snap.createTransaction(parameter);
+
+            // Update payment record with token
+            await ctx.db.payment.update({
+              where: { id: payment.id },
+              data: {
+                token: transaction.token,
+                tokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                gatewayResponse: {
+                  redirect_url: transaction.redirect_url,
+                },
+              },
+            });
+
+            return {
+              token: transaction.token,
+              redirect_url: transaction.redirect_url,
+            };
+          }
+
+          case "shopee": {
+            try {
+              const response = await dokuPaymentService.createShopeePayment({
+                amount: input.amount,
+                orderId: input.orderId,
+                callbackUrl: input.callbackUrl || `${process.env.NEXTAUTH_URL}/checkout/confirmation`,
+              });
+
+              // Update payment record with response
+              await ctx.db.payment.update({
+                where: { id: payment.id },
+                data: {
+                  gatewayResponse: response as any,
+                },
+              });
+
+              return {
+                redirect_url: response.webRedirectUrl,
+              };
+            } catch (error) {
+              // Update payment status to failed
+              await ctx.db.payment.update({
+                where: { id: payment.id },
+                data: { status: "FAILED" },
+              });
+              
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: error instanceof Error && (error.message.includes('Private key') || error.message.includes('private key') || error.message.includes('Invalid private key')) 
+                  ? "ShopeePay is not available. Please contact administrator to configure the payment method or choose another option."
+                  : `ShopeePay payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              });
+            }
+          }
+
+          case "kredivo": {
+            if (!input.customerName || !input.customerEmail) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "Customer name and email are required for Kredivo",
+              });
+            }
+
+            const response = await dokuPaymentService.createKredivoPayment({
+              amount: input.amount,
+              orderId: input.orderId,
+              customerName: input.customerName,
+              customerEmail: input.customerEmail,
+              callbackUrl: input.callbackUrl || `${process.env.NEXTAUTH_URL}/checkout/confirmation`,
+            });
+
+            // Update payment record with response
+            await ctx.db.payment.update({
+              where: { id: payment.id },
+              data: {
+                gatewayResponse: response as any,
+              },
+            });
+
+            return {
+              redirect_url: response.webRedirectUrl,
+            };
+          }
+
+          case "akulaku": {
+            if (!input.customerName || !input.customerEmail) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "Customer name and email are required for Akulaku",
+              });
+            }
+
+            const response = await dokuPaymentService.createAkulakuPayment({
+              amount: input.amount,
+              orderId: input.orderId,
+              customerName: input.customerName,
+              customerEmail: input.customerEmail,
+              callbackUrl: input.callbackUrl || `${process.env.NEXTAUTH_URL}/checkout/confirmation`,
+            });
+
+            // Update payment record with response
+            await ctx.db.payment.update({
+              where: { id: payment.id },
+              data: {
+                gatewayResponse: response as any,
+              },
+            });
+
+            return {
+              redirect_url: response.webRedirectUrl,
+            };
+          }
+
+          case "doku": {
+            const response = await dokuPaymentService.createPayment({
+              amount: input.amount,
+              orderId: input.orderId,
+              customerName: input.customerName || "Customer",
+              customerEmail: input.customerEmail || "",
+              callbackUrl: input.callbackUrl || `${process.env.NEXTAUTH_URL}/checkout/confirmation`,
+              items: input.itemDetails,
+            });
+
+            // Update payment record with response
+            await ctx.db.payment.update({
+              where: { id: payment.id },
+              data: {
+                gatewayResponse: response as any,
+              },
+            });
+
+            return {
+              redirect_url: response.payment_url,
+            };
+          }
+
+          default:
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Unsupported payment gateway",
+            });
+        }
       } catch (error) {
         console.error("Error creating transaction:", error);
         throw new TRPCError({
@@ -201,11 +337,16 @@ export const paymentRouter = createTRPCRouter({
             where: { id: payment.subscription.memberId },
             include: {
               user: true,
-              personalTrainer: {
-                include: { user: true },
-              },
             },
           });
+
+          // Get trainer info if it's a trainer subscription
+          const trainer = payment.subscription.trainerId 
+            ? await ctx.db.personalTrainer.findUnique({
+                where: { id: payment.subscription.trainerId },
+                include: { user: true },
+              })
+            : null;
 
           const packageDetails = await ctx.db.package.findUnique({
             where: { id: payment.subscription.packageId },
@@ -259,9 +400,9 @@ export const paymentRouter = createTRPCRouter({
                 currentYear: new Date().getFullYear(),
                 address: siteConfig.address,
                 // Conditional trainer data
-                ...(membership.personalTrainer && {
+                ...(trainer && {
                   personalTrainer: true,
-                  trainerName: membership.personalTrainer.user.name,
+                  trainerName: trainer.user.name,
                 }),
                 // Optional discount data if voucher was used
                 ...(packageDetails.price > payment.totalPayment && {
@@ -289,8 +430,8 @@ export const paymentRouter = createTRPCRouter({
                 endDate: payment.subscription.endDate
                   ? format(payment.subscription.endDate, "PPP")
                   : "N/A",
-                personalTrainer: membership.personalTrainer ? true : false,
-                trainerName: membership.personalTrainer?.user.name,
+                personalTrainer: trainer ? true : false,
+                trainerName: trainer?.user.name,
                 memberEmail: membership.user.email,
                 portalUrl: siteConfig.portalUrl,
                 supportEmail: siteConfig.supportEmail,

@@ -290,6 +290,7 @@ model Payment {
     subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
     status         PaymentStatus
     method         String
+    amount          Int?
     totalPayment   Int
     token          String?       // Dedicated field for payment gateway token
     tokenExpiry    DateTime?     // When the token expires

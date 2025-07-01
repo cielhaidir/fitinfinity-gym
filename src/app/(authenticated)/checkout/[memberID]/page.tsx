@@ -1,9 +1,10 @@
+// src/app/(authenticated)/checkout/[memberID]/page.tsx
+
 "use client";
 
 import { useState, use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, CreditCard, QrCode } from "lucide-react";
-//nah you found me again
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,7 +47,7 @@ export default function SubscriptionPage({
     type: "PERSONAL_TRAINER",
   });
   const { data: trainers } = api.personalTrainer.listAll.useQuery();
-  
+
   // Check for active gym membership
   const { data: memberSubscriptions } = api.subs.getByIdMember.useQuery({
     memberId: memberID,
@@ -82,7 +83,6 @@ export default function SubscriptionPage({
   const createPaymentMutation = api.payment.createTransaction.useMutation();
   const updatePaymentStatusMutation =
     api.subs.updatePaymentStatus.useMutation();
-
 
   const [selectedPackage, setSelectedPackage] = useState("");
   const [selectedTrainer, setSelectedTrainer] = useState("");
@@ -174,7 +174,7 @@ export default function SubscriptionPage({
 
       toast.info("Proceeding to payment validation...");
       router.push(`/checkout/validate/${memberID}?${queryParams.toString()}`);
-    } else if (paymentMethod === "midtrans") {
+    } else {
       setIsProcessingPayment(true);
       try {
         // Create a unique order ID
@@ -193,9 +193,9 @@ export default function SubscriptionPage({
             subscriptionType === "gym"
               ? (selectedPackageDetails.day ?? 0)
               : (selectedPackageDetails.sessions ?? 0),
-          paymentMethod: "midtrans", // Indicate online payment
+          paymentMethod: paymentMethod === "midtrans" ? "midtrans" : "doku",
           totalPayment: calculateTotal(),
-          status: "PENDING", // Start as pending until payment is confirmed
+          status: "PENDING",
           orderReference: orderId,
         });
 
@@ -209,85 +209,89 @@ export default function SubscriptionPage({
           },
         ];
 
-        // Create the transaction with Midtrans
+        // Create the transaction with payment gateway
         const transactionResponse = await createPaymentMutation.mutateAsync({
           orderId,
           amount: calculateTotal(),
+          subscriptionId: subscription.id,
           customerName: Member?.user?.name || "Member",
           customerEmail: Member?.user?.email || undefined,
           itemDetails,
           callbackUrl: `${window.location.origin}/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}`,
+          paymentGateway: paymentMethod,
         });
 
-        // Open Midtrans Snap payment page
-        if (transactionResponse.token) {
-          // Load Snap.js when needed
-          const snapScript = document.createElement("script");
-          snapScript.src = process.env.NEXT_PUBLIC_SNAP || "https://app.sandbox.midtrans.com/snap/snap.js";
-          snapScript.setAttribute(
-            "data-client-key",
-            process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "",
-          );
-          document.body.appendChild(snapScript);
+        if (transactionResponse.redirect_url) {
+          if (paymentMethod === "midtrans") {
+            // For Midtrans, load Snap.js when needed
+            const snapScript = document.createElement("script");
+            snapScript.src = process.env.NEXT_PUBLIC_SNAP || "https://app.sandbox.midtrans.com/snap/snap.js";
+            snapScript.setAttribute(
+              "data-client-key",
+              process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "",
+            );
+            document.body.appendChild(snapScript);
 
-          snapScript.onload = () => {
-            // @ts-ignore - window.snap is from the loaded script
-            window.snap.pay(transactionResponse.token, {
-              onSuccess: async function (result: any) {
-                try {
-                  // Update the payment status to SUCCESS
-                  await updatePaymentStatusMutation.mutateAsync({
-                    orderReference: orderId,
-                    status: "SUCCESS",
-                    gatewayResponse: result,
-                  });
+            snapScript.onload = () => {
+              // @ts-ignore - window.snap is from the loaded script
+              window.snap.pay(transactionResponse.token, {
+                onSuccess: async function (result: any) {
+                  try {
+                    await updatePaymentStatusMutation.mutateAsync({
+                      orderReference: orderId,
+                      status: "SUCCESS",
+                      gatewayResponse: result,
+                    });
 
-                  toast.success("Payment successful!");
-                  await utils.subs.getByIdMember.invalidate({
-                    memberId: memberID,
-                  });
-                  router.push(`/member/payment-history`);
-                } catch (error) {
-                  console.error("Error updating payment status:", error);
-                  toast.error(
-                    "Payment was processed but there was an error updating your subscription",
-                  );
-                  // Still redirect to subscription page, as payment was successful
+                    toast.success("Payment successful!");
+                    await utils.subs.getByIdMember.invalidate({
+                      memberId: memberID,
+                    });
+                    router.push(`/member/payment-history`);
+                  } catch (error) {
+                    console.error("Error updating payment status:", error);
+                    toast.error(
+                      "Payment was processed but there was an error updating your subscription",
+                    );
+                    router.push(
+                      `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=SUCCESS`,
+                    );
+                  }
+                },
+                onPending: function (result: any) {
+                  toast.info("Payment pending, waiting for confirmation");
                   router.push(
-                    `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=SUCCESS`,
+                    `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=PENDING`,
                   );
-                }
-              },
-              onPending: function (result: any) {
-                toast.info("Payment pending, waiting for confirmation");
-                router.push(
-                  `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=PENDING`,
-                );
-              },
-              onError: function (result: any) {
-                updatePaymentStatusMutation
-                  .mutateAsync({
-                    orderReference: orderId,
-                    status: "FAILED",
-                    gatewayResponse: result,
-                  })
-                  .catch(console.error);
-                toast.error("Payment failed");
-                console.error(result);
-                router.push(
-                  `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=FAILED`,
-                );
-              },
-              onClose: function () {
-                toast.info(
-                  "Payment window closed, transaction may still be processing",
-                );
-                router.push(
-                  `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}`,
-                );
-              },
-            });
-          };
+                },
+                onError: function (result: any) {
+                  updatePaymentStatusMutation
+                    .mutateAsync({
+                      orderReference: orderId,
+                      status: "FAILED",
+                      gatewayResponse: result,
+                    })
+                    .catch(console.error);
+                  toast.error("Payment failed");
+                  console.error(result);
+                  router.push(
+                    `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=FAILED`,
+                  );
+                },
+                onClose: function () {
+                  toast.info(
+                    "Payment window closed, transaction may still be processing",
+                  );
+                  router.push(
+                    `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}`,
+                  );
+                },
+              });
+            };
+          } else {
+            // For Doku, Shopee, Kredivo, Akulaku - redirect directly to the payment URL
+            window.location.href = transactionResponse.redirect_url;
+          }
         } else {
           toast.error("Failed to initialize payment");
         }
@@ -298,34 +302,6 @@ export default function SubscriptionPage({
       } finally {
         setIsProcessingPayment(false);
       }
-    } else {
-      const promise = async () => {
-        await createSubscriptionMutation.mutateAsync({
-          memberId: memberID,
-          packageId: selectedPackage,
-          trainerId:
-            subscriptionType === "trainer" ? selectedTrainer : undefined,
-          startDate: startDate,
-          // endDate: endDate,
-          subsType: subscriptionType,
-          duration:
-            subscriptionType === "gym"
-              ? (selectedPackageDetails.day ?? 0)
-              : (selectedPackageDetails.sessions ?? 0),
-          paymentMethod,
-          totalPayment: calculateTotal(),
-        });
-
-        await utils.subs.getByIdMember.invalidate({ memberId: memberID });
-        router.push(`/management/subscription/${memberID}`);
-      };
-
-      toast.promise(promise, {
-        loading: "Processing subscription...",
-        success: "Subscription has been created successfully!",
-        error: (error) =>
-          error instanceof Error ? error.message : String(error),
-      });
     }
   };
 
@@ -500,7 +476,47 @@ export default function SubscriptionPage({
                         className="flex items-center gap-2"
                       >
                         <CreditCard className="h-4 w-4" />
-                        Pay Online (Card/QRIS/E-Wallet)
+                        Pay Online (Card/E-Wallet)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                      <RadioGroupItem value="doku" id="doku" />
+                      <Label
+                        htmlFor="doku"
+                        className="flex items-center gap-2"
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Doku Pay (Digital Credit Card/E-Wallet)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                      <RadioGroupItem value="shopee" id="shopee" />
+                      <Label
+                        htmlFor="shopee"
+                        className="flex items-center gap-2"
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        ShopeePay
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                      <RadioGroupItem value="kredivo" id="kredivo" />
+                      <Label
+                        htmlFor="kredivo"
+                        className="flex items-center gap-2"
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Kredivo
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                      <RadioGroupItem value="akulaku" id="akulaku" />
+                      <Label
+                        htmlFor="akulaku"
+                        className="flex items-center gap-2"
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Akulaku
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 rounded-md border p-3">
@@ -622,7 +638,13 @@ export default function SubscriptionPage({
                     ? "Processing..."
                     : paymentMethod === "qris"
                       ? "Proceed to Upload Bukti Bayar"
-                      : "Pay Now"}
+                      : paymentMethod === "shopee"
+                        ? "Pay with ShopeePay"
+                        : paymentMethod === "kredivo"
+                          ? "Pay with Kredivo"
+                          : paymentMethod === "akulaku"
+                            ? "Pay with Akulaku"
+                            : "Pay Now"}
                 </Button>
               </CardFooter>
             </Card>
