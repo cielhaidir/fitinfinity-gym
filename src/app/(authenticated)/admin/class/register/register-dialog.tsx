@@ -10,6 +10,9 @@ import {
   DialogFooter,
 } from "@/app/_components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/app/_components/ui/input";
+import { Label } from "@/app/_components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
 import Select, { StylesConfig } from "react-select";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
@@ -148,11 +151,16 @@ export function AdminClassRegisterDialog({
   const { data: members, isLoading: membersLoading } = api.member.getAllActive.useQuery();
   const removeMutation = api.memberClass.adminRemoveMember.useMutation();
   const addMutation = api.memberClass.adminAddMember.useMutation();
+  const addTrialMutation = api.memberClass.adminAddTrialMember.useMutation();
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  const [trialMemberName, setTrialMemberName] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("existing");
 
   useEffect(() => {
     if (!open) {
       setSelectedMemberId("");
+      setTrialMemberName("");
+      setActiveTab("existing");
     }
   }, [open]);
 
@@ -171,16 +179,32 @@ export function AdminClassRegisterDialog({
   };
 
   const handleRegister = async () => {
-    if (!selectedMemberId || !class_?.id) return;
+    if (!class_?.id) return;
 
-    try {
-      await addMutation.mutateAsync({ classId: class_.id, memberId: selectedMemberId });
-      toast.success("Member registered to class successfully");
-      await utils.memberClass.list.invalidate();
-      setSelectedMemberId("");
-      onOpenChange(false);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to register member");
+    if (activeTab === "existing") {
+      if (!selectedMemberId) return;
+
+      try {
+        await addMutation.mutateAsync({ classId: class_.id, memberId: selectedMemberId });
+        toast.success("Member registered to class successfully");
+        await utils.memberClass.list.invalidate();
+        setSelectedMemberId("");
+        onOpenChange(false);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to register member");
+      }
+    } else {
+      if (!trialMemberName.trim()) return;
+
+      try {
+        await addTrialMutation.mutateAsync({ classId: class_.id, memberName: trialMemberName.trim() });
+        toast.success("Trial member registered to class successfully");
+        await utils.memberClass.list.invalidate();
+        setTrialMemberName("");
+        onOpenChange(false);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to register trial member");
+      }
     }
   };
 
@@ -258,30 +282,66 @@ export function AdminClassRegisterDialog({
           </div>
         </div>
         <hr/>
-        <div>
-          <label className="block mb-1 font-medium">Select Member</label>
-          <Select<MemberOption>
-            menuPortalTarget={document.body}
-            styles={selectStyles}
-            options={memberOptions}
-            value={memberOptions.find(option => option.value === selectedMemberId)}
-            onChange={(newValue) => setSelectedMemberId(newValue?.value || "")}
-            isLoading={membersLoading}
-            isDisabled={membersLoading}
-            placeholder="Select a member"
-            isClearable
-            className="w-full"
-            classNamePrefix="react-select"
-            maxMenuHeight={200}
-          />
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="existing">Existing Member</TabsTrigger>
+            <TabsTrigger value="trial">Trial Member</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="existing" className="space-y-4">
+            <div>
+              <Label htmlFor="member-select" className="block mb-1 font-medium">
+                Select Member
+              </Label>
+              <Select<MemberOption>
+                menuPortalTarget={document.body}
+                styles={selectStyles}
+                options={memberOptions}
+                value={memberOptions.find(option => option.value === selectedMemberId)}
+                onChange={(newValue) => setSelectedMemberId(newValue?.value || "")}
+                isLoading={membersLoading}
+                isDisabled={membersLoading}
+                placeholder="Select a member"
+                isClearable
+                className="w-full"
+                classNamePrefix="react-select"
+                maxMenuHeight={200}
+              />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="trial" className="space-y-4">
+            <div>
+              <Label htmlFor="trial-name" className="block mb-1 font-medium">
+                Trial Member Name
+              </Label>
+              <Input
+                id="trial-name"
+                type="text"
+                value={trialMemberName}
+                onChange={(e) => setTrialMemberName(e.target.value)}
+                placeholder="Enter member name for trial"
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                For gym visitors who don't have an account yet
+              </p>
+            </div>
+          </TabsContent>
+        </Tabs>
+        
         <DialogFooter>
           <Button
             className="w-full bg-infinity"
             onClick={handleRegister}
-            disabled={!selectedMemberId || addMutation.isPending}
+            disabled={
+              (activeTab === "existing" && !selectedMemberId) ||
+              (activeTab === "trial" && !trialMemberName.trim()) ||
+              addMutation.isPending ||
+              addTrialMutation.isPending
+            }
           >
-            Register
+            {addMutation.isPending || addTrialMutation.isPending ? "Registering..." : "Register"}
           </Button>
         </DialogFooter>
       </DialogContent>

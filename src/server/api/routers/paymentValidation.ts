@@ -435,7 +435,7 @@ export const paymentValidationRouter = createTRPCRouter({
       const offlineTotalPromise = ctx.db.paymentValidation.count();
 
       // Fetch online payments through subscriptions
-      const onlinePaymentsPromise = ctx.db.subscription.findMany({
+      const onlineSubscriptionsPromise = ctx.db.subscription.findMany({
         include: {
           payments: {
             where: {
@@ -467,7 +467,7 @@ export const paymentValidationRouter = createTRPCRouter({
         await Promise.all([
           offlinePaymentsPromise,
           offlineTotalPromise,
-          onlinePaymentsPromise,
+          onlineSubscriptionsPromise,
         ]);
 
       // Transform online subscriptions with payments into a similar format as offline payments
@@ -484,6 +484,8 @@ export const paymentValidationRouter = createTRPCRouter({
           trainer: subscription.trainer,
           member: subscription.member,
           isOnlinePayment: true,
+          startDate: subscription.startDate,
+          endDate: subscription.endDate
         })),
       );
 
@@ -615,6 +617,8 @@ export const paymentValidationRouter = createTRPCRouter({
             package: subscription.package,
             trainer: subscription.trainer,
             isOnlinePayment: true,
+            startDate: subscription.startDate,
+            endDate: subscription.endDate
           })),
         );
 

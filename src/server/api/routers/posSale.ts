@@ -10,10 +10,11 @@ export const posSaleRouter = createTRPCRouter({
         search: z.string().optional(),
         dateFrom: z.date().optional(),
         dateTo: z.date().optional(),
+        cashierId: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { page, limit, search, dateFrom, dateTo } = input;
+      const { page, limit, search, dateFrom, dateTo, cashierId } = input;
       const skip = (page - 1) * limit;
 
       const where = {
@@ -28,6 +29,9 @@ export const posSaleRouter = createTRPCRouter({
             gte: dateFrom,
             lte: dateTo,
           },
+        }),
+        ...(cashierId && {
+          cashierId: cashierId,
         }),
       };
 
@@ -369,5 +373,100 @@ export const posSaleRouter = createTRPCRouter({
           where: { id: input.id },
         });
       });
+    }),
+
+  export: permissionProtectedProcedure(["list:pos-sale"])
+    .input(
+      z.object({
+        dateFrom: z.date().optional(),
+        dateTo: z.date().optional(),
+        paymentMethod: z.string().optional(),
+        cashierId: z.string().optional(),
+        search: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { dateFrom, dateTo, paymentMethod, cashierId, search } = input;
+
+      const where = {
+        ...(search && {
+          OR: [
+            { saleNumber: { contains: search, mode: "insensitive" as const } },
+            { notes: { contains: search, mode: "insensitive" as const } },
+          ],
+        }),
+        ...(dateFrom && dateTo && {
+          saleDate: {
+            gte: dateFrom,
+            lte: dateTo,
+          },
+        }),
+        ...(paymentMethod && {
+          paymentMethod: paymentMethod,
+        }),
+        ...(cashierId && {
+          cashierId: cashierId,
+        }),
+      };
+
+      const sales = await ctx.db.pOSSale.findMany({
+        where,
+        orderBy: { saleDate: "desc" },
+        include: {
+          cashier: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          balanceAccount: {
+            select: {
+              name: true,
+            },
+          },
+          items: {
+            include: {
+              item: {
+                include: {
+                  category: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Transform data for Excel export
+      const exportData = sales.flatMap(sale => 
+        sale.items.map(item => ({
+          saleNumber: sale.saleNumber,
+          saleDate: sale.saleDate,
+          cashier: sale.cashier?.name || "Unknown",
+          paymentMethod: sale.paymentMethod,
+          balanceAccount: sale.balanceAccount?.name || "N/A",
+          itemName: item.item.name,
+          itemCategory: item.item.category.name,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          itemSubtotal: item.subtotal,
+          saleSubtotal: sale.subtotal,
+          tax: sale.tax,
+          discount: sale.discount,
+          saleTotal: sale.total,
+          amountPaid: sale.amountPaid,
+          change: sale.change,
+          notes: sale.notes || "",
+        }))
+      );
+
+      return {
+        data: exportData,
+        summary: {
+          totalSales: sales.reduce((sum, sale) => sum + sale.total, 0),
+          totalTransactions: sales.length,
+          totalItems: sales.reduce((sum, sale) => sum + sale.items.length, 0),
+        },
+      };
     }),
 });
