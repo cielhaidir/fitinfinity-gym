@@ -376,6 +376,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: DollarSign,
           requiredPermission: "menu:transaction",
         },
+        {
+          title: "Subscription History",
+          url: "/finance/subscription-history",
+          icon: CreditCard,
+          requiredPermission: "menu:transaction",
+        },
         // {
         //     title: "Report",
         //     url: "/finance/report",

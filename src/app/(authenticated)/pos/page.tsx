@@ -12,8 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-import { Plus, Minus, ShoppingCart, Trash2, CreditCard, History, Edit, Eye } from "lucide-react";
+import { Plus, Minus, ShoppingCart, Trash2, CreditCard, History, Edit, Eye, Download, Filter, Calendar } from "lucide-react";
 import type { POSSaleItem } from "./schema";
+import * as XLSX from "xlsx";
 
 export default function POSPage() {
   const [cartItems, setCartItems] = useState<POSSaleItem[]>([]);
@@ -27,6 +28,12 @@ export default function POSPage() {
   const [activeTab, setActiveTab] = useState<string>("pos");
   const [editingSale, setEditingSale] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("");
+  const [filterCashier, setFilterCashier] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   const { data: categories } = api.posCategory.getAll.useQuery();
   const { data: items } = api.posItem.getAll.useQuery();
@@ -34,10 +41,27 @@ export default function POSPage() {
   const { data: recentSales, refetch: refetchSales } = api.posSale.list.useQuery({
     page: 1,
     limit: 20,
+    search: searchTerm || undefined,
+    dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+    dateTo: dateTo ? new Date(dateTo) : undefined,
+    cashierId: filterCashier || undefined,
   });
+  const { data: allUsers } = api.user.all.useQuery();
   const createSaleMutation = api.posSale.create.useMutation();
   const updateSaleMutation = api.posSale.update.useMutation();
   const deleteSaleMutation = api.posSale.delete.useMutation();
+  const exportDataQuery = api.posSale.export.useQuery(
+    {
+      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+      dateTo: dateTo ? new Date(dateTo) : undefined,
+      paymentMethod: filterPaymentMethod || undefined,
+      cashierId: filterCashier || undefined,
+      search: searchTerm || undefined,
+    },
+    {
+      enabled: false,
+    }
+  );
 
   // Filter items by selected category
   const filteredItems = selectedCategory && selectedCategory !== "all"
@@ -217,6 +241,67 @@ export default function POSPage() {
     setEditingSale(null);
     setIsEditDialogOpen(false);
     clearCart();
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const result = await exportDataQuery.refetch();
+      
+      if (!result.data?.data || result.data.data.length === 0) {
+        toast.error("No data to export");
+        return;
+      }
+
+      // Transform data for Excel
+      const excelData = result.data.data.map(row => ({
+        'Sale Number': row.saleNumber,
+        'Sale Date': new Date(row.saleDate).toLocaleDateString(),
+        'Cashier': row.cashier,
+        'Payment Method': row.paymentMethod,
+        'Balance Account': row.balanceAccount,
+        'Item Name': row.itemName,
+        'Item Category': row.itemCategory,
+        'Quantity': row.quantity,
+        'Unit Price': row.unitPrice,
+        'Item Subtotal': row.itemSubtotal,
+        'Sale Subtotal': row.saleSubtotal,
+        'Tax': row.tax,
+        'Discount': row.discount,
+        'Sale Total': row.saleTotal,
+        'Amount Paid': row.amountPaid,
+        'Change': row.change,
+        'Notes': row.notes,
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Sales History");
+      
+      // Generate filename with date range
+      const fromDate = dateFrom ? new Date(dateFrom).toLocaleDateString() : 'All';
+      const toDate = dateTo ? new Date(dateTo).toLocaleDateString() : 'All';
+      const filename = `POS_Sales_${fromDate}_to_${toDate}.xlsx`;
+      
+      XLSX.writeFile(workbook, filename);
+      
+      toast.success(`Exported ${result.data.data.length} records to ${filename}`);
+    } catch (error) {
+      toast.error("Failed to export data");
+      console.error('Export error:', error);
+    }
+  };
+
+  const handleSearch = () => {
+    refetchSales();
+  };
+
+  const handleClearFilters = () => {
+    setDateFrom("");
+    setDateTo("");
+    setFilterPaymentMethod("");
+    setFilterCashier("");
+    setSearchTerm("");
+    refetchSales();
   };
 
   return (
@@ -453,10 +538,109 @@ export default function POSPage() {
           <TabsContent value="history" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5" />
-                  Recent Sales
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Recent Sales
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                    >
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filters
+                    </Button> */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportExcel}
+                      disabled={exportDataQuery.isLoading}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Excel
+                    </Button>
+                  </div>
                 </CardTitle>
+                
+                {showFilters && (
+                  <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Search</label>
+                        <Input
+                          type="text"
+                          placeholder="Search by sale number or notes..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-1">From Date</label>
+                        <Input
+                          type="date"
+                          value={dateFrom}
+                          onChange={(e) => setDateFrom(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-1">To Date</label>
+                        <Input
+                          type="date"
+                          value={dateTo}
+                          onChange={(e) => setDateTo(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Payment Method</label>
+                        <Select value={filterPaymentMethod} onValueChange={setFilterPaymentMethod}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All payment methods" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">All payment methods</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* <div>
+                        <label className="block text-sm font-medium mb-1">Cashier</label>
+                        <Select value={filterCashier} onValueChange={setFilterCashier}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All cashiers" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">All cashiers</SelectItem>
+                            {filteredCashiers.map((cashier) => (
+                              <SelectItem key={cashier.id} value={cashier.id}>
+                                {cashier.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div> */}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button onClick={handleSearch} variant="default">
+                        Apply Filters
+                      </Button>
+                      <Button onClick={handleClearFilters} variant="outline">
+                        Clear Filters
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {recentSales?.items.length === 0 ? (
