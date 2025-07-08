@@ -129,7 +129,7 @@ const checkPaymentStatusMutation = api.payment.checkStatus.useQuery(
           await updatePaymentStatusMutation.mutateAsync({
             orderReference : orderRef,
             status,
-            gatewayResponse: result.data,x
+            gatewayResponse: result.data,
           });
 
           await refetchSubscription();
