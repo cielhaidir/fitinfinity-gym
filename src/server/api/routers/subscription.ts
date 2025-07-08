@@ -164,7 +164,7 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
       }
-
+      
       // Store gateway response if provided
       if (input.gatewayResponse) {
         updateData.gatewayResponse = input.gatewayResponse;
@@ -492,7 +492,9 @@ export const subscriptionRouter = createTRPCRouter({
             },
           },
           package: true,
-          payments: true,
+          payments: {
+            orderBy: { createdAt: 'desc' }, // ambil yang terbaru
+          },
         },
       });
 

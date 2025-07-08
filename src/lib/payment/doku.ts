@@ -22,22 +22,60 @@ interface DokuPaymentRequest {
       price: number;
       quantity: number;
     }>;
+    auto_redirect?: boolean; // Automatically redirect after payment
   };
   payment: {
     payment_method_types: string[];
   };
   customer?: {
+    id: string;
     name: string;
-    email: string;
+    phone: string;
   };
 }
 
 interface DokuPaymentResponse {
-  payment_url: string;
-  order_id: string;
-  response_code: string;
-  response_message: string;
+
+    order: {
+      amount: string;
+      invoice_number: string;
+      currency: string;
+      session_id: string;
+      callback_url: string;
+      line_items: any[]; // Bisa di-detailin kalau mau
+      auto_redirect: boolean;
+    };
+
+    payment: {
+      payment_method_types: any[]; // Bisa di-detailin kalau mau
+      payment_due_date: number;
+      token_id: string;
+      url: string;
+      expired_date: string;
+      expired_datetime: string;
+    };
+
+    customer: {
+      id: string;
+      phone: string;
+      name: string;
+    };
+
+    additional_info: {
+      origin: any;
+      line_items: any[];
+    };
+
+    uuid: number;
+    headers: {
+      request_id: string;
+      signature: string;
+      date: string;
+      client_id: string;
+    };
+
 }
+
 
 // SNAP API interfaces
 interface DokuSnapRequest {
@@ -100,7 +138,7 @@ interface DokuQrisGenerateRequest {
   feeAmount: { value: string; currency: string };
   merchantId: string;
   terminalId: string;
-  validityPeriod: string;
+  validityPeriod?: string;
   additionalInfo: { postalCode: number; feeType: number };
 }
 
@@ -166,25 +204,29 @@ export class DokuPaymentService {
 
   // Generate signature for regular checkout API
   private generateLegacySignature(
-    requestBody: string,
     requestTarget: string,
     clientId: string,
     requestId: string,
     timestamp: string,
+    requestBody?: string,
   ): string {
-    const digest = crypto
-      .createHash('sha256')
-      .update(requestBody)
-      .digest('base64');
-  
-    const rawSignature = [
+    let digest = '';
+    let signatureLines = [
       `Client-Id:${clientId}`,
       `Request-Id:${requestId}`,
       `Request-Timestamp:${timestamp}`,
       `Request-Target:${requestTarget}`,
-      `Digest:${digest}`,
-    ].join('\n');
-
+    ];
+  
+    if (requestBody) {
+      digest = crypto
+        .createHash('sha256')
+        .update(requestBody)
+        .digest('base64');
+      signatureLines.push(`Digest:${digest}`);
+    }
+  
+    const rawSignature = signatureLines.join('\n');
     console.log('Raw Signature:', rawSignature);
   
     const hmac = crypto
@@ -192,9 +234,8 @@ export class DokuPaymentService {
       .update(rawSignature)
       .digest('base64');
   
-    return `${hmac}`;
+    return hmac; // no need to add 'HMACSHA256=' here, just return pure signature
   }
-
   // Generate signature for different DOKU APIs
   private generateSignature(
     method: 'ACCESS_TOKEN' | 'TRANSACTIONAL',
@@ -333,26 +374,28 @@ export class DokuPaymentService {
   }
   
   private async makeRequest(endpoint: string, method: string, body?: any) {
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
     const requestUrl = `${this.config.apiUrl}${endpoint}`;
+
+
     const requestBody = body ? JSON.stringify(body) : '';
     const endpoint_new = '/checkout/v1/payment';
     const requestId = crypto.randomUUID();
     
     const signature = this.generateLegacySignature(
-      requestBody,
       endpoint_new,
       this.config.clientId,
       requestId,
-      timestamp
+      timestamp,
+      requestBody,
     );
 
     const headers = {
       'Content-Type': 'application/json',
-      'Client-Id': this.config.clientId,
-      'Request-Id': requestId,
-      'Request-Timestamp': timestamp,
-      'Signature': `HMACSHA256=${signature}`,
+      'client-id': this.config.clientId,
+      'request-id': requestId,
+      'request-timestamp': timestamp,
+      'signature': `HMACSHA256=${signature}`,
     };
 
     
@@ -362,6 +405,8 @@ export class DokuPaymentService {
         headers,
         body: requestBody || undefined,
       });
+      const body = await response.json();
+    
 
       console.log('Doku API Request:', {
         url: requestUrl,
@@ -370,11 +415,16 @@ export class DokuPaymentService {
         body: requestBody,
       });
 
+      console.log('Doku API Response:', {
+        message: body
+      }
+      )
+
       if (!response.ok) {
         throw new Error(`Doku API error: ${response.status} ${response.statusText}`);
       }
 
-      return await response.json();
+      return await body.response;
     } catch (error) {
       console.error('Doku API request failed:', error);
       throw error;
@@ -384,8 +434,9 @@ export class DokuPaymentService {
   async createPayment(params: {
     amount: number;
     orderId: string;
+    customerId: string;
     customerName: string;
-    customerEmail: string;
+    customerPhone: string;
     callbackUrl: string;
     items?: Array<{
       name: string;
@@ -393,6 +444,7 @@ export class DokuPaymentService {
       quantity: number;
     }>;
   }): Promise<DokuPaymentResponse> {
+
     const paymentRequest: DokuPaymentRequest = {
       order: {
         amount: params.amount,
@@ -400,13 +452,41 @@ export class DokuPaymentService {
         currency: 'IDR',
         callback_url: params.callbackUrl,
         line_items: params.items,
+        auto_redirect: true, // Automatically redirect after payment
       },
       payment: {
-        payment_method_types: ['EWALLET'],
+      payment_method_types: [
+        "VIRTUAL_ACCOUNT_BCA",
+        "VIRTUAL_ACCOUNT_BANK_MANDIRI",
+        "VIRTUAL_ACCOUNT_BANK_SYARIAH_MANDIRI",
+        "VIRTUAL_ACCOUNT_DOKU",
+        "VIRTUAL_ACCOUNT_BRI",
+        "VIRTUAL_ACCOUNT_BNI",
+        "VIRTUAL_ACCOUNT_BANK_PERMATA",
+        "VIRTUAL_ACCOUNT_BANK_CIMB",
+        "VIRTUAL_ACCOUNT_BANK_DANAMON",
+        "VIRTUAL_ACCOUNT_BNC",
+        "VIRTUAL_ACCOUNT_BTN",
+        "ONLINE_TO_OFFLINE_ALFA",
+        "CREDIT_CARD",
+        "DIRECT_DEBIT_BRI",
+        "EMONEY_SHOPEEPAY",
+        "EMONEY_OVO",
+        "EMONEY_DANA",
+        "QRIS",
+        "PEER_TO_PEER_AKULAKU",
+        "PEER_TO_PEER_KREDIVO",
+        "PEER_TO_PEER_INDODANA"
+      ]
+      },
+      customer: {
+        id: params.customerId, // Use orderId as customer ID
+        name: params.customerName,
+        phone: params.customerPhone,
       },
     };
 
-    return this.makeRequest('/payment', 'POST', paymentRequest);
+    return this.makeRequest('/checkout/v1/payment', 'POST', paymentRequest);
   }
 
   // Create Shopee SNAP payment
@@ -507,8 +587,8 @@ export class DokuPaymentService {
       },
       customer: {
         name: params.customerName,
-        email: params.customerEmail,
         phone: params.customerPhone,
+        email: params.customerEmail,
       },
       urlParam: {
         url: params.callbackUrl,
@@ -566,6 +646,7 @@ export class DokuPaymentService {
     customerName: string;
     customerEmail: string;
     customerPhone?: string;
+    customerId: string;
     callbackUrl: string;
   }): Promise<DokuP2PResponse> {
     const accessToken = await this.getAccessToken();
@@ -726,11 +807,11 @@ export class DokuPaymentService {
   ): boolean {
     try {
       const calculatedSignature = this.generateLegacySignature(
-        rawBody,
-        url,
         this.config.clientId,
         'webhook',
         timestamp,
+        rawBody,
+        url,
       );
       return `HMACSHA256=${calculatedSignature}` === signature;
     } catch (error) {
@@ -738,6 +819,75 @@ export class DokuPaymentService {
       return false;
     }
   }
+
+
+  verifyWebhookSignatureFromHeaders(
+    rawBody: string,
+    requestTarget: string,
+    headers: Headers
+  ): boolean {
+    try {
+      const clientId = headers.get('client-id');
+      const requestId = headers.get('request-id');
+      const timestamp = headers.get('request-timestamp');
+      const signature = headers.get('signature');
+  
+      if (!clientId || !requestId || !timestamp || !signature) {
+        console.error('Missing signature headers');
+        return false;
+      }
+  
+      const calculatedSignature = this.generateLegacySignature(
+        clientId,
+        requestId,
+        timestamp,
+        requestTarget,
+        rawBody,
+      );
+  
+      return `HMACSHA256=${calculatedSignature}` === signature;
+    } catch (error) {
+      console.error('Webhook signature verification failed:', error);
+      return false;
+    }
+  }
+
+  async inquirePayment(orderId: string) {
+    const endpoint = `/orders/v1/status/${orderId}`;
+    const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    const requestId = crypto.randomUUID();
+    const signature = this.generateLegacySignature(
+      endpoint,
+      this.config.clientId,
+      requestId,
+      timestamp,
+    );
+  
+    const headers = {
+      "Content-Type": "application/json",
+      "client-id": this.config.clientId,
+      "request-id": requestId,
+      "request-timestamp": timestamp,
+      "signature": `HMACSHA256=${signature}`,
+    };
+  
+    const response = await fetch(`${this.config.apiUrl}${endpoint}`, {
+      method: "GET",
+      headers,
+    });
+
+
+    if (!response.ok) {
+      throw new Error(`Inquiry failed with status ${response.status}`);
+    }
+
+  
+    const result = await response.json();
+    console.log('Doku Payment Inquiry Response:', result);
+    return result;
+  }
+  
+  
 }
 
 // Create a singleton instance with environment variables

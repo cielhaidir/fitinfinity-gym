@@ -200,13 +200,15 @@ export default function SubscriptionPage({
         });
 
         // Format item details
-        const itemDetails = [
-          {
-            id: selectedPackage,
-            name: selectedPackageDetails.name,
-            price: calculateTotal(),
-            quantity: 1,
-          },
+          const itemDetails = [
+            {
+              id: selectedPackage,
+              name: selectedPackageDetails.name,
+              price: calculateTotal(),
+              quantity: 1,
+              sku: generateSKU(selectedPackageDetails.name),
+              category: "services"
+            },
         ];
 
         // Create the transaction with payment gateway
@@ -479,7 +481,7 @@ export default function SubscriptionPage({
                         Pay Online (Card/E-Wallet)
                       </Label>
                     </div> */}
-                    {/* <div className="flex items-center space-x-2 rounded-md border p-3">
+                    <div className="flex items-center space-x-2 rounded-md border p-3">
                       <RadioGroupItem value="doku" id="doku" />
                       <Label
                         htmlFor="doku"
@@ -488,7 +490,7 @@ export default function SubscriptionPage({
                         <CreditCard className="h-4 w-4" />
                         Doku Pay (Digital Credit Card/E-Wallet)
                       </Label>
-                    </div> */}
+                    </div>
                     <div className="flex items-center space-x-2 rounded-md border p-3 opacity-50 cursor-not-allowed">
                       <RadioGroupItem value="shopee" id="shopee" disabled />
                       <Label
@@ -510,7 +512,7 @@ export default function SubscriptionPage({
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 rounded-md border p-3  opacity-50 cursor-not-allowed">
-                      <RadioGroupItem value="akulaku" id="akulaku" />
+                      <RadioGroupItem value="akulaku" id="akulaku" disabled/>
                       <Label
                         htmlFor="akulaku"
                         className="flex items-center gap-2"
@@ -519,18 +521,18 @@ export default function SubscriptionPage({
                         Akulaku (Coming Soon)
                       </Label>
                     </div>
-                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                    {/* <div className="flex items-center space-x-2 rounded-md border p-3">
                       <RadioGroupItem value="qr" id="qr" />
                       <Label htmlFor="qr" className="flex items-center gap-2">
                         <QrCode className="h-4 w-4" />
                         QR Online
                       </Label>
-                    </div>
+                    </div> */}
                     <div className="flex items-center space-x-2 rounded-md border p-3">
                       <RadioGroupItem value="qris" id="qris" />
                       <Label htmlFor="qris" className="flex items-center gap-2">
                         <QrCode className="h-4 w-4" />
-                        QR Offline
+                        QR Offline (Pay at the Gym)
                       </Label>
                     </div>
                   </RadioGroup>
@@ -670,4 +672,12 @@ export default function SubscriptionPage({
       />
     </>
   );
+}
+
+function generateSKU(name: string): string {
+  return name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')  // Ubah spasi & simbol ke "-"
+    .replace(/^-+|-+$/g, '')     // Hapus "-" di awal/akhir
+    .slice(0, 30);               // Biar gak kepanjangan (maksimal 30 karakter)
 }

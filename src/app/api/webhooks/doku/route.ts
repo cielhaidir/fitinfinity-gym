@@ -7,32 +7,25 @@ import { PaymentStatus } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.text();
-    const signature = request.headers.get('x-signature');
-    const timestamp = request.headers.get('x-timestamp');
-    const url = request.url;
 
-    // Verify webhook signature
-    if (!signature || !timestamp) {
-      console.error('Missing signature or timestamp in webhook');
-      return NextResponse.json({ error: 'Missing signature or timestamp' }, { status: 400 });
-    }
 
-    // Verify the webhook signature
-    const isValid = dokuPaymentService.verifyWebhookSignature(
-      body,
-      signature,
-      timestamp,
-      url
+    const rawBody = await request.text();
+    const target = new URL(request.url).pathname;
+    
+    const isValid = dokuPaymentService.verifyWebhookSignatureFromHeaders(
+      rawBody,
+      target,
+      request.headers
     );
-
+    
     if (!isValid) {
       console.error('Invalid webhook signature');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
-
-    const webhookData = JSON.parse(body);
+    
+    const webhookData = JSON.parse(rawBody);
     console.log('DOKU Webhook received:', webhookData);
+
 
     // Extract order information
     const orderId = webhookData.order?.invoice_number || webhookData.partnerReferenceNo;
@@ -57,6 +50,7 @@ export async function POST(request: NextRequest) {
     // Map DOKU status to our system status
     const newStatus = mapDokuStatus(dokuStatus);
     
+    console.log(`Processing DOKU webhook for order ${orderId}, new status: ${newStatus}m old status: ${dokuStatus}`);
     // Update payment status
     const updatedPayment = await db.payment.update({
       where: { id: payment.id },

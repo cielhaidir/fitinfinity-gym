@@ -49,70 +49,74 @@ export default function ConfirmationPage({
   );
   const [isContinuingPayment, setIsContinuingPayment] = useState(false);
 
-  // Payment status check mutation
-  const checkPaymentStatusMutation = api.payment.checkStatus.useQuery(
-    { orderId: orderReference! },
-    { enabled: false },
-  );
 
   // Update payment status mutation
   const updatePaymentStatusMutation =
     api.subs.updatePaymentStatus.useMutation();
 
-  // Extract payment and subscription from data response
-  const {
-    data: subscriptionData,
-    isLoading: isLoadingSubscription,
-    refetch: refetchSubscription,
-  } = orderReference
-    ? api.subs.getByOrderReference.useQuery(
-        { orderReference },
-        { enabled: !!orderReference },
-      )
-    : api.subs.getById.useQuery(
-        { id: subscriptionId! },
-        { enabled: !!subscriptionId },
-      );
-
+    const {
+      data: subscriptionData,
+      isLoading: isLoadingSubscription,
+      refetch: refetchSubscription,
+    } = orderReference
+      ? (console.log("Query by orderReference"), api.subs.getByOrderReference.useQuery(
+          { orderReference },
+          { enabled: !!orderReference },
+        ))
+      : (console.log("Query by subscriptionId"), api.subs.getById.useQuery(
+          { id: subscriptionId! },
+          { enabled: !!subscriptionId },
+        ));
+        console.log('Subscription Data:', subscriptionData);
   const subscription = subscriptionData?.subscription;
   const payment = subscriptionData?.payment;
 
-  const checkPaymentStatus = async () => {
-    if (!orderReference || !payment) {
-      toast.error("Cannot check status: Missing payment information");
-      return;
-    }
 
-    // Don't check if we don't have a token
-    if (!payment.token) {
-      toast.error("Cannot check status: No payment token available");
+
+  const orderRef = payment?.orderReference;
+
+
+  // Payment status check mutation
+const checkPaymentStatusMutation = api.payment.checkStatus.useQuery(
+{ orderId: orderRef! },
+{ enabled: false },
+);
+
+  const checkPaymentStatus = async () => {
+
+    const orderRef = orderReference ?? payment?.orderReference;
+
+    if (!orderRef || !payment) {
+      toast.error("Cannot check status: Missing payment information");
       return;
     }
 
     setIsCheckingStatus(true);
     try {
       console.log(`Checking payment status for order: ${orderReference}`);
+      
+      
       const result = await checkPaymentStatusMutation.refetch();
-
+      
       if (result.data) {
         console.log(`Received payment status:`, result.data);
 
         // Map Midtrans status to our payment status - be very explicit
         let status: "SUCCESS" | "PENDING" | "FAILED";
 
-        switch (result.data.transaction_status) {
-          case "capture":
-          case "settlement":
-            status =
-              result.data.fraud_status === "challenge" ? "PENDING" : "SUCCESS";
+        switch (result.data.transaction.status) {
+          case "SUCCESS":
+            status = "SUCCESS";
             break;
-          case "deny":
-          case "cancel":
+          case "FAILED":
+            status = "FAILED";
+            break;
           case "expire":
             status = "FAILED";
             break;
           default:
             status = "PENDING";
+            break;
         }
 
         console.log(
@@ -123,9 +127,9 @@ export default function ConfirmationPage({
         if (payment?.status !== status) {
           console.log(`Updating payment status to: ${status}`);
           await updatePaymentStatusMutation.mutateAsync({
-            orderReference,
+            orderReference : orderRef,
             status,
-            gatewayResponse: result.data,
+            gatewayResponse: result.data,x
           });
 
           await refetchSubscription();
@@ -160,84 +164,105 @@ export default function ConfirmationPage({
     }
   };
 
+  // const continuePayment = async () => {
+  //   if (!payment?.orderReference || !subscription) {
+  //     toast.error("Cannot continue payment: missing payment information");
+  //     return;
+  //   }
+
+  //   setIsContinuingPayment(true);
+  //   try {
+  //     // Get the original order reference
+  //     const orderId = payment.orderReference;
+  //     const token = payment.token;
+
+  //     if (token) {
+  //       // Clean up any existing snap instances
+  //       if (window.snap) {
+  //         delete window.snap;
+  //       }
+
+  //       // Load Snap.js properly with the correct configuration
+  //       const snapScript = document.createElement("script");
+  //       snapScript.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+  //       snapScript.setAttribute(
+  //         "data-client-key",
+  //         process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "",
+  //       );
+  //       document.body.appendChild(snapScript);
+
+  //       snapScript.onload = () => {
+  //         // @ts-ignore - window.snap is from the loaded script
+  //         window.snap.pay(token, {
+  //           onSuccess: async function (result: any) {
+  //             try {
+  //               console.log(
+  //                 "Continue payment success, updating status",
+  //                 result,
+  //               );
+
+  //               await updatePaymentStatusMutation.mutateAsync({
+  //                 orderReference: orderId,
+  //                 status: "SUCCESS",
+  //                 gatewayResponse: result,
+  //               });
+
+  //               toast.success("Payment successful!");
+  //               await refetchSubscription();
+  //             } catch (error) {
+  //               console.error("Error updating payment status:", error);
+  //               toast.error("Payment successful but error updating status");
+  //               // Refresh the page to show latest status
+  //               window.location.reload();
+  //             }
+  //           },
+  //           onPending: function (result: any) {
+  //             toast.info("Payment pending, waiting for confirmation");
+  //             refetchSubscription();
+  //           },
+  //           onError: function (result: any) {
+  //             toast.error("Payment failed");
+  //             console.error(result);
+  //           },
+  //           onClose: function () {
+  //             // Just refresh the data when closed
+  //             refetchSubscription();
+  //           },
+  //         });
+  //       };
+  //     } else {
+  //       toast.error("Failed to initialize payment");
+  //     }
+  //   } catch (error) {
+  //     toast.error(
+  //       error instanceof Error ? error.message : "Error continuing payment",
+  //     );
+  //   } finally {
+  //     setIsContinuingPayment(false);
+  //   }
+  // };
+
   const continuePayment = async () => {
-    if (!payment?.orderReference || !subscription) {
-      toast.error("Cannot continue payment: missing payment information");
+
+    
+    if (!payment?.paymentUrl) {
+      toast.error("Cannot continue payment: missing payment URL");
       return;
     }
-
+  
     setIsContinuingPayment(true);
     try {
-      // Get the original order reference
-      const orderId = payment.orderReference;
-      const token = payment.token;
-
-      if (token) {
-        // Clean up any existing snap instances
-        if (window.snap) {
-          delete window.snap;
-        }
-
-        // Load Snap.js properly with the correct configuration
-        const snapScript = document.createElement("script");
-        snapScript.src = "https://app.sandbox.midtrans.com/snap/snap.js";
-        snapScript.setAttribute(
-          "data-client-key",
-          process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "",
-        );
-        document.body.appendChild(snapScript);
-
-        snapScript.onload = () => {
-          // @ts-ignore - window.snap is from the loaded script
-          window.snap.pay(token, {
-            onSuccess: async function (result: any) {
-              try {
-                console.log(
-                  "Continue payment success, updating status",
-                  result,
-                );
-
-                await updatePaymentStatusMutation.mutateAsync({
-                  orderReference: orderId,
-                  status: "SUCCESS",
-                  gatewayResponse: result,
-                });
-
-                toast.success("Payment successful!");
-                await refetchSubscription();
-              } catch (error) {
-                console.error("Error updating payment status:", error);
-                toast.error("Payment successful but error updating status");
-                // Refresh the page to show latest status
-                window.location.reload();
-              }
-            },
-            onPending: function (result: any) {
-              toast.info("Payment pending, waiting for confirmation");
-              refetchSubscription();
-            },
-            onError: function (result: any) {
-              toast.error("Payment failed");
-              console.error(result);
-            },
-            onClose: function () {
-              // Just refresh the data when closed
-              refetchSubscription();
-            },
-          });
-        };
-      } else {
-        toast.error("Failed to initialize payment");
-      }
+      // Redirect user to DOKU payment URL
+      window.location.href = payment.paymentUrl;
+      // console.log("Redirecting to payment URL:", payment.paymentUrl);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Error continuing payment",
+        error instanceof Error ? error.message : "Error redirecting to payment",
       );
     } finally {
       setIsContinuingPayment(false);
     }
   };
-
   // Remove automatic polling and only check status manually
   useEffect(() => {
     // Clean up any intervals that might be running
@@ -438,7 +463,7 @@ export default function ConfirmationPage({
                 <>
                   <Button
                     onClick={() => checkPaymentStatus()}
-                    disabled={isCheckingStatus || !payment?.token}
+                    disabled={isCheckingStatus }
                     variant="outline"
                   >
                     {isCheckingStatus ? (
@@ -453,7 +478,7 @@ export default function ConfirmationPage({
 
                   <Button
                     onClick={continuePayment}
-                    disabled={isContinuingPayment || !payment?.token}
+                    disabled={isContinuingPayment}
                     className="bg-infinity"
                   >
                     {isContinuingPayment ? (

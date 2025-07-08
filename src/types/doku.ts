@@ -26,6 +26,7 @@ export type DokuPaymentStatus =
   | 'FAILED'      // Payment failed
   | 'EXPIRED'     // Payment expired
   | 'REFUNDED'    // Payment refunded
+  | 'SUCCESS'     // Payment successful (alternative status)
   ;
 
 export interface DokuStatusResponse {
@@ -47,6 +48,7 @@ export const mapDokuStatus = (dokuStatus: DokuPaymentStatus): PaymentStatus => {
     'INITIATED': 'PENDING',
     'PENDING': 'PENDING',
     'COMPLETED': 'SUCCESS',
+    'SUCCESS': 'SUCCESS',
     'CANCELLED': 'CANCELED',
     'FAILED': 'FAILED',
     'EXPIRED': 'EXPIRED',
