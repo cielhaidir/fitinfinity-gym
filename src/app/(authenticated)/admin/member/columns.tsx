@@ -110,17 +110,47 @@ export const createColumns = ({
       );
     },
   },
-  {
-    accessorKey: "registerDate",
+    {
+    accessorKey: "durationLeft",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Register Date" />
+      <DataTableColumnHeader column={column} title="Duration Left" />
     ),
-    cell: ({ row }) => (
+    cell: ({ row }) => {
+   
+      const endDate = row.original.subscriptions[0]?.endDate;
+      const now = new Date();
+      let durationLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : "N/A";
+      return (
       <div className="w-[150px]">
-        {new Date(row.getValue("registerDate")).toLocaleDateString()}
+        {durationLeft !== "N/A" ? `${durationLeft} days` : durationLeft}
       </div>
-    ),
+    )
   },
+  },
+  {
+    accessorKey: "sessionLeft",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Sessions Left" />
+    ),
+    cell: ({ row }) => 
+    {
+      const sessionLeft = row.original.subscriptions[0]?.remainingSessions;
+      return (
+      <div className="w-[150px]">{sessionLeft ?? 0}</div>
+    )
+  }
+  },
+  // {
+  //   accessorKey: "registerDate",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Register Date" />
+  //   ),
+  //   cell: ({ row }) => (
+  //     <div className="w-[150px]">
+  //       {new Date(row.getValue("registerDate")).toLocaleDateString()}
+  //     </div>
+  //   ),
+  // },
   {
     accessorKey: "isActive",
     header: ({ column }) => (

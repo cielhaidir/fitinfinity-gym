@@ -64,6 +64,8 @@ export default function MemberPage() {
       searchColumn,
     });
 
+    console.log("Member data:", member);
+
 
   const manualCheckInMutation = api.esp32.manualCheckIn.useMutation({
     onSuccess: () => {
