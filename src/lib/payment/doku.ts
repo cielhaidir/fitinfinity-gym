@@ -469,14 +469,14 @@ export class DokuPaymentService {
         "VIRTUAL_ACCOUNT_BTN",
         "ONLINE_TO_OFFLINE_ALFA",
         "CREDIT_CARD",
-        "DIRECT_DEBIT_BRI",
-        "EMONEY_SHOPEEPAY",
-        "EMONEY_OVO",
-        "EMONEY_DANA",
-        "QRIS",
+        // "DIRECT_DEBIT_BRI",
+        // "EMONEY_SHOPEEPAY",
+        // "EMONEY_OVO",
+        // "EMONEY_DANA",
+        // "QRIS",
         "PEER_TO_PEER_AKULAKU",
-        "PEER_TO_PEER_KREDIVO",
-        "PEER_TO_PEER_INDODANA"
+        // "PEER_TO_PEER_KREDIVO",
+        // "PEER_TO_PEER_INDODANA"
       ]
       },
       customer: {

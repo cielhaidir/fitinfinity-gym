@@ -491,6 +491,13 @@ export default function SubscriptionPage({
                         Doku Pay (Digital Credit Card/E-Wallet)
                       </Label>
                     </div>
+                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                      <RadioGroupItem value="qris" id="qris" />
+                      <Label htmlFor="qris" className="flex items-center gap-2">
+                        <QrCode className="h-4 w-4" />
+                        QR Offline (Pay at the Gym)
+                      </Label>
+                    </div>
                     <div className="flex items-center space-x-2 rounded-md border p-3 opacity-50 cursor-not-allowed">
                       <RadioGroupItem value="shopee" id="shopee" disabled />
                       <Label
@@ -528,13 +535,7 @@ export default function SubscriptionPage({
                         QR Online
                       </Label>
                     </div> */}
-                    <div className="flex items-center space-x-2 rounded-md border p-3">
-                      <RadioGroupItem value="qris" id="qris" />
-                      <Label htmlFor="qris" className="flex items-center gap-2">
-                        <QrCode className="h-4 w-4" />
-                        QR Offline (Pay at the Gym)
-                      </Label>
-                    </div>
+
                   </RadioGroup>
                 </div>
 
