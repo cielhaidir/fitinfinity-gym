@@ -35,7 +35,7 @@ export const paymentRouter = createTRPCRouter({
           )
           .optional(),
         callbackUrl: z.string().optional(),
-        paymentGateway: z.enum(["midtrans", "doku", "shopee", "kredivo", "akulaku"]).default("midtrans"),
+        paymentGateway: z.enum(["midtrans", "doku", "shopee", "kredivo", "akulaku", "qr"]).default("midtrans"),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -221,6 +221,62 @@ export const paymentRouter = createTRPCRouter({
             return {
               redirect_url: response.payment_url,
             };
+          }
+          case "qr": {
+            // Validate required fields for QRIS
+            if (
+              !input.amount ||
+              !input.orderId ||
+              !input.callbackUrl
+            ) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "Amount, orderId, and callbackUrl are required for QRIS",
+              });
+            }
+
+            // You may want to adjust these fields as needed for your business logic
+            const qrisParams = {
+              partnerReferenceNo: input.orderId,
+              amount: { value: input.amount.toFixed(2), currency: "IDR" },
+              // feeAmount: { value: "0.00", currency: "IDR" },
+                feeAmount: { value: (input.amount * 0.007).toFixed(2), currency: "IDR" },
+              merchantId: process.env.DOKU_CLIENT_ID || 0,
+              terminalId: "k45",
+              // validityPeriod: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min from now
+              additionalInfo: { postalCode: 13120, feeType: 2 },
+            };
+
+            try {
+              const response = await dokuPaymentService.createQrisPayment(qrisParams);
+              console.log("QRIS payment response:", response);
+              await ctx.db.payment.update({
+                where: { id: payment.id },
+                data: {
+                  gatewayResponse: response as any,
+                },
+              });
+
+              return {
+                qrString: response.qrString,
+                partnerReferenceNo: response.partnerReferenceNo,
+                responseCode: response.responseCode,
+                responseMessage: response.responseMessage,
+              };
+            } catch (error) {
+              await ctx.db.payment.update({
+                where: { id: payment.id },
+                data: { status: "FAILED" },
+              });
+
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message:
+                  error instanceof Error
+                    ? `QRIS payment failed: ${error.message}`
+                    : "QRIS payment failed",
+              });
+            }
           }
 
           default:

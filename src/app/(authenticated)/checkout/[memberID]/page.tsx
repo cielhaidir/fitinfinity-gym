@@ -193,7 +193,7 @@ export default function SubscriptionPage({
             subscriptionType === "gym"
               ? (selectedPackageDetails.day ?? 0)
               : (selectedPackageDetails.sessions ?? 0),
-          paymentMethod: paymentMethod === "midtrans" ? "midtrans" : "doku",
+          paymentMethod: paymentMethod,
           totalPayment: calculateTotal(),
           status: "PENDING",
           orderReference: orderId,
@@ -469,7 +469,7 @@ export default function SubscriptionPage({
                     onValueChange={setPaymentMethod}
                     className="grid grid-cols-1 gap-3"
                   >
-                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                    {/* <div className="flex items-center space-x-2 rounded-md border p-3">
                       <RadioGroupItem value="midtrans" id="midtrans" />
                       <Label
                         htmlFor="midtrans"
@@ -478,8 +478,8 @@ export default function SubscriptionPage({
                         <CreditCard className="h-4 w-4" />
                         Pay Online (Card/E-Wallet)
                       </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                    </div> */}
+                    {/* <div className="flex items-center space-x-2 rounded-md border p-3">
                       <RadioGroupItem value="doku" id="doku" />
                       <Label
                         htmlFor="doku"
@@ -488,42 +488,49 @@ export default function SubscriptionPage({
                         <CreditCard className="h-4 w-4" />
                         Doku Pay (Digital Credit Card/E-Wallet)
                       </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 rounded-md border p-3">
-                      <RadioGroupItem value="shopee" id="shopee" />
+                    </div> */}
+                    <div className="flex items-center space-x-2 rounded-md border p-3 opacity-50 cursor-not-allowed">
+                      <RadioGroupItem value="shopee" id="shopee" disabled />
                       <Label
-                        htmlFor="shopee"
-                        className="flex items-center gap-2"
+                      htmlFor="shopee"
+                      className="flex items-center gap-2"
                       >
-                        <CreditCard className="h-4 w-4" />
-                        ShopeePay
+                      <CreditCard className="h-4 w-4" />
+                      ShopeePay / PayLater (Coming Soon) 
                       </Label>
                     </div>
-                    <div className="flex items-center space-x-2 rounded-md border p-3">
-                      <RadioGroupItem value="kredivo" id="kredivo" />
+                    <div className="flex items-center space-x-2 rounded-md border p-3 opacity-50 cursor-not-allowed ">
+                      <RadioGroupItem value="kredivo" id="kredivo" disabled/>
                       <Label
                         htmlFor="kredivo"
                         className="flex items-center gap-2"
                       >
                         <CreditCard className="h-4 w-4" />
-                        Kredivo
+                        Kredivo (Coming Soon)
                       </Label>
                     </div>
-                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                    <div className="flex items-center space-x-2 rounded-md border p-3  opacity-50 cursor-not-allowed">
                       <RadioGroupItem value="akulaku" id="akulaku" />
                       <Label
                         htmlFor="akulaku"
                         className="flex items-center gap-2"
                       >
                         <CreditCard className="h-4 w-4" />
-                        Akulaku
+                        Akulaku (Coming Soon)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 rounded-md border p-3">
+                      <RadioGroupItem value="qr" id="qr" />
+                      <Label htmlFor="qr" className="flex items-center gap-2">
+                        <QrCode className="h-4 w-4" />
+                        QR Online
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 rounded-md border p-3">
                       <RadioGroupItem value="qris" id="qris" />
                       <Label htmlFor="qris" className="flex items-center gap-2">
                         <QrCode className="h-4 w-4" />
-                        Manual Bukti Bayar
+                        QR Offline
                       </Label>
                     </div>
                   </RadioGroup>
@@ -634,17 +641,19 @@ export default function SubscriptionPage({
                   }
                   onClick={l}
                 >
-                  {isProcessingPayment
+                    {isProcessingPayment
                     ? "Processing..."
                     : paymentMethod === "qris"
                       ? "Proceed to Upload Bukti Bayar"
+                      : paymentMethod === "qr"
+                      ? "Pay with QR Online"
                       : paymentMethod === "shopee"
-                        ? "Pay with ShopeePay"
-                        : paymentMethod === "kredivo"
-                          ? "Pay with Kredivo"
-                          : paymentMethod === "akulaku"
-                            ? "Pay with Akulaku"
-                            : "Pay Now"}
+                      ? "Pay with ShopeePay"
+                      : paymentMethod === "kredivo"
+                        ? "Pay with Kredivo"
+                        : paymentMethod === "akulaku"
+                        ? "Pay with Akulaku"
+                        : "Pay Now"}
                 </Button>
               </CardFooter>
             </Card>

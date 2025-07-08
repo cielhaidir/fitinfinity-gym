@@ -93,6 +93,39 @@ interface DokuP2PResponse {
   partnerReferenceNo: string;
 }
 
+// QRIS QR Generate & Query Interfaces
+interface DokuQrisGenerateRequest {
+  partnerReferenceNo: string;
+  amount: { value: string; currency: string };
+  feeAmount: { value: string; currency: string };
+  merchantId: string;
+  terminalId: string;
+  validityPeriod: string;
+  additionalInfo: { postalCode: number; feeType: number };
+}
+
+interface DokuQrisGenerateResponse {
+  qrString: string;
+  partnerReferenceNo: string;
+  responseCode: string;
+  responseMessage: string;
+  [key: string]: any;
+}
+
+interface DokuQrisQueryRequest {
+  originalReferenceNo: string;
+  originalPartnerReferenceNo: string;
+  serviceCode: number;
+  merchantId: string;
+}
+
+interface DokuQrisQueryResponse {
+  responseCode: string;
+  responseMessage: string;
+  transactionStatus: string;
+  [key: string]: any;
+}
+
 export class DokuPaymentService {
   private config: DokuConfig;
 
@@ -597,6 +630,88 @@ export class DokuPaymentService {
       console.error('Akulaku payment creation failed:', error);
       throw error;
     }
+  }
+
+  // QRIS QR Generate
+  async createQrisPayment(params: DokuQrisGenerateRequest): Promise<DokuQrisGenerateResponse> {
+    const accessToken = await this.getAccessToken();
+    const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const externalId = crypto.randomUUID();
+    const endpointUrl = '/snap-adapter/b2b/v1.0/qr/qr-mpm-generate';
+
+    const signature = this.generateSignature(
+      'TRANSACTIONAL',
+      this.config.clientId,
+      timestamp,
+      'POST',
+      endpointUrl,
+      JSON.stringify(params),
+      accessToken
+    );
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': '*/*',
+      'X-TIMESTAMP': timestamp,
+      'X-SIGNATURE': signature,
+      'X-PARTNER-ID': this.config.clientId,
+      'X-EXTERNAL-ID': externalId,
+      'Authorization': `Bearer ${accessToken}`,
+    };
+
+    const response = await fetch(`${this.config.apiUrl}${endpointUrl}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`QRIS Generate API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    return await response.json();
+  }
+
+  // QRIS QR Query
+  async queryQrisPayment(params: DokuQrisQueryRequest): Promise<DokuQrisQueryResponse> {
+    const accessToken = await this.getAccessToken();
+    const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const externalId = crypto.randomUUID();
+    const endpointUrl = '/snap-adapter/b2b/v1.0/qr/qr-mpm-query';
+
+    const signature = this.generateSignature(
+      'TRANSACTIONAL',
+      this.config.clientId,
+      timestamp,
+      'POST',
+      endpointUrl,
+      JSON.stringify(params),
+      accessToken
+    );
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': '*/*',
+      'X-TIMESTAMP': timestamp,
+      'X-SIGNATURE': signature,
+      'X-PARTNER-ID': this.config.clientId,
+      'X-EXTERNAL-ID': externalId,
+      'Authorization': `Bearer ${accessToken}`,
+    };
+
+    const response = await fetch(`${this.config.apiUrl}${endpointUrl}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`QRIS Query API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    return await response.json();
   }
 
   async checkPaymentStatus(orderId: string) {
