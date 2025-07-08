@@ -7,6 +7,7 @@ import { AppSidebar } from "../headers/app-sidebar";
 import { SidebarProvider, SidebarInset } from "../ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "sonner";
+import { toast } from "sonner";
 import { useRBAC } from "@/hooks/useRBAC";
 import { Menu } from "@/lib/menu";
 
@@ -28,6 +29,26 @@ export default function AuthenticatedLayout({
       return;
     }
 
+// Redirect to profile page if profile is incomplete
+if (
+  status === "authenticated" &&
+  !isLoading &&
+  session?.user &&
+  pathname !== "/member/profile"
+) {
+  // Require name and phone for profile completeness
+  const isProfileIncomplete =
+    !session.user.name ||
+    session.user.name.trim() === "" ||
+    !session.user.phone ||
+    session.user.phone.trim() === "";
+
+  if (isProfileIncomplete) {
+    toast.warning("You need to complete your profile First");
+    router.push("/member/profile");
+    return;
+  }
+}
     if (status === "authenticated" && !isLoading && session?.user) {
       // Role-based dashboard redirect logic
       const isOnAuthRoot = pathname === "/" || pathname === "/auth";

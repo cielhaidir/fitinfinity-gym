@@ -21,13 +21,17 @@ declare module "next-auth" {
       roles: string[];
       // ...other properties
       // role: UserRole;
+      phone?: string;
     } & DefaultSession["user"];
   }
 
   // interface User {
-  //   // ...other properties
-  //   // role: UserRole;
-  // }
+//   id: string | undefined;
+//   name?: string | null;
+//   email?: string | null;
+//   phone?: string | null;
+//   // ...other properties
+// }
 }
 
 // Helper function to create membership
@@ -131,6 +135,8 @@ export const authConfig = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+        // Add phone to token if available
+        token.phone = (user as any).phone ?? "";
       }
       return token;
     },
@@ -138,8 +144,12 @@ export const authConfig = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.name = token.name!;
-        session.user.email = token.email!;
+          session.user.name = token.name!;
+          session.user.email = token.email!;
+          // Add phone to session if available
+          if (typeof token.phone === "string") {
+            session.user.phone = token.phone;
+          }
         // Fetch user's roles and permissions
         const user = await db.user.findUnique({
           where: { id: token.id as string },
@@ -162,6 +172,8 @@ export const authConfig = {
           );
           session.user.permissions = [...new Set(permissions)];
           session.user.roles = user.roles.map((role) => role.name);
+          // Always fetch phone from DB result
+                    session.user.phone = (user as any).phone ?? "";
         }
         // Check and create membership if it doesn't exist
         try {
