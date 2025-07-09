@@ -67,13 +67,13 @@ export const createColumns = ({
       return (
         <div className="flex flex-col">
           <span>{packageName || "N/A"}</span>
-          {subsType === "trainer" && trainerName && (
+          {(subsType === "trainer" || subsType === "group") && trainerName && (
             <span className="text-xs text-muted-foreground">
               Trainer: {trainerName}
             </span>
           )}
           <Badge variant="outline" className="mt-1 w-fit">
-            {subsType === "gym" ? "Gym Membership" : "Personal Trainer"}
+            {subsType === "gym" ? "Gym Membership" : subsType === "trainer" ? "Personal Trainer" : "Group Training"}
           </Badge>
         </div>
       );

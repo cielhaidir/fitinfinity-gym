@@ -4,7 +4,7 @@
 
 import { useState, use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, CreditCard, QrCode } from "lucide-react";
+import { Check, CreditCard, QrCode, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,6 +46,9 @@ export default function SubscriptionPage({
   const { data: trainerPackages } = api.package.listByType.useQuery({
     type: "PERSONAL_TRAINER",
   });
+  const { data: groupPackages } = api.package.listByType.useQuery({
+    type: "GROUP_TRAINING",
+  });
   const { data: trainers } = api.personalTrainer.listAll.useQuery();
 
   // Check for active gym membership
@@ -67,12 +70,12 @@ export default function SubscriptionPage({
     return isGymMembership && isActive && isPaid;
   }) ?? false;
 
-  const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer">(
+  const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer" | "group">(
     "gym",
   );
   // Reset subscription type to gym if no active membership and currently on trainer
   useEffect(() => {
-    if (!hasActiveGymMembership && subscriptionType === "trainer") {
+    if (!hasActiveGymMembership && (subscriptionType === "trainer" || subscriptionType === "group")) {
       setSubscriptionType("gym");
       setSelectedPackage("");
       setSelectedTrainer("");
@@ -86,7 +89,7 @@ export default function SubscriptionPage({
 
   const [selectedPackage, setSelectedPackage] = useState("");
   const [selectedTrainer, setSelectedTrainer] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("midtrans");
+  const [paymentMethod, setPaymentMethod] = useState("qr");
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<{
     id: string;
@@ -99,7 +102,9 @@ export default function SubscriptionPage({
   const selectedPackageDetails =
     subscriptionType === "gym"
       ? gymPackages?.find((p) => p.id === selectedPackage)
-      : trainerPackages?.find((p) => p.id === selectedPackage);
+      : subscriptionType === "trainer"
+      ? trainerPackages?.find((p) => p.id === selectedPackage)
+      : groupPackages?.find((p) => p.id === selectedPackage);
 
   const calculateTotal = () => {
     if (!selectedPackageDetails) return 0;
@@ -121,11 +126,11 @@ export default function SubscriptionPage({
       toast.error("Please select a package.");
       return;
     }
-    if (subscriptionType === "trainer" && !hasActiveGymMembership) {
-      toast.error("You need an active gym membership to purchase personal training sessions.");
+    if ((subscriptionType === "trainer" || subscriptionType === "group") && !hasActiveGymMembership) {
+      toast.error("You need an active gym membership to purchase training sessions.");
       return;
     }
-    if (subscriptionType === "trainer" && !selectedTrainer) {
+    if ((subscriptionType === "trainer" || subscriptionType === "group") && !selectedTrainer) {
       toast.error("Please select a personal trainer.");
       return;
     }
@@ -149,7 +154,7 @@ export default function SubscriptionPage({
           ? (selectedPackageDetails.day?.toString() ?? "0")
           : (selectedPackageDetails.sessions?.toString() ?? "0"),
       );
-      if (subscriptionType === "trainer") {
+      if (subscriptionType === "trainer" || subscriptionType === "group") {
         queryParams.set(
           "sessions",
           selectedPackageDetails.sessions?.toString() ?? "0",
@@ -157,7 +162,7 @@ export default function SubscriptionPage({
       }
       queryParams.set("totalPayment", calculateTotal().toString());
       queryParams.set("paymentMethod", paymentMethod);
-      if (subscriptionType === "trainer" && selectedTrainer) {
+      if ((subscriptionType === "trainer" || subscriptionType === "group") && selectedTrainer) {
         queryParams.set("trainerId", selectedTrainer);
         const trainerInfo = trainers?.find((t) => t.id === selectedTrainer);
         if (trainerInfo?.user?.name) {
@@ -328,27 +333,30 @@ export default function SubscriptionPage({
                 <Tabs
                   defaultValue="gym"
                   onValueChange={(value) => {
-                    // Only allow switching to trainer if member has active gym membership
-                    if (value === "trainer" && !hasActiveGymMembership) {
+                    // Only allow switching to trainer/group if member has active gym membership
+                    if ((value === "trainer" || value === "group") && !hasActiveGymMembership) {
                       return;
                     }
-                    setSubscriptionType(value as "gym" | "trainer");
+                    setSubscriptionType(value as "gym" | "trainer" | "group");
                     setSelectedPackage("");
                     setSelectedTrainer("");
                   }}
                 >
-                  <TabsList className={`grid w-full ${hasActiveGymMembership ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <TabsList className={`grid w-full ${hasActiveGymMembership ? 'grid-cols-3' : 'grid-cols-1'}`}>
                     <TabsTrigger value="gym">Gym Membership</TabsTrigger>
                     {hasActiveGymMembership && (
                       <TabsTrigger value="trainer">Personal Trainer</TabsTrigger>
+                    )}
+                    {hasActiveGymMembership && (
+                      <TabsTrigger value="group">Group Training</TabsTrigger>
                     )}
                   </TabsList>
                   
                   {!hasActiveGymMembership && (
                     <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                       <p className="text-sm text-yellow-800">
-                        <strong>Note:</strong> Personal Trainer sessions require an active gym membership.
-                        Please purchase a gym membership first to access personal training services.
+                        <strong>Note:</strong> Personal Trainer sessions and Group Training require an active gym membership.
+                        Please purchase a gym membership first to access these services.
                       </p>
                     </div>
                   )}
@@ -442,6 +450,84 @@ export default function SubscriptionPage({
                                     </span>
                                     <span className="font-semibold">
                                       Rp {pkg.price.toLocaleString("id-ID")}
+                                    </span>
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </RadioGroup>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="group" className="pt-6">
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="mb-3 text-lg font-medium">
+                          Select Personal Trainer
+                        </h3>
+                        <Select
+                          value={selectedTrainer}
+                          onValueChange={setSelectedTrainer}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a trainer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {trainers?.length ? (
+                              trainers.map((trainer) => (
+                                <SelectItem key={trainer.id} value={trainer.id}>
+                                  {trainer?.user?.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem disabled value="no data">
+                                No data
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {selectedTrainer && (
+                        <div>
+                          <h3 className="mb-3 text-lg font-medium">
+                            Select Group Training Package
+                          </h3>
+                          <RadioGroup
+                            value={selectedPackage}
+                            onValueChange={setSelectedPackage}
+                          >
+                            <div className="grid grid-cols-1 gap-4">
+                              {groupPackages?.map((pkg) => (
+                                <div
+                                  key={pkg.id}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <RadioGroupItem value={pkg.id} id={pkg.id} />
+                                  <Label
+                                    htmlFor={pkg.id}
+                                    className="flex flex-1 justify-between"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span>
+                                        {pkg.name} ({pkg.sessions} sessions)
+                                      </span>
+                                      {pkg.isGroupPackage && (
+                                        <span className="text-sm text-muted-foreground">
+                                          <Users className="inline h-3 w-3 mr-1" />
+                                          Max {pkg.maxUsers} people • {pkg.groupPriceType === "TOTAL" ? "Split cost" : "Per person"}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="font-semibold">
+                                      Rp {pkg.price.toLocaleString("id-ID")}
+                                      {pkg.isGroupPackage && pkg.groupPriceType === "TOTAL" && (
+                                        <span className="text-sm text-muted-foreground block">
+                                          (split among group)
+                                        </span>
+                                      )}
                                     </span>
                                   </Label>
                                 </div>
@@ -573,11 +659,13 @@ export default function SubscriptionPage({
                           <span>
                             {subscriptionType === "gym"
                               ? "Gym Membership"
-                              : "Personal Training"}
+                              : subscriptionType === "trainer"
+                              ? "Personal Training"
+                              : "Group Training"}
                           </span>
                         </div>
 
-                        {subscriptionType === "trainer" && selectedTrainer && (
+                        {(subscriptionType === "trainer" || subscriptionType === "group") && selectedTrainer && (
                           <div className="flex justify-between">
                             <span>Trainer:</span>
                             <span>
@@ -591,7 +679,14 @@ export default function SubscriptionPage({
 
                         <div className="flex justify-between">
                           <span>Package:</span>
-                          <span>{selectedPackageDetails.name}</span>
+                          <span>
+                            {selectedPackageDetails.name}
+                            {subscriptionType === "group" && selectedPackageDetails.isGroupPackage && (
+                              <span className="text-sm text-muted-foreground block">
+                                Max {selectedPackageDetails.maxUsers} people
+                              </span>
+                            )}
+                          </span>
                         </div>
 
                         <div className="flex justify-between">
@@ -600,6 +695,11 @@ export default function SubscriptionPage({
                             Rp{" "}
                             {selectedPackageDetails.price.toLocaleString(
                               "id-ID",
+                            )}
+                            {subscriptionType === "group" && selectedPackageDetails.isGroupPackage && selectedPackageDetails.groupPriceType === "TOTAL" && (
+                              <span className="text-sm text-muted-foreground block">
+                                (to be split among group)
+                              </span>
                             )}
                           </span>
                         </div>
@@ -639,7 +739,7 @@ export default function SubscriptionPage({
                   className="w-full bg-infinity"
                   disabled={
                     !selectedPackageDetails ||
-                    (subscriptionType === "trainer" && !selectedTrainer) ||
+                    ((subscriptionType === "trainer" || subscriptionType === "group") && !selectedTrainer) ||
                     isProcessingPayment
                   }
                   onClick={l}

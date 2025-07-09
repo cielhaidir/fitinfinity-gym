@@ -219,6 +219,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:package-management",
         },
         {
+          title: "Group Management",
+          url: "/admin/group-management",
+          icon: Users,
+          requiredPermission: "menu:group-management",
+        },
+        {
           title: "Personal Trainer Management",
           url: "/admin/personal-trainer-management",
           icon: Contact,
@@ -277,6 +283,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: CreditCard,
           url: "/member/payment-history",
           requiredPermission: "menu:payment-history",
+        },
+        {
+          title: "My Groups",
+          icon: Users,
+          url: "/member/groups",
+          requiredPermission: "menu:groups",
         },
         {
           title: "Profile",

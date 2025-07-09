@@ -229,7 +229,10 @@ async function main() {
     { name: "menu:member-list-pt" },
     { name: "menu:manage-fc" },
     { name: "member:profile" },
-
+    
+    { name: "menu:groups" },
+    { name: "menu:group-management" },
+    { name: "manage:groups" },
 
 
     { name: "show:membership" },

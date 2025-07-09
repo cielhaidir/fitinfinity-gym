@@ -73,13 +73,21 @@ export const createColumns = ({
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Type" />
     ),
-    cell: ({ row }) => (
-      <Badge variant="outline" className="w-[150px] justify-center">
-        {row.getValue("type") === PackageType.GYM_MEMBERSHIP
-          ? "Gym Membership"
-          : "Personal Trainer"}
-      </Badge>
-    ),
+    cell: ({ row }) => {
+      const type = row.getValue("type");
+      let typeLabel = "Personal Trainer";
+      if (type === PackageType.GYM_MEMBERSHIP) {
+        typeLabel = "Gym Membership";
+      } else if (type === "GROUP_TRAINING") {
+        typeLabel = "Group Training";
+      }
+      
+      return (
+        <Badge variant="outline" className="w-[150px] justify-center">
+          {typeLabel}
+        </Badge>
+      );
+    },
   },
   // {
   //     accessorKey: "sessions",
@@ -111,16 +119,22 @@ export const createColumns = ({
       const type = row.getValue("type");
       if (type === PackageType.GYM_MEMBERSHIP) {
         return <div className="w-[150px]">{row.original.day ?? "0"} Days</div>;
-      } else {
+      } else if (type === "PERSONAL_TRAINER" || type === "GROUP_TRAINING") {
         return (
           <div className="w-[200px]">
             <div>{row.original.sessions ?? "0"} Sessions</div>
             <div className="text-sm text-muted-foreground">
               Valid for {row.original.day ?? "0"} days
             </div>
+            {type === "GROUP_TRAINING" && row.original.isGroupPackage && (
+              <div className="text-xs text-blue-600">
+                Max {row.original.maxUsers} users ({row.original.groupPriceType === "TOTAL" ? "Split" : "Per person"})
+              </div>
+            )}
           </div>
         );
       }
+      return <div className="w-[150px]">-</div>;
     },
   },
   {

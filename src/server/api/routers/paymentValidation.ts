@@ -82,9 +82,9 @@ export const paymentValidationRouter = createTRPCRouter({
         memberId: z.string(),
         packageId: z.string(),
         trainerId: z.string().optional(),
-        subsType: z.string(), // "gym" or "trainer"
-        duration: z.number(), // days for gym, sessions for trainer
-        sessions: z.number().optional(), // number of sessions for trainer package
+        subsType: z.string(), // "gym", "trainer", or "group"
+        duration: z.number(), // days for gym, sessions for trainer and group
+        sessions: z.number().optional(), // number of sessions for trainer and group packages
         totalPayment: z.number(),
         paymentMethod: z.string(),
         filePath: z.string(),
@@ -191,6 +191,7 @@ export const paymentValidationRouter = createTRPCRouter({
   accept: permissionProtectedProcedure(["accept:payment"])
     .input(z.object({ id: z.string(), balanceId: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      
       const paymentValidation = await ctx.db.paymentValidation.findUnique({
         where: { id: input.id },
         include: {
@@ -207,6 +208,8 @@ export const paymentValidationRouter = createTRPCRouter({
           },
         },
       });
+
+      // console.log("Payment Validation:", paymentValidation);
 
       if (!paymentValidation) {
         throw new Error("Payment validation record not found.");
@@ -235,8 +238,8 @@ export const paymentValidationRouter = createTRPCRouter({
       endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + (packageDetails.day ?? 0));
 
-      // Set remaining sessions for trainer packages
-      if (paymentValidation.subsType === "trainer") {
+      // Set remaining sessions for trainer and group packages
+      if (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") {
         remainingSessions =
           paymentValidation.sessions ?? paymentValidation.duration;
       }
@@ -265,6 +268,43 @@ export const paymentValidationRouter = createTRPCRouter({
             isActive: true,
           },
         });
+
+        // 2.1. If it's a group training package, create GroupSubscription and GroupMember
+        if (paymentValidation.subsType === "group" && packageDetails.isGroupPackage) {
+          // Check if group subscription already exists for this subscription
+          const existingGroupMember = await prisma.groupMember.findFirst({
+            where: { subscriptionId: subscription.id }
+          });
+
+          if (!existingGroupMember) {
+            // Get member details for group name
+            const memberDetails = await prisma.membership.findUnique({
+              where: { id: paymentValidation.memberId },
+              include: { user: true }
+            });
+
+            // Create group subscription
+            const groupSubscription = await prisma.groupSubscription.create({
+              data: {
+                groupName: `${memberDetails?.user?.name || 'Member'}'s Group`,
+                leadSubscriptionId: subscription.id,
+                packageId: paymentValidation.packageId,
+                totalMembers: 1,
+                maxMembers: packageDetails.maxUsers ?? 4,
+                status: "ACTIVE"
+              }
+            });
+
+            // Add lead as first member
+            await prisma.groupMember.create({
+              data: {
+                groupSubscriptionId: groupSubscription.id,
+                subscriptionId: subscription.id,
+                status: "ACTIVE"
+              }
+            });
+          }
+        }
 
         // 3. Create Payment record for the subscription
         await prisma.payment.create({
@@ -478,7 +518,9 @@ export const paymentValidationRouter = createTRPCRouter({
           paymentStatus: payment.status,
           totalPayment: payment.totalPayment,
           paymentMethod: payment.method,
-          subsType: subscription.trainerId ? "trainer" : "gym",
+          subsType: subscription.trainerId 
+            ? (subscription.package?.type === "GROUP_TRAINING" ? "group" : "trainer")
+            : "gym",
           orderReference: payment.orderReference,
           package: subscription.package,
           trainer: subscription.trainer,
@@ -612,7 +654,9 @@ export const paymentValidationRouter = createTRPCRouter({
             paymentStatus: payment.status,
             totalPayment: payment.totalPayment,
             paymentMethod: payment.method,
-            subsType: subscription.trainerId ? "trainer" : "gym",
+            subsType: subscription.trainerId 
+            ? (subscription.package?.type === "GROUP_TRAINING" ? "group" : "trainer")
+            : "gym",
             orderReference: payment.orderReference,
             package: subscription.package,
             trainer: subscription.trainer,

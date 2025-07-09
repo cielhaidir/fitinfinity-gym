@@ -32,7 +32,7 @@ export const subscriptionRouter = createTRPCRouter({
         packageId: z.string(),
         trainerId: z.string().nullable().optional(), // Fixed: Make it both optional and nullable
         duration: z.number(),
-        subsType: z.enum(["gym", "trainer"]),
+        subsType: z.enum(["gym", "trainer", "group"]),
         paymentMethod: z.string(),
         totalPayment: z.number(),
         status: z
@@ -111,6 +111,43 @@ export const subscriptionRouter = createTRPCRouter({
           where: { id: input.memberId },
           data: { isActive: true },
         });
+
+        // If it's a group training package, create GroupSubscription and GroupMember
+        if (input.subsType === "group") {
+          const packageDetails = await ctx.db.package.findUnique({
+            where: { id: input.packageId },
+          });
+
+          if (packageDetails?.isGroupPackage) {
+            // Check if group subscription already exists for this subscription
+            const existingGroupMember = await ctx.db.groupMember.findFirst({
+              where: { subscriptionId: subscription.id }
+            });
+
+            if (!existingGroupMember) {
+              // Create group subscription
+              const groupSubscription = await ctx.db.groupSubscription.create({
+                data: {
+                  groupName: `${subscription.member?.user?.name || 'Member'}'s Group`,
+                  leadSubscriptionId: subscription.id,
+                  packageId: input.packageId,
+                  totalMembers: 1,
+                  maxMembers: packageDetails.maxUsers ?? 4,
+                  status: "ACTIVE"
+                }
+              });
+
+              // Add lead as first member
+              await ctx.db.groupMember.create({
+                data: {
+                  groupSubscriptionId: groupSubscription.id,
+                  subscriptionId: subscription.id,
+                  status: "ACTIVE"
+                }
+              });
+            }
+          }
+        }
       }
 
       return subscription;

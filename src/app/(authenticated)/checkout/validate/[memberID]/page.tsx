@@ -121,7 +121,7 @@ function CheckoutValidateContent() {
         subsType: packageType,
         duration: parseInt(duration, 10),
         sessions:
-          packageType === "trainer" ? parseInt(sessions, 10) : undefined,
+          packageType === "trainer" || packageType === "group" ? parseInt(sessions, 10) : undefined,
         totalPayment: parseFloat(totalPayment),
         paymentMethod: paymentMethod,
         filePath: uploadResult.filePath,
@@ -179,10 +179,12 @@ function CheckoutValidateContent() {
                 <span>
                   {packageType === "gym"
                     ? "Gym Membership"
-                    : "Personal Training"}
+                    : packageType === "trainer"
+                    ? "Personal Training"
+                    : "Group Training"}
                 </span>
               </div>
-              {packageType === "trainer" && trainerName && (
+              {(packageType === "trainer" || packageType === "group") && trainerName && (
                 <div className="flex justify-between">
                   <span>Trainer:</span>
                   <span>{trainerName}</span>

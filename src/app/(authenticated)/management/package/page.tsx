@@ -30,6 +30,9 @@ export default function PackagePage() {
     sessions: null,
     day: null,
     isActive: true,
+    maxUsers: null,
+    isGroupPackage: false,
+    groupPriceType: null,
   });
 
   const [search, setSearch] = useState("");
@@ -51,14 +54,17 @@ export default function PackagePage() {
     const { name, value } = e.target;
 
     // Convert numeric fields to numbers
-    let updatedValue: string | number | null = value;
+    let updatedValue: string | number | boolean | null = value;
     if (
       name === "day" ||
       name === "sessions" ||
       name === "price" ||
-      name === "point"
+      name === "point" ||
+      name === "maxUsers"
     ) {
       updatedValue = value === "" ? null : Number(value);
+    } else if (name === "isGroupPackage") {
+      updatedValue = value === "true";
     }
 
     if (isEditMode && selectedPackage) {
@@ -99,16 +105,36 @@ export default function PackagePage() {
       };
 
       // Add type-specific fields
-      const typeSpecificData =
-        packageData.type === "PERSONAL_TRAINER"
-          ? {
-              sessions: Number(packageData.sessions) || 0,
-              day: Number(packageData.day) || 0,
-            }
-          : {
-              sessions: null,
-              day: Number(packageData.day) || 0,
-            };
+      let typeSpecificData: any = {};
+      
+      if (packageData.type === "PERSONAL_TRAINER" || packageData.type === "GROUP_TRAINING") {
+        typeSpecificData = {
+          sessions: Number(packageData.sessions) || 0,
+          day: Number(packageData.day) || 0,
+        };
+      } else {
+        typeSpecificData = {
+          sessions: null,
+          day: Number(packageData.day) || 0,
+        };
+      }
+      
+      // Add group-specific fields
+      if (packageData.type === "GROUP_TRAINING") {
+        typeSpecificData = {
+          ...typeSpecificData,
+          maxUsers: Number(packageData.maxUsers) || null,
+          isGroupPackage: true, // GROUP_TRAINING packages are always group packages
+          groupPriceType: packageData.groupPriceType || null,
+        };
+      } else {
+        typeSpecificData = {
+          ...typeSpecificData,
+          maxUsers: null,
+          isGroupPackage: false,
+          groupPriceType: null,
+        };
+      }
 
       if (isEditMode && selectedPackage?.id) {
         await updatePackageMutation.mutateAsync({

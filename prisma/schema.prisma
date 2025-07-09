@@ -282,6 +282,10 @@ model Subscription {
     remainingSessions Int?
     isActive          Boolean          @default(false)
     payments          Payment[]
+    
+    // Group subscription relations
+    leadGroupSubscriptions GroupSubscription[]
+    groupMembers      GroupMember[]
 }
 
 model Payment {
@@ -348,15 +352,28 @@ model Package {
     type         PackageType
     sessions     Int? // only for PERSONAL_TRAINER type
     day          Int? // only for GYM_MEMBERSHIP type
+    
+    // Group package fields
+    maxUsers     Int?           // Maximum users for group packages
+    isGroupPackage Boolean      @default(false)
+    groupPriceType GroupPriceType? // TOTAL or PER_PERSON
+    
     createdAt    DateTime       @default(now())
     updatedAt    DateTime       @updatedAt
     subscription Subscription[]
     paymentValidations PaymentValidation[]
+    groupSubscriptions GroupSubscription[]
 }
 
 enum PackageType {
     GYM_MEMBERSHIP
     PERSONAL_TRAINER
+    GROUP_TRAINING
+}
+
+enum GroupPriceType {
+    TOTAL      // Total price split among members
+    PER_PERSON // Each person pays the full price
 }
 
 model TrainerSession {
@@ -769,4 +786,53 @@ model POSSaleItem {
     
     @@index([saleId])
     @@index([itemId])
+}
+
+// Group subscription management
+model GroupSubscription {
+    id                String   @id @default(cuid())
+    groupName         String?
+    leadSubscriptionId String
+    packageId         String
+    totalMembers      Int      @default(1)
+    maxMembers        Int
+    status            GroupSubscriptionStatus @default(PENDING)
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+    
+    leadSubscription  Subscription @relation(fields: [leadSubscriptionId], references: [id])
+    package           Package      @relation(fields: [packageId], references: [id])
+    groupMembers      GroupMember[]
+    
+    @@index([leadSubscriptionId])
+    @@index([packageId])
+    @@index([status])
+}
+
+model GroupMember {
+    id                  String @id @default(cuid())
+    groupSubscriptionId String
+    subscriptionId      String
+    status              GroupMemberStatus @default(PENDING)
+    joinedAt            DateTime @default(now())
+    
+    groupSubscription   GroupSubscription @relation(fields: [groupSubscriptionId], references: [id])
+    subscription        Subscription @relation(fields: [subscriptionId], references: [id])
+    
+    @@unique([groupSubscriptionId, subscriptionId])
+    @@index([groupSubscriptionId])
+    @@index([subscriptionId])
+}
+
+enum GroupSubscriptionStatus {
+    ACTIVE
+    PENDING
+    EXPIRED
+    CANCELLED
+}
+
+enum GroupMemberStatus {
+    ACTIVE
+    PENDING
+    REMOVED
 }

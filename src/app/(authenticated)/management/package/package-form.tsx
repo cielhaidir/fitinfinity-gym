@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Scan } from "lucide-react";
 
-import { type Package, PackageTypeEnum } from "./schema";
+import { type Package, PackageTypeEnum, GroupPriceTypeEnum } from "./schema";
 import { Button } from "@/components/ui/button";
 
 import { useEffect } from "react";
@@ -54,9 +54,34 @@ export const PackageForm: React.FC<PackageFormProps> = ({
       },
     } as React.ChangeEvent<HTMLInputElement>;
 
-    // Reset both fields
+    // Reset group-specific fields when type changes
+    const isGroupPackageEvent = {
+      target: {
+        name: "isGroupPackage",
+        value: false,
+      },
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+    const maxUsersEvent = {
+      target: {
+        name: "maxUsers",
+        value: "",
+      },
+    } as React.ChangeEvent<HTMLInputElement>;
+
+    const groupPriceTypeEvent = {
+      target: {
+        name: "groupPriceType",
+        value: "",
+      },
+    } as React.ChangeEvent<HTMLInputElement>;
+
+    // Reset all fields
     onInputChange(dayEvent);
     onInputChange(sessionsEvent);
+    onInputChange(isGroupPackageEvent);
+    onInputChange(maxUsersEvent);
+    onInputChange(groupPriceTypeEvent);
 
     // Then set the new type
     const typeEvent = {
@@ -126,6 +151,9 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                 <SelectItem value="PERSONAL_TRAINER">
                   Personal Trainer
                 </SelectItem>
+                <SelectItem value="GROUP_TRAINING">
+                  Group Training
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -147,7 +175,7 @@ export const PackageForm: React.FC<PackageFormProps> = ({
           </div>
         )}
 
-        {newPackage.type === "PERSONAL_TRAINER" && (
+        {(newPackage.type === "PERSONAL_TRAINER" || newPackage.type === "GROUP_TRAINING") && (
           <>
             <div>
               <label htmlFor="sessions" className="block text-sm font-medium">
@@ -178,6 +206,89 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                 Sessions will expire after this period
               </p>
             </div>
+          </>
+        )}
+
+        {newPackage.type === "GROUP_TRAINING" && (
+          <>
+          
+            {/* <div>
+              <label htmlFor="isGroupPackage" className="block text-sm font-medium">
+                Group Package
+              </label>
+              <Select
+                value={newPackage.isGroupPackage ? "true" : "false"}
+                onValueChange={(value) => {
+                  onInputChange({
+                    target: {
+                      name: "isGroupPackage",
+                      value: value === "true",
+                    },
+                  } as unknown as React.ChangeEvent<HTMLInputElement>);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select group package type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="true">Group Package</SelectItem>
+                    <SelectItem value="false">Individual Package</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div> */}
+
+                <div>
+                  <label htmlFor="maxUsers" className="block text-sm font-medium">
+                    Maximum Users
+                  </label>
+                  <Input
+                    id="maxUsers"
+                    name="maxUsers"
+                    type="number"
+                    placeholder="Maximum number of users in group"
+                    value={newPackage.maxUsers ?? ""}
+                    onChange={onInputChange}
+                    min="2"
+                    max="20"
+                  />
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Minimum 2, maximum 20 users per group
+                  </p>
+                </div>
+                
+                <div>
+                  <label htmlFor="groupPriceType" className="block text-sm font-medium">
+                    Group Pricing Type
+                  </label>
+                  <Select
+                    value={newPackage.groupPriceType ?? ""}
+                    onValueChange={(value) => {
+                      onInputChange({
+                        target: {
+                          name: "groupPriceType",
+                          value: value,
+                        },
+                      } as React.ChangeEvent<HTMLInputElement>);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pricing type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="TOTAL">Total Price (Split among members)</SelectItem>
+                        <SelectItem value="PER_PERSON">Per Person (Each pays full price)</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {newPackage.groupPriceType === "TOTAL" 
+                      ? "The total price will be split equally among all group members"
+                      : "Each member pays the full package price"}
+                  </p>
+                </div>
           </>
         )}
 

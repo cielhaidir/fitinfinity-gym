@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const PackageTypeEnum = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER"]);
+export const PackageTypeEnum = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER", "GROUP_TRAINING"]);
+export const GroupPriceTypeEnum = z.enum(["TOTAL", "PER_PERSON"]);
 
 export const PackageSchema = z.object({
   id: z.string().optional(),
@@ -15,8 +16,14 @@ export const PackageSchema = z.object({
   sessions: z.number().nullable(),
   day: z.number().min(0, "Days must be greater than or equal to 0").nullable(),
   isActive: z.boolean().default(true),
+  // Group package fields
+  maxUsers: z.number().min(1, "Max users must be at least 1").nullable(),
+  isGroupPackage: z.boolean().default(false),
+  groupPriceType: GroupPriceTypeEnum.nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });
 
 export type Package = z.infer<typeof PackageSchema>;
+export type PackageType = z.infer<typeof PackageTypeEnum>;
+export type GroupPriceType = z.infer<typeof GroupPriceTypeEnum>;

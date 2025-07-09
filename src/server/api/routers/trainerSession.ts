@@ -118,6 +118,211 @@ export const trainerSessionRouter = createTRPCRouter({
       });
     }),
 
+  // Group session creation
+  createGroupSession: permissionProtectedProcedure(["create:session"])
+    .input(
+      z.object({
+        groupSubscriptionId: z.string(),
+        date: z.date(),
+        startTime: z.date(),
+        endTime: z.date(),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      console.log("Creating group session for group:", input.groupSubscriptionId);
+
+      // Get the trainer ID for the current user
+      const trainer = await ctx.db.personalTrainer.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          isActive: true,
+        },
+      });
+
+      if (!trainer) {
+        console.log("Trainer not found or not active");
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Trainer not found or not active",
+        });
+      }
+
+      // Get group subscription details and active members
+      const groupSubscription = await ctx.db.groupSubscription.findUnique({
+        where: { id: input.groupSubscriptionId },
+        include: {
+          package: true,
+          groupMembers: {
+            where: { status: "ACTIVE" },
+            include: {
+              subscription: {
+                include: {
+                  member: {
+                    include: { user: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!groupSubscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Group subscription not found",
+        });
+      }
+
+      if (groupSubscription.groupMembers.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No active members in this group",
+        });
+      }
+
+      // Validate all members have remaining sessions
+      const invalidMembers = groupSubscription.groupMembers.filter(
+        gm => !gm.subscription.remainingSessions || gm.subscription.remainingSessions <= 0
+      );
+
+      if (invalidMembers.length > 0) {
+        const memberNames = invalidMembers.map(gm => gm.subscription.member.user.name).join(", ");
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `The following members have no remaining sessions: ${memberNames}`,
+        });
+      }
+
+      // Create sessions for all group members in a transaction
+      return ctx.db.$transaction(async (tx) => {
+        console.log("Starting group session transaction");
+
+        const sessions = [];
+
+        for (const groupMember of groupSubscription.groupMembers) {
+          // Create session for each member
+          const session = await tx.trainerSession.create({
+            data: {
+              trainerId: trainer.id,
+              memberId: groupMember.subscription.memberId,
+              date: input.date,
+              startTime: input.startTime,
+              endTime: input.endTime,
+              description: `Group Session: ${input.description || groupSubscription.groupName || 'Group Training'}`,
+              status: "NOT_YET"
+            },
+          });
+
+          // Decrement remaining sessions for this member
+          await tx.subscription.update({
+            where: { id: groupMember.subscriptionId },
+            data: { remainingSessions: { decrement: 1 } }
+          });
+
+          // Award points to the user (from the package)
+          const packagePoints = groupSubscription.package.point;
+          if (packagePoints > 0) {
+            await tx.user.update({
+              where: { id: groupMember.subscription.member.userId },
+              data: { point: { increment: packagePoints } }
+            });
+          }
+
+          sessions.push({
+            ...session,
+            member: groupMember.subscription.member
+          });
+
+          console.log(`Session created for member: ${groupMember.subscription.member.user.name}`);
+        }
+
+        console.log(`Group session created with ${sessions.length} individual sessions`);
+        return sessions;
+      });
+    }),
+
+  getGroupSessions: permissionProtectedProcedure(["list:session"])
+    .input(z.object({ groupSubscriptionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Get the trainer ID for the current user
+      const trainer = await ctx.db.personalTrainer.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          isActive: true,
+        },
+      });
+
+      if (!trainer) {
+        return [];
+      }
+
+      // Get group members
+      const groupMembers = await ctx.db.groupMember.findMany({
+        where: { 
+          groupSubscriptionId: input.groupSubscriptionId,
+          status: "ACTIVE"
+        },
+        include: { 
+          subscription: {
+            include: {
+              member: {
+                include: { user: true }
+              }
+            }
+          }
+        }
+      });
+
+      if (groupMembers.length === 0) {
+        return [];
+      }
+
+      const memberIds = groupMembers.map(gm => gm.subscription.memberId);
+
+      // Get sessions for all group members
+      const sessions = await ctx.db.trainerSession.findMany({
+        where: {
+          trainerId: trainer.id,
+          memberId: { in: memberIds }
+        },
+        include: {
+          member: {
+            include: { user: true }
+          }
+        },
+        orderBy: { date: 'desc' }
+      });
+
+      // Group sessions by date/time (same session for multiple members)
+      const groupedSessions = sessions.reduce((acc, session) => {
+        const key = `${session.date.toISOString().split('T')[0]}_${session.startTime.toISOString()}_${session.endTime.toISOString()}`;
+        if (!acc[key]) {
+          acc[key] = {
+            id: session.id, // Use first session's ID as group ID
+            date: session.date,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            description: session.description,
+            status: session.status,
+            trainerId: session.trainerId,
+            attendees: []
+          };
+        }
+        acc[key].attendees.push({
+          memberId: session.memberId,
+          memberName: session.member.user.name,
+          memberEmail: session.member.user.email,
+          sessionId: session.id,
+          status: session.status
+        });
+        return acc;
+      }, {} as Record<string, any>);
+
+      return Object.values(groupedSessions);
+    }),
+
   getAll: permissionProtectedProcedure(["list:session"]).query(
     async ({ ctx }) => {
       // Check if user is a trainer
