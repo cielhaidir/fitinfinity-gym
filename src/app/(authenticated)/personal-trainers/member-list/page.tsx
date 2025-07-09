@@ -135,17 +135,20 @@ export default function MemberListPage() {
         </div>
       </div>
 
-      <div className="rounded-md">
-        <DataTable
-          columns={getColumns(handleEdit)}
-          data={formattedData}
-          searchColumns={[
-            { id: "name", placeholder: "Search by member name..." },
-            { id: "email", placeholder: "Search by email..." },
-          ]}
-          isLoading={isLoading}
-          onPaginationChange={handlePaginationChange}
-        />
+      {/* Tabel untuk desktop */}
+      <div className="rounded-md overflow-x-auto">
+        <div className="min-w-[700px]">
+          <DataTable
+            columns={getColumns(handleEdit)}
+            data={formattedData}
+            searchColumns={[
+              { id: "name", placeholder: "Search by member name..." },
+              { id: "email", placeholder: "Search by email..." },
+            ]}
+            isLoading={isLoading}
+            onPaginationChange={handlePaginationChange}
+          />
+        </div>
       </div>
       <ModalEdit
         open={modalOpen}

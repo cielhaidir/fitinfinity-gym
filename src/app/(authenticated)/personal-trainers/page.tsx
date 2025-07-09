@@ -1,5 +1,5 @@
 "use client";
-
+//lmao you find me
 import React from "react";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
@@ -53,6 +53,11 @@ export default function PTDashboardPage() {
   const { data: session } = useSession();
   const [currentDate, setCurrentDate] = React.useState(new Date());
 
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [selectedDay, setSelectedDay] = React.useState<Date | null>(null);
+  const [selectedSessions, setSelectedSessions] = React.useState<any[]>([]);
+
   const { data: members, isLoading: isMembersLoading } =
     api.personalTrainer.getMembers.useQuery(undefined, {
       enabled: !!session,
@@ -97,6 +102,20 @@ export default function PTDashboardPage() {
 
   const handleToday = () => {
     setCurrentDate(new Date());
+  };
+
+  // Modal open handler
+  const handleOpenModal = (day: Date, sessions: any[]) => {
+    setSelectedDay(day);
+    setSelectedSessions(sessions);
+    setIsModalOpen(true);
+  };
+
+  // Modal close handler
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedDay(null);
+    setSelectedSessions([]);
   };
 
   return (
@@ -182,44 +201,67 @@ export default function PTDashboardPage() {
                 {format(weekStart, "dd MMMM", { locale: id })} -{" "}
                 {format(weekEnd, "dd MMMM yyyy", { locale: id })}
               </div>
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-2">
                 {days.map((day) => {
                   const dateStr = format(day, "yyyy-MM-dd");
                   const sessions = sessionsByDate[dateStr] || [];
-
                   return (
-                    <div
+                    <button
                       key={dateStr}
-                      className={`min-h-[300px] rounded-md border border-[#2a2a2a] p-2 ${isToday(day) ? "border-[#C9D953] bg-[#2a2a2a]" : ""} `}
+                      onClick={() => handleOpenModal(day, sessions)}
+                      className={`aspect-square w-full rounded-md border border-[#2a2a2a] p-1 sm:p-2 flex flex-col items-center justify-between focus:outline-none transition-colors ${isToday(day) ? "border-[#C9D953] bg-[#2a2a2a]" : ""}`}
                     >
-                      <div
-                        className={`mb-2 text-center ${isToday(day) ? "font-bold text-[#C9D953]" : "text-gray-400"}`}
-                      >
-                        <div className="text-sm">
+                      <div className="flex flex-col items-center">
+                        <div className="text-xs sm:text-sm">
                           {format(day, "EEE", { locale: id })}
                         </div>
-                        <div className="text-lg">{format(day, "d")}</div>
+                        <div className="text-base sm:text-lg">{format(day, "d")}</div>
                       </div>
-
-                      <div className="custom-scrollbar max-h-[260px] space-y-1 overflow-y-auto">
-                        {sessions.map((session) => (
-                          <div
-                            key={session.id}
-                            className="rounded bg-[#C9D953] p-2 text-xs text-black transition-colors hover:bg-[#b8c748]"
-                          >
-                            <div className="font-medium">
-                              {format(new Date(session.startTime), "HH:mm")}
-                            </div>
-                            <div className="truncate">
-                              {session.member.user.name}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="flex flex-wrap justify-center gap-1 mt-1 min-h-[12px]">
+                        {sessions.length > 0 &&
+                          sessions.map((_, idx) => (
+                            <span
+                              key={idx}
+                              className="w-2 h-2 bg-green-500 rounded-full"
+                            />
+                          ))}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
+              {/* Modal for session details */}
+              {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                  <div className="bg-[#232323] text-white rounded-lg p-4 max-w-xs w-full border border-[#2a2a2a] shadow-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="font-bold text-lg">
+                        {selectedDay && format(selectedDay, "EEEE, dd MMM yyyy", { locale: id })}
+                      </div>
+                      <button onClick={handleCloseModal} className="text-gray-400 hover:text-[#C9D953] text-xl font-bold">✕</button>
+                    </div>
+                    {selectedSessions.length === 0 ? (
+                      <div className="text-gray-400 text-sm">Tidak ada sesi pada hari ini.</div>
+                    ) : (
+                      <ul className="space-y-2">
+                        {selectedSessions.map((session, idx) => (
+                          <li key={session.id || idx} className="border-b border-[#2a2a2a] pb-2 last:border-b-0 last:pb-0">
+                            <div className="font-semibold text-[#C9D953]">
+                              {session.member?.user?.name || "-"}
+                            </div>
+                            <div className="text-xs text-gray-300">
+                              {format(new Date(session.startTime), "HH:mm")} - {format(new Date(session.endTime), "HH:mm")}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {session.activity || "Sesi latihan"}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
