@@ -154,7 +154,7 @@ export function SessionDetailModal({
         <div className="space-y-4">
           <div>
             <label className="text-sm text-muted-foreground">Member</label>
-            <p className="font-medium">{session.member.user.name}</p>
+            <p className="font-medium">{session.type === "group" ? (session.groupName ?? "Group") : session.member.user.name}</p>
           </div>
 
           <div>

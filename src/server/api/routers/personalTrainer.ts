@@ -180,6 +180,8 @@ export const personalTrainerRouter = createTRPCRouter({
         startTime: z.date(),
         endTime: z.date(),
         description: z.string().optional(),
+        isGroup: z.boolean().optional(),
+        groupId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -201,15 +203,60 @@ export const personalTrainerRouter = createTRPCRouter({
         );
       }
 
-      return ctx.db.trainerSession.create({
-        data: {
-          trainerId: trainer.id,
-          memberId: input.memberId,
-          date: input.date,
-          startTime: input.startTime,
-          endTime: input.endTime,
-          description: input.description,
-        },
+      return ctx.db.$transaction(async (tx) => {
+        // Create the trainer session
+        const session = await tx.trainerSession.create({
+          data: {
+            trainerId: trainer.id,
+            memberId: input.memberId,
+            date: input.date,
+            startTime: input.startTime,
+            endTime: input.endTime,
+            description: input.description,
+          },
+        });
+
+        // If it's a group session, we need to decrease the remaining sessions
+        // from the lead subscription
+        if (input.isGroup && input.groupId) {
+          const groupSubscription = await tx.groupSubscription.findFirst({
+            where: {
+              id: input.groupId,
+            },
+            include: {
+              leadSubscription: true,
+            },
+          });
+
+          if (groupSubscription) {
+            // Decrease remaining sessions from the lead subscription
+            await tx.subscription.update({
+              where: {
+                id: groupSubscription.leadSubscriptionId,
+              },
+              data: {
+                remainingSessions: {
+                  decrement: 1,
+                },
+              },
+            });
+          }
+        } else {
+          // For individual sessions, decrease remaining sessions from the member's subscription
+          await tx.subscription.updateMany({
+            where: {
+              memberId: input.memberId,
+              trainerId: trainer.id,
+            },
+            data: {
+              remainingSessions: {
+                decrement: 1,
+              },
+            },
+          });
+        }
+
+        return session;
       });
     }),
 
@@ -232,7 +279,7 @@ export const personalTrainerRouter = createTRPCRouter({
 
       console.log("Found trainer:", personalTrainer.id);
 
-      // Get all subscriptions for this personal trainer
+      // Get all individual subscriptions for this personal trainer
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           trainerId: personalTrainer.id,
@@ -256,6 +303,49 @@ export const personalTrainerRouter = createTRPCRouter({
               },
             },
           },
+          package: {
+            select: {
+              type: true,
+            },
+          },
+        },
+      });
+
+      // Get all group subscriptions for this personal trainer
+      const groupSubscriptions = await ctx.db.groupSubscription.findMany({
+        where: {
+          leadSubscription: {
+            trainerId: personalTrainer.id,
+          },
+          status: "ACTIVE",
+        },
+        include: {
+          leadSubscription: {
+            include: {
+              member: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      phone: true,
+                      height: true,
+                      weight: true,
+                      birthDate: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          package: {
+            select: {
+              type: true,
+              sessions: true,
+            },
+          },
+          // group: true, // Include group to access group name
         },
       });
 
@@ -268,8 +358,17 @@ export const personalTrainerRouter = createTRPCRouter({
         })),
       );
 
-      // Transform the data to match the frontend interface
-      return subscriptions.map((subscription) => ({
+      console.log(
+        "Found group subscriptions:",
+        groupSubscriptions.map((gs) => ({
+          groupId: gs.id,
+          groupName: gs.groupName,
+          leaderId: gs.leadSubscription.member.userId,
+        })),
+      );
+
+      // Transform individual subscriptions
+      const individualMembers = subscriptions.map((subscription) => ({
         id: subscription.member.userId,
         membershipId: subscription.memberId,
         name: subscription.member.user.name || "",
@@ -280,7 +379,27 @@ export const personalTrainerRouter = createTRPCRouter({
         birthDate: subscription.member.user.birthDate?.toISOString() ?? null,
         remainingSessions: subscription.remainingSessions || 0,
         subscriptionEndDate: subscription.endDate?.toISOString() || "",
+        type: "individual",
       }));
+
+      // Transform group subscriptions
+      const groupMembers = groupSubscriptions.map((groupSubscription) => ({
+        id: groupSubscription.id,
+        membershipId: groupSubscription.leadSubscription.memberId,
+        name: groupSubscription.groupName || `Group (${groupSubscription.leadSubscription.member.user.name})`,
+        email: groupSubscription.leadSubscription.member.user.email || "",
+        phone: groupSubscription.leadSubscription.member.user.phone || "",
+        height: null,
+        weight: null,
+        birthDate: null,
+        remainingSessions: groupSubscription.leadSubscription.remainingSessions || 0,
+        subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
+        type: "group",
+        groupId: groupSubscription.id,
+      }));
+
+      // Combine both individual and group members
+      return [...individualMembers, ...groupMembers];
     },
   ),
 

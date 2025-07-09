@@ -28,6 +28,8 @@ interface Member {
   name: string;
   membershipId: string;
   remainingSessions: number;
+  type: "individual" | "group";
+  groupId?: string;
 }
 
 export default function AppointmentForm({
@@ -56,18 +58,33 @@ export default function AppointmentForm({
     const memberMap = new Map<string, Member>();
 
     members.forEach((member) => {
-      const existingMember = memberMap.get(member.name);
-      if (existingMember) {
-        // If member already exists, add remaining sessions
-        existingMember.remainingSessions += member.remainingSessions;
-      } else {
-        // If member doesn't exist, add new entry
-        memberMap.set(member.name, {
+      // For groups, don't combine by name - each group is unique
+      if (member.type === "group") {
+        memberMap.set(member.id, {
           id: member.id,
           name: member.name,
           membershipId: member.membershipId,
           remainingSessions: member.remainingSessions,
+          type: member.type,
+          groupId: member.groupId,
         });
+      } else {
+        // For individual members, combine by name as before
+        const existingMember = memberMap.get(member.name);
+        if (existingMember && existingMember.type === "individual") {
+          // If member already exists, add remaining sessions
+          existingMember.remainingSessions += member.remainingSessions;
+        } else {
+          // If member doesn't exist, add new entry
+          memberMap.set(member.name, {
+            id: member.id,
+            name: member.name,
+            membershipId: member.membershipId,
+            remainingSessions: member.remainingSessions,
+            type: member.type,
+            groupId: member.groupId,
+          });
+        }
       }
     });
 
@@ -136,6 +153,8 @@ export default function AppointmentForm({
       startTime: startTime,
       endTime: endTime,
       description: description,
+      isGroup: selectedMember?.type === "group",
+      groupId: selectedMember?.groupId,
     });
   };
 
@@ -219,6 +238,7 @@ export default function AppointmentForm({
             ) : (
               combinedMembers.map((member) => (
                 <SelectItem key={member.id} value={member.id}>
+                  {member.type === "group" ? "🏃‍♂️ " : "👤 "}
                   {member.name} ({member.remainingSessions} sesi tersisa)
                 </SelectItem>
               ))

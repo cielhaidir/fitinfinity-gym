@@ -189,10 +189,8 @@ export default function SubscriptionPage({
         const subscription = await createSubscriptionMutation.mutateAsync({
           memberId: memberID,
           packageId: selectedPackage,
-          trainerId:
-            subscriptionType === "trainer" ? selectedTrainer : undefined,
+          trainerId: (subscriptionType === "trainer" || subscriptionType === "group") ? selectedTrainer : undefined,
           startDate: startDate,
-          // endDate is removed as it is not part of the expected type
           subsType: subscriptionType,
           duration:
             subscriptionType === "gym"

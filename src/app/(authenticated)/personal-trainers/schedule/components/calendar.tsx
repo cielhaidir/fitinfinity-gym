@@ -565,7 +565,7 @@ export default function Calendar({
                               {format(new Date(session.startTime), "HH:mm")}
                             </div>
                             <div className="truncate">
-                              {session.member.user.name}
+                              {session.type === "group" ? (session.groupName ?? "Group") : session.member.user.name}
                             </div>
                             {session.exerciseResult && (
                               <div className="mt-1 text-[10px] sm:text-xs font-bold text-blue-900">
