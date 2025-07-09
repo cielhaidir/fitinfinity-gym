@@ -576,8 +576,8 @@ export const packageRouter = createTRPCRouter({
 
             // Increase points for the user who invited the member
             await tx.user.update({
-              where: { id: user.id },
-              data: { point: { increment: 10 } } // +10 points for inviting a member
+              where: { id: member.user.id },
+              data: { point: { increment:  groupSubscription.package.point} } // +10 points for the invited member
             });
           });
 
