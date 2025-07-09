@@ -182,7 +182,17 @@ export function DataTable<TData, TValue>({
         >
           {row.getVisibleCells().map((cell) => {
             const header = cell.column.columnDef.header;
-            const headerText = typeof header === 'string' ? header : String(header);
+            let headerText: string;
+            
+            if (typeof header === 'string') {
+              headerText = header;
+            } else if (typeof header === 'function') {
+              // For function headers, try to get the column id or use a fallback
+              headerText = cell.column.id || 'Column';
+            } else {
+              // For other types, use column id or fallback
+              headerText = cell.column.id || 'Column';
+            }
             
             return (
               <div key={cell.id} className="flex justify-between items-start py-1 last:pb-0">
