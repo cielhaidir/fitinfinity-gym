@@ -36,14 +36,14 @@ export function DataTableToolbar<TData>({
   );
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       {searchColumns && (
         <div className="flex flex-1 items-center space-x-2">
           <Select value={selectedColumn} onValueChange={(value) => {
             console.log("TOOLBAR COLUMN CHANGE:", { from: selectedColumn, to: value });
             setSelectedColumn(value);
           }}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[140px] sm:w-[180px]">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>
@@ -62,7 +62,7 @@ export function DataTableToolbar<TData>({
               console.log("TOOLBAR SEARCH:", { value: event.target.value, selectedColumn });
               onSearch?.(event.target.value, selectedColumn);
             }}
-            className="h-8 w-[150px] lg:w-[200px]"
+            className="h-8 flex-1 min-w-0 sm:w-[150px] lg:w-[200px]"
           />
           {isFiltered && (
             <Button
@@ -76,7 +76,9 @@ export function DataTableToolbar<TData>({
           )}
         </div>
       )}
-      <DataTableViewOptions table={table} />
+      <div className="flex justify-end">
+        <DataTableViewOptions table={table} />
+      </div>
     </div>
   );
 }

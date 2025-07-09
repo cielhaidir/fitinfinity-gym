@@ -110,11 +110,11 @@ export function DataTable<TData, TValue>({
         searchColumns={searchColumns}
         onSearch={onSearch}
       />
-       <div className="w-full overflow-auto rounded-md border">
+       <div className="w-full overflow-x-auto rounded-md border bg-background">
 
 {/* Desktop table */}
 <div className="hidden sm:block">
-  <Table className="min-w-full">
+  <Table className="w-full">
     <TableHeader>
       {table.getHeaderGroups().map((headerGroup) => (
         <TableRow key={headerGroup.id}>
@@ -122,7 +122,7 @@ export function DataTable<TData, TValue>({
             <TableHead
               key={header.id}
               colSpan={header.colSpan}
-              className="bg-infinity text-secondary whitespace-nowrap"
+              className="bg-infinity text-secondary whitespace-nowrap min-w-[80px] px-2 py-3"
             >
               {header.isPlaceholder
                 ? null
@@ -149,8 +149,8 @@ export function DataTable<TData, TValue>({
             className={rowIndex % 2 === 0 ? "bg-muted/55" : ""}
           >
             {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id} className="py-2">
-                <div className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
+              <TableCell key={cell.id} className="py-2 min-w-[80px] px-2">
+                <div className="max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </div>
               </TableCell>
@@ -169,24 +169,35 @@ export function DataTable<TData, TValue>({
 </div>
 
 {/* Mobile card view */}
-<div className="sm:hidden p-4">
+<div className="sm:hidden p-2">
   {isLoading ? (
     <div className="text-center py-8 text-muted-foreground">Loading...</div>
   ) : table.getRowModel().rows?.length ? (
-    table.getRowModel().rows.map((row) => (
-      <div key={row.id} className="rounded-md border p-4 mb-4 bg-card">
-        {row.getVisibleCells().map((cell) => (
-          <div key={cell.id} className="mb-2 last:mb-0">
-            <div className="font-semibold text-sm text-muted-foreground">
-              {cell.column.columnDef.header as string}
-            </div>
-            <div className="text-sm text-foreground">
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </div>
-          </div>
-        ))}
-      </div>
-    ))
+    <div className="space-y-3">
+      {table.getRowModel().rows.map((row) => (
+        <div 
+          key={row.id} 
+          className="rounded-lg border p-3 bg-card shadow-sm"
+          onClick={() => onRowClick?.(row.original)}
+        >
+          {row.getVisibleCells().map((cell) => {
+            const header = cell.column.columnDef.header;
+            const headerText = typeof header === 'string' ? header : String(header);
+            
+            return (
+              <div key={cell.id} className="flex justify-between items-start py-1 last:pb-0">
+                <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide min-w-0 flex-shrink-0 mr-2">
+                  {headerText}
+                </div>
+                <div className="text-sm text-foreground text-right min-w-0 flex-1">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
   ) : (
     <div className="text-center py-8 text-muted-foreground">No results.</div>
   )}

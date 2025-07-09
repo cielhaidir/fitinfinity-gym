@@ -43,7 +43,7 @@ if (
     !session.user.phone ||
     session.user.phone.trim() === "";
 
-  if (isProfileIncomplete) {
+  if (isProfileIncomplete && pathname !== "/member/profile") {
     toast.warning("You need to complete your profile First");
     router.push("/member/profile");
     return;

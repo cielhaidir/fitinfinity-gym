@@ -80,6 +80,7 @@ export const metadata: Metadata = {
     width: 'device-width',
     initialScale: 1,
     maximumScale: 5,
+    userScalable: true,
   },
   robots: {
     index: true,
@@ -120,10 +121,6 @@ export default function RootLayout({
     >
       <Head>
         <meta name="apple-mobile-web-app-title" content="Fitinifnity" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-        />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta

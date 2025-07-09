@@ -61,6 +61,10 @@ services:
     volumes:
       - /development/data-fit/uploads:/app/public/uploads
       - /development/data-fit/assets/transaction:/app/public/assets/transaction
+      - /development/data-fit/assets/management/transaction:/app/public/assets/management/transaction
+      - /development/data-fit/assets/profile:/app/public/assets/profile
+      - /development/data-fit/assets/PT:/app/public/assets/PT
+      - /development/data-fit/assets/exercise:/app/public/assets/exercise
 
     networks:
       - fitinfinity-network
