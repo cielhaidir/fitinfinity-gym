@@ -15,7 +15,7 @@ export const getColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Member Name" />
     ),
-    cell: ({ row }) => <div className="w-[150px]">{row.getValue("name")}</div>,
+    cell: ({ row }) => <div className="w-[150px] px-2 py-1 text-xs sm:text-sm">{row.getValue("name")}</div>,
   },
   {
     accessorKey: "email",
@@ -23,7 +23,7 @@ export const getColumns = (
       <DataTableColumnHeader column={column} title="Email" />
     ),
     cell: ({ row }) => (
-      <div className="hidden md:block">{row.getValue("email")}</div>
+      <div className="w-[150px] px-2 py-1 text-xs sm:text-sm">{row.getValue("email")}</div>
     ),
   },
   {
@@ -32,7 +32,7 @@ export const getColumns = (
       <DataTableColumnHeader column={column} title="Phone" />
     ),
     cell: ({ row }) => (
-      <div className="hidden md:block">{row.getValue("phone")}</div>
+      <div className="w-[120px] px-2 py-1 text-xs sm:text-sm">{row.getValue("phone")}</div>
     ),
   },
   {
@@ -43,7 +43,7 @@ export const getColumns = (
     cell: ({ row }) => {
       const birthDateString = row.getValue("birthDate");
       if (!birthDateString) {
-        return <div className="w-[80px]">-</div>;
+        return <div className="w-[80px] px-2 py-1 text-xs sm:text-sm">-</div>;
       }
       const birthDate = new Date(birthDateString);
       const today = new Date();
@@ -55,7 +55,7 @@ export const getColumns = (
       ) {
         age--;
       }
-      return <div className="w-[80px]">{age}</div>;
+      return <div className="w-[80px] px-2 py-1 text-xs sm:text-sm">{age}</div>;
     },
   },
   {
@@ -64,7 +64,7 @@ export const getColumns = (
       <DataTableColumnHeader column={column} title="Remaining Sessions" />
     ),
     cell: ({ row }) => (
-      <div className="w-[100px]">{row.getValue("remainingSessions")}</div>
+      <div className="w-[100px] px-2 py-1 text-xs sm:text-sm">{row.getValue("remainingSessions")}</div>
     ),
   },
   {
@@ -73,7 +73,7 @@ export const getColumns = (
       <DataTableColumnHeader column={column} title="Subscription End Date" />
     ),
     cell: ({ row }) => (
-      <div className="hidden w-[150px] md:block">
+      <div className="w-[150px] px-2 py-1 text-xs sm:text-sm">
         {new Date(row.getValue("subscriptionEndDate")).toLocaleDateString()}
       </div>
     ),
@@ -84,7 +84,7 @@ export const getColumns = (
       <DataTableColumnHeader column={column} title="Height (cm)" />
     ),
     cell: ({ row }) => (
-      <div className="w-[100px]">
+      <div className="w-[100px] px-2 py-1 text-xs sm:text-sm">
         {row.getValue("height") ? `${row.getValue("height")} cm` : "-"}
       </div>
     ),
@@ -95,7 +95,7 @@ export const getColumns = (
       <DataTableColumnHeader column={column} title="Weight (kg)" />
     ),
     cell: ({ row }) => (
-      <div className="w-[100px]">
+      <div className="w-[100px] px-2 py-1 text-xs sm:text-sm">
         {row.getValue("weight") ? `${row.getValue("weight")} kg` : "-"}
       </div>
     ),
@@ -108,7 +108,7 @@ export const getColumns = (
     cell: ({ row }) => {
       const remainingSessions = row.original.remainingSessions;
       return (
-        <div className="w-[100px]">
+        <div className="w-[100px] px-2 py-1 text-xs sm:text-sm">
           <Badge
             variant={remainingSessions > 0 ? "default" : "destructive"}
             className={
@@ -125,7 +125,7 @@ export const getColumns = (
     id: "actions",
     header: "Actions",
     cell: ({ row }) => (
-      <div className="flex gap-2">
+      <div className="flex gap-2 px-2 py-1 text-xs sm:text-sm">
         <button
           className="flex items-center justify-center p-2 text-white"
           onClick={() => onEdit(row.original)}
