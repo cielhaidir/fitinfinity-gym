@@ -57,7 +57,7 @@ class MQTTService extends EventEmitter {
       }
 
       this.client.on('connect', () => {
-        // console.log('MQTT Connected to broker');
+        console.log('MQTT Connected to broker');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.setupSubscriptions();
@@ -66,7 +66,7 @@ class MQTTService extends EventEmitter {
       });
 
       this.client.on('error', (error: Error) => {
-        // console.error('MQTT Connection Error:', error);
+        console.error('MQTT Connection Error:', error);
         this.isConnected = false;
         this.emit('error', error);
         if (this.reconnectAttempts === 0) {
@@ -76,15 +76,15 @@ class MQTTService extends EventEmitter {
 
       this.client.on('reconnect', () => {
         this.reconnectAttempts++;
-        // console.log(`MQTT Reconnecting... (attempt ${this.reconnectAttempts})`);
+        console.log(`MQTT Reconnecting... (attempt ${this.reconnectAttempts})`);
         if (this.reconnectAttempts > this.maxReconnectAttempts) {
-          // console.error('MQTT Max reconnection attempts reached');
+          console.error('MQTT Max reconnection attempts reached');
           this.client?.end();
         }
       });
 
       this.client.on('close', () => {
-        // console.log('MQTT Connection closed');
+        console.log('MQTT Connection closed');
         this.isConnected = false;
         this.emit('disconnected');
       });
@@ -108,9 +108,9 @@ class MQTTService extends EventEmitter {
     subscriptions.forEach(topic => {
       this.client!.subscribe(topic, { qos: 1 }, (error: Error | null) => {
         if (error) {
-          // console.error(`Failed to subscribe to ${topic}:`, error);
+          console.error(`Failed to subscribe to ${topic}:`, error);
         } else {
-          // console.log(`Subscribed to ${topic}`);
+          console.log(`Subscribed to ${topic}`);
         }
       });
     });
@@ -119,7 +119,7 @@ class MQTTService extends EventEmitter {
   private async handleMessage(topic: string, message: Buffer): Promise<void> {
     try {
       const payload = JSON.parse(message.toString());
-      // console.log(`MQTT Message received - Topic: ${topic}, Payload:`, payload);
+      console.log(`MQTT Message received - Topic: ${topic}, Payload:`, payload);
 
       // Parse topic structure
       const topicParts = topic.split('/');
@@ -139,9 +139,9 @@ class MQTTService extends EventEmitter {
         }
       }
     } catch (error) {
-      // console.error('Error parsing MQTT message:', error);
-      // console.error('Topic:', topic);
-      // console.error('Message:', message.toString());
+      console.error('Error parsing MQTT message:', error);
+      console.error('Topic:', topic);
+      console.error('Message:', message.toString());
     }
   }
 
@@ -208,10 +208,10 @@ class MQTTService extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.client!.publish(topic, payload, { qos: 1 }, (error?: Error) => {
         if (error) {
-          // console.error('Failed to publish enrollment request:', error);
+          console.error('Failed to publish enrollment request:', error);
           reject(error);
         } else {
-          // console.log(`Enrollment request sent to device ${deviceId}`);
+          console.log(`Enrollment request sent to device ${deviceId}`);
           resolve(true);
         }
       });
@@ -258,7 +258,7 @@ class MQTTService extends EventEmitter {
         if (error) {
           reject(error);
         } else {
-          // console.log(`Firmware update notification sent to device ${deviceId}`);
+          console.log(`Firmware update notification sent to device ${deviceId}`);
           resolve(true);
         }
       });
@@ -305,7 +305,7 @@ class MQTTService extends EventEmitter {
         if (error) {
           reject(error);
         } else {
-          // console.log(`Broadcast message sent: ${subtopic}`);
+          console.log(`Broadcast message sent: ${subtopic}`);
           resolve(true);
         }
       });
@@ -322,7 +322,7 @@ class MQTTService extends EventEmitter {
     if (this.client) {
       return new Promise((resolve) => {
         this.client!.end(true, {}, () => {
-          // console.log('MQTT Client disconnected');
+          console.log('MQTT Client disconnected');
           this.isConnected = false;
           resolve();
         });
@@ -375,9 +375,9 @@ class MQTTService extends EventEmitter {
         },
       });
 
-      // console.log(`Device ${deviceId} updated - Status: ${status}`);
+      console.log(`Device ${deviceId} updated - Status: ${status}`);
     } catch (error) {
-      // console.error(`Error updating device ${deviceId}:`, error);
+      console.error(`Error updating device ${deviceId}:`, error);
     }
   }
 
@@ -387,7 +387,7 @@ class MQTTService extends EventEmitter {
       const { employeeId, status, fingerprintId } = payload;
       
       if (!employeeId || !status) {
-        // console.error('Enrollment status missing required fields');
+        console.error('Enrollment status missing required fields');
         return;
       }
 
@@ -401,10 +401,10 @@ class MQTTService extends EventEmitter {
         },
       });
 
-      // console.log(`Enrollment status updated for employee ${employeeId}: ${status}`);
+      console.log(`Enrollment status updated for employee ${employeeId}: ${status}`);
       
     } catch (error) {
-      // console.error('Error handling enrollment status:', error);
+      console.error('Error handling enrollment status:', error);
     }
   }
 
@@ -441,10 +441,10 @@ class MQTTService extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.client!.publish(topic, payload, { qos: 1 }, (error?: Error) => {
         if (error) {
-          // console.error('Failed to publish enrollment request:', error);
+          console.error('Failed to publish enrollment request:', error);
           reject(error);
         } else {
-          // console.log(`Enrollment request sent to device ${deviceId} for employee ${employeeName}`);
+          console.log(`Enrollment request sent to device ${deviceId} for employee ${employeeName}`);
           resolve(true);
         }
       });
@@ -467,7 +467,7 @@ class MQTTService extends EventEmitter {
 
       return lastEmployee?.fingerprintId ? lastEmployee.fingerprintId + 1 : 1;
     } catch (error) {
-      // console.error('Failed to get next fingerprint slot:', error);
+      console.error('Failed to get next fingerprint slot:', error);
       return 1; // Default to slot 1
     }
   }
@@ -488,6 +488,6 @@ export const mqttService = new MQTTService();
 // Auto-connect when module is imported
 if (process.env.NODE_ENV !== 'test') {
   mqttService.connect().catch(error => {
-    // console.error('Failed to connect to MQTT broker:', error);
+    console.error('Failed to connect to MQTT broker:', error);
   });
 }

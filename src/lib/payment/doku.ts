@@ -474,7 +474,7 @@ export class DokuPaymentService {
         // "EMONEY_SHOPEE_PAY",
         // "EMONEY_OVO",
         // "EMONEY_DANA",
-        // "QRIS",
+        "QRIS",
         "PEER_TO_PEER_AKULAKU",
         // "PEER_TO_PEER_KREDIVO",
         // "PEER_TO_PEER_INDODANA"
