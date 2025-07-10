@@ -510,9 +510,15 @@ export const packageRouter = createTRPCRouter({
         }
       });
 
-      if (!groupSubscription || groupSubscription.leadSubscription.member.userId !== user.id) {
-        throw new Error("Only the group leader can invite members");
-      }
+      if (
+  !groupSubscription ||
+  (
+    groupSubscription.leadSubscription.member.userId !== user.id &&
+    !user.permissions?.includes("manage:group")
+  )
+) {
+  throw new Error("Only the group leader or a user with 'manage:group' permission can invite members");
+}
 
       // Check if group has space
       const availableSpots = groupSubscription.maxMembers - groupSubscription.totalMembers;
