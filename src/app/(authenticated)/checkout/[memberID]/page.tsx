@@ -340,16 +340,24 @@ export default function SubscriptionPage({
                     setSelectedTrainer("");
                   }}
                 >
-                  <TabsList className={`grid w-full ${hasActiveGymMembership ? 'grid-cols-3' : 'grid-cols-1'}`}>
-                    <TabsTrigger value="gym">Gym Membership</TabsTrigger>
-                    {hasActiveGymMembership && (
-                      <TabsTrigger value="trainer">Personal Trainer</TabsTrigger>
-                    )}
-                    {hasActiveGymMembership && (
-                      <TabsTrigger value="group">Group Training</TabsTrigger>
-                    )}
-                  </TabsList>
-                  
+           <TabsList className={`grid w-full ${hasActiveGymMembership ? 'grid-cols-3' : 'grid-cols-1'}`}>
+  <TabsTrigger value="gym">
+    <span className="hidden sm:inline">Gym Membership</span>
+    <span className="sm:hidden">Gym</span>
+  </TabsTrigger>
+  {hasActiveGymMembership && (
+    <TabsTrigger value="trainer">
+      <span className="hidden sm:inline">Personal Trainer</span>
+      <span className="sm:hidden">Trainer</span>
+    </TabsTrigger>
+  )}
+  {hasActiveGymMembership && (
+    <TabsTrigger value="group">
+      <span className="hidden sm:inline">Group Training</span>
+      <span className="sm:hidden">Group</span>
+    </TabsTrigger>
+  )}
+</TabsList>
                   {!hasActiveGymMembership && (
                     <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                       <p className="text-sm text-yellow-800">

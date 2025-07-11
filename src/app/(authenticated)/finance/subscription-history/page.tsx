@@ -32,11 +32,18 @@ export default function SubscriptionHistoryPage() {
   const [selectedInvoiceData, setSelectedInvoiceData] = useState<any>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [search, setSearch] = useState("");
+  const [searchColumn, setSearchColumn] = useState("member.user.name");
 
   // Query for getting all subscriptions with payment details
   const { data: subscriptions, isLoading } =
     api.paymentValidation.getAllPayments.useQuery(
-      { page, limit },
+      { 
+        page, 
+        limit, 
+        search: search || undefined, 
+        searchColumn: searchColumn || undefined 
+      },
       {
         enabled: !!session,
         refetchOnWindowFocus: true,
@@ -296,6 +303,12 @@ console.log(subscriptions)
     setLimit(newLimit);
   };
 
+  const handleSearch = (value: string, column: string) => {
+    setSearch(value);
+    setSearchColumn(column);
+    setPage(1); // Reset to first page when searching
+  };
+
   // Calculate statistics
   const totalSubscriptions = subscriptions?.total ?? 0;
   const activeSubscriptions = subscriptions?.items?.filter(
@@ -371,7 +384,7 @@ console.log(subscriptions)
         </Card>
       </div>
 
-      {/* Note about Invoice Generation */}
+      {/* Note about Invoice Generation
       <div className="mb-6">
         <div className="rounded-lg border border-green-200 bg-green-50 p-4">
           <div className="flex">
@@ -389,7 +402,7 @@ console.log(subscriptions)
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Subscriptions Table */}
       <div className="rounded-md border">
@@ -402,6 +415,7 @@ console.log(subscriptions)
           ]}
           isLoading={isLoading}
           onPaginationChange={handlePaginationChange}
+          onSearch={handleSearch}
         />
       </div>
 

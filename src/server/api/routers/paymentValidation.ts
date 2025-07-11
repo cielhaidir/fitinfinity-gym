@@ -441,14 +441,43 @@ export const paymentValidationRouter = createTRPCRouter({
       z.object({
         page: z.number().min(1).default(1),
         limit: z.number().min(1).max(100).default(10),
+        search: z.string().optional(),
+        searchColumn: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { page, limit } = input;
+      const { page, limit, search, searchColumn } = input;
       const skip = (page - 1) * limit;
+
+      // Build search conditions for offline payments
+      let offlineWhereCondition = {};
+      if (search && searchColumn) {
+        if (searchColumn === "member.user.name") {
+          offlineWhereCondition = {
+            member: {
+              user: {
+                name: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            },
+          };
+        } else if (searchColumn === "package.name") {
+          offlineWhereCondition = {
+            package: {
+              name: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          };
+        }
+      }
 
       // Fetch offline payments (payment validations)
       const offlinePaymentsPromise = ctx.db.paymentValidation.findMany({
+        where: offlineWhereCondition,
         include: {
           package: true,
           trainer: {
@@ -472,10 +501,39 @@ export const paymentValidationRouter = createTRPCRouter({
       });
 
       // Fetch total count for offline payments
-      const offlineTotalPromise = ctx.db.paymentValidation.count();
+      const offlineTotalPromise = ctx.db.paymentValidation.count({
+        where: offlineWhereCondition,
+      });
+
+      // Build search conditions for online payments
+      let onlineWhereCondition = {};
+      if (search && searchColumn) {
+        if (searchColumn === "member.user.name") {
+          onlineWhereCondition = {
+            member: {
+              user: {
+                name: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            },
+          };
+        } else if (searchColumn === "package.name") {
+          onlineWhereCondition = {
+            package: {
+              name: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          };
+        }
+      }
 
       // Fetch online payments through subscriptions
       const onlineSubscriptionsPromise = ctx.db.subscription.findMany({
+        where: onlineWhereCondition,
         include: {
           payments: {
             where: {
