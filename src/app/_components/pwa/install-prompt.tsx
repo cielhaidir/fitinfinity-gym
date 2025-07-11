@@ -7,6 +7,16 @@ import { X } from "lucide-react";
 export function InstallPWA() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isIosDevice, setIsIosDevice] = useState(false);
+
+  // Detects if device is on iOS 
+  const isIos = () => {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent);
+  };
+
+  // Detects if device is in standalone mode
+  const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator as any).standalone;
 
   useEffect(() => {
     // Check if user has previously dismissed or the prompt was recently shown
@@ -33,25 +43,46 @@ export function InstallPWA() {
       return;
     }
 
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    // Check if device is iOS
+    const iosDevice = isIos();
+    setIsIosDevice(iosDevice);
 
-      // Add a delay before showing the banner
-      setTimeout(() => {
-        setShowInstallBanner(true);
-        localStorage.setItem("pwa-prompt-last-shown", currentTime.toString());
-      }, 3000); // 3 second delay
-    };
+    if (iosDevice) {
+      // For iOS devices, check if should display install popup
+      if (!isInStandaloneMode()) {
+        setTimeout(() => {
+          setShowInstallBanner(true);
+          localStorage.setItem("pwa-prompt-last-shown", currentTime.toString());
+        }, 3000); // 3 second delay
+      }
+    } else {
+      // For non-iOS devices, use the standard beforeinstallprompt event
+      const handler = (e: Event) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
 
-    window.addEventListener("beforeinstallprompt", handler);
+        // Add a delay before showing the banner
+        setTimeout(() => {
+          setShowInstallBanner(true);
+          localStorage.setItem("pwa-prompt-last-shown", currentTime.toString());
+        }, 3000); // 3 second delay
+      };
 
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-    };
+      window.addEventListener("beforeinstallprompt", handler);
+
+      return () => {
+        window.removeEventListener("beforeinstallprompt", handler);
+      };
+    }
   }, []);
 
   const handleInstallClick = async () => {
+    if (isIosDevice) {
+      // For iOS, we can't programmatically install, so we'll show instructions
+      // This will be handled in the UI to show install instructions
+      return;
+    }
+
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
@@ -80,7 +111,18 @@ export function InstallPWA() {
     <div className="fixed bottom-4 left-1/2 z-50 w-[90%] max-w-md -translate-x-1/2 rounded-xl border border-gray-300 bg-white p-4 shadow-xl">
       <div className="flex items-start justify-between">
         <div className="pr-4 text-sm text-gray-700">
-          Install <strong>Fitinifnity App</strong> untuk pengalaman lebih baik.
+          {isIosDevice ? (
+            <>
+              Install <strong>Fitinifnity App</strong> untuk pengalaman lebih baik.
+              <div className="mt-2 text-xs text-gray-600">
+                Tap <strong>Share</strong> icon di Safari, lalu pilih <strong>"Add to Home Screen"</strong>
+              </div>
+            </>
+          ) : (
+            <>
+              Install <strong>Fitinifnity App</strong> untuk pengalaman lebih baik.
+            </>
+          )}
         </div>
         <button
           onClick={handleClose}
@@ -94,7 +136,7 @@ export function InstallPWA() {
           onClick={handleInstallClick}
           className="rounded bg-infinity px-4 py-2 text-white"
         >
-          Pasang Sekarang
+          {isIosDevice ? "Mengerti" : "Pasang Sekarang"}
         </Button>
       </div>
     </div>

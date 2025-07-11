@@ -233,6 +233,8 @@ async function main() {
     { name: "menu:groups" },
     { name: "menu:group-management" },
     { name: "manage:groups" },
+    { name: "manage:member" },
+
 
 
     { name: "show:membership" },

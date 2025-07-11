@@ -292,6 +292,10 @@ export default function MemberPage() {
     router.push(`/management/access-log/${member.id}`);
   };
 
+  const directToProfile = (member: Member) => {
+    router.push(`/member/profile?memberId=${member.id}`);
+  };
+
   const handleManualCheckIn = (member: Member) => {
     setSelectedMemberForCheckIn(member);
     setIsCheckInModalOpen(true);
@@ -318,6 +322,7 @@ export default function MemberPage() {
   };
 
   const customActions = [
+    { label: "Profile", action: directToProfile },
     { label: "Subscription", action: directToSubs },
     { label: "Access Log", action: directToLogs },
     { label: "Check In Manually", action: handleManualCheckIn },

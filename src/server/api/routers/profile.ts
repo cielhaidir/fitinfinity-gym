@@ -9,35 +9,76 @@ import { uploadFile } from "@/lib/upload";
 import bcrypt from "bcryptjs";
 
 export const profileRouter = createTRPCRouter({
-  get: permissionProtectedProcedure(["show:profile"]).query(async ({ ctx }) => {
-    const user = await ctx.db.user.findUnique({
-      where: { id: ctx.session.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        phone: true,
-        address: true,
-        birthDate: true,
-        point: true,
-        createdAt: true,
-        updatedAt: true,
-        height: true,
-        weight: true,
-        gender: true,
-      },
-    });
+  get: permissionProtectedProcedure(["show:profile"])
+    .input(
+      z.object({
+        memberId: z.string().optional(),
+      }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      // If memberId is provided, check if user has permission to view other members
+      if (input?.memberId) {
+        // Check if user has admin permissions to view other members
 
-    if (!user) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "User not found",
+        const hasAdminPermission = ctx.permissions?.includes("manage:member")
+        // console.log("Checking permissions for member profile access:", ctx.permissions);
+        if (!hasAdminPermission) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Not authorized to view other members' profiles",
+          });
+        }
+
+        // Fetch the requested member's profile
+        const user = await ctx.db.membership.findUnique({
+          where: { id: input.memberId },
+          include: {
+            user: true,
+          }
+        });
+
+        // console.
+
+
+        if (!user) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member not found",
+          });
+        }
+
+        return user?.user;
+      }
+
+      // Default behavior: fetch current user's profile
+      const user = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          phone: true,
+          address: true,
+          birthDate: true,
+          point: true,
+          createdAt: true,
+          updatedAt: true,
+          height: true,
+          weight: true,
+          gender: true,
+        },
       });
-    }
 
-    return user;
-  }),
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      return user;
+    }),
 
   update: permissionProtectedProcedure(["update:profile"])
     .input(

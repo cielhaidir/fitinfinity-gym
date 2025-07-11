@@ -2,7 +2,7 @@
 
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ import { ChangePasswordDialog } from "./change-password-dialog";
 export default function ProfilePage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const memberId = searchParams.get('memberId');
+  const isViewingOtherMember = !!memberId;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,14 +33,19 @@ export default function ProfilePage() {
     gender: "",
   });
 
-  const { data: profile, isLoading } = api.profile.get.useQuery(undefined, {
-    enabled: !!session?.user.id,
-  });
+  const { data: profile, isLoading } = api.profile.get.useQuery(
+    memberId ? { memberId } : undefined,
+    {
+      enabled: !!session?.user.id,
+    }
+  );
 
   const updateProfile = api.profile.update.useMutation({
     onSuccess: () => {
       toast.success("Profile updated successfully");
       setIsEditing(false);
+      // Refresh the page to update session data
+      window.location.reload();
     },
     onError: (error) => {
       if (error.message.includes("phone")) {
@@ -230,17 +238,17 @@ export default function ProfilePage() {
               <h2 className="text-2xl font-bold text-[#BFFF00]">
                 {profile?.name || "User"}
               </h2>
-              <p className="text-muted-foreground">{session.user.email}</p>
+              <p className="text-muted-foreground">{ profile.email ?? session.user.email}</p>
             </div>
           </div>
-          {!isEditing ? (
+          {!isViewingOtherMember && !isEditing ? (
             <Button
               onClick={() => setIsEditing(true)}
               className="bg-[#C9D953] hover:bg-[#C9D953]/90"
             >
               Edit Profile
             </Button>
-          ) : (
+          ) : !isViewingOtherMember && isEditing ? (
             <div className="flex space-x-2">
               <Button variant="outline" onClick={() => setIsEditing(false)}>
                 Cancel
@@ -254,7 +262,14 @@ export default function ProfilePage() {
                 {updateProfile.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </div>
-          )}
+          ) : isViewingOtherMember ? (
+            <Button
+              onClick={() => router.back()}
+              variant="outline"
+            >
+              Back to Admin
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
@@ -299,7 +314,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isViewingOtherMember}
                   />
                 </div>
                 <div className="space-y-2">
@@ -308,7 +323,7 @@ export default function ProfilePage() {
                     id="phone"
                     value={formData.phone}
                     onChange={handlePhoneChange}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isViewingOtherMember}
                     placeholder="62xxxxxxxxxx"
                   />
                 </div>
@@ -320,7 +335,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, address: e.target.value })
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isViewingOtherMember}
                   />
                 </div>
                 <div className="space-y-2">
@@ -332,7 +347,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, birthDate: e.target.value })
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isViewingOtherMember}
                   />
                 </div>
                 <div className="space-y-2">
@@ -344,7 +359,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, height: e.target.value })
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isViewingOtherMember}
                     min={0}
                   />
                 </div>
@@ -357,7 +372,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, weight: e.target.value })
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isViewingOtherMember}
                     min={0}
                   />
                 </div>
@@ -369,7 +384,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, gender: e.target.value })
                     }
-                    disabled={!isEditing}
+                    disabled={!isEditing || isViewingOtherMember}
                     className="w-full rounded border px-3 py-2"
                   >
                     <option value="">Select Gender</option>
