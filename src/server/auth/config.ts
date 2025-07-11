@@ -90,24 +90,45 @@ export const authConfig = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          throw new Error("Invalid credentials");
+        if (!credentials?.email) {
+          throw new Error("Invalid credentials: email not provided.");
         }
+
         const user = await db.user.findUnique({
           where: { email: credentials.email as string },
         });
 
         if (!user) {
-          throw new Error("No user found with the given email");
+          throw new Error("No user found with the given email.");
         }
+
+        // In non-production environments, allow passwordless login with a specific bypass key.
+        if (
+          process.env.NODE_ENV !== "production" &&
+          credentials.password === process.env.NEXT_PUBLIC_BYPASS_SECRET
+        ) {
+          console.log(`Bypassing password validation for ${user.email}.`);
+          return { id: user.id, name: user.name, email: user.email };
+        }
+
+        if (!credentials.password) {
+          throw new Error("Invalid credentials: password not provided.");
+        }
+
+        if (!user.password) {
+          throw new Error("The user does not have a password set up.");
+        }
+
         // Validate password
         const isPasswordValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password!,
+          credentials.password,
+          user.password,
         );
+
         if (!isPasswordValid) {
-          throw new Error("Invalid password");
+          throw new Error("Invalid password.");
         }
+
         return {
           id: user.id,
           name: user.name,

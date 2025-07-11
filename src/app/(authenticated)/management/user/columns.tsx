@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 interface ColumnsProps {
   onEdit: (user: any) => void;
   onDelete: (user: any) => void;
+  onBypassLogin: (user: any) => void;
 }
 
 export const createColumns = ({
   onEdit,
   onDelete,
+  onBypassLogin,
 }: ColumnsProps): ColumnDef<any>[] => [
   {
     accessorKey: "name",
@@ -45,6 +47,13 @@ export const createColumns = ({
           onClick={() => onDelete(row.original)}
         >
           Delete
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onBypassLogin(row.original)}
+        >
+          Bypass Login
         </Button>
       </div>
     ),

@@ -9,6 +9,7 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { UserForm } from "./user-form";
 import { createColumns } from "./columns";
+import { signIn } from "next-auth/react";
 
 export default function UserPage() {
   const utils = api.useUtils();
@@ -99,6 +100,26 @@ export default function UserPage() {
     }
   };
 
+  const handleBypassLogin = async (user: any) => {
+    try {
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: user.email,
+        password: process.env.NEXT_PUBLIC_BYPASS_SECRET,
+      });
+
+      if (result?.error) {
+        toast.error(`Bypass failed: ${result.error}`);
+      } else {
+        toast.success("Bypass successful!");
+        window.location.href = "/"; // Redirect to dashboard
+      }
+    } catch (error) {
+      console.error("Bypass login error:", error);
+      toast.error("An unexpected error occurred during bypass.");
+    }
+  };
+
   const handlePaginationChange = (newPage: number, newLimit: number) => {
     setPage(newPage);
     setLimit(newLimit);
@@ -107,6 +128,7 @@ export default function UserPage() {
   const columns = createColumns({
     onEdit: handleEdit,
     onDelete: handleDelete,
+    onBypassLogin: handleBypassLogin,
   });
 
   return (

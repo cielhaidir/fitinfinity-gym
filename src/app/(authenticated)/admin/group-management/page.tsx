@@ -42,6 +42,29 @@ import { DataTableColumnHeader } from "@/components/datatable/data-table-column-
 
 export default function AdminGroupManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
+// Ensure only one dialog is open at a time
+const openInviteDialog = (groupId: string) => {
+  setIsInviteDialogOpen(true);
+  setIsManageMembersDialogOpen(false);
+  setSelectedGroupId(groupId);
+  setSearchTerm("");
+  setShouldLoadMembers(false);
+};
+const closeInviteDialog = () => {
+  setIsInviteDialogOpen(false);
+  setSelectedGroupId("");
+  setSearchTerm("");
+  setShouldLoadMembers(false);
+};
+const openManageMembersDialog = (groupId: string) => {
+  setIsManageMembersDialogOpen(true);
+  setIsInviteDialogOpen(false);
+  setSelectedGroupId(groupId);
+};
+const closeManageMembersDialog = () => {
+  setIsManageMembersDialogOpen(false);
+  setSelectedGroupId("");
+};
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isManageMembersDialogOpen, setIsManageMembersDialogOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
@@ -212,14 +235,7 @@ export default function AdminGroupManagementPage() {
             {canAddMembers && (
               <Dialog
                 open={isInviteDialogOpen && selectedGroupId === group.id}
-                onOpenChange={(open) => {
-                  setIsInviteDialogOpen(open);
-                  if (open) {
-                    setSelectedGroupId(group.id);
-                    setSearchTerm("");
-                    setShouldLoadMembers(false);
-                  }
-                }}
+onOpenChange={open => open ? openInviteDialog(group.id) : closeInviteDialog()}
               >
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">
@@ -281,10 +297,7 @@ export default function AdminGroupManagementPage() {
             
             <Dialog
               open={isManageMembersDialogOpen && selectedGroupId === group.id}
-              onOpenChange={(open) => {
-                setIsManageMembersDialogOpen(open);
-                if (open) setSelectedGroupId(group.id);
-              }}
+onOpenChange={open => open ? openManageMembersDialog(group.id) : closeManageMembersDialog()}
             >
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
