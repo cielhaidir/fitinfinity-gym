@@ -54,7 +54,7 @@ const Hero = async ( ) => {
               Opening Now
             </span>
             <h1 className="mb-2 text-4xl font-medium leading-tight tracking-wide text-white">
-              FORCE YOUR
+              FORGE YOUR
             </h1>
             <h2 className="mb-4 text-5xl font-extrabold italic tracking-wide text-[#C9D953] drop-shadow-lg">
               LEGACY

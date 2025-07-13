@@ -214,7 +214,7 @@ export default async function Home() {
             </div>
         </div>
     </section>
-    
+    {/*sheesh*/}
     {/* Section Facilities */}
     <section id="facilities" className="py-20 bg-black">
         <div className="container mx-auto px-6">
@@ -228,14 +228,14 @@ export default async function Home() {
             <div className="bg-[#C9D953] p-6 text-center">
               <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">All Modern Tools<br/>& Brand New<br/>&nbsp;</div>
             </div>
-            <img src="/assets/dashboard/img3.png" alt="Modern Tools" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
+            <img src="/assets/dashboard/img3.JPG" alt="Modern Tools" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
           </div>
           {/* Card 2 */}
           <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
             <div className="p-6 text-center" style={{background: 'radial-gradient(ellipse at 100% 900%, #C9D953 0%, #111 100%)'}}>
               <div className="text-lg md:text-xl font-bold tracking-wide text-white leading-snug min-h-[40px]">Get Towel<br/>& Cozy Dressing<br/>Room</div>
             </div>
-            <img src="/assets/dashboard/img1.png" alt="Dressing Room" className="w-full h-40 object-cover rounded-b-2xl shadow-lg" />
+            <img src="/assets/dashboard/img1.JPG" alt="Dressing Room" className="w-full h-40 object-cover rounded-b-2xl shadow-lg" />
             <div className="pt-4 pb-4 text-center">
               <Link href={getAuthUrl()} passHref legacyBehavior>
                 <button className="w-full bg-white text-black py-4 text-xl font-bold rounded-xl flex items-center justify-center relative shadow-lg hover:bg-gray-100 transition duration-200">
@@ -255,7 +255,7 @@ export default async function Home() {
             <div className="bg-[#C9D953] p-6 text-center">
               <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">Full Access<br/>24 Hours Comfortable<br/>& Clean</div>
             </div>
-            <img src="/assets/dashboard/img2.png" alt="Gym Building" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
+            <img src="/assets/dashboard/img2.JPG" alt="Gym Building" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
           </div>
         </div>
       </div>
@@ -533,7 +533,7 @@ export default async function Home() {
     {!session?.user && (
       <section className="py-16 bg-black">
         <div className="container mx-auto px-6 text-center">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-6">READY TO FORCE YOUR LEGACY?</h2>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-6">READY TO FORGE YOUR LEGACY?</h2>
           <p className="text-lg text-white mb-8 max-w-2xl mx-auto">Join Infinity Gym today and start your fitness journey with our expert guidance and supportive community.</p>
           <div className="flex justify-center">
             <Link href="/auth/signup" passHref legacyBehavior>
