@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { runOCR } from "@/lib/ocrClient";
+import { runPaddleOCRMultiple } from "@/lib/paddleOcrClient";
 import { parseOCRText } from "@/server/utils/ocrParser";
 import { createAIService } from "@/server/utils/aiService";
 
@@ -17,9 +17,16 @@ export const trackingRouter = createTRPCRouter({
       try {
         const ocrResults = [];
         
-        // Process each image through OCR
-        for (const base64Image of input.images) {
-          const ocrText = await runOCR(base64Image);
+        // Process all images through PaddleOCR
+        const ocrTexts = await runPaddleOCRMultiple(input.images);
+        
+        for (let i = 0; i < ocrTexts.length; i++) {
+          const ocrText = ocrTexts[i] || '';
+          if (!ocrText.trim()) {
+            console.warn(`No text extracted from image ${i + 1}`);
+            continue;
+          }
+          
           const parsedData = parseOCRText(ocrText);
           ocrResults.push({
             rawText: ocrText,
@@ -82,6 +89,8 @@ export const trackingRouter = createTRPCRouter({
         };
       }
     }),
+
+
 
   // Save tracking data to database
   saveTracking: protectedProcedure
