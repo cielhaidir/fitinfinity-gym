@@ -407,63 +407,63 @@ export default function Calendar({
               {/* Desktop view - Table */}
               <div className="hidden sm:block overflow-x-auto scrollbar-thin scrollbar-thumb-[#C9D953] scrollbar-track-[#232323] relative">
                 <table className="min-w-[700px] w-full border-collapse text-xs sm:text-sm">
-                  <thead>
-                    <tr>
+                <thead>
+                  <tr>
                       <th className="w-16 sm:w-20 border-r border-border p-1 sm:p-2"></th>
-                      {days.map((day) => (
-                        <th
-                          key={day.toString()}
+                    {days.map((day) => (
+                      <th
+                        key={day.toString()}
                           className={`border-r border-border p-1 sm:p-2 text-center ${isToday(day) ? "bg-muted" : ""}`}
-                        >
-                          <div className="text-muted-foreground">
-                            {format(day, "EEE", { locale: id })}
-                          </div>
-                          <div
+                      >
+                        <div className="text-muted-foreground">
+                          {format(day, "EEE", { locale: id })}
+                        </div>
+                        <div
                             className={`text-base sm:text-lg ${isToday(day) ? "font-bold text-primary" : "text-foreground"}`}
-                          >
-                            {format(day, "d/M")}
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {timeSlots.map(({ label, hour }) => (
-                      <tr key={`time-${hour}`} className="border-t border-border">
-                        <td className="w-16 sm:w-20 border-r border-border p-1 sm:p-2 text-right font-medium text-muted-foreground">
-                          {label}
-                        </td>
-                        {days.map((day) => {
-                          const dateStr = format(day, "yyyy-MM-dd");
-                          const timeStr = `${hour.toString().padStart(2, "0")}:00`;
-                          const key = `${dateStr}-${timeStr}`;
-                          const sessions = sessionsByDateTime[key] || [];
-                          return (
-                            <DroppableCell
-                              key={`${dateStr}-${hour}`}
-                              id={`${dateStr}-${hour}`}
-                              className={`h-[48px] sm:h-[64px] cursor-pointer border-r border-border p-0.5 sm:p-1 align-top hover:bg-muted ${isToday(day) ? "bg-muted/50" : ""} `}
-                              onClick={() => onDateClick(day, hour)}
-                            >
-                              <div className="flex flex-wrap gap-1 justify-center items-center h-full">
-                                {sessions.map((session) => (
-                                  <DraggableSession
-                                    key={session._key || `session-${session.id}`}
-                                    session={session}
-                                    onClick={(e) => handleSessionClick(e, session)}
-                                    onResize={handleResize}
-                                    cellHeight={CELL_HEIGHT}
-                                  />
-                                ))}
-                              </div>
-                            </DroppableCell>
-                          );
-                        })}
-                      </tr>
+                        >
+                          {format(day, "d/M")}
+                        </div>
+                      </th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {timeSlots.map(({ label, hour }) => (
+                    <tr key={`time-${hour}`} className="border-t border-border">
+                        <td className="w-16 sm:w-20 border-r border-border p-1 sm:p-2 text-right font-medium text-muted-foreground">
+                        {label}
+                      </td>
+                      {days.map((day) => {
+                        const dateStr = format(day, "yyyy-MM-dd");
+                        const timeStr = `${hour.toString().padStart(2, "0")}:00`;
+                        const key = `${dateStr}-${timeStr}`;
+                        const sessions = sessionsByDateTime[key] || [];
+                        return (
+                          <DroppableCell
+                            key={`${dateStr}-${hour}`}
+                            id={`${dateStr}-${hour}`}
+                              className={`h-[48px] sm:h-[64px] cursor-pointer border-r border-border p-0.5 sm:p-1 align-top hover:bg-muted ${isToday(day) ? "bg-muted/50" : ""} `}
+                            onClick={() => onDateClick(day, hour)}
+                          >
+                              <div className="flex flex-wrap gap-1 justify-center items-center h-full">
+                            {sessions.map((session) => (
+                              <DraggableSession
+                                key={session._key || `session-${session.id}`}
+                                session={session}
+                                onClick={(e) => handleSessionClick(e, session)}
+                                onResize={handleResize}
+                                cellHeight={CELL_HEIGHT}
+                              />
+                            ))}
+                              </div>
+                          </DroppableCell>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
               {/* Mobile Modal */}
               {isModalOpen && (
