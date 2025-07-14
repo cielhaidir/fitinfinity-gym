@@ -400,10 +400,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: CreditCard,
           requiredPermission: "menu:transaction",
         },
-        // {
-        //     title: "Report",
-        //     url: "/finance/report",
-        // },
+        {
+          title: "Sales Report",
+          url: "/finance/sales-report",
+          icon: DollarSign,
+          // requiredPermission: "menu:sales-report",
+        },
       ],
     },
   ],
