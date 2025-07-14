@@ -181,13 +181,13 @@ export default async function Home() {
               ABOUT <span className="text-[#C9D953]">FIT INFINITY</span>
             </h2>
             <p className="text-gray-200 mb-4">
-              Fit Infinity is the largest gym in Makassar, providing a complete fitness experience for everyone. We believe that fitness should be accessible to all—no matter your income or background.
+            Fit Infinity is the largest and most comprehensive gym in Makassar, offering a full-scale fitness experience for individuals from all walks of life. Our mission is to make fitness accessible and empowering for everyone.
             </p>
             <p className="text-gray-200 mb-4">
-              With just one membership, you get unlimited access to all our classes for free. From expert training and personalized nutrition guidance to strong community support, everything is designed to help you achieve your goals.
+            A single membership grants you unlimited access to all group classes at no additional cost. With expert-led training, personalized nutrition guidance, and a strong sense of community, we’re here to help you achieve lasting results.
             </p>
             <p className="text-gray-200 mb-8">
-              Our modern facilities and professional trainers are here to push your limits and support you every step of the way on your fitness journey.
+            Equipped with modern facilities and experienced trainers, Fit Infinity is committed to supporting your fitness journey—every step of the way.
             </p>
             <div className="flex items-center gap-4">
               <Link href={getAuthUrl()} passHref legacyBehavior>
@@ -270,9 +270,10 @@ export default async function Home() {
         <div className="relative flex flex-col items-center">
           {/* Spotlight effect */}
           <div className="absolute left-1/2 -translate-x-1/2 top-1/2 md:top-2/3 w-[480px] h-40 bg-black rounded-full blur-3xl opacity-40 z-0"></div>
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 w-full">
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12 w-full">
             {/* Card 1 */}
-            <div className="relative flex flex-col items-stretch min-h-[340px]">
+            <Link href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE4MDQ5MDg1MjI1MTcwMzMz?story_media_id=3673328102589314986&igsh=Njg2enV6c2ZuenV2" target="_blank" rel="noopener noreferrer">
+              <div className="relative flex flex-col items-stretch min-h-[340px] cursor-pointer hover:scale-105 transition-transform duration-300">
               {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
               <div className="bg-white flex h-[250px] p-4">
                 {/* Kiri: Deskripsi dan info */}
@@ -291,11 +292,9 @@ export default async function Home() {
                       </div>
                       {/* Kanan: Gambar dan judul */}
                       <div className="flex flex-1 flex-col items-center justify-center">
-                        <img
-                          src="/assets/dashboard/img6.jpg"
-                          alt="Class"
-                          className="mb-2 h-32 w-32 rounded-xl object-cover"
-                        />
+                          <div className="mb-2 h-32 w-32 rounded-xl bg-[#C9D953] flex items-center justify-center">
+                            <i className="fas fa-spa text-white text-4xl"></i>
+                          </div>
                         <div className="text-center text-2xl font-bold font-extrabold text-black">
                           Yoga
                         </div>
@@ -328,15 +327,16 @@ export default async function Home() {
                       </div>
                     </div>
                   </div>
+            </Link>
                   {/* Card 2 */}
-                  <div className="relative flex min-h-[340px] flex-col items-stretch">
+                  <Link href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE4MDQ5MDg1MjI1MTcwMzMz?story_media_id=3660264174963594025&igsh=Njg2enV6c2ZuenV2" target="_blank" rel="noopener noreferrer">
+                    <div className="relative flex min-h-[340px] flex-col items-stretch cursor-pointer hover:scale-105 transition-transform duration-300">
                     {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
                     <div className="flex h-[250px] bg-white p-4">
                       {/* Kiri: Deskripsi dan info */}
                       <div className="flex flex-1 flex-col">
                         <div className="mb-0 text-sm font-bold text-black">
-                          Build strength and muscle with proper technique and
-                          guidance.
+                            High-energy cardio workout combining drumming and fitness for maximum calorie burn.
                         </div>
                         <div className="mt-20 flex flex-col">
                           <div className="flex items-center gap-1 text-xs font-bold text-black">
@@ -349,14 +349,12 @@ export default async function Home() {
                       </div>
                       {/* Kanan: Gambar dan judul */}
                       <div className="flex flex-1 flex-col items-center justify-center">
-                        <img
-                          src="/assets/dashboard/img8.png"
-                          alt="Class"
-                          className="mb-2 h-32 w-32 rounded-xl object-cover"
-                        />
+                          <div className="mb-2 h-32 w-32 rounded-xl bg-[#C9D953] flex items-center justify-center">
+                            <i className="fas fa-drum text-white text-4xl"></i>
+                          </div>
                         <div className="text-center text-2xl font-bold font-extrabold text-black">
-                          Weighylifting
-                        </div>
+                            Poundfit
+                          </div>
                       </div>
                     </div>
                     {/* Kotak kedua dengan polygon tail (lebih tinggi) */}
@@ -386,15 +384,16 @@ export default async function Home() {
                       </div>
                     </div>
                   </div>
+                  </Link>
                   {/* Card 3 */}
-                  <div className="relative flex min-h-[340px] flex-col items-stretch">
+                  <Link href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE4MDQ5MDg1MjI1MTcwMzMz?story_media_id=3663329345651047978&igsh=Njg2enV6c2ZuenV2" target="_blank" rel="noopener noreferrer">
+                    <div className="relative flex min-h-[340px] flex-col items-stretch cursor-pointer hover:scale-105 transition-transform duration-300">
                     {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
                     <div className="flex h-[250px] bg-white p-4">
                       {/* Kiri: Deskripsi dan info */}
                       <div className="flex flex-1 flex-col">
                         <div className="mb-0 text-sm font-bold text-black">
-                          High-intensity functional movement that will push your
-                          limits.
+                            Latin-inspired dance fitness that combines high-energy cardio with fun choreography.
                         </div>
                         <div className="mt-20 flex flex-col">
                           <div className="flex items-center gap-1 text-xs font-bold text-black">
@@ -407,13 +406,182 @@ export default async function Home() {
                       </div>
                       {/* Kanan: Gambar dan judul */}
                       <div className="flex flex-1 flex-col items-center justify-center">
-                        <img
-                          src="/assets/dashboard/img7.jpg"
-                          alt="Class"
-                          className="mb-2 h-32 w-32 rounded-xl object-cover"
-                        />
+                          <div className="mb-2 h-32 w-32 rounded-xl bg-[#C9D953] flex items-center justify-center">
+                            <i className="fas fa-music text-white text-4xl"></i>
+                          </div>
+                          <div className="text-center text-2xl font-bold font-extrabold text-black">
+                            Zumba
+                          </div>
+                        </div>
+                      </div>
+                      {/* Kotak kedua dengan polygon tail (lebih tinggi) */}
+                      <div
+                        className="relative ml-0 mt-0 h-14 w-[60%]"
+                        style={{
+                          clipPath:
+                            "polygon(0 0, 100% 0, 100% 0%, 80% 100%, 0 100%)",
+                          background: "#fff",
+                        }}
+                      >
+                        {/* Badge Level di dalam kotak kedua */}
+                        <div className="absolute bottom-3.5 left-7">
+                          <button className="flex items-center gap-2 rounded-md bg-black px-4 py-1 text-xs font-semibold text-white shadow">
+                            Medium
+                            <svg
+                              width="16"
+                              height="16"
+                              fill="none"
+                              stroke="#C9D953"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M5 12h14M13 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                  {/* Card 4 - Kpop Class */}
+                  <Link href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE4MDQ5MDg1MjI1MTcwMzMz?story_media_id=3672609246598078989&igsh=Njg2enV6c2ZuenV2" target="_blank" rel="noopener noreferrer">
+                    <div className="relative flex min-h-[340px] flex-col items-stretch cursor-pointer hover:scale-105 transition-transform duration-300">
+                      {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
+                      <div className="flex h-[250px] bg-white p-4">
+                        {/* Kiri: Deskripsi dan info */}
+                        <div className="flex flex-1 flex-col">
+                          <div className="mb-0 text-sm font-bold text-black">
+                            High-energy K-pop dance fitness combining Korean pop music with dynamic choreography.
+                          </div>
+                          <div className="mt-20 flex flex-col">
+                            <div className="flex items-center gap-1 text-xs font-bold text-black">
+                              <i className="fas fa-user"></i> Steven Doe
+                            </div>
+                            <div className="flex items-center gap-1 text-xs font-bold text-black">
+                              <i className="far fa-clock"></i> 50 Min
+                            </div>
+                          </div>
+                        </div>
+                        {/* Kanan: Gambar dan judul */}
+                        <div className="flex flex-1 flex-col items-center justify-center">
+                          <div className="mb-2 h-32 w-32 rounded-xl bg-[#C9D953] flex items-center justify-center">
+                            <i className="fas fa-star text-white text-4xl"></i>
+                          </div>
+                          <div className="text-center text-2xl font-bold font-extrabold text-black">
+                            Kpop
+                          </div>
+                        </div>
+                      </div>
+                      {/* Kotak kedua dengan polygon tail (lebih tinggi) */}
+                      <div
+                        className="relative ml-0 mt-0 h-14 w-[60%]"
+                        style={{
+                          clipPath:
+                            "polygon(0 0, 100% 0, 100% 0%, 80% 100%, 0 100%)",
+                          background: "#fff",
+                        }}
+                      >
+                        {/* Badge Level di dalam kotak kedua */}
+                        <div className="absolute bottom-3.5 left-7">
+                          <button className="flex items-center gap-2 rounded-md bg-black px-4 py-1 text-xs font-semibold text-white shadow">
+                            Hard
+                            <svg
+                              width="16"
+                              height="16"
+                              fill="none"
+                              stroke="#C9D953"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M5 12h14M13 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                  {/* Card 5 - Bootcamp Class */}
+                  <Link href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE4MDQ5MDg1MjI1MTcwMzMz?story_media_id=3673410572051374378&igsh=Njg2enV6c2ZuenV2" target="_blank" rel="noopener noreferrer">
+                    <div className="relative flex min-h-[340px] flex-col items-stretch cursor-pointer hover:scale-105 transition-transform duration-300">
+                      {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
+                      <div className="flex h-[250px] bg-white p-4">
+                        {/* Kiri: Deskripsi dan info */}
+                        <div className="flex flex-1 flex-col">
+                          <div className="mb-0 text-sm font-bold text-black">
+                            Intense military-style training combining strength, cardio, and endurance exercises.
+                          </div>
+                          <div className="mt-20 flex flex-col">
+                            <div className="flex items-center gap-1 text-xs font-bold text-black">
+                              <i className="fas fa-user"></i> Steven Doe
+                            </div>
+                            <div className="flex items-center gap-1 text-xs font-bold text-black">
+                              <i className="far fa-clock"></i> 75 Min
+                            </div>
+                          </div>
+                        </div>
+                        {/* Kanan: Gambar dan judul */}
+                        <div className="flex flex-1 flex-col items-center justify-center">
+                          <div className="mb-2 h-32 w-32 rounded-xl bg-[#C9D953] flex items-center justify-center">
+                            <i className="fas fa-dumbbell text-white text-4xl"></i>
+                          </div>
                         <div className="text-center text-2xl font-bold font-extrabold text-black">
-                          CrossFit
+                            Bootcamp
+                          </div>
+                        </div>
+                      </div>
+                      {/* Kotak kedua dengan polygon tail (lebih tinggi) */}
+                      <div
+                        className="relative ml-0 mt-0 h-14 w-[60%]"
+                        style={{
+                          clipPath:
+                            "polygon(0 0, 100% 0, 100% 0%, 80% 100%, 0 100%)",
+                          background: "#fff",
+                        }}
+                      >
+                        {/* Badge Level di dalam kotak kedua */}
+                        <div className="absolute bottom-3.5 left-7">
+                          <button className="flex items-center gap-2 rounded-md bg-black px-4 py-1 text-xs font-semibold text-white shadow">
+                            Hard
+                            <svg
+                              width="16"
+                              height="16"
+                              fill="none"
+                              stroke="#C9D953"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M5 12h14M13 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                  {/* Card 6 - Combat Class */}
+                  <Link href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE4MDQ5MDg1MjI1MTcwMzMz?story_media_id=3669261865344448683&igsh=Njg2enV6c2ZuenV2" target="_blank" rel="noopener noreferrer">
+                    <div className="relative flex min-h-[340px] flex-col items-stretch cursor-pointer hover:scale-105 transition-transform duration-300">
+                      {/* Kotak utama: dua kolom, kiri deskripsi+info, kanan gambar+judul */}
+                      <div className="flex h-[250px] bg-white p-4">
+                        {/* Kiri: Deskripsi dan info */}
+                        <div className="flex flex-1 flex-col">
+                          <div className="mb-0 text-sm font-bold text-black">
+                            High-intensity martial arts training focusing on self-defense and combat techniques.
+                          </div>
+                          <div className="mt-20 flex flex-col">
+                            <div className="flex items-center gap-1 text-xs font-bold text-black">
+                              <i className="fas fa-user"></i> Steven Doe
+                            </div>
+                            <div className="flex items-center gap-1 text-xs font-bold text-black">
+                              <i className="far fa-clock"></i> 90 Min
+                            </div>
+                          </div>
+                        </div>
+                        {/* Kanan: Gambar dan judul */}
+                        <div className="flex flex-1 flex-col items-center justify-center">
+                          <div className="mb-2 h-32 w-32 rounded-xl bg-[#C9D953] flex items-center justify-center">
+                            <i className="fas fa-fist-raised text-white text-4xl"></i>
+                          </div>
+                          <div className="text-center text-2xl font-bold font-extrabold text-black">
+                            Combat
                         </div>
                       </div>
                     </div>
@@ -444,6 +612,7 @@ export default async function Home() {
                       </div>
                     </div>
                   </div>
+                  </Link>
                 </div>
             </div>
         {/* Steps */}
