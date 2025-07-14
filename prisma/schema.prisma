@@ -183,6 +183,7 @@ model User {
     weight             Float?
     gender             Gender?
     posSales           POSSale[]
+    trackingUsers      TrackingUser[]    @relation("TrackingUserToUser")
 }
 
 model Class {
@@ -837,4 +838,22 @@ enum GroupMemberStatus {
     ACTIVE
     PENDING
     REMOVED
+}
+
+// OCR Tracking Models
+model TrackingUser {
+    id          String   @id @default(cuid())
+    userId      String
+    composition Json     // Body composition data (weight, fat, muscle, etc.)
+    segment     Json     // Body segment data (leg muscle, trunk fat, etc.)
+    obesity     Json     // Obesity metrics (BMI, WHR, BMR, VFA, etc.)
+    suggestion  Json     // AI suggestions (body type, ideal weight, diet recommendations)
+    raw_text    String   @db.Text // Original OCR text
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    
+    user        User     @relation("TrackingUserToUser", fields: [userId], references: [id])
+    
+    @@index([userId])
+    @@index([createdAt])
 }

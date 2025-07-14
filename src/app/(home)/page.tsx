@@ -220,43 +220,52 @@ export default async function Home() {
         <div className="container mx-auto px-6">
         <div className="flex flex-col items-center mb-10">
           <span className="bg-[#C9D953] text-black text-sm font-semibold px-6 py-1 rounded-full mb-4">Facilities</span>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-center text-white mb-8">A Different Ngegym Experience</h2>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-center text-white mb-8">Your New Beginning Starts Here</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Card 1 */}
-          <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
+            {/* Card 1 */}
+            <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
             <div className="bg-[#C9D953] p-6 text-center">
-              <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">All Modern Tools<br/>& Brand New<br/>&nbsp;</div>
+              <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">
+              State-of-the-Art Equipment<br/>
+              <span className="text-sm font-normal">Train with the latest, brand-new fitness tools and machines designed for all levels and goals.</span>
+              </div>
             </div>
-            <img src="/assets/dashboard/img3.JPG" alt="Modern Tools" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
-          </div>
-          {/* Card 2 */}
-          <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
+            <img src="/assets/dashboard/img3.jpg" alt="Equipment" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
+            </div>
+            {/* Card 2 */}
+            <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
             <div className="p-6 text-center" style={{background: 'radial-gradient(ellipse at 100% 900%, #C9D953 0%, #111 100%)'}}>
-              <div className="text-lg md:text-xl font-bold tracking-wide text-white leading-snug min-h-[40px]">Get Towel<br/>& Cozy Dressing<br/>Room</div>
+              <div className="text-lg md:text-xl font-bold tracking-wide text-white leading-snug min-h-[40px]">
+              Secure & Comfortable Facilities<br/>
+              <span className="text-sm font-normal">Benefit from secure lockers with smart card access,cozy changing rooms, and fully stocked toiletries.</span>
+              </div>
             </div>
             <img src="/assets/dashboard/img1.JPG" alt="Dressing Room" className="w-full h-40 object-cover rounded-b-2xl shadow-lg" />
             <div className="pt-4 pb-4 text-center">
               <Link href={getAuthUrl()} passHref legacyBehavior>
-                <button className="w-full bg-white text-black py-4 text-xl font-bold rounded-xl flex items-center justify-center relative shadow-lg hover:bg-gray-100 transition duration-200">
-                  <span className="mx-6">Other Benefits</span>
-                  <span className="absolute top-3 right-5">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9D953" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M7 7L17 7L17 17"/>
-                      <path d="M17 7L7 17"/>
-                    </svg>
-                  </span>
-                </button>
+              <button className="w-full bg-white text-black py-4 text-xl font-bold rounded-xl flex items-center justify-center relative shadow-lg hover:bg-gray-100 transition duration-200">
+              <span className="mx-6">Other Benefits</span>
+              <span className="absolute top-3 right-5">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9D953" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 7L17 7L17 17"/>
+                <path d="M17 7L7 17"/>
+              </svg>
+              </span>
+              </button>
               </Link>
             </div>
-          </div>
-          {/* Card 3 */}
-          <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
+            </div>
+            {/* Card 3 */}
+            <div className="rounded-2xl overflow-hidden bg-black flex flex-col h-full">
             <div className="bg-[#C9D953] p-6 text-center">
-              <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">Full Access<br/>24 Hours Comfortable<br/>& Clean</div>
+              <div className="text-lg md:text-xl font-bold tracking-wide text-black leading-snug min-h-[40px]">
+              Unlimited Access in a Pleasant Ambience<br/>
+              <span className="text-sm font-normal">Make the most of your membership with full access<br/>to all areas, surrounded by a clean, energizing environment.</span>
+              </div>
             </div>
             <img src="/assets/dashboard/img2.JPG" alt="Gym Building" className="w-full h-56 object-cover rounded-b-2xl shadow-lg" />
-          </div>
+            </div>
         </div>
       </div>
     </section>

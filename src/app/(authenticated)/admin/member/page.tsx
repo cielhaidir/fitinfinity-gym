@@ -106,7 +106,7 @@ export default function MemberPage() {
   // Subscription update mutation for fixing TypeScript error
   const updateSubsMutation = api.subs.update.useMutation();
 
-  const freezeSubscriptionMutation = api.subscription.freeze.useMutation({
+  const freezeSubscriptionMutation = api.subs.freeze.useMutation({
     onSuccess: () => {
       utils.member.list.invalidate();
       toast.success("Subscription frozen successfully");
@@ -116,7 +116,7 @@ export default function MemberPage() {
     },
   });
 
-  const unfreezeSubscriptionMutation = api.subscription.unfreeze.useMutation({
+  const unfreezeSubscriptionMutation = api.subs.unfreeze.useMutation({
     onSuccess: () => {
       utils.member.list.invalidate();
       toast.success("Subscription unfrozen successfully");
