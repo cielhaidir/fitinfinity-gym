@@ -106,6 +106,26 @@ export default function MemberPage() {
   // Subscription update mutation for fixing TypeScript error
   const updateSubsMutation = api.subs.update.useMutation();
 
+  const freezeSubscriptionMutation = api.subscription.freeze.useMutation({
+    onSuccess: () => {
+      utils.member.list.invalidate();
+      toast.success("Subscription frozen successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const unfreezeSubscriptionMutation = api.subscription.unfreeze.useMutation({
+    onSuccess: () => {
+      utils.member.list.invalidate();
+      toast.success("Subscription unfrozen successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (selectedMember) {
       const { name, value } = e.target;
@@ -301,6 +321,34 @@ export default function MemberPage() {
     setIsCheckInModalOpen(true);
   };
 
+  const handleFreezeSubscription = async (member: Member) => {
+    const activeSubscription = member.subscriptions?.find(sub => sub.isActive && !sub.isFrozen);
+    if (!activeSubscription) {
+      toast.error("No active subscription found to freeze");
+      return;
+    }
+    
+    try {
+      await freezeSubscriptionMutation.mutateAsync({ id: activeSubscription.id });
+    } catch (error) {
+      console.error("Error freezing subscription:", error);
+    }
+  };
+
+  const handleUnfreezeSubscription = async (member: Member) => {
+    const frozenSubscription = member.subscriptions?.find(sub => sub.isActive && sub.isFrozen);
+    if (!frozenSubscription) {
+      toast.error("No frozen subscription found to unfreeze");
+      return;
+    }
+    
+    try {
+      await unfreezeSubscriptionMutation.mutateAsync({ id: frozenSubscription.id });
+    } catch (error) {
+      console.error("Error unfreezing subscription:", error);
+    }
+  };
+
   const handleConfirmCheckIn = async () => {
     if (!selectedMemberForCheckIn) return;
 
@@ -321,12 +369,26 @@ export default function MemberPage() {
     setSelectedMemberForCheckIn(null);
   };
 
-  const customActions = [
-    { label: "Profile", action: directToProfile },
-    { label: "Subscription", action: directToSubs },
-    { label: "Access Log", action: directToLogs },
-    { label: "Check In Manually", action: handleManualCheckIn },
-  ];
+  const getCustomActions = (member: Member) => {
+    const baseActions = [
+      { label: "Profile", action: directToProfile },
+      { label: "Subscription", action: directToSubs },
+      { label: "Access Log", action: directToLogs },
+      { label: "Check In Manually", action: handleManualCheckIn },
+    ];
+
+    // Check if member has an active subscription that can be frozen/unfrozen
+    const activeSubscription = member.subscriptions?.find(sub => sub.isActive);
+    if (activeSubscription) {
+      if (activeSubscription.isFrozen) {
+        baseActions.push({ label: "Unfreeze", action: handleUnfreezeSubscription });
+      } else {
+        baseActions.push({ label: "Freeze", action: handleFreezeSubscription });
+      }
+    }
+
+    return baseActions;
+  };
 
   const handleMemberSelect = (member: Member) => {
     if (isSelectingForSubscription) {
@@ -337,7 +399,8 @@ export default function MemberPage() {
   const columns = createColumns({
     onEditMember: handleEditMember,
     onDeleteMember: handleDeleteMember,
-    customActions: isSelectingForSubscription ? [] : customActions,
+    customActions: isSelectingForSubscription ? [] : undefined,
+    getCustomActions: isSelectingForSubscription ? undefined : getCustomActions,
   });
 
   return (

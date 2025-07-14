@@ -32,6 +32,7 @@ export const memberSchema = z.object({
       startDate: z.date(),
       endDate: z.date().nullable(),
       isActive: z.boolean(),
+      isFrozen: z.boolean().default(false),
       remainingSessions: z.number().nullable(),
       trainer: z
         .object({

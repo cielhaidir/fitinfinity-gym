@@ -281,6 +281,8 @@ model Subscription {
     endDate           DateTime?
     remainingSessions Int?
     isActive          Boolean          @default(false)
+    isFrozen          Boolean          @default(false)
+    frozenAt          DateTime?
     payments          Payment[]
     
     // Group subscription relations

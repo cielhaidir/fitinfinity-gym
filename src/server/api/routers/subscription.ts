@@ -761,4 +761,96 @@ export const subscriptionRouter = createTRPCRouter({
       });
       return { count: result.count };
     }),
+
+  freeze: permissionProtectedProcedure(["update:subscription"])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const subscription = await ctx.db.subscription.findUnique({
+        where: { id: input.id },
+        include: { member: { include: { user: true } } },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription not found",
+        });
+      }
+
+      if (subscription.isFrozen) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Subscription is already frozen",
+        });
+      }
+
+      if (!subscription.endDate) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot freeze subscription without end date",
+        });
+      }
+
+      const updatedSubscription = await ctx.db.subscription.update({
+        where: { id: input.id },
+        data: { 
+          isFrozen: true,
+          frozenAt: new Date()
+        },
+        include: { member: { include: { user: true } } },
+      });
+
+      return updatedSubscription;
+    }),
+
+  unfreeze: permissionProtectedProcedure(["update:subscription"])
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const subscription = await ctx.db.subscription.findUnique({
+        where: { id: input.id },
+        include: { member: { include: { user: true } } },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription not found",
+        });
+      }
+
+      if (!subscription.isFrozen) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Subscription is not frozen",
+        });
+      }
+
+      if (!subscription.frozenAt || !subscription.endDate) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot unfreeze subscription: missing freeze date or end date",
+        });
+      }
+
+      // Calculate remaining days when it was frozen
+      const remainingDaysWhenFrozen = Math.ceil(
+        (subscription.endDate.getTime() - subscription.frozenAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Calculate new end date by adding remaining days to current date
+      const newEndDate = new Date();
+      newEndDate.setDate(newEndDate.getDate() + remainingDaysWhenFrozen);
+
+      const updatedSubscription = await ctx.db.subscription.update({
+        where: { id: input.id },
+        data: { 
+          isFrozen: false,
+          frozenAt: null,
+          endDate: newEndDate
+        },
+        include: { member: { include: { user: true } } },
+      });
+
+      return updatedSubscription;
+    }),
 });

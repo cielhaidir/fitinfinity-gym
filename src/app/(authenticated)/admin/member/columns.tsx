@@ -13,12 +13,14 @@ interface ColumnsProps {
   onEditMember: (member: any) => void;
   onDeleteMember: (member: any) => void;
   customActions?: { label: string; action: (member: any) => void }[]; // Support multiple custom actions
+  getCustomActions?: (member: any) => { label: string; action: (member: any) => void }[]; // Dynamic custom actions
 }
 
 export const createColumns = ({
   onEditMember,
   onDeleteMember,
   customActions,
+  getCustomActions,
 }: ColumnsProps): ColumnDef<Member>[] => [
   {
     id: "select",
@@ -157,17 +159,31 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Active" />
     ),
     cell: ({ row }) => {
-      const hasActiveSubscription = Array.isArray(row.original.subscriptions) && row.original.subscriptions.some((sub) => {
+      const activeSubscription = Array.isArray(row.original.subscriptions) && row.original.subscriptions.find((sub) => {
         const now = new Date();
         const isNotExpired = sub.endDate ? new Date(sub.endDate) > now : true;
         return sub.isActive && isNotExpired;
       });
+      
+      let status = "Inactive";
+      let variant: "default" | "secondary" | "destructive" = "destructive";
+      
+      if (activeSubscription) {
+        if (activeSubscription.isFrozen) {
+          status = "Frozen";
+          variant = "secondary";
+        } else {
+          status = "Active";
+          variant = "default";
+        }
+      }
+      
       return (
         <Badge
-          variant={hasActiveSubscription ? "default" : "destructive"}
+          variant={variant}
           className="w-[100px] justify-center"
         >
-          {hasActiveSubscription ? "Active" : "Inactive"}
+          {status}
         </Badge>
       );
     },
@@ -191,14 +207,18 @@ export const createColumns = ({
   },
   {
     id: "actions",
-    cell: ({ row }) => (
-      <DataTableRowActions
-        row={row}
-        onEdit={onEditMember}
-        onDelete={onDeleteMember}
-        customActions={customActions}
-        showEdit={false}
-      />
-    ),
+    cell: ({ row }) => {
+      const member = row.original;
+      const dynamicActions = getCustomActions ? getCustomActions(member) : (customActions || []);
+      return (
+        <DataTableRowActions
+          row={row}
+          onEdit={onEditMember}
+          onDelete={onDeleteMember}
+          customActions={dynamicActions}
+          showEdit={false}
+        />
+      );
+    },
   },
 ];
