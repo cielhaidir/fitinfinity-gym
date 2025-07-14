@@ -27,6 +27,7 @@ export const trackingRouter = createTRPCRouter({
           });
         }
         
+        console.log('OCR Results:', ocrResults);
         // Combine all parsed data from multiple images
         const combinedData = {
           composition: {},
@@ -48,6 +49,7 @@ export const trackingRouter = createTRPCRouter({
 
         // Enhance with AI if enabled
         let enhancedData = combinedData;
+        console.log('Combined OCR Data:', combinedData);
         let aiEnhanced = false;
         
         if (input.enhanceWithAI) {

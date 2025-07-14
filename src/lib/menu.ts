@@ -296,6 +296,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/member/profile",
           requiredPermission: "member:profile",
         },
+        {
+          title: "Body Tracking",
+          icon: CircleGauge,
+          url: "/member/body-composition",
+          // requiredPermission: "menu:body-composition",
+        },
         // {
         //   title: "Personal Trainer List",
         //   icon: Contact,

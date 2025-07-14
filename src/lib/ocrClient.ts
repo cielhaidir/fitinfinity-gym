@@ -12,7 +12,11 @@ export class OCRClient {
    */
   async initialize(): Promise<void> {
     if (!this.worker) {
-      this.worker = await createWorker('eng');
+      this.worker = await createWorker("eng", 1, {workerPath: "./node_modules/tesseract.js/src/worker-script/node/index.js"});
+      // this.worker = await createWorker('eng', 1, {
+      //   logger: m => console.log(m),
+      //   errorHandler: (error) => console.error('Tesseract error:', error),
+      // });
     }
   }
 
@@ -27,8 +31,13 @@ export class OCRClient {
     }
 
     try {
+      // Handle base64 data URL format by removing prefix if present
+      const base64Data = base64Image.startsWith('data:') 
+        ? base64Image.replace(/^data:image\/\w+;base64,/, '')
+        : base64Image;
+      
       // Convert base64 to buffer for tesseract processing
-      const buffer = Buffer.from(base64Image, 'base64');
+      const buffer = Buffer.from(base64Data, 'base64');
       
       const { data: { text } } = await this.worker!.recognize(buffer);
       return text.trim();

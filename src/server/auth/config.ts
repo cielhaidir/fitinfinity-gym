@@ -50,7 +50,7 @@ async function createUserMembership(userId: string | undefined) {
     });
 
     if (existingMembership) {
-      console.log("Membership already exists for user:", userId);
+      // console.log("Membership already exists for user:", userId);
       return existingMembership;
     }
 
@@ -200,10 +200,10 @@ export const authConfig = {
         try {
           const membership = await createUserMembership(token.id as string);
           if (membership) {
-            console.log(
-              "Membership check/creation completed for user:",
-              token.id,
-            );
+            // console.log(
+            //   "Membership check/creation completed for user:",
+            //   token.id,
+            // );
           }
         } catch (error) {
           console.error(
