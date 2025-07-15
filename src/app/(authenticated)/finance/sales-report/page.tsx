@@ -146,7 +146,7 @@ export default function SalesReportPage() {
           "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : "Personal Trainer",
           "Trainer": trainer?.user?.name || "N/A",
           "Fitness Consultant": fc?.user?.name || "N/A",
-          "Amount": formatRupiah(payment.totalPayment || 0),
+          "Amount": payment.totalPayment || 0,
           "Payment Method": payment.method || "Manual Payment",
           "Status": payment.status,
           "Start Date": subscription?.startDate ? format(new Date(subscription.startDate), "yyyy-MM-dd") : "N/A",
