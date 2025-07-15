@@ -77,17 +77,16 @@ export default function SalesReportPage() {
     { enabled: includePos }
   );
 
-  // Fetch subscription data for Excel export
-  const { data: subscriptionData } = api.paymentValidation.getAllPayments.useQuery(
+
+  
+  const { data: subscriptionData } = api.paymentValidation.getActive.useQuery(
     {
-      page: 1,
-      limit: 100, // Get all records for export
-    },
-    { 
-      enabled: includeSubscriptions 
+      startDate: startDate,
+      endDate: endDate,
     }
   );
-
+  
+  console.log("Subscription Data:", subscriptionData);
   // Enhanced Excel export with multiple sheets
   const exportToExcel = async () => {
     const workbook = XLSX.utils.book_new();
@@ -113,7 +112,7 @@ export default function SalesReportPage() {
         "Change": formatRupiah(sale.change),
         "Notes": sale.notes,
       }));
-
+      
       const posWorksheet = XLSX.utils.json_to_sheet(posSheetData);
       
       // Auto-size columns
@@ -121,33 +120,44 @@ export default function SalesReportPage() {
         wch: Math.max(key.length, 15)
       }));
       posWorksheet['!cols'] = posCols;
-
+      
       XLSX.utils.book_append_sheet(workbook, posWorksheet, "POS Sales");
     }
-
+    
     // Sheet 2: Subscriptions (only successful ones)
-    if (includeSubscriptions && subscriptionData?.items) {
-      const successfulSubscriptions = subscriptionData.items.filter(
-        (sub: any) => sub.paymentStatus === "SUCCESS" || sub.paymentStatus === "ACCEPTED"
-      );
+    if (includeSubscriptions ) {
 
-      const subscriptionSheetData = successfulSubscriptions.map((sub: any) => ({
-        "ID": sub.id,
-        "Member Name": sub.member?.user?.name || "N/A",
-        "Email": sub.member?.user?.email || "N/A",
-        "Package": sub.package?.name || "N/A",
-        "Type": sub.subsType === "gym" ? "Gym Membership" : "Personal Trainer",
-        "Trainer": sub.trainer?.user?.name || "N/A",
-        "Duration (Months)": sub.duration || 0,
-        "Amount": formatRupiah(parseFloat(sub.totalPayment || "0")),
-        "Payment Method": sub.paymentMethod || "Manual Payment",
-        "Status": sub.paymentStatus,
-        "Start Date": sub.startDate ? format(new Date(sub.startDate), "yyyy-MM-dd") : "N/A",
-        "End Date": sub.endDate ? format(new Date(sub.endDate), "yyyy-MM-dd") : "N/A",
-        "Created": format(new Date(sub.createdAt), "yyyy-MM-dd HH:mm:ss"),
-      }));
 
+
+
+      const subscriptionSheetData = subscriptionData?.map((payment: any) => {
+        const subscription = payment.subscription;
+        const member = subscription?.member;
+        const user = member?.user;
+        const fc = member?.fc;
+        const trainer = subscription?.trainer;
+      
+        return {
+          "Payment ID": payment.id,
+          "Invoice": payment.orderReference || "N/A",
+          "Member Name": user?.name || "N/A",
+          "Email": user?.email || "N/A",
+          "Package": subscription?.package?.name || "N/A",
+          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : "Personal Trainer",
+          "Trainer": trainer?.user?.name || "N/A",
+          "Fitness Consultant": fc?.user?.name || "N/A",
+          "Amount": formatRupiah(payment.totalPayment || 0),
+          "Payment Method": payment.method || "Manual Payment",
+          "Status": payment.status,
+          "Start Date": subscription?.startDate ? format(new Date(subscription.startDate), "yyyy-MM-dd") : "N/A",
+          "End Date": subscription?.endDate ? format(new Date(subscription.endDate), "yyyy-MM-dd") : "N/A",
+          "Paid At": payment.paidAt ? format(new Date(payment.paidAt), "yyyy-MM-dd HH:mm:ss") : "N/A",
+          "Created At": format(new Date(payment.createdAt), "yyyy-MM-dd HH:mm:ss"),
+        };
+      });
+      
       const subscriptionWorksheet = XLSX.utils.json_to_sheet(subscriptionSheetData);
+      
       
       // Auto-size columns
       const subCols = Object.keys(subscriptionSheetData[0] || {}).map(key => ({

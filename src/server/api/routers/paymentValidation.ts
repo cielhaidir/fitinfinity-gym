@@ -17,6 +17,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { TRPCError } from "@trpc/server";
 import { siteConfig } from "@/lib/config/siteConfig";
+import { start } from "repl";
 
 export const paymentValidationRouter = createTRPCRouter({
   uploadFile: permissionProtectedProcedure(["upload:payment"])
@@ -752,4 +753,60 @@ export const paymentValidationRouter = createTRPCRouter({
         limit,
       };
     }),
+
+
+    getActive: permissionProtectedProcedure(["list:payment"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { startDate, endDate } = input;
+  
+      const now = new Date();
+      const defaultStart = new Date();
+      defaultStart.setDate(now.getDate() - 30);
+  
+      return ctx.db.payment.findMany({
+        where: {
+          status: PaymentStatus.SUCCESS,
+          paidAt: {
+            gte: startDate || defaultStart,
+            lte: endDate || now,
+          },
+        },
+        include: {
+          subscription: {
+            include: {
+              member: {
+                include: {
+                  user: true,
+                  fc: {
+                    include: {
+                      user: {
+                        select: { name: true },
+                      },
+                    },
+                  },
+                 
+                },
+              },
+              package: true,
+              trainer: {
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+    }),
+  
 });
