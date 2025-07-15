@@ -772,7 +772,7 @@ export const paymentValidationRouter = createTRPCRouter({
       return ctx.db.payment.findMany({
         where: {
           status: PaymentStatus.SUCCESS,
-          paidAt: {
+          createdAt: {
             gte: startDate || defaultStart,
             lte: endDate || now,
           },
