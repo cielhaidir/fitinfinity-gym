@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { api } from "@/trpc/react";
 import { format, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
 import { useSession } from "next-auth/react";
@@ -14,7 +14,6 @@ export default function JadwalPTPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<"monthly" | "weekly">("weekly");
-  const [sessions, setSessions] = useState<any[]>([]);
 
   const utils = api.useUtils();
 
@@ -23,25 +22,21 @@ export default function JadwalPTPage() {
       enabled: !!session?.user,
     });
 
+  // FIX: Remove onSuccess from here to prevent infinite loops.
+  // Toasts and invalidation will be handled in the functions that call the mutation.
   const updateSession = api.trainerSession.update.useMutation({
-    onSuccess: () => {
-      toast.success("Jadwal berhasil diperbarui");
-      // Refresh data
-      utils.trainerSession.getAll.invalidate();
-    },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(`Gagal memperbarui jadwal: ${error.message}`);
     },
   });
 
   const deleteSession = api.trainerSession.delete.useMutation({
     onSuccess: () => {
       toast.success("Jadwal berhasil dihapus");
-      // Refresh data
       utils.trainerSession.getAll.invalidate();
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(`Gagal menghapus jadwal: ${error.message}`);
     },
   });
 
@@ -61,10 +56,9 @@ export default function JadwalPTPage() {
       sessionsByDate[dateStr] = [];
     }
 
-    // Create a new session object with a stable key
     const sessionWithKey = {
       ...session,
-      _key: `session-${session.id}-${dateStr}-${timeStr}`, // More unique key
+      _key: `session-${session.id}-${dateStr}-${timeStr}`,
     };
 
     sessionsByDateTime[key].push(sessionWithKey);
@@ -105,14 +99,6 @@ export default function JadwalPTPage() {
     endHour: number,
   ) => {
     try {
-      console.log("Received update request:", {
-        sessionId,
-        date: date.toISOString(),
-        startHour,
-        endHour,
-      });
-
-      // Create dates in the local timezone
       const baseDate = new Date(date);
       baseDate.setHours(0, 0, 0, 0);
 
@@ -122,36 +108,24 @@ export default function JadwalPTPage() {
       const endTime = new Date(baseDate);
       endTime.setHours(endHour, 0, 0, 0);
 
-      console.log("Prepared dates:", {
-        date: baseDate.toISOString(),
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-      });
-
-      const result = await updateSession.mutateAsync({
+      await updateSession.mutateAsync({
         id: sessionId,
         date: baseDate,
         startTime,
         endTime,
       });
 
-      console.log("Update result:", result);
+      // FIX: Manually trigger toast and invalidation
       toast.success("Jadwal berhasil diperbarui");
-      await utils.trainerSession.getAll.invalidate();
+      utils.trainerSession.getAll.invalidate();
     } catch (error) {
+      // onError in useMutation will handle the toast
       console.error("Error updating session:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", error.message);
-        toast.error(error.message);
-      } else {
-        toast.error("Gagal mengupdate jadwal");
-      }
     }
   };
 
   const handleSessionDelete = async (sessionId: string) => {
     try {
-      // Find the session to be deleted
       const sessionToDelete = trainerSessions?.find((s) => s.id === sessionId);
       if (!sessionToDelete) return;
 
@@ -160,9 +134,7 @@ export default function JadwalPTPage() {
       const hoursUntilSession =
         (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-      // If within 12 hours of the session start time, mark as cancelled
       if (hoursUntilSession <= 12 && hoursUntilSession > 0) {
-        // If within 12 hours, mark as cancelled instead of deleting
         await updateSession.mutateAsync({
           id: sessionId,
           date: new Date(sessionToDelete.date),
@@ -170,25 +142,21 @@ export default function JadwalPTPage() {
           endTime: new Date(sessionToDelete.endTime),
           status: "CANCELED",
         });
-        toast.success("Jadwal telah ditandai sebagai dibatalkan");
+        // FIX: Manually trigger toast and invalidation
+        toast.success("Sesi dibatalkan kurang dari 12 jam, status diubah menjadi CANCELED");
+        utils.trainerSession.getAll.invalidate();
       } else if (hoursUntilSession > 12) {
-        // If more than 12 hours, delete normally
         await deleteSession.mutateAsync({ id: sessionId });
-        toast.success("Jadwal berhasil dihapus");
+        // The deleteSession mutation handles its own success toast and invalidation
       } else {
-        // If session has already started or is in the past
         toast.error("Tidak dapat membatalkan jadwal yang sudah lewat");
-        return;
       }
-
-      utils.trainerSession.getAll.invalidate();
     } catch (error) {
       console.error("Error handling session deletion:", error);
-      toast.error("Gagal memproses permintaan");
+      toast.error("Gagal memproses permintaan penghapusan");
     }
   };
 
-  // New function to handle session cancellation
   const handleSessionCancel = async (sessionId: string) => {
     try {
       const sessionToCancel = trainerSessions?.find((s) => s.id === sessionId);
@@ -207,6 +175,7 @@ export default function JadwalPTPage() {
           endTime: new Date(sessionToCancel.endTime),
           status: "CANCELED",
         });
+        // FIX: Manually trigger toast and invalidation
         toast.success("Jadwal telah ditandai sebagai dibatalkan");
         utils.trainerSession.getAll.invalidate();
       } else {
@@ -216,11 +185,11 @@ export default function JadwalPTPage() {
       }
     } catch (error) {
       console.error("Error canceling session:", error);
-      toast.error("Gagal membatalkan jadwal");
+      // onError in useMutation will handle the toast
     }
   };
 
-  // Function to update session statuses
+  // Function to update session statuses in the background
   const updateSessionStatuses = async () => {
     if (!trainerSessions) return;
 
@@ -228,58 +197,56 @@ export default function JadwalPTPage() {
     const sessionsToUpdate = trainerSessions.filter((session) => {
       const startTime = new Date(session.startTime);
       const endTime = new Date(session.endTime);
+      const isPast = now > endTime;
+      const isOngoing = now >= startTime && now <= endTime;
 
-      // Check if session is ongoing
-      if (session.status === "NOT_YET" && now >= startTime && now <= endTime) {
+      if (session.status === "NOT_YET" && (isPast || isOngoing)) {
         return true;
       }
-
-      // Check if session has ended
-      if (
-        (session.status === "NOT_YET" || session.status === "ONGOING") &&
-        now > endTime
-      ) {
+      if (session.status === "ONGOING" && isPast) {
         return true;
       }
-
       return false;
     });
 
-    for (const session of sessionsToUpdate) {
-      try {
+    if (sessionsToUpdate.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      sessionsToUpdate.map((session) => {
         const startTime = new Date(session.startTime);
         const endTime = new Date(session.endTime);
-        let newStatus: "ONGOING" | "ENDED";
+        const isOngoing = now >= startTime && now <= endTime;
+        const newStatus = isOngoing ? "ONGOING" : "ENDED";
 
-        if (now >= startTime && now <= endTime) {
-          newStatus = "ONGOING";
-        } else {
-          newStatus = "ENDED";
-        }
-
-        await updateSession.mutateAsync({
+        return updateSession.mutateAsync({
           id: session.id,
           date: new Date(session.date),
           startTime: startTime,
           endTime: endTime,
           status: newStatus,
         });
-      } catch (error) {
-        console.error("Error updating session status:", error);
-      }
-    }
+      }),
+    );
 
-    if (sessionsToUpdate.length > 0) {
-      utils.trainerSession.getAll.invalidate();
-    }
+    // FIX: Invalidate query only once after all updates are done.
+    // No toast for background updates.
+    utils.trainerSession.getAll.invalidate();
   };
 
-  // Call updateSessionStatuses when sessions are loaded
+  // Use a ref to ensure the status update only runs once per data load
+  const statusUpdateRan = useRef(false);
   useEffect(() => {
-    if (trainerSessions) {
+    if (trainerSessions && !isLoading && !statusUpdateRan.current) {
       updateSessionStatuses();
+      statusUpdateRan.current = true;
     }
-  }, [trainerSessions]);
+    // Reset the flag when the query is fetching again
+    if (isLoading) {
+      statusUpdateRan.current = false;
+    }
+  }, [trainerSessions, isLoading]);
 
   return (
     <div className="relative p-6">
@@ -305,7 +272,6 @@ export default function JadwalPTPage() {
         onSessionCancel={handleSessionCancel}
       />
 
-      {/* Slide-in form */}
       <div
         className={`fixed right-0 top-0 z-50 h-full w-96 transform border-l border-border bg-background shadow-lg transition-transform duration-300 ease-in-out ${
           showForm ? "translate-x-0" : "translate-x-full"
@@ -319,7 +285,6 @@ export default function JadwalPTPage() {
         </div>
       </div>
 
-      {/* Overlay when form is open */}
       {showForm && (
         <div
           className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"

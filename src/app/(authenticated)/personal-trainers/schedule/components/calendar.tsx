@@ -490,7 +490,7 @@ export default function Calendar({
                           >
                             <div className="flex items-center justify-between">
                               <div className="font-semibold text-[#C9D953]">
-                                {session.member?.user?.name || "-"}
+                                {session.type === "group" ? (session.groupName ?? "Group") : session.member?.user?.name || "-"}
                               </div>
                               <div className="text-xs text-gray-300">
                                 {format(new Date(session.startTime), "HH:mm")} - {format(new Date(session.endTime), "HH:mm")}
