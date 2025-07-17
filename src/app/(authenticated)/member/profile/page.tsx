@@ -15,7 +15,8 @@ import { Camera } from "lucide-react";
 import { ChangePasswordDialog } from "./change-password-dialog";
 
 export default function ProfilePage() {
-  const { data: session } = useSession();
+  const utils = api.useUtils();
+  const { data: session, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const memberId = searchParams.get('memberId');
@@ -41,11 +42,11 @@ export default function ProfilePage() {
   );
 
   const updateProfile = api.profile.update.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await utils.profile.get.invalidate(); // Invalidate cached profile
+      await update(); // Refresh session user
       toast.success("Profile updated successfully");
       setIsEditing(false);
-      // Refresh the page to update session data
-      window.location.reload();
     },
     onError: (error) => {
       if (error.message.includes("phone")) {
