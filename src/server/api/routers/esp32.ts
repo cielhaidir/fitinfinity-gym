@@ -21,6 +21,31 @@ const deviceAuthInput = z.object({
     accessKey: z.string()
 });
 
+// Helper function to get GMT+8 date boundaries
+function getGMT8DateBoundaries(date: Date) {
+  // Create a new date object to avoid mutation
+  const d = new Date(date);
+  
+  // Adjust to GMT+8 (UTC+8)
+  const offset = 8 * 60; // 8 hours in minutes
+  const gmt8Time = new Date(d.getTime() + (offset * 60 * 1000));
+  
+  // Get date components in GMT+8
+  const year = gmt8Time.getUTCFullYear();
+  const month = gmt8Time.getUTCMonth();
+  const day = gmt8Time.getUTCDate();
+  
+  // Create start and end of day in GMT+8
+  const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+  
+  // Convert back to local time for database queries
+  const localStartOfDay = new Date(startOfDay.getTime() - (offset * 60 * 1000));
+  const localEndOfDay = new Date(endOfDay.getTime() - (offset * 60 * 1000));
+  
+  return { startOfDay: localStartOfDay, endOfDay: localEndOfDay };
+}
+
 export const esp32Router = createTRPCRouter({
     authenticate: publicProcedure
         .input(z.object({
@@ -210,10 +235,9 @@ export const esp32Router = createTRPCRouter({
             }
       
             const logTime = timestamp ? new Date(timestamp) : new Date();
-            const startOfDay = new Date(logTime);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(startOfDay);
-            endOfDay.setDate(endOfDay.getDate() + 1);
+            
+            // Use GMT+8 date boundaries
+            const { startOfDay, endOfDay } = getGMT8DateBoundaries(logTime);
       
             // Temukan karyawan dari fingerprint
             const employee = await ctx.db.employee.findFirst({
@@ -227,22 +251,23 @@ export const esp32Router = createTRPCRouter({
               });
             }
       
-            // Cek absensi hari ini
+            // Cek absensi hari ini dengan rentang waktu GMT+8
             const existingAttendance = await ctx.db.attendance.findFirst({
               where: {
                 employeeId: employee.id,
-                date: {
+                checkIn: {
                   gte: startOfDay,
-                  lt: endOfDay,
+                  lte: endOfDay,
                 },
               },
               orderBy: {
-                date: "desc",
+                checkIn: "desc",
               },
             });
 
+            console.log("Log time (GMT+8):", logTime);
+            console.log("GMT+8 date boundaries:", { startOfDay, endOfDay });
             console.log("Existing attendance:", existingAttendance);
-
       
             if (!existingAttendance) {
               // Belum ada data, buat check-in
@@ -256,11 +281,24 @@ export const esp32Router = createTRPCRouter({
               });
             }
       
-            // Sudah ada attendance => update checkOut (overwrite jika perlu)
-            return await ctx.db.attendance.update({
-              where: { id: existingAttendance.id },
+            // Check if this is a checkout (if checkIn exists but no checkOut)
+            if (!existingAttendance.checkOut) {
+              // This is a checkout
+              return await ctx.db.attendance.update({
+                where: { id: existingAttendance.id },
+                data: {
+                  checkOut: logTime,
+                  deviceId,
+                },
+              });
+            }
+      
+            // If already checked out, create new attendance record for new check-in
+            return await ctx.db.attendance.create({
               data: {
-                checkOut: logTime,
+                employeeId: employee.id,
+                checkIn: logTime,
+                date: startOfDay,
                 deviceId,
               },
             });
@@ -530,9 +568,29 @@ export const esp32Router = createTRPCRouter({
      * Returns: check-in time, checkout time, member ID, member name, user name, facility description (if any), status
      */
     getMemberCheckinLogs: protectedProcedure
+    .input(z.object({
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }).optional())
     .output(z.array(memberCheckinLogSchema))
-    .query(async ({ ctx }) => {
+    .query(async ({ ctx, input }) => {
+      const whereClause: any = {};
+      
+      if (input?.startDate || input?.endDate) {
+        whereClause.checkin = {};
+        if (input.startDate) {
+          whereClause.checkin.gte = new Date(input.startDate);
+        }
+        if (input.endDate) {
+          // Add 1 day to include the entire end date
+          const endDate = new Date(input.endDate);
+          endDate.setDate(endDate.getDate() + 1);
+          whereClause.checkin.lt = endDate;
+        }
+      }
+
       const logs = await ctx.db.attendanceMember.findMany({
+        where: whereClause,
         orderBy: { checkin: "desc" },
         include: {
           member: {
@@ -578,16 +636,18 @@ export const esp32Router = createTRPCRouter({
                                 if (!employee) return { success: false, message: `Employee not found for fingerprint ${log.id}` };
 
                                 const logTime = new Date(log.timestamp);
-                                const today = new Date(logTime);
-                                today.setHours(0, 0, 0, 0);
+                                const { startOfDay, endOfDay } = getGMT8DateBoundaries(logTime);
 
                                 const existingAttendance = await tx.attendance.findFirst({
                                     where: {
                                         employeeId: employee.id,
-                                        date: {
-                                            gte: today,
-                                            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+                                        checkIn: {
+                                            gte: startOfDay,
+                                            lte: endOfDay,
                                         },
+                                    },
+                                    orderBy: {
+                                        checkIn: "desc",
                                     },
                                 });
 
@@ -596,7 +656,7 @@ export const esp32Router = createTRPCRouter({
                                         data: {
                                             employeeId: employee.id,
                                             checkIn: logTime,
-                                            date: today,
+                                            date: startOfDay,
                                             deviceId: log.deviceId
                                         },
                                     });
@@ -621,16 +681,18 @@ export const esp32Router = createTRPCRouter({
                                 if (!employee) return { success: false, message: `Employee not found for RFID ${log.id}` };
 
                                 const logTime = new Date(log.timestamp);
-                                const today = new Date(logTime);
-                                today.setHours(0, 0, 0, 0);
+                                const { startOfDay, endOfDay } = getGMT8DateBoundaries(logTime);
 
                                 const existingAttendance = await tx.attendance.findFirst({
                                     where: {
                                         employeeId: employee.id,
-                                        date: {
-                                            gte: today,
-                                            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+                                        checkIn: {
+                                            gte: startOfDay,
+                                            lte: endOfDay,
                                         },
+                                    },
+                                    orderBy: {
+                                        checkIn: "desc",
                                     },
                                 });
 
@@ -639,7 +701,7 @@ export const esp32Router = createTRPCRouter({
                                         data: {
                                             employeeId: employee.id,
                                             checkIn: logTime,
-                                            date: today,
+                                            date: startOfDay,
                                             deviceId: log.deviceId
                                         },
                                     });
@@ -651,8 +713,6 @@ export const esp32Router = createTRPCRouter({
                                             checkOut: logTime,
                                             deviceId: log.deviceId
                                         },
-                                      
-                                      
                                     });
                                     return { success: true, message: `Check-out recorded for RFID ${log.id}` };
                                 }
@@ -675,10 +735,10 @@ export const esp32Router = createTRPCRouter({
         }),
 
         /**
-                                       * Admin: Update a member check-in log
-                                       * Accepts: log ID, new check-in time (optional), new facility description (optional)
-                                       * Returns: updated log entry with member and user info
-                                       */
+         * Admin: Update a member check-in log
+         * Accepts: log ID, new check-in time (optional), new facility description (optional)
+         * Returns: updated log entry with member and user info
+         */
         updateMemberCheckinLog: protectedProcedure
         .input(
           z.object({
