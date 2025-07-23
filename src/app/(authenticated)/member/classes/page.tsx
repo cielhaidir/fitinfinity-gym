@@ -60,31 +60,12 @@ export default function MemberClassesPage() {
       },
     );
 
+  const { data: membership } = api.member.getMembership.useQuery();
+
   // Check if current user has a valid subscription for a specific class
-  // Only allow checkout for members with active subscription
+  // Only allow checkout for members with active membership
   const hasValidSubscription = (class_: Class) => {
-    if (!subscriptions?.items || !session?.user?.email) return false;
-
-    const now = new Date();
-    const validSubscriptions = subscriptions.items.filter((sub) => {
-      const startDate = new Date(sub.startDate);
-      const endDate = sub.endDate ? new Date(sub.endDate) : null;
-      const hasValidPayment = sub.payments?.some(
-        (p) => p.status === PaymentStatus.SUCCESS,
-      );
-      const isUserSubscription = sub.member?.user?.email === session.user.email;
-
-      // Check if subscription is active, paid, and belongs to current user
-      return (
-        now >= startDate &&
-        (endDate ? now <= endDate : true) && // Handle null endDate
-        hasValidPayment &&
-        isUserSubscription
-      );
-    });
-
-    // Only allow if at least one valid subscription for GYM_MEMBERSHIP
-    return validSubscriptions.some((sub) => sub.package?.type === PackageType.GYM_MEMBERSHIP);
+    return membership?.isActive ?? false;
   };
 
   // Check if class registration is enabled (H-1 only)
