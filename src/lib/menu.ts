@@ -300,7 +300,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Body Tracking",
           icon: CircleGauge,
           url: "/member/body-composition",
-          requiredPermission: "member:profile",
+          requiredPermission: "menu:payment-history",
         },
         // {
         //   title: "Personal Trainer List",

@@ -471,7 +471,7 @@ export class DokuPaymentService {
         "ONLINE_TO_OFFLINE_INDOMARET",
         "CREDIT_CARD",
         // "DIRECT_DEBIT_BRI",
-        // "EMONEY_SHOPEE_PAY",
+        "EMONEY_SHOPEE_PAY",
         // "EMONEY_OVO",
         // "EMONEY_DANA",
         "QRIS",

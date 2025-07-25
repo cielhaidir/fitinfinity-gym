@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/trpc/react";
 import { ArrowLeft, Calendar, TrendingUp } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { OCRUploadAndEditForm } from "@/app/_components/OCRUploadAndEditForm";
+import { AIBodyCompositionForm } from "@/app/_components/AIBodyCompositionForm";
 
 export default function BodyCompositionPage() {
   const router = useRouter();
@@ -36,9 +36,9 @@ export default function BodyCompositionPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Body Composition Tracking</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Tracking Komposisi Tubuh</h1>
           <p className="text-muted-foreground">
-            Upload scale images to track your body composition progress
+            Unggah foto hasil scan komposisi tubuh untuk melacak perkembangan Anda
           </p>
         </div>
         <Button
@@ -47,7 +47,7 @@ export default function BodyCompositionPage() {
           className="flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+          Kembali ke Dashboard
         </Button>
       </div>
 
@@ -55,7 +55,7 @@ export default function BodyCompositionPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Rekam</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -63,22 +63,22 @@ export default function BodyCompositionPage() {
               {trackingHistory?.total || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Body composition records
+              Rekam komposisi tubuh
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Tracking</CardTitle>
+            <CardTitle className="text-sm font-medium">Tracking Terbaru</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {trackingHistory?.items?.[0] ? formatDate(trackingHistory.items[0].createdAt) : "No data"}
+              {trackingHistory?.items?.[0] ? formatDate(trackingHistory.items[0].createdAt) : "Tidak ada data"}
             </div>
             <p className="text-xs text-muted-foreground">
-              Last recorded measurement
+              Pengukuran terakhir dicatat
             </p>
           </CardContent>
         </Card>
@@ -89,13 +89,13 @@ export default function BodyCompositionPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Add New Body Composition</CardTitle>
+              <CardTitle>Analisis Komposisi Tubuh bertenaga AI</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Upload images from your body composition scale to extract and analyze data
+                Unggah foto skala komposisi tubuh Anda untuk analisis AI instan dengan rekomendasi nutrisi, fitness, dan gaya hidup yang dipersonalisasi
               </p>
             </CardHeader>
             <CardContent>
-              {typeof window !== 'undefined' && <OCRUploadAndEditForm />}
+              {typeof window !== 'undefined' && <AIBodyCompositionForm />}
             </CardContent>
           </Card>
         </div>
@@ -103,9 +103,9 @@ export default function BodyCompositionPage() {
         <div className="lg:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle>Recent History</CardTitle>
+              <CardTitle>Riwayat Terbaru</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Your latest measurements
+                Pengukuran terbaru Anda
               </p>
             </CardHeader>
             <CardContent>
@@ -117,7 +117,11 @@ export default function BodyCompositionPage() {
               ) : trackingHistory && trackingHistory.items && trackingHistory.items.length > 0 ? (
                 <div className="space-y-3">
                   {trackingHistory.items.slice(0, 3).map((record) => (
-                    <div key={record.id} className="space-y-2 p-3 rounded-lg bg-muted/50">
+                    <div
+                      key={record.id}
+                      className="space-y-2 p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
+                      onClick={() => router.push(`/member/body-composition/history?detail=${record.id}`)}
+                    >
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">
                           {formatDate(record.createdAt)}
@@ -128,7 +132,7 @@ export default function BodyCompositionPage() {
                           <div>BMI: {getCompositionValue(record.composition, 'bmi')}</div>
                         )}
                         {getCompositionValue(record.composition, 'bodyFat') && (
-                          <div>Body Fat: {getCompositionValue(record.composition, 'bodyFat')}%</div>
+                          <div>Lemak Tubuh: {getCompositionValue(record.composition, 'bodyFat')}%</div>
                         )}
                       </div>
                     </div>
@@ -140,14 +144,14 @@ export default function BodyCompositionPage() {
                       className="w-full"
                       onClick={() => router.push("/member/body-composition/history")}
                     >
-                      View All {trackingHistory.total} Records
+                      Lihat Semua {trackingHistory.total} Rekam
                     </Button>
                   )}
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <p className="text-sm text-muted-foreground mb-4">
-                    No body composition data yet
+                    Belum ada data komposisi tubuh
                   </p>
                 </div>
               )}

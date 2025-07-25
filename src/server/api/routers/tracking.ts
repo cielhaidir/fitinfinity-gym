@@ -4,7 +4,66 @@ import { runPaddleOCRMultiple } from "@/lib/paddleOcrClient";
 import { parseOCRText } from "@/server/utils/ocrParser";
 import { createAIService } from "@/server/utils/aiService";
 
+// Note: Use 'processImage' endpoint for direct AI image analysis (recommended)
+// Use 'extractOCR' endpoint only if you need OCR text extraction for legacy purposes
+
 export const trackingRouter = createTRPCRouter({
+  // Process single image directly with AI (bypassing OCR)
+  processImage: protectedProcedure
+    .input(
+      z.object({
+        image: z.string().min(1, "Image is required"), // Base64 encoded image
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const aiService = createAIService();
+        const enhancedData = await aiService.processImage(input.image);
+        
+        return {
+          success: true,
+          data: enhancedData,
+          aiEnhanced: true,
+        };
+      } catch (error) {
+        console.error('Image processing error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred',
+          data: null,
+          aiEnhanced: false,
+        };
+      }
+    }),
+
+  // Process multiple images directly with AI (bypassing OCR)
+  processMultipleImages: protectedProcedure
+    .input(
+      z.object({
+        images: z.array(z.string()).min(1, "At least one image is required"), // Base64 encoded images
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const aiService = createAIService();
+        const enhancedData = await aiService.processMultipleImages(input.images);
+        
+        return {
+          success: true,
+          data: enhancedData,
+          aiEnhanced: true,
+        };
+      } catch (error) {
+        console.error('Multiple images processing error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred',
+          data: null,
+          aiEnhanced: false,
+        };
+      }
+    }),
+
   // Extract OCR data from multiple images with AI enhancement
   extractOCR: protectedProcedure
     .input(
