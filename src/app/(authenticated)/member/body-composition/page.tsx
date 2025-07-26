@@ -7,7 +7,7 @@ import { api } from "@/trpc/react";
 import { ArrowLeft, Calendar, TrendingUp, Bot, AlertTriangle, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AIBodyCompositionForm } from "@/app/_components/AIBodyCompositionForm";
-
+import { AIRequestType } from "@/server/utils/aiRateLimitService";
 export default function BodyCompositionPage() {
   const router = useRouter();
   
@@ -19,7 +19,7 @@ export default function BodyCompositionPage() {
 
   // Check AI rate limit status
   const { data: aiRateLimit } = api.aiRateLimit.canMakeRequest.useQuery({
-    requestType: "BODY_COMPOSITION",
+    requestType: AIRequestType.BODY_COMPOSITION,
   });
 
   const formatDate = (date: Date) => {

@@ -1,9 +1,44 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { runPaddleOCRMultiple } from "@/lib/paddleOcrClient";
 import { parseOCRText } from "@/server/utils/ocrParser";
 import { createAIService } from "@/server/utils/aiService";
 import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLimitService";
+
+// Helper function to check if user has active membership
+async function checkActiveMembership(db: any, userId: string) {
+  const existingMembership = await db.membership.findUnique({
+    where: { userId },
+    include: {
+      subscriptions: {
+        where: {
+          isActive: true,
+          endDate: {
+            gte: new Date(), // Check if subscription hasn't expired
+          },
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!existingMembership || !existingMembership.isActive) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Active membership required to use AI features. Please contact the gym to activate your membership.",
+    });
+  }
+
+  if (!existingMembership.subscriptions || existingMembership.subscriptions.length === 0) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Active subscription required to use AI features. Please purchase a subscription to continue.",
+    });
+  }
+
+  return existingMembership;
+}
 
 // Note: Use 'processImage' endpoint for direct AI image analysis (recommended)
 // Use 'extractOCR' endpoint only if you need OCR text extraction for legacy purposes
@@ -18,6 +53,9 @@ export const trackingRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // Check if user has active membership first
+        await checkActiveMembership(ctx.db, ctx.session.user.id);
+
         const rateLimitService = createAIRateLimitService(ctx.db);
         const aiService = createAIService();
 
@@ -58,6 +96,9 @@ export const trackingRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // Check if user has active membership first
+        await checkActiveMembership(ctx.db, ctx.session.user.id);
+
         const rateLimitService = createAIRateLimitService(ctx.db);
         const aiService = createAIService();
 
@@ -145,6 +186,9 @@ export const trackingRouter = createTRPCRouter({
         
         if (input.enhanceWithAI) {
           try {
+            // Check if user has active membership before AI enhancement
+            await checkActiveMembership(ctx.db, ctx.session.user.id);
+
             const rateLimitService = createAIRateLimitService(ctx.db);
             const aiService = createAIService();
             
