@@ -40,50 +40,55 @@ export default function BodyCompositionPage() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tracking Komposisi Tubuh</h1>
-          <p className="text-muted-foreground">
-            Unggah foto hasil scan komposisi tubuh untuk melacak perkembangan Anda
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* AI Rate Limit Status */}
-          <div className="flex items-center gap-2">
-            {aiRateLimit?.allowed ? (
-              <Badge variant="default" className="bg-green-500">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                AI Available
-              </Badge>
-            ) : (
-              <Badge variant="destructive">
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                AI Limited
-              </Badge>
-            )}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Tracking Komposisi Tubuh</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Unggah foto hasil scan komposisi tubuh untuk melacak perkembangan Anda
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {/* AI Rate Limit Status */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {aiRateLimit?.allowed ? (
+                <Badge variant="default" className="bg-green-500">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  <span className="hidden sm:inline">AI Available</span>
+                  <span className="sm:hidden">AI OK</span>
+                </Badge>
+              ) : (
+                <Badge variant="destructive">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  <span className="hidden sm:inline">AI Limited</span>
+                  <span className="sm:hidden">AI Limited</span>
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/member/ai-limits")}
+                className="flex items-center gap-1"
+              >
+                <Bot className="h-4 w-4" />
+                <span className="hidden sm:inline">Manage</span>
+              </Button>
+            </div>
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/member/ai-limits")}
-              className="flex items-center gap-1"
+              variant="outline"
+              onClick={() => router.push("/member")}
+              className="flex items-center gap-2 w-full sm:w-auto"
             >
-              <Bot className="h-4 w-4" />
-              Manage
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Kembali ke Dashboard</span>
+              <span className="sm:hidden">Dashboard</span>
             </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => router.push("/member")}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Kembali ke Dashboard
-          </Button>
         </div>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Rekam</CardTitle>
@@ -149,8 +154,8 @@ export default function BodyCompositionPage() {
       )}
 
       {/* Main Content */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-2 order-2 lg:order-1">
           <Card>
             <CardHeader>
               <CardTitle>Analisis Komposisi Tubuh bertenaga AI</CardTitle>
@@ -164,7 +169,7 @@ export default function BodyCompositionPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 order-1 lg:order-2">
           <Card>
             <CardHeader>
               <CardTitle>Riwayat Terbaru</CardTitle>

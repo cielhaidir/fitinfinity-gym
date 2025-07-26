@@ -347,7 +347,7 @@ Based on the extracted data, provide detailed personalized advice for:
 
 **2. GYM EXERCISE RECOMMENDATIONS:**
 - Specific cardio exercises with duration and intensity
-- Strength training exercises targeting weak areas identified in body composition
+- Strength training exercises targeting weak areas identified in body composition with Gym Equipment
 - Weekly workout schedule (days, muscle groups, rest days)
 - Progressive overload recommendations
 - Exercise intensity levels based on current fitness

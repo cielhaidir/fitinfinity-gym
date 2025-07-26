@@ -9,31 +9,16 @@ import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLi
 // Helper function to check if user has active membership
 async function checkActiveMembership(db: any, userId: string) {
   const existingMembership = await db.membership.findUnique({
-    where: { userId },
-    include: {
-      subscriptions: {
-        where: {
-          isActive: true,
-          endDate: {
-            gte: new Date(), // Check if subscription hasn't expired
-          },
-        },
-        take: 1,
-      },
+    where: { 
+      userId: userId,
+      isActive: true
     },
   });
 
-  if (!existingMembership || !existingMembership.isActive) {
+  if (!existingMembership) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Active membership required to use AI features. Please contact the gym to activate your membership.",
-    });
-  }
-
-  if (!existingMembership.subscriptions || existingMembership.subscriptions.length === 0) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Active subscription required to use AI features. Please purchase a subscription to continue.",
     });
   }
 

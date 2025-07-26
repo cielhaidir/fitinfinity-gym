@@ -135,7 +135,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
 
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
-          toast.error(`${file.name} is too large. Maximum size is 10MB`);
+          toast.error(`File too large. Max 10MB`);
           continue;
         }
 
@@ -245,6 +245,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
         suggestion: aiData.suggestion,
       });
       
+      await utils.tracking.getHistory.invalidate();
       toast.success("Body composition data saved successfully!");
       
       // Reset form
@@ -277,7 +278,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Image Upload Section */}
       <Card>
         <CardHeader>
@@ -290,7 +291,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Input
               ref={fileInputRef}
               type="file"
@@ -318,22 +319,25 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
               )}
             </Button>
             {uploadedImages.length > 0 && (
-              <>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setShowPreviews(!showPreviews)}
+                  className="w-full sm:w-auto"
                 >
                   {showPreviews ? (
                     <>
                       <EyeOff className="mr-2 h-4 w-4" />
-                      Hide Previews
+                      <span className="hidden sm:inline">Hide Previews</span>
+                      <span className="sm:hidden">Hide</span>
                     </>
                   ) : (
                     <>
                       <Eye className="mr-2 h-4 w-4" />
-                      Show Previews
+                      <span className="hidden sm:inline">Show Previews</span>
+                      <span className="sm:hidden">Show</span>
                     </>
                   )}
                 </Button>
@@ -342,11 +346,13 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                   variant="outline"
                   size="sm"
                   onClick={removeAllImages}
+                  className="w-full sm:w-auto"
                 >
                   <X className="mr-2 h-4 w-4" />
-                  Remove All
+                  <span className="hidden sm:inline">Remove All</span>
+                  <span className="sm:hidden">Clear</span>
                 </Button>
-              </>
+              </div>
             )}
           </div>
 
@@ -358,7 +364,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
 
           {/* Image Previews */}
           {showPreviews && uploadedImages.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {uploadedImages.map((image) => (
                 <div key={image.id} className="relative group">
                   <div className="aspect-square relative border rounded-lg overflow-hidden">
@@ -414,12 +420,27 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
           <Separator />
           
           <Tabs defaultValue="composition" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="composition">Body Composition</TabsTrigger>
-              <TabsTrigger value="segments">Body Segments</TabsTrigger>
-              <TabsTrigger value="nutrition">Nutrition Plan</TabsTrigger>
-              <TabsTrigger value="fitness">Fitness Plan</TabsTrigger>
-              <TabsTrigger value="lifestyle">Lifestyle</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 mb-14">
+              <TabsTrigger value="composition" className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Body Composition</span>
+                <span className="sm:hidden">Body</span>
+              </TabsTrigger>
+              <TabsTrigger value="segments" className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Body Segments</span>
+                <span className="sm:hidden">Segments</span>
+              </TabsTrigger>
+              <TabsTrigger value="nutrition" className="text-xs sm:text-sm">
+                <span className="hidden lg:inline">Nutrition Plan</span>
+                <span className="lg:hidden">Nutrition</span>
+              </TabsTrigger>
+              <TabsTrigger value="fitness" className="text-xs sm:text-sm">
+                <span className="hidden lg:inline">Fitness Plan</span>
+                <span className="lg:hidden">Fitness</span>
+              </TabsTrigger>
+              <TabsTrigger value="lifestyle" className="text-xs sm:text-sm">
+                <span className="hidden lg:inline">Lifestyle</span>
+                <span className="lg:hidden">Life</span>
+              </TabsTrigger>
             </TabsList>
 
             {/* Body Composition Tab */}
@@ -429,7 +450,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                   <CardTitle>Body Composition Analysis</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {aiData.composition.bmi && (
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="text-2xl font-bold">{aiData.composition.bmi}</div>
@@ -498,7 +519,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                   <CardTitle>Body Segment Analysis</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {aiData.segment.rightArm && (
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="text-2xl font-bold">{aiData.segment.rightArm}kg</div>
@@ -547,8 +568,8 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                   {/* Macronutrients */}
                   {aiData.suggestion.nutritionPlan?.macronutrients && (
                     <div>
-                      <h4 className="font-semibold mb-3">Daily Macronutrients</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <h4 className="font-semibold mb-3">Nutrisi Harian</h4>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         {aiData.suggestion.nutritionPlan.macronutrients.protein && (
                           <div className="p-4 border rounded-lg">
                             <div className="text-2xl font-bold text-red-600">
@@ -558,7 +579,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                               Protein ({aiData.suggestion.nutritionPlan.macronutrients.protein.percentage}%)
                             </div>
                             <div className="mt-2 text-xs">
-                              Sources: {aiData.suggestion.nutritionPlan.macronutrients.protein.sources?.join(', ')}
+                              Sumber: {aiData.suggestion.nutritionPlan.macronutrients.protein.sources?.join(', ')}
                             </div>
                           </div>
                         )}
@@ -568,10 +589,10 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                               {aiData.suggestion.nutritionPlan.macronutrients.carbohydrates.grams}g
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              Carbs ({aiData.suggestion.nutritionPlan.macronutrients.carbohydrates.percentage}%)
+                              Karbo ({aiData.suggestion.nutritionPlan.macronutrients.carbohydrates.percentage}%)
                             </div>
                             <div className="mt-2 text-xs">
-                              Sources: {aiData.suggestion.nutritionPlan.macronutrients.carbohydrates.sources?.join(', ')}
+                              Sumber: {aiData.suggestion.nutritionPlan.macronutrients.carbohydrates.sources?.join(', ')}
                             </div>
                           </div>
                         )}
@@ -581,10 +602,10 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                               {aiData.suggestion.nutritionPlan.macronutrients.fats.grams}g
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              Fats ({aiData.suggestion.nutritionPlan.macronutrients.fats.percentage}%)
+                              Lemak ({aiData.suggestion.nutritionPlan.macronutrients.fats.percentage}%)
                             </div>
                             <div className="mt-2 text-xs">
-                              Sources: {aiData.suggestion.nutritionPlan.macronutrients.fats.sources?.join(', ')}
+                              Sumber: {aiData.suggestion.nutritionPlan.macronutrients.fats.sources?.join(', ')}
                             </div>
                           </div>
                         )}
@@ -595,7 +616,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                   {/* Micronutrients */}
                   {aiData.suggestion.nutritionPlan?.micronutrients && (
                     <div>
-                      <h4 className="font-semibold mb-3">Essential Micronutrients</h4>
+                      <h4 className="font-semibold mb-3">Nutrisi Pelengkap</h4>
                       <div className="space-y-3">
                         {aiData.suggestion.nutritionPlan.micronutrients.map((micro, index) => (
                           <div key={index} className="p-3 bg-muted rounded-lg">
@@ -606,8 +627,8 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                               </div>
                             </div>
                             <div className="mt-2 text-sm">
-                              <div><strong>Sources:</strong> {micro.sources.join(', ')}</div>
-                              <div><strong>Importance:</strong> {micro.importance}</div>
+                              <div><strong>Sumber:</strong> {micro.sources.join(', ')}</div>
+                              <div><strong>Tingkat Kepentingan:</strong> {micro.importance}</div>
                             </div>
                           </div>
                         ))}
@@ -616,10 +637,10 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                   )}
 
                   {/* Meal Timing & Hydration */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {aiData.suggestion.nutritionPlan?.mealTiming && (
                       <div>
-                        <h4 className="font-semibold mb-2">Meal Timing</h4>
+                        <h4 className="font-semibold mb-2">Waktu Makan</h4>
                         <ul className="text-sm space-y-1">
                           {aiData.suggestion.nutritionPlan.mealTiming.map((timing, index) => (
                             <li key={index} className="flex items-start gap-2">
@@ -668,7 +689,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                       {/* Weekly Schedule */}
                       {aiData.suggestion.gymWorkoutPlan.weeklySchedule && (
                         <div>
-                          <h4 className="font-semibold mb-3">Weekly Schedule</h4>
+                          <h4 className="font-semibold mb-3">Jadwal Mingguan</h4>
                           <div className="space-y-2">
                             {aiData.suggestion.gymWorkoutPlan.weeklySchedule.map((day, index) => (
                               <div key={index} className="p-2 bg-muted rounded">
@@ -680,7 +701,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                       )}
 
                       {/* Cardio & Strength Training */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {aiData.suggestion.gymWorkoutPlan.cardio && (
                           <div>
                             <h4 className="font-semibold mb-2">Cardio Exercises</h4>
@@ -712,7 +733,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                   )}
 
                   {/* Goals */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {aiData.suggestion.targetWeight && (
                       <div className="p-3 bg-muted rounded-lg">
                         <div className="text-lg font-bold">{aiData.suggestion.targetWeight}kg</div>
@@ -741,7 +762,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {aiData.suggestion.lifestyleHabits && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {/* Sleep */}
                       {aiData.suggestion.lifestyleHabits.sleep && (
                         <div>
@@ -838,11 +859,11 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
           </Tabs>
 
           {/* Save Button */}
-          <div className="flex justify-end">
+          <div className="flex justify-center sm:justify-end">
             <Button
               onClick={saveTracking}
               disabled={saveTrackingMutation.isPending}
-              className="min-w-[200px]"
+              className="min-w-[200px] w-full sm:w-auto"
             >
               {saveTrackingMutation.isPending ? (
                 <>
