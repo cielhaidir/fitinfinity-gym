@@ -108,13 +108,13 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
             <div className="flex items-center space-x-3">
               <div className="text-blue-600">{icon}</div>
               <div>
-                <p className="text-sm font-medium text-gray-600">{title}</p>
+                <p className="text-sm font-medium ">{title}</p>
                 <p className="text-2xl font-bold">
                   {typeof value === 'number' ? value.toFixed(1) : value}
-                  {unit && <span className="text-lg text-gray-500 ml-1">{unit}</span>}
+                  {unit && <span className="text-lg  ml-1">{unit}</span>}
                 </p>
                 {description && (
-                  <p className="text-xs text-gray-500 mt-1">{description}</p>
+                  <p className="text-xs  mt-1">{description}</p>
                 )}
               </div>
             </div>
@@ -143,7 +143,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
           )}
           <div>
             <h1 className="text-2xl font-bold">Detail Analisis Komposisi Tubuh</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+            <div className="flex items-center gap-4 text-sm  mt-1">
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 {formatDate(new Date(tracking.createdAt), 'dd MMMM yyyy, HH:mm', { locale: localeId })}
@@ -396,7 +396,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                   )}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">
+                <p className="text-center  py-8">
                   Data segmen tubuh tidak tersedia
                 </p>
               )}
@@ -427,13 +427,13 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                               <h5 className="font-medium text-blue-600 mb-2">Protein</h5>
                               <p className="text-2xl font-bold">
                                 {suggestion.nutritionPlan.macronutrients.protein.grams}g 
-                                <span className="text-sm text-gray-500 ml-2">
+                                <span className="text-sm  ml-2">
                                   ({suggestion.nutritionPlan.macronutrients.protein.percentage}%)
                                 </span>
                               </p>
                               {suggestion.nutritionPlan.macronutrients.protein.sources && (
                                 <div className="mt-2">
-                                  <p className="text-xs text-gray-600 mb-1">Sumber:</p>
+                                  <p className="text-xs  mb-1">Sumber:</p>
                                   <div className="flex flex-wrap gap-1">
                                     {suggestion.nutritionPlan.macronutrients.protein.sources.slice(0, 3).map((source: string, i: number) => (
                                       <Badge key={i} variant="outline" className="text-xs">
@@ -453,13 +453,13 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                               <h5 className="font-medium text-green-600 mb-2">Karbohidrat</h5>
                               <p className="text-2xl font-bold">
                                 {suggestion.nutritionPlan.macronutrients.carbohydrates.grams}g 
-                                <span className="text-sm text-gray-500 ml-2">
+                                <span className="text-sm  ml-2">
                                   ({suggestion.nutritionPlan.macronutrients.carbohydrates.percentage}%)
                                 </span>
                               </p>
                               {suggestion.nutritionPlan.macronutrients.carbohydrates.sources && (
                                 <div className="mt-2">
-                                  <p className="text-xs text-gray-600 mb-1">Sumber:</p>
+                                  <p className="text-xs  mb-1">Sumber:</p>
                                   <div className="flex flex-wrap gap-1">
                                     {suggestion.nutritionPlan.macronutrients.carbohydrates.sources.slice(0, 3).map((source: string, i: number) => (
                                       <Badge key={i} variant="outline" className="text-xs">
@@ -479,13 +479,13 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                               <h5 className="font-medium text-orange-600 mb-2">Lemak</h5>
                               <p className="text-2xl font-bold">
                                 {suggestion.nutritionPlan.macronutrients.fats.grams}g 
-                                <span className="text-sm text-gray-500 ml-2">
+                                <span className="text-sm  ml-2">
                                   ({suggestion.nutritionPlan.macronutrients.fats.percentage}%)
                                 </span>
                               </p>
                               {suggestion.nutritionPlan.macronutrients.fats.sources && (
                                 <div className="mt-2">
-                                  <p className="text-xs text-gray-600 mb-1">Sumber:</p>
+                                  <p className="text-xs  mb-1">Sumber:</p>
                                   <div className="flex flex-wrap gap-1">
                                     {suggestion.nutritionPlan.macronutrients.fats.sources.slice(0, 3).map((source: string, i: number) => (
                                       <Badge key={i} variant="outline" className="text-xs">
@@ -512,10 +512,10 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                             <CardContent className="p-4">
                               <h5 className="font-medium text-purple-600 mb-1">{micro.name}</h5>
                               <p className="text-lg font-semibold">{micro.dailyAmount}</p>
-                              <p className="text-sm text-gray-600 mt-1">{micro.importance}</p>
+                              <p className="text-sm  mt-1">{micro.importance}</p>
                               {micro.sources && (
                                 <div className="mt-2">
-                                  <p className="text-xs text-gray-600 mb-1">Sumber:</p>
+                                  <p className="text-xs  mb-1">Sumber:</p>
                                   <p className="text-sm">{micro.sources.join(", ")}</p>
                                 </div>
                               )}
@@ -534,7 +534,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.nutritionPlan.mealTiming.map((timing: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {timing}</li>
+                              <li key={i} className="text-sm ">• {timing}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -548,14 +548,14 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                       <h4 className="font-medium text-lg mb-4">Hidrasi</h4>
                       <Card>
                         <CardContent className="p-4">
-                          <p className="text-sm text-gray-700">{suggestion.nutritionPlan.hydration}</p>
+                          <p className="text-sm ">{suggestion.nutritionPlan.hydration}</p>
                         </CardContent>
                       </Card>
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">
+                <p className="text-center  py-8">
                   Rencana nutrisi tidak tersedia
                 </p>
               )}
@@ -595,7 +595,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.gymWorkoutPlan.cardio.map((exercise: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {exercise}</li>
+                              <li key={i} className="text-sm ">• {exercise}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -611,7 +611,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.gymWorkoutPlan.strengthTraining.map((exercise: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {exercise}</li>
+                              <li key={i} className="text-sm ">• {exercise}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -627,7 +627,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.gymWorkoutPlan.weeklySchedule.map((schedule: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {schedule}</li>
+                              <li key={i} className="text-sm ">• {schedule}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -636,7 +636,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                   )}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">
+                <p className="text-center  py-8">
                   Rencana fitness tidak tersedia
                 </p>
               )}
@@ -664,7 +664,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.lifestyleHabits.sleep.map((tip: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {tip}</li>
+                              <li key={i} className="text-sm ">• {tip}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -680,7 +680,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.lifestyleHabits.stressManagement.map((tip: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {tip}</li>
+                              <li key={i} className="text-sm ">• {tip}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -696,7 +696,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.lifestyleHabits.dailyHabits.map((habit: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {habit}</li>
+                              <li key={i} className="text-sm ">• {habit}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -712,7 +712,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                         <CardContent className="p-4">
                           <ul className="space-y-2">
                             {suggestion.lifestyleHabits.supplementation.map((supplement: string, i: number) => (
-                              <li key={i} className="text-sm text-gray-700">• {supplement}</li>
+                              <li key={i} className="text-sm ">• {supplement}</li>
                             ))}
                           </ul>
                         </CardContent>
@@ -729,7 +729,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                           <Card>
                             <CardContent className="p-4">
                               <h5 className="font-medium text-blue-600 mb-2">Estimasi Waktu</h5>
-                              <p className="text-sm text-gray-700">{suggestion.estimatedTimeToGoal}</p>
+                              <p className="text-sm ">{suggestion.estimatedTimeToGoal}</p>
                             </CardContent>
                           </Card>
                         )}
@@ -760,7 +760,7 @@ export function TrackingDetail({ trackingId, onBack }: TrackingDetailProps) {
                   )}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">
+                <p className="text-center  py-8">
                   Rekomendasi gaya hidup tidak tersedia
                 </p>
               )}
