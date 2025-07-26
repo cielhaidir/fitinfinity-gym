@@ -38,6 +38,7 @@ import { posSaleRouter } from "./routers/posSale";
 import { mqttRouter } from "./routers/mqtt";
 import { trackingRouter } from "./routers/tracking";
 import { salesReportRouter } from "./routers/salesReport";
+import { aiRateLimitRouter } from "./routers/aiRateLimit";
 
 /**
  * This is the primary router for your server.
@@ -84,6 +85,7 @@ export const appRouter = createTRPCRouter({
   mqtt: mqttRouter,
   tracking: trackingRouter,
   salesReport: salesReportRouter,
+  aiRateLimit: aiRateLimitRouter,
 });
 
 // export type definition of API

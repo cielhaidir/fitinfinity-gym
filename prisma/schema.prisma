@@ -184,6 +184,8 @@ model User {
     gender             Gender?
     posSales           POSSale[]
     trackingUsers      TrackingUser[]    @relation("TrackingUserToUser")
+    aiRateLimits       AIRateLimit[]     @relation("UserAIRateLimit")
+    aiRequestLogs      AIRequestLog[]    @relation("UserAIRequestLog")
 }
 
 model Class {
@@ -856,4 +858,50 @@ model TrackingUser {
     
     @@index([userId])
     @@index([createdAt])
+}
+
+// AI Rate Limiting Models
+enum AIRequestType {
+    BODY_COMPOSITION
+    CALORIE_CALCULATOR
+    GENERAL
+}
+
+model AIRateLimit {
+    id           String        @id @default(cuid())
+    userId       String
+    requestType  AIRequestType
+    dailyLimit   Int           @default(5)
+    weeklyLimit  Int           @default(20)
+    monthlyLimit Int           @default(50)
+    isActive     Boolean       @default(true)
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+    
+    user         User          @relation("UserAIRateLimit", fields: [userId], references: [id], onDelete: Cascade)
+    
+    @@unique([userId, requestType])
+    @@index([userId])
+    @@index([requestType])
+}
+
+model AIRequestLog {
+    id             String        @id @default(cuid())
+    userId         String
+    requestType    AIRequestType
+    endpoint       String
+    success        Boolean
+    errorMessage   String?
+    tokenCount     Int?
+    processingTime Int?          // in milliseconds
+    userAgent      String?
+    ipAddress      String?
+    createdAt      DateTime      @default(now())
+    
+    user           User          @relation("UserAIRequestLog", fields: [userId], references: [id], onDelete: Cascade)
+    
+    @@index([userId])
+    @@index([requestType])
+    @@index([createdAt])
+    @@index([userId, requestType, createdAt])
 }

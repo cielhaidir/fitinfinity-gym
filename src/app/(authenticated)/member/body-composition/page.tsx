@@ -2,8 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { api } from "@/trpc/react";
-import { ArrowLeft, Calendar, TrendingUp } from "lucide-react";
+import { ArrowLeft, Calendar, TrendingUp, Bot, AlertTriangle, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AIBodyCompositionForm } from "@/app/_components/AIBodyCompositionForm";
 
@@ -14,6 +15,11 @@ export default function BodyCompositionPage() {
   const { data: trackingHistory, isLoading: isHistoryLoading } = api.tracking.getHistory.useQuery({
     page: 1,
     limit: 5,
+  });
+
+  // Check AI rate limit status
+  const { data: aiRateLimit } = api.aiRateLimit.canMakeRequest.useQuery({
+    requestType: "BODY_COMPOSITION",
   });
 
   const formatDate = (date: Date) => {
@@ -41,14 +47,39 @@ export default function BodyCompositionPage() {
             Unggah foto hasil scan komposisi tubuh untuk melacak perkembangan Anda
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => router.push("/member")}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Kembali ke Dashboard
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* AI Rate Limit Status */}
+          <div className="flex items-center gap-2">
+            {aiRateLimit?.allowed ? (
+              <Badge variant="default" className="bg-green-500">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                AI Available
+              </Badge>
+            ) : (
+              <Badge variant="destructive">
+                <AlertTriangle className="w-3 h-3 mr-1" />
+                AI Limited
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/member/ai-limits")}
+              className="flex items-center gap-1"
+            >
+              <Bot className="h-4 w-4" />
+              Manage
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/member")}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Kembali ke Dashboard
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -83,6 +114,39 @@ export default function BodyCompositionPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Rate Limit Warning */}
+      {aiRateLimit && !aiRateLimit.allowed && (
+        <Card className="border-destructive">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-semibold text-destructive mb-1">AI Analysis Temporarily Limited</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {aiRateLimit.reason || "You have reached your AI request limit for body composition analysis."}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push("/member/ai-limits")}
+                  >
+                    View AI Limits
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh Status
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Content */}
       <div className="grid gap-6 lg:grid-cols-3">

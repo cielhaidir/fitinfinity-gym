@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { runPaddleOCRMultiple } from "@/lib/paddleOcrClient";
 import { parseOCRText } from "@/server/utils/ocrParser";
 import { createAIService } from "@/server/utils/aiService";
+import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLimitService";
 
 // Note: Use 'processImage' endpoint for direct AI image analysis (recommended)
 // Use 'extractOCR' endpoint only if you need OCR text extraction for legacy purposes
@@ -15,10 +16,22 @@ export const trackingRouter = createTRPCRouter({
         image: z.string().min(1, "Image is required"), // Base64 encoded image
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const rateLimitService = createAIRateLimitService(ctx.db);
         const aiService = createAIService();
-        const enhancedData = await aiService.processImage(input.image);
+
+        // Execute with rate limiting
+        const enhancedData = await rateLimitService.executeWithRateLimit(
+          {
+            userId: ctx.session.user.id,
+            requestType: AIRequestType.BODY_COMPOSITION,
+            endpoint: 'processImage',
+            userAgent: ctx.headers?.get('user-agent') || undefined,
+            ipAddress: ctx.headers?.get('x-forwarded-for') || ctx.headers?.get('x-real-ip') || undefined,
+          },
+          () => aiService.processImage(input.image)
+        );
         
         return {
           success: true,
@@ -43,10 +56,22 @@ export const trackingRouter = createTRPCRouter({
         images: z.array(z.string()).min(1, "At least one image is required"), // Base64 encoded images
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const rateLimitService = createAIRateLimitService(ctx.db);
         const aiService = createAIService();
-        const enhancedData = await aiService.processMultipleImages(input.images);
+
+        // Execute with rate limiting
+        const enhancedData = await rateLimitService.executeWithRateLimit(
+          {
+            userId: ctx.session.user.id,
+            requestType: AIRequestType.BODY_COMPOSITION,
+            endpoint: 'processMultipleImages',
+            userAgent: ctx.headers?.get('user-agent') || undefined,
+            ipAddress: ctx.headers?.get('x-forwarded-for') || ctx.headers?.get('x-real-ip') || undefined,
+          },
+          () => aiService.processMultipleImages(input.images)
+        );
         
         return {
           success: true,
@@ -72,7 +97,7 @@ export const trackingRouter = createTRPCRouter({
         enhanceWithAI: z.boolean().default(true), // Option to enable/disable AI enhancement
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
         const ocrResults = [];
         
@@ -120,8 +145,20 @@ export const trackingRouter = createTRPCRouter({
         
         if (input.enhanceWithAI) {
           try {
+            const rateLimitService = createAIRateLimitService(ctx.db);
             const aiService = createAIService();
-            enhancedData = await aiService.enhanceOCRData(combinedData);
+            
+            // Execute AI enhancement with rate limiting
+            enhancedData = await rateLimitService.executeWithRateLimit(
+              {
+                userId: ctx.session.user.id,
+                requestType: AIRequestType.BODY_COMPOSITION,
+                endpoint: 'extractOCR',
+                userAgent: ctx.headers?.get('user-agent') || undefined,
+                ipAddress: ctx.headers?.get('x-forwarded-for') || ctx.headers?.get('x-real-ip') || undefined,
+              },
+              () => aiService.enhanceOCRData(combinedData)
+            );
             aiEnhanced = true;
           } catch (aiError) {
             console.error('AI enhancement failed:', aiError);
