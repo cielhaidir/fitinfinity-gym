@@ -74,6 +74,8 @@ export const esp32Router = createTRPCRouter({
         }))
         .mutation(async ({ ctx, input }) => {
             try {
+                console.log("Starting enrollment request for employee:", input.employeeId);
+                
                 const employee = await ctx.db.employee.findUnique({
                     where: { id: input.employeeId },
                     include: {
@@ -86,16 +88,20 @@ export const esp32Router = createTRPCRouter({
                 });
 
                 if (!employee) {
+                    console.log("Employee not found with ID:", input.employeeId);
                     throw new TRPCError({
                         code: "NOT_FOUND",
                         message: "Employee not found"
                     });
                 }
 
+                console.log("Employee found:", employee.user.name);
+
                 // Get an available device or use provided deviceId
                 let targetDeviceId = input.deviceId;
                 
                 if (!targetDeviceId) {
+                    console.log("No device ID provided, searching for online device...");
                     // Find an online device to use for enrollment
                     const onlineDevice = await ctx.db.device.findFirst({
                         where: {
@@ -105,6 +111,7 @@ export const esp32Router = createTRPCRouter({
                     });
                     
                     if (!onlineDevice) {
+                        console.log("No online devices found for enrollment");
                         throw new TRPCError({
                             code: "NOT_FOUND",
                             message: "No online devices available for enrollment"
@@ -112,8 +119,12 @@ export const esp32Router = createTRPCRouter({
                     }
                     
                     targetDeviceId = onlineDevice.id;
+                    console.log("Using device:", targetDeviceId);
+                } else {
+                    console.log("Using provided device ID:", targetDeviceId);
                 }
 
+                console.log("Updating employee enrollment status to PENDING...");
                 // Update employee status to pending enrollment
                 await ctx.db.employee.update({
                     where: { id: input.employeeId },
@@ -123,6 +134,7 @@ export const esp32Router = createTRPCRouter({
                     }
                 });
 
+                console.log("Sending MQTT enrollment request to device:", targetDeviceId);
                 // Send MQTT enrollment request to device
                 await mqttService.sendEnrollmentRequest(
                     targetDeviceId,
@@ -130,12 +142,21 @@ export const esp32Router = createTRPCRouter({
                     employee.user.name || 'Unknown Employee'
                 );
 
+                console.log("Enrollment request completed successfully");
                 return {
                     success: true,
                     message: "Enrollment request sent to device",
                     deviceId: targetDeviceId
                 };
             } catch (error) {
+                console.error("Enrollment request failed:", error);
+                console.error("Error details:", {
+                    employeeId: input.employeeId,
+                    deviceId: input.deviceId,
+                    errorMessage: error instanceof Error ? error.message : "Unknown error",
+                    errorStack: error instanceof Error ? error.stack : undefined
+                });
+                
                 if (error instanceof TRPCError) throw error;
                 throw new TRPCError({
                     code: "INTERNAL_SERVER_ERROR",
