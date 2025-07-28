@@ -1,105 +1,104 @@
-services:
-  db:
-    image: postgres:15
-    container_name: fitinfinity-db
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: P@ssw0rd_db_f1n1t3
-      POSTGRES_DB: fitinfinity
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - fitinfinity-network
+  services:
+    db:
+      image: postgres:15
+      container_name: fitinfinity-db
+      restart: always
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: P@ssw0rd_db_f1n1t3
+        POSTGRES_DB: fitinfinity
+      ports:
+        - "5432:5432"
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+      networks:
+        - fitinfinity-network
 
-  mosquitto:
-    image: eclipse-mosquitto:2.0
-    container_name: fitinfinity-mqtt
-    restart: always
-    ports:
-      - "1883:1883"      # MQTT
-      - "8883:8883"      # MQTT over SSL
-      - "8083:8083"      # WebSocket
-    volumes:
-      - ./mqtt/config:/mosquitto/config
-      - ./mqtt/data:/mosquitto/data
-      - ./mqtt/log:/mosquitto/log
-      - mosquitto_data:/mosquitto/data
-    environment:
-      - MOSQUITTO_USERNAME=fitinfinity_mqtt
-      - MOSQUITTO_PASSWORD=mqtt_p@ssw0rd_f1n1t3
-    networks:
-      - fitinfinity-network
-    healthcheck:
-      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t test -m 'health check' -u fitinfinity_mqtt -P mqtt_p@ssw0rd_f1n1t3 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    mosquitto:
+      image: eclipse-mosquitto:2.0
+      restart: always
+      ports:
+        - "1883:1883"      # MQTT
+        - "8883:8883"      # MQTT over SSL
+        - "8083:8083"      # WebSocket
+      volumes:
+        - ./mqtt/config:/mosquitto/config
+        - ./mqtt/data:/mosquitto/data
+        - ./mqtt/log:/mosquitto/log
+        - mosquitto_data:/mosquitto/data
+      environment:
+        - MOSQUITTO_USERNAME=fitinfinity_mqtt
+        - MOSQUITTO_PASSWORD=mqtt_p@ssw0rd_f1n1t3
+      networks:
+        - fitinfinity-network
+      healthcheck:
+        test: ["CMD-SHELL", "mosquitto_pub -h localhost -t test -m 'health check' -u fitinfinity_mqtt -P mqtt_p@ssw0rd_f1n1t3 || exit 1"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
 
-  app:
-    image: fitinfinity
-    container_name: fitinfinity-app
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
-      mosquitto:
-        condition: service_healthy
-    ports:
-      - "3099:3000"
-    env_file:
-      - .env
-    volumes:
-      - /development/data-fit/uploads:/app/public/uploads
-      - /development/data-fit/assets/transaction:/app/public/assets/transaction
-      - /development/data-fit/assets/management/transaction:/app/public/assets/management/transaction
-      - /development/data-fit/assets/profile:/app/public/assets/profile
-      - /development/data-fit/assets/PT:/app/public/assets/PT
-      - /development/data-fit/assets/exercise:/app/public/assets/exercise
+    app:
+      image: fitinfinity
+      container_name: fitinfinity-app
+      build:
+        context: .
+        dockerfile: Dockerfile
+      depends_on:
+        db:
+          condition: service_healthy
+        mosquitto:
+          condition: service_healthy
+      ports:
+        - "3099:3000"
+      env_file:
+        - .env
+      volumes:
+        - /development/data-fit/uploads:/app/public/uploads
+        - /development/data-fit/assets/transaction:/app/public/assets/transaction
+        - /development/data-fit/assets/management/transaction:/app/public/assets/management/transaction
+        - /development/data-fit/assets/profile:/app/public/assets/profile
+        - /development/data-fit/assets/PT:/app/public/assets/PT
+        - /development/data-fit/assets/exercise:/app/public/assets/exercise
 
-    networks:
-      - fitinfinity-network
+      networks:
+        - fitinfinity-network
 
-  seed:
-    image: fitinfinity
-    container_name: fitinfinity-seed
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file:
-      - .env
-    user: root
-    command: ["sh", "-c", "npx prisma db seed"]
-    profiles:
-      - seed
-    networks:
-      - fitinfinity-network
+    seed:
+      image: fitinfinity
+      container_name: fitinfinity-seed
+      build:
+        context: .
+        dockerfile: Dockerfile
+      depends_on:
+        db:
+          condition: service_healthy
+      env_file:
+        - .env
+      user: root
+      command: ["sh", "-c", "npx prisma db seed"]
+      profiles:
+        - seed
+      networks:
+        - fitinfinity-network
 
-volumes:
-  postgres_data:
+  volumes:
+    postgres_data:
+        external: true
+        name: fitinfinity_postgres_data
+    mosquitto_data:
+    uploads_data:
+        external: true
+        name: fitinfinity_uploads_data
+    assets_data:
+        external: true
+        name: fitinfinity_assets_data
+
+  networks:
+    fitinfinity-network:
+      name: fitinfinity-shared
       external: true
-      name: fitinfinity_postgres_data
-  mosquitto_data:
-  uploads_data:
-      external: true
-      name: fitinfinity_uploads_data
-  assets_data:
-      external: true
-      name: fitinfinity_assets_data
-
-networks:
-  fitinfinity-network:
-    name: fitinfinity-shared
-    external: true
