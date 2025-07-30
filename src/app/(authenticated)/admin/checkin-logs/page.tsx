@@ -41,11 +41,16 @@ export default function CheckinLogsPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage] = useState<number>(50);
   
   const { data, isLoading, error, refetch } = api.esp32.getMemberCheckinLogs.useQuery({
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    page: currentPage,
+    limit: itemsPerPage,
   });
+  
   
   const updateMutation = api.esp32.updateMemberCheckinLog.useMutation();
   const checkoutMutation = api.esp32.manualCheckout.useMutation();
@@ -94,10 +99,11 @@ export default function CheckinLogsPage() {
     const weekEnd = format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
     setStartDate(weekStart);
     setEndDate(weekEnd);
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   const handleDownloadReport = () => {
-    if (!data || data.length === 0) {
+    if (!data?.data || data.data.length === 0) {
       toast.error("No data to download");
       return;
     }
@@ -105,7 +111,7 @@ export default function CheckinLogsPage() {
     const headers = ["Check-in Time", "Checkout Time", "Status", "Member ID", "Member Name", "User Name", "Facility Description"];
     const csvContent = [
       headers.join(","),
-      ...data.map((log: MemberCheckinLog) => [
+      ...data.data.map((log: MemberCheckinLog) => [
         format(new Date(log.checkin), "yyyy-MM-dd HH:mm"),
         log.checkout ? format(new Date(log.checkout), "yyyy-MM-dd HH:mm") : "",
         log.status,
@@ -131,6 +137,12 @@ export default function CheckinLogsPage() {
     setStartDate("");
     setEndDate("");
     setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    setCurrentPage(1); // Reset to first page when clearing filters
+  };
+
+  const handleApplyFilters = () => {
+    setCurrentPage(1); // Reset to first page when applying filters
+    refetch();
   };
 
   return (
@@ -170,7 +182,7 @@ export default function CheckinLogsPage() {
               />
             </div>
             <div className="flex items-end gap-2">
-              <Button onClick={() => refetch()} className="w-full">
+              <Button onClick={handleApplyFilters} className="w-full">
                 Apply Filters
               </Button>
             </div>
@@ -217,7 +229,15 @@ export default function CheckinLogsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Check-in Records</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Check-in Records</CardTitle>
+            {data && (
+              <div className="text-sm text-muted-foreground">
+                Showing {data.data.length} of {data.totalCount} records
+                (Page {data.currentPage} of {data.totalPages})
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -227,87 +247,150 @@ export default function CheckinLogsPage() {
           ) : error ? (
             <div className="text-red-500">Error loading check-in logs.</div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Check-in Time</TableHead>
-                    <TableHead>Checkout Time</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Member ID</TableHead>
-                    <TableHead>Member Name</TableHead>
-                    <TableHead>User Name</TableHead>
-                    <TableHead>Facility Description</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data && data.length > 0 ? (
-                    data.map((log: MemberCheckinLog) => (
-                      <TableRow key={log.id}>
-                        <TableCell>
-                          {log.checkin
-                            ? typeof log.checkin === "string"
-                              ? format(new Date(log.checkin), "yyyy-MM-dd HH:mm")
-                              : format(log.checkin, "yyyy-MM-dd HH:mm")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {log.checkout
-                            ? typeof log.checkout === "string"
-                              ? format(new Date(log.checkout), "yyyy-MM-dd HH:mm")
-                              : format(log.checkout, "yyyy-MM-dd HH:mm")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {log.status}
-                        </TableCell>
-                        <TableCell>{log.memberId}</TableCell>
-                        <TableCell>{log.memberName ?? "-"}</TableCell>
-                        <TableCell>{log.userName ?? "-"}</TableCell>
-                        <TableCell>{log.facilityDescription ?? "-"}</TableCell>
-                        <TableCell className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditDialog(log)}
-                          >
-                            <Pencil className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
-                          {!log.checkout && (
+            <>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Check-in Time</TableHead>
+                      <TableHead>Checkout Time</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Member ID</TableHead>
+                      <TableHead>Member Name</TableHead>
+                      <TableHead>User Name</TableHead>
+                      <TableHead>Facility Description</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data?.data && data.data.length > 0 ? (
+                      data.data.map((log: MemberCheckinLog) => (
+                        <TableRow key={log.id}>
+                          <TableCell>
+                            {log.checkin
+                              ? typeof log.checkin === "string"
+                                ? format(new Date(log.checkin), "yyyy-MM-dd HH:mm")
+                                : format(log.checkin, "yyyy-MM-dd HH:mm")
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {log.checkout
+                              ? typeof log.checkout === "string"
+                                ? format(new Date(log.checkout), "yyyy-MM-dd HH:mm")
+                                : format(log.checkout, "yyyy-MM-dd HH:mm")
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {log.status}
+                          </TableCell>
+                          <TableCell>{log.memberId}</TableCell>
+                          <TableCell>{log.memberName ?? "-"}</TableCell>
+                          <TableCell>{log.userName ?? "-"}</TableCell>
+                          <TableCell>{log.facilityDescription ?? "-"}</TableCell>
+                          <TableCell className="flex gap-2">
                             <Button
                               size="sm"
-                              variant="secondary"
-                              disabled={checkoutMutation.isPending}
-                              onClick={async () => {
-                                try {
-                                  await checkoutMutation.mutateAsync({
-                                    attendanceId: log.id,
-                                  });
-                                  toast.success("Checked out successfully");
-                                  await refetch();
-                                } catch (err: any) {
-                                  toast.error("Failed to checkout");
-                                }
-                              }}
+                              variant="outline"
+                              onClick={() => openEditDialog(log)}
                             >
-                              Checkout
+                              <Pencil className="w-4 h-4 mr-1" />
+                              Edit
                             </Button>
-                          )}
+                            {!log.checkout && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                disabled={checkoutMutation.isPending}
+                                onClick={async () => {
+                                  try {
+                                    await checkoutMutation.mutateAsync({
+                                      attendanceId: log.id,
+                                    });
+                                    toast.success("Checked out successfully");
+                                    await refetch();
+                                  } catch (err: any) {
+                                    toast.error("Failed to checkout");
+                                  }
+                                }}
+                              >
+                                Checkout
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center">
+                          No check-in logs found.
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center">
-                        No check-in logs found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Pagination Controls */}
+              {data && data.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, data.totalCount)} of {data.totalCount} results
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={!data.hasPreviousPage}
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {/* Show page numbers */}
+                      {Array.from({ length: Math.min(5, data.totalPages) }, (_, i) => {
+                        const pageNum = i + 1;
+                        const isCurrentPage = pageNum === currentPage;
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={isCurrentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-10"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                      
+                      {data.totalPages > 5 && (
+                        <>
+                          <span className="px-2">...</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(data.totalPages)}
+                            className="w-10"
+                          >
+                            {data.totalPages}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={!data.hasNextPage}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

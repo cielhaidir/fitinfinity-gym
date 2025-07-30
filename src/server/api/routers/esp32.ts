@@ -592,8 +592,17 @@ export const esp32Router = createTRPCRouter({
     .input(z.object({
       startDate: z.string().optional(),
       endDate: z.string().optional(),
+      page: z.number().min(1).default(1),
+      limit: z.number().min(1).max(100).default(50),
     }).optional())
-    .output(z.array(memberCheckinLogSchema))
+    .output(z.object({
+      data: z.array(memberCheckinLogSchema),
+      totalCount: z.number(),
+      totalPages: z.number(),
+      currentPage: z.number(),
+      hasNextPage: z.boolean(),
+      hasPreviousPage: z.boolean(),
+    }))
     .query(async ({ ctx, input }) => {
       const whereClause: any = {};
       
@@ -610,9 +619,20 @@ export const esp32Router = createTRPCRouter({
         }
       }
 
+      const page = input?.page ?? 1;
+      const limit = input?.limit ?? 50;
+      const skip = (page - 1) * limit;
+
+      // Get total count for pagination metadata
+      const totalCount = await ctx.db.attendanceMember.count({
+        where: whereClause,
+      });
+      
       const logs = await ctx.db.attendanceMember.findMany({
         where: whereClause,
         orderBy: { checkin: "desc" },
+        skip,
+        take: limit,
         include: {
           member: {
             include: {
@@ -621,17 +641,29 @@ export const esp32Router = createTRPCRouter({
           },
         },
       });
+      
+      const totalPages = Math.ceil(totalCount / limit);
+      const hasNextPage = page < totalPages;
+      const hasPreviousPage = page > 1;
+      
 
-      return logs.map((log) => ({
-        id: log.id,
-        checkin: log.checkin,
-        checkout: log.checkout ?? null,
-        memberId: log.memberId,
-        memberName: log.member?.user?.name ?? null,
-        userName: log.member?.user?.name ?? null,
-        facilityDescription: log.facilityDescription ?? null,
-        status: log.checkout ? "Checked Out" : "Checked In",
-      }));
+      return {
+        data: logs.map((log) => ({
+          id: log.id,
+          checkin: log.checkin,
+          checkout: log.checkout ?? null,
+          memberId: log.memberId,
+          memberName: log.member?.user?.name ?? null,
+          userName: log.member?.user?.name ?? null,
+          facilityDescription: log.facilityDescription ?? null,
+          status: log.checkout ? "Checked Out" : "Checked In",
+        })),
+        totalCount,
+        totalPages,
+        currentPage: page,
+        hasNextPage,
+        hasPreviousPage,
+      };
     }),
 
     // Bulk attendance submission endpoint
