@@ -445,13 +445,35 @@ export class DokuPaymentService {
     }>;
   }): Promise<DokuPaymentResponse> {
 
+    // Calculate fees
+    const serviceFeePct = params.amount * 0.05; // 5% service fee
+    const adminFee = 2000; // Fixed admin fee
+    const totalAmount = params.amount + serviceFeePct + adminFee;
+
+    // Create line items including fees
+    const lineItems = [...(params.items || [])];
+    
+    // Add service fee as line item
+    lineItems.push({
+      name: 'Service Fee (5%)',
+      price: serviceFeePct,
+      quantity: 1
+    });
+    
+    // Add admin fee as line item
+    lineItems.push({
+      name: 'Admin Fee',
+      price: adminFee,
+      quantity: 1
+    });
+
     const paymentRequest: DokuPaymentRequest = {
       order: {
-        amount: params.amount + (params.amount * 0.05) + 2000,
+        amount: totalAmount,
         invoice_number: params.orderId,
         currency: 'IDR',
         callback_url: params.callbackUrl,
-        line_items: params.items,
+        line_items: lineItems,
         auto_redirect: true, // Automatically redirect after payment
       },
       payment: {
