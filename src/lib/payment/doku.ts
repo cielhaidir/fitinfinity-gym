@@ -455,7 +455,7 @@ export class DokuPaymentService {
     
     // Add service fee as line item
     lineItems.push({
-      name: 'Service Fee (5%)',
+      name: 'Service Fee 5%',
       price: serviceFeePct,
       quantity: 1
     });
