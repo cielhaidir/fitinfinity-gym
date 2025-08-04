@@ -386,11 +386,18 @@ export default function SubscriptionPage({
                                 <RadioGroupItem value={pkg.id} id={pkg.id} />
                                 <Label
                                   htmlFor={pkg.id}
-                                  className="flex flex-1 justify-between"
+                                  className="flex flex-1 justify-between items-start"
                                 >
-                                  <span>
-                                    {pkg.name} ({pkg.day} Days)
-                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {pkg.name} ({pkg.day} Days)
+                                    </span>
+                                    {pkg.description && (
+                                      <span className="text-sm text-muted-foreground mt-1">
+                                        {pkg.description}
+                                      </span>
+                                    )}
+                                  </div>
                                   <span className="font-semibold">
                                     Rp {pkg.price.toLocaleString("id-ID")}
                                   </span>
@@ -449,11 +456,18 @@ export default function SubscriptionPage({
                                   <RadioGroupItem value={pkg.id} id={pkg.id} />
                                   <Label
                                     htmlFor={pkg.id}
-                                    className="flex flex-1 justify-between"
+                                    className="flex flex-1 justify-between items-start"
                                   >
-                                    <span>
-                                      {pkg.name} ({pkg.sessions} sessions)
-                                    </span>
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">
+                                        {pkg.name} ({pkg.sessions} sessions)
+                                      </span>
+                                      {pkg.description && (
+                                        <span className="text-sm text-muted-foreground mt-1">
+                                          {pkg.description}
+                                        </span>
+                                      )}
+                                    </div>
                                     <span className="font-semibold">
                                       Rp {pkg.price.toLocaleString("id-ID")}
                                     </span>
@@ -514,14 +528,19 @@ export default function SubscriptionPage({
                                   <RadioGroupItem value={pkg.id} id={pkg.id} />
                                   <Label
                                     htmlFor={pkg.id}
-                                    className="flex flex-1 justify-between"
+                                    className="flex flex-1 justify-between items-start"
                                   >
                                     <div className="flex flex-col">
-                                      <span>
+                                      <span className="font-medium">
                                         {pkg.name} ({pkg.sessions} sessions)
                                       </span>
+                                      {pkg.description && (
+                                        <span className="text-sm text-muted-foreground mt-1">
+                                          {pkg.description}
+                                        </span>
+                                      )}
                                       {pkg.isGroupPackage && (
-                                        <span className="text-sm text-muted-foreground">
+                                        <span className="text-sm text-muted-foreground mt-1">
                                           <Users className="inline h-3 w-3 mr-1" />
                                           Max {pkg.maxUsers} people • {pkg.groupPriceType === "TOTAL" ? "Split cost" : "Per person"}
                                         </span>
