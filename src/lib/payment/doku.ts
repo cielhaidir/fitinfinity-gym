@@ -447,7 +447,7 @@ export class DokuPaymentService {
 
     const paymentRequest: DokuPaymentRequest = {
       order: {
-        amount: params.amount,
+        amount: params.amount + (params.amount * 0.05) + 2000,
         invoice_number: params.orderId,
         currency: 'IDR',
         callback_url: params.callbackUrl,
