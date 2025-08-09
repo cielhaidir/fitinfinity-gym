@@ -255,4 +255,54 @@ export const userRouter = createTRPCRouter({
 
       return user;
     }),
+
+  search: permissionProtectedProcedure(["list:user"])
+    .input(
+      z.object({
+        query: z.string().min(3, "Search query must be at least 3 characters"),
+        excludeUserIds: z.array(z.string()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const whereClause = {
+        AND: [
+          {
+            OR: [
+              {
+                name: {
+                  contains: input.query,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                email: {
+                  contains: input.query,
+                  mode: "insensitive" as const,
+                },
+              },
+            ],
+          },
+          input.excludeUserIds && input.excludeUserIds.length > 0
+            ? {
+                id: {
+                  notIn: input.excludeUserIds,
+                },
+              }
+            : {},
+        ],
+      };
+
+      const users = await ctx.db.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+        take: 10, // Limit results for performance
+        orderBy: { name: "asc" },
+      });
+
+      return users;
+    }),
 });

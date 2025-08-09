@@ -42,11 +42,23 @@ export const classRouter = createTRPCRouter({
       const skip = (page - 1) * limit;
 
       try {
-        const where = search
-          ? {
-              name: { contains: search, mode: "insensitive" as const },
-            }
-          : undefined;
+        // Calculate date threshold - exclude classes older than 1 day
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        oneDayAgo.setHours(0, 0, 0, 0); // Set to start of yesterday
+
+        const whereConditions: any = {
+          schedule: {
+            gte: oneDayAgo, // Only show classes from yesterday onwards
+          },
+        };
+
+        // Add search condition if provided
+        if (search) {
+          whereConditions.name = { contains: search, mode: "insensitive" as const };
+        }
+
+        const where = whereConditions;
 
         const [items, total] = await Promise.all([
           ctx.db.class.findMany({

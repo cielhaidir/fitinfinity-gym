@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/app/_components/ui/dialog";
 import { Textarea } from "@/app/_components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
@@ -52,6 +53,13 @@ export default function MemberPage() {
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [facilityDescription, setFacilityDescription] = useState("");
   const [selectedMemberForCheckIn, setSelectedMemberForCheckIn] = useState<Member | null>(null);
+  const [isTakeoverModalOpen, setIsTakeoverModalOpen] = useState(false);
+  const [selectedMemberForTakeover, setSelectedMemberForTakeover] = useState<Member | null>(null);
+  const [takeoverNewUserId, setTakeoverNewUserId] = useState("");
+  const [takeoverNewUserName, setTakeoverNewUserName] = useState("");
+  const [takeoverUserSearch, setTakeoverUserSearch] = useState("");
+  const [takeoverReason, setTakeoverReason] = useState("");
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
@@ -64,7 +72,37 @@ export default function MemberPage() {
       searchColumn,
     });
 
-    console.log("Member data:", member);
+  // Get users with memberships to exclude them from search
+  const usersWithMemberships = useMemo(() =>
+    member.items.map(memberItem => memberItem.userId),
+    [member.items]
+  );
+
+  // Search users for takeover functionality (only when search has 3+ characters)
+  const { data: searchedUsers = [], isLoading: isSearchingUsers } = api.user.search.useQuery(
+    {
+      query: takeoverUserSearch,
+      excludeUserIds: usersWithMemberships,
+    },
+    {
+      enabled: takeoverUserSearch.length >= 3,
+    }
+  );
+
+  // Debounce user search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (takeoverUserSearch.length >= 3) {
+        setShowUserDropdown(true);
+      } else {
+        setShowUserDropdown(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [takeoverUserSearch]);
+
+  console.log("Member data:", member);
 
 
   const manualCheckInMutation = api.esp32.manualCheckIn.useMutation({
@@ -120,6 +158,20 @@ export default function MemberPage() {
     onSuccess: () => {
       utils.member.list.invalidate();
       toast.success("Subscription unfrozen successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const takeoverMembershipMutation = api.member.takeover.useMutation({
+    onSuccess: () => {
+      utils.member.list.invalidate();
+      setIsTakeoverModalOpen(false);
+      setSelectedMemberForTakeover(null);
+      setTakeoverNewUserId("");
+      setTakeoverReason("");
+      toast.success("Membership takeover completed successfully");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -369,12 +421,49 @@ export default function MemberPage() {
     setSelectedMemberForCheckIn(null);
   };
 
+  const handleTakeoverMembership = (member: Member) => {
+    setSelectedMemberForTakeover(member);
+    setIsTakeoverModalOpen(true);
+  };
+
+  const handleConfirmTakeover = async () => {
+    if (!selectedMemberForTakeover || !takeoverNewUserId) return;
+
+    try {
+      await takeoverMembershipMutation.mutateAsync({
+        membershipId: selectedMemberForTakeover.id,
+        newUserId: takeoverNewUserId,
+        reason: takeoverReason.trim() || undefined,
+      });
+    } catch (error) {
+      console.error("Error during membership takeover:", error);
+    }
+  };
+
+  const handleCancelTakeover = () => {
+    setIsTakeoverModalOpen(false);
+    setSelectedMemberForTakeover(null);
+    setTakeoverNewUserId("");
+    setTakeoverNewUserName("");
+    setTakeoverUserSearch("");
+    setTakeoverReason("");
+    setShowUserDropdown(false);
+  };
+
+  const handleUserSelect = (user: { id: string; name: string; email: string }) => {
+    setTakeoverNewUserId(user.id);
+    setTakeoverNewUserName(`${user.name} (${user.email})`);
+    setTakeoverUserSearch(`${user.name} (${user.email})`);
+    setShowUserDropdown(false);
+  };
+
   const getCustomActions = (member: Member) => {
     const baseActions = [
       { label: "Profile", action: directToProfile },
       { label: "Subscription", action: directToSubs },
       { label: "Access Log", action: directToLogs },
       { label: "Check In Manually", action: handleManualCheckIn },
+      { label: "Takeover Membership", action: handleTakeoverMembership },
     ];
 
     // Check if member has an active subscription that can be frozen/unfrozen
@@ -527,6 +616,96 @@ export default function MemberPage() {
               className="bg-infinity"
             >
               {manualCheckInMutation.isPending ? "Checking in..." : "Check In"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Takeover Membership Modal */}
+      <Dialog open={isTakeoverModalOpen} onOpenChange={setIsTakeoverModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Takeover Membership</DialogTitle>
+            <DialogDescription>
+              {selectedMemberForTakeover && (
+                <>
+                  Transfer membership of <strong>{selectedMemberForTakeover.user.name}</strong> to another user.
+                  This action cannot be undone.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2 relative">
+              <label htmlFor="newUser" className="text-sm font-medium">
+                New User *
+              </label>
+              <Input
+                id="newUser"
+                placeholder="Type at least 3 characters to search users..."
+                value={takeoverUserSearch}
+                onChange={(e) => setTakeoverUserSearch(e.target.value)}
+                className="w-full"
+              />
+              {isSearchingUsers && takeoverUserSearch.length >= 3 && (
+                <div className="absolute top-full left-0 right-0 bg-black border hover:text-infinity border-gray-200 rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                  <div className="p-2 text-sm ">Searching...</div>
+                </div>
+              )}
+              {showUserDropdown && searchedUsers.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-black border border-gray-200 rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                  {searchedUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="p-2 hover:bg-infinity cursor-pointer border-b last:border-b-0"
+                      onClick={() => handleUserSelect(user)}
+                    >
+                      <div className="font-medium">{user.name}</div>
+                      <div className="text-sm ">{user.email}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showUserDropdown && searchedUsers.length === 0 && !isSearchingUsers && takeoverUserSearch.length >= 3 && (
+                <div className="absolute top-full left-0 right-0 bg-black border border-gray-200 rounded-md shadow-lg z-10">
+                  <div className="p-2 text-sm ">No users found</div>
+                </div>
+              )}
+              {takeoverUserSearch.length > 0 && takeoverUserSearch.length < 3 && (
+                <div className="text-xs  mt-1">
+                  Type at least 3 characters to search
+                </div>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="reason" className="text-sm font-medium">
+                Reason (Optional)
+              </label>
+              <Textarea
+                id="reason"
+                placeholder="Enter reason for membership takeover..."
+                value={takeoverReason}
+                onChange={(e) => setTakeoverReason(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelTakeover}
+              disabled={takeoverMembershipMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmTakeover}
+              disabled={takeoverMembershipMutation.isPending || !takeoverNewUserId}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {takeoverMembershipMutation.isPending ? "Processing..." : "Confirm Takeover"}
             </Button>
           </DialogFooter>
         </DialogContent>
