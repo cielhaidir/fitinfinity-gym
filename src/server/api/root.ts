@@ -21,6 +21,7 @@ import { employeeRouter } from "./routers/employee";
 import { attendanceRouter } from "./routers/attendance";
 import { profileRouter } from "./routers/profile";
 import { memberCalendarRouter } from "@/server/api/routers/memberCalendar";
+import { managerCalendarRouter } from "@/server/api/routers/managerCalendar";
 import { fcMemberRouter } from "./routers/fc-member";
 import { balanceAccountRouter } from "./routers/balanceAccount";
 import { chartAccountRouter } from "./routers/chartAccount";
@@ -63,6 +64,7 @@ export const appRouter = createTRPCRouter({
   attendance: attendanceRouter,
   profile: profileRouter,
   memberCalendar: memberCalendarRouter,
+  managerCalendar: managerCalendarRouter,
   balanceAccount: balanceAccountRouter,
   chartAccount: chartAccountRouter,
   paymentValidation: paymentValidationRouter,
