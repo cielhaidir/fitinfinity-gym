@@ -45,6 +45,12 @@ export const Menu: { navMain: MenuGroup[] } = {
       url: "#",
       items: [
         {
+          title: "Manager Calender",
+          url: "/management/schedule",
+          icon: Calendar1,
+          requiredPermission: "menu:trainers", // Atur permission sesuai kebutuhan
+        },
+        {
           title: "Personal Trainer",
           url: "/management/personal-trainer",
           icon: Contact,
