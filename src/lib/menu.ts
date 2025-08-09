@@ -22,6 +22,7 @@ import {
   Package2,
   Store,
   Clock,
+  BarChart3,
 } from "lucide-react";
 import { type LucideIcon, HandCoins } from "lucide-react";
 
@@ -67,6 +68,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/management/class",
           icon: Dumbbell,
           requiredPermission: "menu:manage-classes",
+        },
+        {
+          title: "Class Member Report",
+          url: "/management/class-member-report",
+          icon: BarChart3,
+          requiredPermission: "list:classes",
         },
         {
           title: "Employee",

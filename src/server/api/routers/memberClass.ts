@@ -394,4 +394,59 @@ export const memberClassRouter = createTRPCRouter({
             },
           });
         }),
+
+  /**
+   * Report: Get member count for each class
+   * Returns class information with registered member count and waitlist count
+   */
+  reportClassMemberCount: permissionProtectedProcedure(["list:classes"])
+    .input(
+      z.object({
+        page: z.number().min(1).optional().default(1),
+        limit: z.number().min(1).max(100).optional().default(50),
+        includePast: z.boolean().optional().default(false),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const whereClause = input.includePast 
+        ? {} 
+        : { schedule: { gt: new Date() } };
+
+      const [classes, total] = await Promise.all([
+        ctx.db.class.findMany({
+          where: whereClause,
+          include: {
+            _count: {
+              select: {
+                registeredMembers: true,
+                waitingList: true,
+              },
+            },
+          },
+          orderBy: {
+            schedule: "asc",
+          },
+          skip: (input.page - 1) * input.limit,
+          take: input.limit,
+        }),
+        ctx.db.class.count({
+          where: whereClause,
+        }),
+      ]);
+
+      return {
+        items: classes.map((classItem) => ({
+          id: classItem.id,
+          name: classItem.name,
+          schedule: classItem.schedule,
+          limit: classItem.limit,
+          registeredCount: classItem._count.registeredMembers,
+          waitlistCount: classItem._count.waitingList,
+          availableSpots: classItem.limit ? classItem.limit - classItem._count.registeredMembers : null,
+        })),
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
 });

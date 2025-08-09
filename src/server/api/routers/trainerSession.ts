@@ -156,6 +156,7 @@ export const trainerSessionRouter = createTRPCRouter({
             where: {
               memberId: { in: memberIds },
               trainerId: trainer.id,
+              isActive: true,
             },
             select: {
               id: true,
@@ -228,6 +229,7 @@ export const trainerSessionRouter = createTRPCRouter({
         const subscriptions = await ctx.db.subscription.findMany({
           where: {
             memberId: member.id,
+            isActive: true,
             remainingSessions: {
               gt: 0,
             },
