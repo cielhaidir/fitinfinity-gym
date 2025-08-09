@@ -45,7 +45,7 @@ export const Menu: { navMain: MenuGroup[] } = {
       url: "#",
       items: [
         {
-          title: "Manager Calender",
+          title: "PT Calender",
           url: "/management/schedule",
           icon: Calendar1,
           requiredPermission: "menu:trainers", // Atur permission sesuai kebutuhan
