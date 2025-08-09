@@ -283,6 +283,7 @@ export const personalTrainerRouter = createTRPCRouter({
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           trainerId: personalTrainer.id,
+          isActive: true,
         },
         orderBy: {
           remainingSessions: "desc",
