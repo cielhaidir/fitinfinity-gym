@@ -24,6 +24,8 @@ interface SessionDetailModalProps {
       };
     };
     exerciseResult?: string | null;
+    type?: string;
+    groupName?: string;
   } | null;
   isOpen: boolean;
   onClose: () => void;
@@ -46,9 +48,16 @@ export function SessionDetailModal({ session, isOpen, onClose }: SessionDetailMo
         </h2>
 
         <div className="space-y-4">
+
           <div>
             <label className="text-sm text-muted-foreground">Member</label>
-            <p className="font-medium">{session?.member?.user?.name || "-"}</p>
+            <p className="font-medium">
+              {session?.type === "group"
+                ? session?.groupName && session.groupName.toLowerCase().includes("group")
+                  ? session.groupName
+                  : `${session.groupName ?? "Group"} groups`
+                : session?.member?.user?.name || "-"}
+            </p>
           </div>
 
           <div>

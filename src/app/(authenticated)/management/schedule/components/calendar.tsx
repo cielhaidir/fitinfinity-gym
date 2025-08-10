@@ -172,14 +172,16 @@ export default function ManagerCalendar({
                           {sessions.map((session) => (
                             <div
                               key={session?._key || `session-${session?.id}`}
-                              className="bg-[#C9D953] rounded p-1 mb-1 cursor-pointer text-xs"
+                              className="bg-[#C9D953] rounded p-1 mb-1 cursor-pointer text-xs text-black"
                               onClick={(e) => handleSessionClick(e, session)}
                             >
                               <div className="truncate">
                                 {session?.startTime ? format(new Date(session.startTime), "HH:mm") : "-"}
                               </div>
                               <div className="truncate">
-                                {session?.member?.user?.name || "-"}
+                                {session?.type === "group"
+                                  ? session?.groupName ?? "Group"
+                                  : session?.member?.user?.name || "-"}
                               </div>
                               <div className="truncate">
                                 {session?.trainer?.user?.name || "-"}
@@ -230,14 +232,16 @@ export default function ManagerCalendar({
                       {sessions.slice(0, 3).map((session) => (
                         <div
                           key={session?._key || `session-${session?.id}`}
-                          className="bg-[#C9D953] rounded p-1 mb-1 cursor-pointer text-xs"
+                          className="bg-[#C9D953] rounded p-1 mb-1 cursor-pointer text-xs text-black"
                           onClick={(e) => handleSessionClick(e, session)}
                         >
                           <div className="truncate">
                             {session?.startTime ? format(new Date(session.startTime), "HH:mm") : "-"}
                           </div>
                           <div className="truncate">
-                            {session?.member?.user?.name || "-"}
+                            {session?.type === "group"
+                              ? session?.groupName ?? "Group"
+                              : session?.member?.user?.name || "-"}
                           </div>
                           <div className="truncate">
                             {session?.trainer?.user?.name || "-"}
