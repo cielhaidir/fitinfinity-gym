@@ -758,4 +758,144 @@ export const trainerSessionRouter = createTRPCRouter({
         },
       });
     }),
+
+  // Admin endpoint to get conduct report for any trainer
+  getAdminConductReport: permissionProtectedProcedure(["report:pt"])
+    .input(
+      z.object({
+        trainerId: z.string().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Build trainer filter
+      const trainerFilter: any = {};
+      if (input.trainerId) {
+        trainerFilter.id = input.trainerId;
+      }
+
+      // Build date filter
+      const dateFilter: any = {};
+      if (input.startDate) {
+        dateFilter.gte = input.startDate;
+      }
+      if (input.endDate) {
+        dateFilter.lte = input.endDate;
+      }
+
+      // Get all sessions with filters
+      const sessions = await ctx.db.trainerSession.findMany({
+        where: {
+          ...(input.trainerId && { trainerId: input.trainerId }),
+          ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+        },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      });
+
+      // Group sessions by trainer and calculate conduct hours
+      const trainerConductMap = new Map<string, {
+        trainerId: string;
+        trainerName: string;
+        trainerEmail: string;
+        totalHours: number;
+        sessionCount: number;
+        sessions: any[];
+      }>();
+
+      sessions.forEach(session => {
+        const trainerId = session.trainerId;
+        const trainerName = session.trainer?.user?.name || 'Unknown';
+        const trainerEmail = session.trainer?.user?.email || '';
+        
+        const hours = session.isGroup
+          ? (session.attendanceCount || 1) * 1 // 1 hour per attendee for group sessions
+          : 1; // 1 hour for individual sessions
+
+        if (!trainerConductMap.has(trainerId)) {
+          trainerConductMap.set(trainerId, {
+            trainerId,
+            trainerName,
+            trainerEmail,
+            totalHours: 0,
+            sessionCount: 0,
+            sessions: [],
+          });
+        }
+
+        const trainerData = trainerConductMap.get(trainerId)!;
+        trainerData.totalHours += hours;
+        trainerData.sessionCount += 1;
+        trainerData.sessions.push({
+          id: session.id,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          memberName: session.member.user.name,
+          memberEmail: session.member.user.email,
+          isGroup: session.isGroup,
+          attendanceCount: session.attendanceCount || 1,
+          hours,
+          description: session.description,
+        });
+      });
+
+      // Convert map to array and sort by total hours
+      const trainerSummaries = Array.from(trainerConductMap.values())
+        .sort((a, b) => b.totalHours - a.totalHours);
+
+      // If specific trainer requested, return detailed data
+      if (input.trainerId && trainerSummaries.length > 0) {
+        const trainerData = trainerSummaries[0];
+        if (trainerData) {
+          return {
+            summary: {
+              trainerId: trainerData.trainerId,
+              trainerName: trainerData.trainerName,
+              trainerEmail: trainerData.trainerEmail,
+              totalHours: trainerData.totalHours,
+              sessionCount: trainerData.sessionCount,
+            },
+            sessions: trainerData.sessions,
+          };
+        }
+      }
+
+      // Return summary for all trainers
+      return {
+        trainers: trainerSummaries.map(trainer => ({
+          trainerId: trainer.trainerId,
+          trainerName: trainer.trainerName,
+          trainerEmail: trainer.trainerEmail,
+          totalHours: trainer.totalHours,
+          sessionCount: trainer.sessionCount,
+        })),
+        totalConductHours: trainerSummaries.reduce((sum, trainer) => sum + trainer.totalHours, 0),
+        totalSessions: trainerSummaries.reduce((sum, trainer) => sum + trainer.sessionCount, 0),
+      };
+    }),
 });

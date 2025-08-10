@@ -174,6 +174,9 @@ const permissions = [
   "edit:pos-sale",
   "delete:pos-sale",
   "show:pos-sale",
+
+  // PT Reports
+  "report:pt",
 ];
 
 export async function seedPermissions(prisma: PrismaClient) {

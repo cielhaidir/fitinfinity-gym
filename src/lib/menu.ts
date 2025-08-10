@@ -439,9 +439,9 @@ export const Menu: { navMain: MenuGroup[] } = {
         },
         {
           title: "Personal Trainer Report",
-          url: "/reports/personal-trainer-report",
+          url: "/reports/personal-trainers",
           icon: Contact,
-          requiredPermission: "menu:personal-trainer-report",
+          // requiredPermission: "report:pt",
         },
         {
           title: "Sales Report",
