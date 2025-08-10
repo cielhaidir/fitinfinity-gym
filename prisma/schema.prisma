@@ -277,6 +277,8 @@ model Subscription {
     memberId          String
     trainerId         String?
     packageId         String
+    salesId           String?          // ID of the sales person (PersonalTrainer or FC)
+    salesType         String?          // Type: "PersonalTrainer" or "FC"
     member            Membership       @relation(fields: [memberId], references: [id])
     package           Package          @relation(fields: [packageId], references: [id])
     trainer           PersonalTrainer? @relation(fields: [trainerId], references: [id])
@@ -446,8 +448,9 @@ model PaymentValidation {
     createdAt      DateTime                @default(now())
     updatedAt      DateTime                @updatedAt
     balanceId      Int?                    
-    
     balanceAccount BalanceAccount?         @relation(fields: [balanceId], references: [id], onDelete: SetNull)
+    salesId        String?                 // ID of the sales person (PersonalTrainer or FC)
+    salesType      String?                 // Type: "PersonalTrainer" or "FC"
     member         Membership              @relation(fields: [memberId], references: [id])
     package        Package                 @relation(fields: [packageId], references: [id])
     trainer        PersonalTrainer?        @relation(fields: [trainerId], references: [id])

@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Receipt, Package, ExternalLink, CreditCard, FileText } from "lucide-react";
+import { Receipt, Package, ExternalLink, CreditCard, FileText, Edit3, MoreHorizontal } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,10 +22,25 @@ import { DataTableColumnHeader } from "@/components/datatable/data-table-column-
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { InvoiceGenerator } from "./components/invoice-generator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SubscriptionHistoryPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { toast } = useToast();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -34,15 +49,21 @@ export default function SubscriptionHistoryPage() {
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState("member.user.name");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isEditSalesModalOpen, setIsEditSalesModalOpen] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
+  const [selectedSalesPerson, setSelectedSalesPerson] = useState<string>("");
+  const [selectedSalesType, setSelectedSalesType] = useState<string>("");
 
   // Query for getting all subscriptions with payment details
-  const { data: subscriptions, isLoading } =
+  const { data: subscriptions, isLoading, refetch } =
     api.paymentValidation.getAllPayments.useQuery(
       { 
         page, 
         limit, 
         search: search || undefined, 
-        searchColumn: searchColumn || undefined 
+        searchColumn: searchColumn || undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined
       },
       {
         enabled: !!session,
@@ -51,7 +72,12 @@ export default function SubscriptionHistoryPage() {
         staleTime: 0,
       },
     );
-console.log(subscriptions)
+
+  // Query for getting sales list
+  const { data: salesList } = api.subs.getSalesList.useQuery(undefined, {
+    enabled: !!session,
+  });
+
   const openImageModal = (imageUrl: string) => {
     if (!imageUrl) {
       return;
@@ -75,7 +101,9 @@ console.log(subscriptions)
       createdAt: subscriptionData.createdAt,
       subsType: subscriptionData.subsType || "gym",
       trainerName: subscriptionData.trainer?.user?.name,
-      duration: subscriptionData.duration || 0, // Assuming duration is in months
+      duration: subscriptionData.duration || 0,
+      salesPerson: subscriptionData.salesPerson,
+      salesType: subscriptionData.salesType,
     };
     
     setSelectedInvoiceData(invoiceData);
@@ -89,6 +117,55 @@ console.log(subscriptions)
         `/checkout/confirmation/${memberId}?orderRef=${orderReference}`,
       );
     }
+  };
+
+  // Open edit sales modal
+  const openEditSalesModal = (subscription: any) => {
+    console.log('Subs', subscription);
+    setSelectedSubscription(subscription);
+    setSelectedSalesPerson(subscription.salesId || "none");
+    setSelectedSalesType(subscription.salesType || "");
+    setIsEditSalesModalOpen(true);
+  };
+
+  // Update sales information
+  const updateSalesMutation = api.subs.updateSales.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Sales information updated successfully",
+      });
+      setIsEditSalesModalOpen(false);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update sales information",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUpdateSales = () => {
+    if (!selectedSubscription) {
+      toast({
+        title: "Error",
+        description: "No subscription selected",
+        variant: "destructive",
+      });
+      return;
+    }
+    // console.log('Selected subs', selectedSubscription)
+    // If "none" is selected, pass null values
+    const salesId = selectedSalesPerson === "none" ? null : selectedSalesPerson;
+    const salesType = selectedSalesPerson === "none" ? null : selectedSalesType;
+
+    updateSalesMutation.mutate({
+      subscriptionId: selectedSubscription.subscriptionId ,
+      salesId: salesId,
+      salesType: salesType,
+    });
   };
 
   const columns: ColumnDef<any>[] = [
@@ -133,6 +210,30 @@ console.log(subscriptions)
       },
     },
     {
+      accessorKey: "salesPerson",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Sales Person" />
+      ),
+      cell: ({ row }) => {
+        const salesPerson = row.original.salesPerson;
+        const salesType = row.original.salesType;
+        
+        if (!salesPerson) {
+          return <span className="text-muted-foreground">Not assigned</span>;
+        }
+
+        const typeLabel = salesType === "PersonalTrainer" ? "PT" : "FC";
+        return (
+          <div className="flex flex-col">
+            <span>{salesPerson}</span>
+            <Badge variant="outline" className="w-fit">
+              {typeLabel}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "totalPayment",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Amount" />
@@ -146,49 +247,6 @@ console.log(subscriptions)
         return <div className="font-medium text-green-600">{formatted}</div>;
       },
     },
-    // {
-    //   accessorKey: "startDate",
-    //   header: ({ column }) => (
-    //     <DataTableColumnHeader column={column} title="Start Date" />
-    //   ),
-    //   cell: ({ row }) => {
-    //     const startDate = row.original.startDate;
-    //     if (!startDate) return <span className="text-muted-foreground">N/A</span>;
-        
-    //     const date = new Date(startDate);
-    //     return (
-    //       <span>
-    //         {date.toLocaleDateString("id-ID", {
-    //           day: "2-digit",
-    //           month: "short",
-    //           year: "numeric",
-    //         })}
-    //       </span>
-    //     );
-    //   },
-    // },
-    // {
-    //   accessorKey: "endDate",
-    //   header: ({ column }) => (
-    //     <DataTableColumnHeader column={column} title="End Date" />
-    //   ),
-    //   cell: ({ row }) => {
-    //     const endDate = row.original.endDate;
-    //     if (!endDate) return <span className="text-muted-foreground">N/A</span>;
-        
-    //     const date = new Date(endDate);
-    //     const isExpired = date < new Date();
-    //     return (
-    //       <span className={isExpired ? "text-red-500" : ""}>
-    //         {date.toLocaleDateString("id-ID", {
-    //           day: "2-digit",
-    //           month: "short",
-    //           year: "numeric",
-    //         })}
-    //       </span>
-    //     );
-    //   },
-    // },
     {
       accessorKey: "paymentMethod",
       header: ({ column }) => (
@@ -261,38 +319,36 @@ console.log(subscriptions)
         const memberId = row.original.member.id;
 
         return (
-          <div className="flex space-x-2">
-            {/* Generate Invoice Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => generateInvoice(row.original)}
-            >
-              <FileText className="mr-2 h-4 w-4" /> Invoice
-            </Button>
-
-            {/* For online payments, show a button to check status */}
-            {isOnline && orderReference && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => goToPaymentStatus(orderReference, memberId)}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" /> Details
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
               </Button>
-            )}
-
-            {/* For offline payments, show view proof button if available */}
-            {!isOnline && filePath && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openImageModal(filePath)}
-              >
-                <Receipt className="mr-2 h-4 w-4" /> Proof
-              </Button>
-            )}
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEditSalesModal(row.original)}>
+                <Edit3 className="mr-2 h-4 w-4" />
+                Edit Sales
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => generateInvoice(row.original)}>
+                <FileText className="mr-2 h-4 w-4" />
+                Generate Invoice
+              </DropdownMenuItem>
+              {isOnline && orderReference && (
+                <DropdownMenuItem onClick={() => goToPaymentStatus(orderReference, memberId)}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  View Details
+                </DropdownMenuItem>
+              )}
+              {!isOnline && filePath && (
+                <DropdownMenuItem onClick={() => openImageModal(filePath)}>
+                  <Receipt className="mr-2 h-4 w-4" />
+                  View Proof
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     },
@@ -384,25 +440,25 @@ console.log(subscriptions)
         </Card>
       </div>
 
-      {/* Note about Invoice Generation
-      <div className="mb-6">
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-          <div className="flex">
-            <FileText className="h-5 w-5 text-green-500" />
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-green-800">
-                Invoice Generation Available
-              </h3>
-              <div className="mt-2 text-sm text-green-700">
-                <p>
-                  You can now generate digital invoices for all subscriptions. Click the "Invoice" button 
-                  in the actions column to generate, print, or download invoices for any subscription.
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Status Filter */}
+      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center">
+        <div className="flex items-center space-x-2">
+          <label className="text-sm font-medium">Status:</label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="SUCCESS">Active</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="FAILED">Failed</SelectItem>
+              <SelectItem value="EXPIRED">Expired</SelectItem>
+              <SelectItem value="DECLINED">Declined</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </div> */}
+      </div>
 
       {/* Subscriptions Table */}
       <div className="rounded-md border">
@@ -428,6 +484,63 @@ console.log(subscriptions)
         }}
         invoiceData={selectedInvoiceData}
       />
+
+      {/* Edit Sales Modal */}
+      <Dialog open={isEditSalesModalOpen} onOpenChange={setIsEditSalesModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Sales Information</DialogTitle>
+            <DialogDescription>
+              Update the sales person associated with this subscription.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Sales Person</label>
+              <Select 
+                value={selectedSalesPerson} 
+                onValueChange={(value) => {
+                  setSelectedSalesPerson(value);
+                  if (value === "none") {
+                    setSelectedSalesType("");
+                  } else {
+                    const selected = salesList?.find(s => s.id === value);
+                    setSelectedSalesType(selected?.type || "");
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sales person" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {salesList?.map((sales) => (
+                    <SelectItem key={sales.id} value={sales.id}>
+                      {sales.name} ({sales.type === "PersonalTrainer" ? "PT" : "FC"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditSalesModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateSales}
+              disabled={updateSalesMutation.isPending}
+            >
+              {updateSalesMutation.isPending ? "Updating..." : "Update"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Image Preview Modal */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>

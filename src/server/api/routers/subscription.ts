@@ -24,6 +24,57 @@ async function updateExpiredSubscriptions(ctx: any) {
 }
 
 export const subscriptionRouter = createTRPCRouter({
+  // Get combined sales list (PersonalTrainer + FC)
+  getSalesList: permissionProtectedProcedure(["list:subscription"])
+    .query(async ({ ctx }) => {
+      const [personalTrainers, fcs] = await Promise.all([
+        ctx.db.personalTrainer.findMany({
+          where: { isActive: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+        ctx.db.fC.findMany({
+          where: { isActive: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      // Combine and format the data
+      const salesList = [
+        ...personalTrainers.map((pt) => ({
+          id: pt.id,
+          name: pt.user?.name || "Unknown",
+          email: pt.user?.email || "",
+          type: "PersonalTrainer" as const,
+          typeName: "Personal Trainer",
+        })),
+        ...fcs.map((fc) => ({
+          id: fc.id,
+          name: fc.user?.name || "Unknown",
+          email: fc.user?.email || "",
+          type: "FC" as const,
+          typeName: "Fitness Consultant",
+        })),
+      ];
+
+      return salesList.sort((a, b) => a.name.localeCompare(b.name));
+    }),
+
   create: permissionProtectedProcedure(["create:subscription"])
     .input(
       z.object({
@@ -31,6 +82,8 @@ export const subscriptionRouter = createTRPCRouter({
         startDate: z.date(),
         packageId: z.string(),
         trainerId: z.string().nullable().optional(), // Fixed: Make it both optional and nullable
+        salesId: z.string().optional(), // ID of the sales person
+        salesType: z.enum(["PersonalTrainer", "FC"]).optional(), // Type of sales person
         duration: z.number(),
         subsType: z.enum(["gym", "trainer", "group"]),
         paymentMethod: z.string(),
@@ -58,6 +111,8 @@ export const subscriptionRouter = createTRPCRouter({
         memberId: input.memberId,
         packageId: input.packageId,
         startDate: input.startDate,
+        salesId: input.salesId || null,
+        salesType: input.salesType || null,
         ...(input.subsType === "gym"
           ? {
               endDate: new Date(
@@ -849,6 +904,70 @@ export const subscriptionRouter = createTRPCRouter({
           endDate: newEndDate
         },
         include: { member: { include: { user: true } } },
+      });
+
+      return updatedSubscription;
+    }),
+
+  // Update sales information for a subscription
+  updateSales: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        subscriptionId: z.string(),
+        salesId: z.string().nullable(),
+        salesType: z.enum(["PersonalTrainer", "FC"]).nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      console.log("Updating sales information for subscription:", input.subscriptionId);
+      const subscription = await ctx.db.subscription.findUnique({
+        where: { id: input.subscriptionId },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription not found",
+        });
+      }
+
+      // Validate that salesId and salesType match
+      if (input.salesId && input.salesType) {
+        if (input.salesType === "PersonalTrainer") {
+          const trainer = await ctx.db.personalTrainer.findUnique({
+            where: { id: input.salesId },
+          });
+          if (!trainer) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Personal trainer not found",
+            });
+          }
+        } else if (input.salesType === "FC") {
+          const fc = await ctx.db.fC.findUnique({
+            where: { id: input.salesId },
+          });
+          if (!fc) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Fitness consultant not found",
+            });
+          }
+        }
+      }
+
+      const updatedSubscription = await ctx.db.subscription.update({
+        where: { id: input.subscriptionId },
+        data: {
+          salesId: input.salesId,
+          salesType: input.salesType,
+        },
+        include: {
+          member: { include: { user: true } },
+          package: true,
+          // sales: { include: { user: true } },
+          // fc: { include: { user: true } },
+        },
       });
 
       return updatedSubscription;

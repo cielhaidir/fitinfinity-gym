@@ -145,7 +145,7 @@ export default function SalesReportPage() {
           "Package": subscription?.package?.name || "N/A",
           "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : "Personal Trainer",
           "Trainer": trainer?.user?.name || "N/A",
-          "Fitness Consultant": fc?.user?.name || "N/A",
+          "Sales Person": fc?.user?.name || "N/A",
           "Amount": payment.totalPayment || 0,
           "Payment Method": payment.method || "Manual Payment",
           "Status": payment.status,

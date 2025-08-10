@@ -249,6 +249,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: Gift,
           requiredPermission: "menu:reward",
         },
+        {
+          title: "Subscription History",
+          url: "/admin/subscription-history",
+          icon: CreditCard,
+          requiredPermission: "menu:transaction",
+        },
 
         // {
         //     title: "Settings",
@@ -408,7 +414,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:transaction",
         },
         {
-          title: "Subscription History",
+          title: "Payment History",
           url: "/finance/subscription-history",
           icon: CreditCard,
           requiredPermission: "menu:transaction",
