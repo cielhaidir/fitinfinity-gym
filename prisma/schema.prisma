@@ -391,6 +391,9 @@ model TrainerSession {
     description String?
     status      String   @default("NOT_YET")
     exerciseResult String? // Optional path to the uploaded exercise result file
+    attendanceCount Int?    @default(1) // Number of attendees for group sessions
+    isGroup     Boolean  @default(false) // Whether this is a group session
+    groupId     String?  // Reference to group subscription if applicable
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
     trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])

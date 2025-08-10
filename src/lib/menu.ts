@@ -413,9 +413,39 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: CreditCard,
           requiredPermission: "menu:transaction",
         },
+      ],
+    },
+    {
+      title: "Reports",
+      url: "/reports",
+      items: [
+        {
+          title: "Employee Attendance Report",
+          url: "/reports/attendance",
+          icon: UserCog,
+          requiredPermission: "menu:attendance-report",
+        },
+        {
+          title: "Class Member Report",
+          url: "/reports/class-member-report",
+          icon: BarChart3,
+          requiredPermission: "menu:class-member-report",
+        },
+        {
+          title: "Fitness Consultant Report",
+          url: "/reports/member-report",
+          icon: Users,
+          requiredPermission: "menu:member-report",
+        },
+        {
+          title: "Personal Trainer Report",
+          url: "/reports/personal-trainer-report",
+          icon: Contact,
+          requiredPermission: "menu:personal-trainer-report",
+        },
         {
           title: "Sales Report",
-          url: "/finance/sales-report",
+          url: "/reports/sales-report",
           icon: DollarSign,
           requiredPermission: "menu:transaction",
         },

@@ -22,6 +22,10 @@ interface SessionDetailModalProps {
       };
     };
     exerciseResult?: string | null;
+    isGroup?: boolean;
+    attendanceCount?: number;
+    type?: string;
+    groupName?: string;
   } | null;
   isOpen: boolean;
   onClose: () => void;
@@ -180,6 +184,20 @@ export function SessionDetailModal({
           <div>
             <label className="text-sm text-muted-foreground">Status</label>
             <p className="font-medium">{session.status}</p>
+          </div>
+
+          {session.isGroup && (
+            <div>
+              <label className="text-sm text-muted-foreground">Jumlah Peserta</label>
+              <p className="font-medium">{session.attendanceCount || 1} peserta</p>
+            </div>
+          )}
+
+          <div>
+            <label className="text-sm text-muted-foreground">Tipe Sesi</label>
+            <p className="font-medium">
+              {session.isGroup ? "Grup" : "Individual"}
+            </p>
           </div>
 
           {session.status === "ENDED" && (
