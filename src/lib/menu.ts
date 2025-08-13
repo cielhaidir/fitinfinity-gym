@@ -46,7 +46,7 @@ export const Menu: { navMain: MenuGroup[] } = {
       url: "#",
       items: [
         {
-          title: "PT Calender",
+          title: "PT Calendar",
           url: "/management/schedule",
           icon: Calendar1,
           requiredPermission: "menu:trainers", // Atur permission sesuai kebutuhan
@@ -453,7 +453,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Sales Report",
           url: "/reports/sales-report",
           icon: DollarSign,
-          requiredPermission: "report:sales",
+          // requiredPermission: "report:sales",
         },
       ],
     },

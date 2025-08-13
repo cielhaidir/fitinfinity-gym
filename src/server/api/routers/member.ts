@@ -210,6 +210,18 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
+    getByUserid: permissionProtectedProcedure(["show:member"])
+      .input(z.object({ userId: z.string() }))
+      .query(async ({ ctx, input }) => {
+        return ctx.db.membership.findFirst({
+          where: { userId: input.userId },
+          include: {
+            user: true,
+            subscriptions: true,
+          },
+        });
+      }),
+      
   update: permissionProtectedProcedure(["update:member"])
     .input(
       z.object({

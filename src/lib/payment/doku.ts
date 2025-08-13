@@ -454,18 +454,21 @@ export class DokuPaymentService {
     const lineItems = [...(params.items || [])];
     
     // Add service fee as line item
-    lineItems.push({
-      name: 'Service Fee 5%',
-      price: serviceFeePct,
-      quantity: 1
-    });
-    
-    // Add admin fee as line item
-    lineItems.push({
-      name: 'Admin Fee',
-      price: adminFee,
-      quantity: 1
-    });
+lineItems.push({
+  name: 'Service Fee 5%',
+  price: serviceFeePct,
+  quantity: 1,
+  category: 'service',
+  sku: 'SRV-5PCT'
+});
+
+lineItems.push({
+  name: 'Admin Fee',
+  price: adminFee,
+  quantity: 1,
+  category: 'service',
+  sku: 'ADMIN-FEE'
+});
 
     const paymentRequest: DokuPaymentRequest = {
       order: {
