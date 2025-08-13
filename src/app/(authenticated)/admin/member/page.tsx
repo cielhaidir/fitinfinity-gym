@@ -17,6 +17,13 @@ import {
 } from "@/app/_components/ui/dialog";
 import { Textarea } from "@/app/_components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
@@ -33,6 +40,20 @@ function generateRandomPassword(length = 10) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return password;
+}
+
+function formatFacilityDescription(lokerSelection: string, lokerNumber: string, handuk: string): string {
+  const parts: string[] = [];
+  
+  if (lokerSelection === "Number" && lokerNumber.trim()) {
+    parts.push(`Loker = ${lokerNumber.trim()}`);
+  }
+  
+  if (handuk !== "None") {
+    parts.push(`Handuk = ${handuk}`);
+  }
+  
+  return parts.length > 0 ? parts.join(", ") : "";
 }
 
 export default function MemberPage() {
@@ -52,6 +73,9 @@ export default function MemberPage() {
   const [addMemberError, setAddMemberError] = useState<string | null>(null);
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [facilityDescription, setFacilityDescription] = useState("");
+  const [lokerSelection, setLokerSelection] = useState<string>("None");
+  const [lokerNumber, setLokerNumber] = useState<string>("");
+  const [handukSelection, setHandukSelection] = useState<string>("None");
   const [selectedMemberForCheckIn, setSelectedMemberForCheckIn] = useState<Member | null>(null);
   const [isTakeoverModalOpen, setIsTakeoverModalOpen] = useState(false);
   const [selectedMemberForTakeover, setSelectedMemberForTakeover] = useState<Member | null>(null);
@@ -110,6 +134,9 @@ export default function MemberPage() {
       toast.success("Member checked in successfully");
       setIsCheckInModalOpen(false);
       setFacilityDescription("");
+      setLokerSelection("None");
+      setLokerNumber("");
+      setHandukSelection("None");
       setSelectedMemberForCheckIn(null);
     },
     onError: (error) => {
@@ -404,10 +431,12 @@ export default function MemberPage() {
   const handleConfirmCheckIn = async () => {
     if (!selectedMemberForCheckIn) return;
 
+    const formattedDescription = formatFacilityDescription(lokerSelection, lokerNumber, handukSelection);
+
     try {
       await manualCheckInMutation.mutateAsync({
         memberId: selectedMemberForCheckIn.id,
-        facilityDescription: facilityDescription.trim() || undefined,
+        facilityDescription: formattedDescription || undefined,
         // timestamp: new Date(),
       });
     } catch (error) {
@@ -418,6 +447,9 @@ export default function MemberPage() {
   const handleCancelCheckIn = () => {
     setIsCheckInModalOpen(false);
     setFacilityDescription("");
+    setLokerSelection("None");
+    setLokerNumber("");
+    setHandukSelection("None");
     setSelectedMemberForCheckIn(null);
   };
 
@@ -588,16 +620,51 @@ export default function MemberPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <label htmlFor="facility" className="text-sm font-medium">
-                Facility Description
+              <label className="text-sm font-medium">
+                Facility Usage
               </label>
-              <Textarea
-                id="facility"
-                placeholder="e.g., Loker, Handuk.."
-                value={facilityDescription}
-                onChange={(e) => setFacilityDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
+              <div className="space-y-3">
+                <div className="grid gap-2">
+                  <label htmlFor="loker" className="text-sm">
+                    Loker
+                  </label>
+                  <Select value={lokerSelection} onValueChange={setLokerSelection}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select loker option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="None">None</SelectItem>
+                      <SelectItem value="Number">Number</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {lokerSelection === "Number" && (
+                    <Input
+                      type="number"
+                      placeholder="Enter loker number"
+                      value={lokerNumber}
+                      onChange={(e) => setLokerNumber(e.target.value)}
+                      className="mt-2"
+                      min="1"
+                    />
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="handuk" className="text-sm">
+                    Handuk
+                  </label>
+                  <Select value={handukSelection} onValueChange={setHandukSelection}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select handuk option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="None">None</SelectItem>
+                      <SelectItem value="Besar">Besar</SelectItem>
+                      <SelectItem value="Kecil">Kecil</SelectItem>
+                      <SelectItem value="Keduanya">Keduanya</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -658,7 +725,11 @@ export default function MemberPage() {
                     <div
                       key={user.id}
                       className="p-2 hover:bg-infinity cursor-pointer border-b last:border-b-0"
-                      onClick={() => handleUserSelect(user)}
+                      onClick={() => handleUserSelect({
+                        id: user.id,
+                        name: user.name ?? "",
+                        email: user.email ?? ""
+                      })}
                     >
                       <div className="font-medium">{user.name}</div>
                       <div className="text-sm ">{user.email}</div>
