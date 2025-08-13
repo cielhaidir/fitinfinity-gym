@@ -144,10 +144,8 @@ export const personalTrainerRouter = createTRPCRouter({
           where: { trainerId: input.id },
         });
 
-        // Delete all classes associated with the trainer
-        await tx.class.deleteMany({
-          where: { trainerId: input.id },
-        });
+        // Note: Class model doesn't have trainerId field, so this deletion is not needed
+        // Classes are not directly associated with trainers in the current schema
 
         // Update subscriptions to remove trainer reference
         await tx.subscription.updateMany({
@@ -277,13 +275,22 @@ export const personalTrainerRouter = createTRPCRouter({
         return [];
       }
 
-      console.log("Found trainer:", personalTrainer.id);
+      // console.log("Found trainer:", personalTrainer.id);
 
       // Get all individual subscriptions for this personal trainer
+      // Exclude subscriptions that are lead subscriptions for groups
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           trainerId: personalTrainer.id,
           isActive: true,
+          remainingSessions: {
+            gt: 0,
+          },
+          leadGroupSubscriptions: {
+            none: {
+              status: "ACTIVE",
+            },
+          },
         },
         orderBy: {
           remainingSessions: "desc",
@@ -317,6 +324,9 @@ export const personalTrainerRouter = createTRPCRouter({
         where: {
           leadSubscription: {
             trainerId: personalTrainer.id,
+            remainingSessions: {
+              gt: 0,
+            },
           },
           status: "ACTIVE",
         },
