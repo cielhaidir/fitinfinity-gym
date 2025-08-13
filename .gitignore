@@ -25,6 +25,9 @@ next-env.d.ts
 .DS_Store
 *.pem
 
+# docs folder
+/docs
+
 # private keys
 /keys/*.pem
 /keys/*.key
