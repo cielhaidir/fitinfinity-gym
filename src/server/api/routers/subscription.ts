@@ -419,6 +419,96 @@ export const subscriptionRouter = createTRPCRouter({
       });
     }),
 
+      listActive: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        page: z.number().min(1),
+        limit: z.number().min(1).max(100),
+        search: z.string().optional(),
+        searchColumn: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Update expired subscriptions sebelum query
+      await updateExpiredSubscriptions(ctx);
+
+     const whereClause: any = {
+  isActive: true,
+  OR: [
+    { groupMembers: { none: {} } }, // bukan member group
+    { leadGroupSubscriptions: { some: {} } }, // leader group
+  ],
+  ...(input.search
+    ? input.searchColumn?.startsWith("user.")
+      ? {
+          member: {
+            user: {
+              [input.searchColumn.replace("user.", "")]: {
+                contains: input.search,
+                mode: "insensitive" as const,
+              },
+            },
+          },
+        }
+      : {
+          [input.searchColumn || "name"]: {
+            contains: input.search,
+            mode: "insensitive" as const,
+          },
+        }
+    : {}),
+};
+
+
+      const items = await ctx.db.subscription.findMany({
+        skip: (input.page - 1) * input.limit,
+        take: input.limit,
+        where: whereClause,
+        orderBy: { id: "desc" },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          package: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              type: true,
+              point: true,
+            },
+          },
+          payments: {
+            select: {
+              id: true,
+              status: true,
+              method: true,
+              totalPayment: true,
+              orderReference: true,
+              paidAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      });
+
+      const total = await ctx.db.subscription.count();
+
+      return {
+        items,
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
+
   list: permissionProtectedProcedure(["list:subscription"])
     .input(
       z.object({

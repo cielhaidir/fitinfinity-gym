@@ -52,160 +52,188 @@ interface SalesReportResponse {
 
 export const salesReportRouter = createTRPCRouter({
   getSalesList: protectedProcedure.query(async ({ ctx }) => {
-    const fcs = await ctx.db.fC.findMany({
-      select: { id: true, user: { select: { name: true } } },
-    });
-    const pts = await ctx.db.personalTrainer.findMany({
-      select: { id: true, user: { select: { name: true } } },
+    // Get unique sales persons from PaymentValidation records
+    const uniqueSales = await ctx.db.subscription.findMany({
+      where: {
+        AND: [
+          { salesId: { not: null } },
+          { salesType: { not: null } },
+        ],
+      },
+      select: {
+        salesId: true,
+        salesType: true,
+      },
+      distinct: ['salesId', 'salesType'],
     });
 
-    return [
-      ...fcs.map(fc => ({ id: fc.id, name: fc.user.name!, type: 'FC' })),
-      ...pts.map(pt => ({ id: pt.id, name: pt.user.name!, type: 'PT' })),
-    ];
+    // Get sales persons details based on salesType
+    const salesList = [];
+    
+    for (const sale of uniqueSales) {
+      if (sale.salesId && sale.salesType) {
+        if (sale.salesType === 'FC') {
+          const fc = await ctx.db.fC.findUnique({
+            where: { id: sale.salesId },
+            select: { id: true, user: { select: { name: true } } },
+          });
+          if (fc?.user?.name) {
+            salesList.push({ id: fc.id, name: fc.user.name, type: 'FC' });
+          }
+        } else if (sale.salesType === 'PersonalTrainer') {
+          const pt = await ctx.db.personalTrainer.findUnique({
+            where: { id: sale.salesId },
+            select: { id: true, user: { select: { name: true } } },
+          });
+          if (pt?.user?.name) {
+            salesList.push({ id: pt.id, name: pt.user.name, type: 'PT' });
+          }
+        }
+      }
+    }
+
+    return salesList;
   }),
 
-  getRevenueBySales: protectedProcedure
-    .input(z.object({
-      startDate: z.date(),
-      endDate: z.date(),
-      salesId: z.string().optional(),
-    }))
-    .query(async ({ ctx, input }) => {
-      const { startDate, endDate, salesId } = input;
+getRevenueBySales: protectedProcedure
+  .input(z.object({
+    startDate: z.date(),
+    endDate: z.date(),
+    salesId: z.string().optional(),
+  }))
+  .query(async ({ ctx, input }) => {
+    const { startDate, endDate, salesId } = input;
 
-      // Ambil semua data PaymentValidation yang ACCEPTED untuk debugging
-      console.log('Date range:', { startDate, endDate, salesId });
-
-      const allAcceptedPayments = await ctx.db.paymentValidation.findMany({
-        where: {
-          paymentStatus: 'ACCEPTED',
-        },
-        select: {
-          id: true,
-          totalPayment: true,
-          createdAt: true,
-          salesId: true,
-          salesType: true,
-          fcId: true,
-          trainerId: true,
-          paymentMethod: true,
-          member: {
-            select: {
-              user: { select: { name: true } }
-            }
-          },
-          package: {
-            select: {
-              name: true,
-              type: true
-            }
-          },
-          trainer: {
-            select: {
-              user: { select: { name: true } }
-            }
-          },
-          fc: {
-            select: {
-              user: { select: { name: true } }
-            }
+    // Ambil semua subscription yang punya payment di rentang waktu
+    const allAcceptedPayments = await ctx.db.subscription.findMany({
+     where: {
+  isActive: true,
+  salesId: salesId ? salesId : undefined,
+  AND: [
+    {
+      OR: [
+        { groupMembers: { none: {} } },
+        { leadGroupSubscriptions: { some: {} } },
+      ],
+    },
+    {
+      payments: {
+        some: {
+          createdAt: {
+            gte: startOfDay(startDate),
+            lte: endOfDay(endDate),
           },
         },
-        orderBy: { createdAt: 'desc' },
-        take: 50, // Ambil 50 data terbaru untuk debugging
-      });
+      },
+    },
+  ],
+},
 
-      console.log(`Total ACCEPTED payments in DB: ${allAcceptedPayments.length}`);
-      console.log('Sample data:', allAcceptedPayments.slice(0, 3).map(p => ({
-        id: p.id,
-        amount: p.totalPayment,
-        createdAt: p.createdAt,
-        salesId: p.salesId,
-        salesType: p.salesType,
-        fcId: p.fcId,
-        trainerId: p.trainerId,
-        memberName: p.member?.user?.name,
-        packageName: p.package?.name
-      })));
+      select: {
+        id: true,
+        salesId: true,
+        salesType: true,
+        member: {
+          select: {
+            user: { select: { name: true } }
+          }
+        },
+        package: {
+          select: {
+            name: true,
+            type: true
+          }
+        },
+        payments: {
+          where: {
+            createdAt: {
+              gte: startOfDay(startDate),
+              lte: endOfDay(endDate),
+            },
+          },
+          select: {
+            totalPayment: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
 
-      // Filter berdasarkan tanggal
-      const filteredPayments = allAcceptedPayments.filter(p => {
-        const paymentDate = new Date(p.createdAt);
-        return paymentDate >= startOfDay(startDate) && paymentDate <= endOfDay(endDate);
-      });
+    // Ambil semua salesId unik untuk query nama sales sekaligus
+    const fcIds = [...new Set(allAcceptedPayments
+      .filter(pv => pv.salesType === 'FC' && pv.salesId)
+      .map(pv => pv.salesId!))];
 
-      console.log(`Payments in date range: ${filteredPayments.length}`);
+    const ptIds = [...new Set(allAcceptedPayments
+      .filter(pv => pv.salesType === 'PersonalTrainer' && pv.salesId)
+      .map(pv => pv.salesId!))];
 
-      const salesSummaryMap = new Map<string, { salesName: string; salesType: string; totalRevenue: number }>();
+    const fcList = await ctx.db.fC.findMany({
+      where: { id: { in: fcIds } },
+      select: { id: true, user: { select: { name: true } } },
+    });
 
-      filteredPayments.forEach(pv => {
-        let salesPersonId = '';
+    const ptList = await ctx.db.personalTrainer.findMany({
+      where: { id: { in: ptIds } },
+      select: { id: true, user: { select: { name: true } } },
+    });
+
+    const fcMap = new Map(fcList.map(fc => [fc.id, fc.user?.name || 'Unknown FC']));
+    const ptMap = new Map(ptList.map(pt => [pt.id, pt.user?.name || 'Unknown PT']));
+
+    // Hitung summary per sales
+    const salesSummaryMap = new Map<string, { salesName: string; salesType: string; totalRevenue: number }>();
+
+    for (const pv of allAcceptedPayments) {
+      const totalPaymentForSub = pv.payments.reduce((sum, p) => sum + p.totalPayment, 0);
+
+      if (pv.salesId && pv.salesType) {
         let salesName = '';
-        let salesType = '';
-
-        // Cek berdasarkan fcId (untuk FC)
-        if (pv.fcId && pv.fc) {
-          salesPersonId = pv.fcId;
-          salesName = pv.fc.user.name!;
-          salesType = 'FC';
-        }
-        // Cek berdasarkan trainerId (untuk PT)
-        else if (pv.trainerId && pv.trainer) {
-          salesPersonId = pv.trainerId;
-          salesName = pv.trainer.user.name!;
-          salesType = 'PT';
+        if (pv.salesType === 'FC') {
+          salesName = fcMap.get(pv.salesId) || 'Unknown FC';
+        } else if (pv.salesType === 'PersonalTrainer') {
+          salesName = ptMap.get(pv.salesId) || 'Unknown PT';
         }
 
-        if (salesPersonId && salesName) {
-          console.log('Processing payment:', {
-            id: pv.id,
-            amount: pv.totalPayment,
-            salesPersonId,
+        if (salesName) {
+          const existing = salesSummaryMap.get(pv.salesId) || {
             salesName,
-            salesType
-          });
-
-          const existing = salesSummaryMap.get(salesPersonId) || {
-            salesName,
-            salesType,
+            salesType: pv.salesType === 'PersonalTrainer' ? 'PT' : pv.salesType,
             totalRevenue: 0,
           };
-          existing.totalRevenue += pv.totalPayment;
-          salesSummaryMap.set(salesPersonId, existing);
+          existing.totalRevenue += totalPaymentForSub;
+          salesSummaryMap.set(pv.salesId, existing);
         }
-      });
-
-      // Filter berdasarkan salesId jika dipilih
-      let finalPayments = filteredPayments;
-      if (salesId) {
-        finalPayments = filteredPayments.filter(pv =>
-          pv.fcId === salesId || pv.trainerId === salesId
-        );
       }
+    }
 
-      const totalRevenue = filteredPayments.reduce((acc, pv) => acc + pv.totalPayment, 0);
-      const totalSubscriptions = filteredPayments.length;
+    // Filter by salesId jika diminta
+    let finalPayments = allAcceptedPayments;
+    if (salesId) {
+      finalPayments = allAcceptedPayments.filter(pv => pv.salesId === salesId);
+    }
 
-      console.log('Final Summary:', {
+    // Hitung totalRevenue dari semua subscription
+    const totalRevenue = allAcceptedPayments.reduce(
+      (acc, pv) => acc + pv.payments.reduce((sum, p) => sum + p.totalPayment, 0),
+      0
+    );
+
+    const totalSubscriptions = allAcceptedPayments.length;
+
+    return {
+      summary: {
         totalRevenue,
         totalSubscriptions,
-        salesCount: salesSummaryMap.size,
-        salesSummary: Array.from(salesSummaryMap.entries())
-      });
+      },
+      salesSummary: Array.from(salesSummaryMap.entries()).map(([salesId, data]) => ({
+        salesId,
+        ...data
+      })),
+      subscriptions: finalPayments,
+    };
+  }),
 
-      return {
-        summary: {
-          totalRevenue,
-          totalSubscriptions,
-        },
-        salesSummary: Array.from(salesSummaryMap.entries()).map(([salesId, data]) => ({
-          salesId,
-          ...data
-        })),
-        subscriptions: finalPayments,
-      };
-    }),
   // Get detailed sales report with filters
   getDetailedReport: protectedProcedure
     .input(z.object({

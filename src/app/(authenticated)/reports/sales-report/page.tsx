@@ -14,7 +14,8 @@ import * as XLSX from "xlsx-js-style";
 
 // Rupiah formatting helper
 const formatRupiah = (amount: number) =>
-  "Rp" + amount.toLocaleString("id-ID");
+  "Rp" + (typeof amount === "number" && !isNaN(amount) ? amount : 0).toLocaleString("id-ID");
+  // amount
 
 interface PaymentMethodBreakdown {
   method: string;
@@ -63,6 +64,7 @@ export default function SalesReportPage() {
     endDate,
     salesId: salesId === "all" ? undefined : salesId,
   });
+  console.log(salesReport);
 
   const exportToExcel = () => {
     if (!salesReport) return;
@@ -84,7 +86,7 @@ export default function SalesReportPage() {
         "Payment ID": sub.id,
         "Member Name": sub.member?.user?.name || "N/A",
         "Package": sub.package?.name || "N/A",
-        "Amount": formatRupiah(sub.totalPayment),
+        "Amount": formatRupiah(sub.payment.totalPayment),
         "Payment Method": sub.paymentMethod || "N/A",
         "Created At": format(new Date(sub.createdAt), "yyyy-MM-dd HH:mm"),
       }));
@@ -243,23 +245,23 @@ export default function SalesReportPage() {
             <table className="w-full">
               <thead>
                 <tr className="text-left">
-                  <th className="p-2">Payment ID</th>
+                  {/* <th className="p-2">Payment ID</th> */}
                   <th className="p-2">Member Name</th>
                   <th className="p-2">Package</th>
                   <th className="p-2">Amount</th>
-                  <th className="p-2">Payment Method</th>
-                  <th className="p-2">Created At</th>
+                  {/* <th className="p-2">Payment Method</th> */}
+                  {/* <th className="p-2">Created At</th> */}
                 </tr>
               </thead>
               <tbody>
                 {subscriptions.map((sub: any) => (
                   <tr key={sub.id}>
-                    <td className="p-2">{sub.id}</td>
+                    {/* <td className="p-2">{sub.id}</td> */}
                     <td className="p-2">{sub.member?.user?.name || "N/A"}</td>
                     <td className="p-2">{sub.package?.name || "N/A"}</td>
-                    <td className="p-2">{formatRupiah(sub.totalPayment)}</td>
-                    <td className="p-2">{sub.paymentMethod || "N/A"}</td>
-                    <td className="p-2">{format(new Date(sub.createdAt), "yyyy-MM-dd HH:mm")}</td>
+                    <td className="p-2">{formatRupiah(sub.payments?.[0]?.totalPayment ?? 0)}</td>
+                    {/* <td className="p-2">{sub.paymentMethod || "N/A"}</td> */}
+                    {/* <td className="p-2">{format(new Date(sub.createdAt), "yyyy-MM-dd HH:mm")}</td> */}
                   </tr>
                 ))}
               </tbody>

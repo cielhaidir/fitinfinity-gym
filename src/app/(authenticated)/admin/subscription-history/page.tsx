@@ -42,7 +42,7 @@ export default function AdminSubscriptionHistoryPage() {
   const { toast } = useToast();
 
   // Query for getting all subscriptions with required fields
-  const { data: subscriptions, isLoading, refetch } = api.subs.list.useQuery(
+  const { data: subscriptions, isLoading, refetch } = api.subs.listActive.useQuery(
     { 
       page, 
       limit, 
