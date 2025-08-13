@@ -10,6 +10,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Target,
+  CalendarDays,
 } from "lucide-react";
 import {
   format,
@@ -21,9 +23,13 @@ import {
   isToday,
   addWeeks,
   subWeeks,
+  startOfMonth,
+  endOfMonth,
 } from "date-fns";
 import { id } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const customScrollbarStyles = `
   .custom-scrollbar::-webkit-scrollbar {
@@ -58,6 +64,14 @@ export default function PTDashboardPage() {
   const [selectedDay, setSelectedDay] = React.useState<Date | null>(null);
   const [selectedSessions, setSelectedSessions] = React.useState<any[]>([]);
 
+  // Date filter state for conduct tracking
+  const [startDate, setStartDate] = React.useState<string>(
+    format(startOfMonth(new Date()), "yyyy-MM-dd")
+  );
+  const [endDate, setEndDate] = React.useState<string>(
+    format(endOfMonth(new Date()), "yyyy-MM-dd")
+  );
+
   const { data: members, isLoading: isMembersLoading } =
     api.personalTrainer.getMembers.useQuery(undefined, {
       enabled: !!session,
@@ -70,6 +84,18 @@ export default function PTDashboardPage() {
     api.trainerSession.getAll.useQuery(undefined, {
       enabled: !!session,
     });
+
+  // Conduct tracking data
+  const { data: conductData, isLoading: isConductLoading } =
+    api.trainerSession.getConductSummary.useQuery(
+      {
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+      },
+      {
+        enabled: !!session && !!startDate && !!endDate,
+      }
+    );
 
   // Hitung jumlah member aktif (dengan remaining sessions > 0)
   const activeMembers =
@@ -171,6 +197,126 @@ export default function PTDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Date Filter Controls and Conduct Tracking */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5" />
+            Conduct Tracking
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          {/* Conduct Summary Cards */}
+          <div className="mb-6 grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Working Hours</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {isConductLoading ? "..." : conductData?.totalHours ?? 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Hours worked in selected period
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {isConductLoading ? "..." : conductData?.sessionCount ?? 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sessions completed in period
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Conduct Details Table */}
+          {!isConductLoading && conductData?.sessions && conductData.sessions.length > 0 && (
+            <div className="rounded-lg border">
+              <div className="p-4 border-b">
+                <h3 className="font-semibold">Session Details</h3>
+              </div>
+              <div className="max-h-96 overflow-y-auto custom-scrollbar">
+                <table className="w-full">
+                  <thead className="sticky top-0 bg-background border-b">
+                    <tr className="text-sm">
+                      <th className="text-left p-3">Date</th>
+                      <th className="text-left p-3">Time</th>
+                      <th className="text-left p-3">Member</th>
+                      <th className="text-left p-3">Type</th>
+                      <th className="text-left p-3">Attendance</th>
+                      <th className="text-left p-3">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conductData.sessions.map((session) => (
+                      <tr key={session.id} className="border-b hover:bg-muted/50">
+                        <td className="p-3 text-sm">
+                          {format(new Date(session.date), "dd MMM yyyy", { locale: id })}
+                        </td>
+                        <td className="p-3 text-sm">
+                          {format(new Date(session.startTime), "HH:mm")} - {format(new Date(session.endTime), "HH:mm")}
+                        </td>
+                        <td className="p-3 text-sm">{session.memberName}</td>
+                        <td className="p-3 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            session.isGroup 
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          }`}>
+                            {session.isGroup ? 'Group' : 'Individual'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-sm">{session.attendanceCount}</td>
+                        <td className="p-3 text-sm font-medium">{session.hours}h</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {!isConductLoading && (!conductData?.sessions || conductData.sessions.length === 0) && (
+            <div className="text-center py-8 text-muted-foreground">
+              No sessions found for the selected period
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="mb-8">
         <CardHeader>

@@ -277,6 +277,8 @@ model Subscription {
     memberId          String
     trainerId         String?
     packageId         String
+    salesId           String?          // ID of the sales person (PersonalTrainer or FC)
+    salesType         String?          // Type: "PersonalTrainer" or "FC"
     member            Membership       @relation(fields: [memberId], references: [id])
     package           Package          @relation(fields: [packageId], references: [id])
     trainer           PersonalTrainer? @relation(fields: [trainerId], references: [id])
@@ -391,6 +393,9 @@ model TrainerSession {
     description String?
     status      String   @default("NOT_YET")
     exerciseResult String? // Optional path to the uploaded exercise result file
+    attendanceCount Int?    @default(1) // Number of attendees for group sessions
+    isGroup     Boolean  @default(false) // Whether this is a group session
+    groupId     String?  // Reference to group subscription if applicable
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
     trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])
@@ -443,8 +448,9 @@ model PaymentValidation {
     createdAt      DateTime                @default(now())
     updatedAt      DateTime                @updatedAt
     balanceId      Int?                    
-    
     balanceAccount BalanceAccount?         @relation(fields: [balanceId], references: [id], onDelete: SetNull)
+    salesId        String?                 // ID of the sales person (PersonalTrainer or FC)
+    salesType      String?                 // Type: "PersonalTrainer" or "FC"
     member         Membership              @relation(fields: [memberId], references: [id])
     package        Package                 @relation(fields: [packageId], references: [id])
     trainer        PersonalTrainer?        @relation(fields: [trainerId], references: [id])

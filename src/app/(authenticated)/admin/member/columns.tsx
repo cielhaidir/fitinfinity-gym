@@ -62,31 +62,31 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Email" />
     ),
   },
-  {
-    id: "fc",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="FC" />
-    ),
-    cell: ({ row }) => {
-      const fc = row.original.fc;
-      return (
-        <div className="flex items-center justify-center">
-          {fc ? (
-            <Badge variant="outline" className="w-[100px] justify-center">
-              {fc.user.name}
-            </Badge>
-          ) : (
-            <Badge
-              variant="outline"
-              className="w-[100px] justify-center text-muted-foreground"
-            >
-              Not Assigned
-            </Badge>
-          )}
-        </div>
-      );
-    },
-  },
+  // {
+  //   id: "fc",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="FC" />
+  //   ),
+  //   cell: ({ row }) => {
+  //     const fc = row.original.fc;
+  //     return (
+  //       <div className="flex items-center justify-center">
+  //         {fc ? (
+  //           <Badge variant="outline" className="w-[100px] justify-center">
+  //             {fc.user.name}
+  //           </Badge>
+  //         ) : (
+  //           <Badge
+  //             variant="outline"
+  //             className="w-[100px] justify-center text-muted-foreground"
+  //           >
+  //             Not Assigned
+  //           </Badge>
+  //         )}
+  //       </div>
+  //     );
+  //   },
+  // },
   {
     id: "pt",
     header: ({ column }) => (

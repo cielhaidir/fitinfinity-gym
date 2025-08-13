@@ -19,6 +19,8 @@ export const trainerSessionRouter = createTRPCRouter({
         startTime: z.date(),
         endTime: z.date(),
         description: z.string().optional(),
+        isGroup: z.boolean().optional(),
+        attendanceCount: z.number().min(1).max(50).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -51,6 +53,9 @@ export const trainerSessionRouter = createTRPCRouter({
         orderBy: {
           remainingSessions: "desc",
         },
+        include: {
+          package: true,
+        },
       });
 
       if (!subscription) {
@@ -78,6 +83,16 @@ export const trainerSessionRouter = createTRPCRouter({
         });
       }
 
+      // Validate attendance count against package maxUsers for group sessions
+      if (input.isGroup && input.attendanceCount && subscription.package?.maxUsers) {
+        if (input.attendanceCount > subscription.package.maxUsers) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+          });
+        }
+      }
+
       // Create the training session and decrement remaining sessions in a transaction
       return ctx.db.$transaction(async (tx) => {
         console.log("Starting transaction");
@@ -91,6 +106,8 @@ export const trainerSessionRouter = createTRPCRouter({
             startTime: input.startTime,
             endTime: input.endTime,
             description: input.description,
+            isGroup: input.isGroup || false,
+            attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
           },
         });
 
@@ -374,8 +391,11 @@ export const trainerSessionRouter = createTRPCRouter({
         endTime: z.date(),
         status: z.enum(["ENDED", "NOT_YET", "CANCELED", "ONGOING"]).optional(),
         exerciseResult: z.string().optional(),
+        attendanceCount: z.number().min(1).max(50).optional(),
+        isGroup: z.boolean().optional(),
       }),
     )
+    
     .mutation(async ({ ctx, input }) => {
       console.log("Received update mutation:", {
         id: input.id,
@@ -580,5 +600,302 @@ export const trainerSessionRouter = createTRPCRouter({
             (error instanceof Error ? error.message : "Unknown error"),
         });
       }
+    }),
+
+  // Conduct tracking procedures
+  getConductSummary: permissionProtectedProcedure(["list:session"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }).optional()
+    )
+    .query(async ({ ctx, input }) => {
+      // Get the trainer ID for the current user
+      const trainer = await ctx.db.personalTrainer.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          isActive: true,
+        },
+      });
+
+      if (!trainer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Trainer not found or not active",
+        });
+      }
+
+      // Build date filter
+      const dateFilter: any = {};
+      if (input?.startDate) {
+        dateFilter.gte = input.startDate;
+      }
+      if (input?.endDate) {
+        dateFilter.lte = input.endDate;
+      }
+
+      // Get all sessions for the trainer with date filter
+      const sessions = await ctx.db.trainerSession.findMany({
+        where: {
+          trainerId: trainer.id,
+          ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+        },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      });
+
+      // Calculate conduct hours
+      let totalHours = 0;
+      const sessionDetails = sessions.map(session => {
+        const hours = session.isGroup
+          ? (session.attendanceCount || 1) * 1 // 1 hour per attendee for group sessions
+          : 1; // 1 hour for individual sessions
+        
+        totalHours += hours;
+
+        return {
+          id: session.id,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          memberName: session.member.user.name,
+          memberEmail: session.member.user.email,
+          isGroup: session.isGroup,
+          attendanceCount: session.attendanceCount || 1,
+          hours,
+          description: session.description,
+        };
+      });
+
+      return {
+        totalHours,
+        sessionCount: sessions.length,
+        sessions: sessionDetails,
+      };
+    }),
+
+  updateSessionAttendance: permissionProtectedProcedure(["edit:session"])
+    .input(
+      z.object({
+        sessionId: z.string(),
+        attendanceCount: z.number().min(1).max(50),
+        isGroup: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the trainer ID for the current user
+      const trainer = await ctx.db.personalTrainer.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          isActive: true,
+        },
+      });
+
+      if (!trainer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Trainer not found or not active",
+        });
+      }
+
+      // Verify the trainer owns this session
+      const existingSession = await ctx.db.trainerSession.findFirst({
+        where: {
+          id: input.sessionId,
+          trainerId: trainer.id,
+        },
+        include: {
+          member: true,
+        }
+      });
+
+      if (!existingSession) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session not found or you do not have permission to edit it",
+        });
+      }
+
+      // Validate attendance count against package maxUsers
+      const subscription = await ctx.db.subscription.findFirst({
+        where: {
+          memberId: existingSession.memberId,
+          trainerId: trainer.id,
+          isActive: true,
+        },
+        include: {
+          package: true,
+        },
+      });
+
+      if (subscription?.package?.maxUsers && input.attendanceCount > subscription.package.maxUsers) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+        });
+      }
+
+      // Update the session
+      return ctx.db.trainerSession.update({
+        where: { id: input.sessionId },
+        data: {
+          attendanceCount: input.attendanceCount,
+          isGroup: input.isGroup ?? true,
+        },
+      });
+    }),
+
+  // Admin endpoint to get conduct report for any trainer
+  getAdminConductReport: permissionProtectedProcedure(["report:pt"])
+    .input(
+      z.object({
+        trainerId: z.string().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Build trainer filter
+      const trainerFilter: any = {};
+      if (input.trainerId) {
+        trainerFilter.id = input.trainerId;
+      }
+
+      // Build date filter
+      const dateFilter: any = {};
+      if (input.startDate) {
+        dateFilter.gte = input.startDate;
+      }
+      if (input.endDate) {
+        dateFilter.lte = input.endDate;
+      }
+
+      // Get all sessions with filters
+      const sessions = await ctx.db.trainerSession.findMany({
+        where: {
+          ...(input.trainerId && { trainerId: input.trainerId }),
+          ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+        },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      });
+
+      // Group sessions by trainer and calculate conduct hours
+      const trainerConductMap = new Map<string, {
+        trainerId: string;
+        trainerName: string;
+        trainerEmail: string;
+        totalHours: number;
+        sessionCount: number;
+        sessions: any[];
+      }>();
+
+      sessions.forEach(session => {
+        const trainerId = session.trainerId;
+        const trainerName = session.trainer?.user?.name || 'Unknown';
+        const trainerEmail = session.trainer?.user?.email || '';
+        
+        const hours = session.isGroup
+          ? (session.attendanceCount || 1) * 1 // 1 hour per attendee for group sessions
+          : 1; // 1 hour for individual sessions
+
+        if (!trainerConductMap.has(trainerId)) {
+          trainerConductMap.set(trainerId, {
+            trainerId,
+            trainerName,
+            trainerEmail,
+            totalHours: 0,
+            sessionCount: 0,
+            sessions: [],
+          });
+        }
+
+        const trainerData = trainerConductMap.get(trainerId)!;
+        trainerData.totalHours += hours;
+        trainerData.sessionCount += 1;
+        trainerData.sessions.push({
+          id: session.id,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          memberName: session.member.user.name,
+          memberEmail: session.member.user.email,
+          isGroup: session.isGroup,
+          attendanceCount: session.attendanceCount || 1,
+          hours,
+          description: session.description,
+        });
+      });
+
+      // Convert map to array and sort by total hours
+      const trainerSummaries = Array.from(trainerConductMap.values())
+        .sort((a, b) => b.totalHours - a.totalHours);
+
+      // If specific trainer requested, return detailed data
+      if (input.trainerId && trainerSummaries.length > 0) {
+        const trainerData = trainerSummaries[0];
+        if (trainerData) {
+          return {
+            summary: {
+              trainerId: trainerData.trainerId,
+              trainerName: trainerData.trainerName,
+              trainerEmail: trainerData.trainerEmail,
+              totalHours: trainerData.totalHours,
+              sessionCount: trainerData.sessionCount,
+            },
+            sessions: trainerData.sessions,
+          };
+        }
+      }
+
+      // Return summary for all trainers
+      return {
+        trainers: trainerSummaries.map(trainer => ({
+          trainerId: trainer.trainerId,
+          trainerName: trainer.trainerName,
+          trainerEmail: trainer.trainerEmail,
+          totalHours: trainer.totalHours,
+          sessionCount: trainer.sessionCount,
+        })),
+        totalConductHours: trainerSummaries.reduce((sum, trainer) => sum + trainer.totalHours, 0),
+        totalSessions: trainerSummaries.reduce((sum, trainer) => sum + trainer.sessionCount, 0),
+      };
     }),
 });

@@ -50,6 +50,7 @@ export default function SubscriptionPage({
     type: "GROUP_TRAINING",
   });
   const { data: trainers } = api.personalTrainer.listAll.useQuery();
+  const { data: salesList } = api.subs.getSalesList.useQuery();
 
   // Check for active gym membership
   const { data: memberSubscriptions } = api.subs.getByIdMember.useQuery({
@@ -89,6 +90,7 @@ export default function SubscriptionPage({
 
   const [selectedPackage, setSelectedPackage] = useState("");
   const [selectedTrainer, setSelectedTrainer] = useState("");
+  const [selectedSales, setSelectedSales] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("qr");
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<{
@@ -170,6 +172,16 @@ export default function SubscriptionPage({
         }
       }
 
+      // Add sales information
+      if (selectedSales) {
+        const selectedSalesDetails = salesList?.find(s => s.id === selectedSales);
+        queryParams.set("salesId", selectedSales);
+        if (selectedSalesDetails) {
+          queryParams.set("salesType", selectedSalesDetails.type);
+          queryParams.set("salesName", selectedSalesDetails.name);
+        }
+      }
+
       if (selectedVoucher) {
         queryParams.set("voucherId", selectedVoucher.id);
         queryParams.set("voucherName", selectedVoucher.name);
@@ -185,11 +197,16 @@ export default function SubscriptionPage({
         // Create a unique order ID
         const orderId = `FIT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+        // Find selected sales person details
+        const selectedSalesDetails = salesList?.find(s => s.id === selectedSales);
+        
         // Create subscription record first (with pending status)
         const subscription = await createSubscriptionMutation.mutateAsync({
           memberId: memberID,
           packageId: selectedPackage,
           trainerId: (subscriptionType === "trainer" || subscriptionType === "group") ? selectedTrainer : undefined,
+          salesId: selectedSales,
+          salesType: selectedSalesDetails?.type,
           startDate: startDate,
           subsType: subscriptionType,
           duration:
@@ -566,6 +583,42 @@ export default function SubscriptionPage({
                 </Tabs>
               </CardContent>
             </Card>
+
+            {/* Sales Selection Card */}
+            <Card className="bg-muted/50">
+              <CardHeader>
+                <CardTitle>Sales Assignment</CardTitle>
+                <CardDescription>
+                  Select the sales person for commission tracking (optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div>
+                  <h3 className="mb-3 text-lg font-medium">Select Sales Person</h3>
+                  <Select
+                    value={selectedSales}
+                    onValueChange={setSelectedSales}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a sales person" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {salesList?.length ? (
+                        salesList.map((sales) => (
+                          <SelectItem key={sales.id} value={sales.id}>
+                            {sales.name} ({sales.typeName})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem disabled value="no data">
+                          No sales people available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div>
@@ -764,6 +817,7 @@ export default function SubscriptionPage({
                   className="w-full bg-infinity"
                   disabled={
                     !selectedPackageDetails ||
+                   
                     ((subscriptionType === "trainer" || subscriptionType === "group") && !selectedTrainer) ||
                     isProcessingPayment
                   }

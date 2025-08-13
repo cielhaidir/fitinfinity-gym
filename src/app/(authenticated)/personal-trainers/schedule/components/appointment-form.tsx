@@ -42,6 +42,7 @@ export default function AppointmentForm({
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("60"); // Default 60 minutes
   const [formattedDate, setFormattedDate] = useState("");
+  const [attendanceCount, setAttendanceCount] = useState("1");
 
   const { data: members, isLoading: isMembersLoading } =
     api.personalTrainer.getMembers.useQuery(undefined, {
@@ -102,6 +103,7 @@ export default function AppointmentForm({
       // Reset form
       setSelectedMemberId("");
       setDescription("");
+      setAttendanceCount("1");
       onClose();
     },
     onError: (error) => {
@@ -147,14 +149,23 @@ export default function AppointmentForm({
       return;
     }
 
+    // Validate attendance count for group sessions
+    const isGroupSession = selectedMember?.type === "group";
+    const attendanceCountNum = parseInt(attendanceCount);
+    
+    if (isGroupSession && (!attendanceCount || attendanceCountNum < 1 || attendanceCountNum > 50)) {
+      toast.error("Jumlah peserta harus antara 1-50 untuk sesi grup");
+      return;
+    }
+
     createSession.mutate({
       memberId: membershipId,
       date: selectedDate,
       startTime: startTime,
       endTime: endTime,
       description: description,
-      isGroup: selectedMember?.type === "group",
-      groupId: selectedMember?.groupId,
+      isGroup: isGroupSession,
+      attendanceCount: isGroupSession ? attendanceCountNum : 1,
     });
   };
 
@@ -246,6 +257,27 @@ export default function AppointmentForm({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Attendance Count for Group Sessions */}
+      {combinedMembers.find(m => m.id === selectedMemberId)?.type === "group" && (
+        <div className="space-y-2">
+          <Label htmlFor="attendanceCount" className="text-muted-foreground">
+            Jumlah Peserta Hadir
+          </Label>
+          <Input
+            id="attendanceCount"
+            type="number"
+            min="1"
+            max="50"
+            value={attendanceCount}
+            onChange={(e) => setAttendanceCount(e.target.value)}
+            placeholder="Masukkan jumlah peserta yang hadir"
+          />
+          <p className="text-xs text-muted-foreground">
+            Untuk sesi grup, masukkan jumlah peserta yang akan hadir
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="description" className="text-muted-foreground">

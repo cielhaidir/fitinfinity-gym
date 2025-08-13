@@ -474,6 +474,27 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     }),
 
+
+      listWithUsers: permissionProtectedProcedure(["report:pt"])
+        .query(async ({ ctx }) => {
+          return ctx.db.personalTrainer.findMany({
+            where: {
+              isActive: true,
+            },
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+          });
+        }),
+        
   // Public endpoint to get active trainers for landing page
   getActiveTrainers: publicProcedure.query(async ({ ctx }) => {
     return ctx.db.personalTrainer.findMany({

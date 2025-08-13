@@ -60,6 +60,9 @@ function CheckoutValidateContent() {
   const voucherName = searchParams?.get("voucherName");
   const voucherAmount = searchParams?.get("voucherAmount");
   const voucherDiscountType = searchParams?.get("voucherDiscountType");
+  const salesId = searchParams?.get("salesId");
+  const salesType = searchParams?.get("salesType");
+  const salesName = searchParams?.get("salesName");
 
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,6 +129,8 @@ function CheckoutValidateContent() {
         paymentMethod: paymentMethod,
         filePath: uploadResult.filePath,
         voucherId: voucherId || undefined,
+        salesId: salesId || undefined,
+        salesType: salesType || undefined,
       });
 
       toast.success(
@@ -208,6 +213,12 @@ function CheckoutValidateContent() {
                       ? `-${voucherAmount}%`
                       : `- ${formatCurrency(voucherAmount || "0")}`}
                   </span>
+                </div>
+              )}
+              {salesName && (
+                <div className="flex justify-between text-blue-600">
+                  <span>Sales: {salesName}</span>
+                  <span>{salesType === "PersonalTrainer" ? "PT" : "FC"}</span>
                 </div>
               )}
               <hr className="my-2" />

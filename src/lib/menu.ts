@@ -249,6 +249,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: Gift,
           requiredPermission: "menu:reward",
         },
+        {
+          title: "Subscription History",
+          url: "/admin/subscription-history",
+          icon: CreditCard,
+          requiredPermission: "menu:transaction",
+        },
 
         // {
         //     title: "Settings",
@@ -408,14 +414,44 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:transaction",
         },
         {
-          title: "Subscription History",
+          title: "Payment History",
           url: "/finance/subscription-history",
           icon: CreditCard,
           requiredPermission: "menu:transaction",
         },
+      ],
+    },
+    {
+      title: "Reports",
+      url: "/reports",
+      items: [
+        {
+          title: "Employee Attendance Report",
+          url: "/reports/attendance",
+          icon: UserCog,
+          requiredPermission: "menu:attendance-report",
+        },
+        {
+          title: "Class Member Report",
+          url: "/reports/class-member-report",
+          icon: BarChart3,
+          requiredPermission: "menu:class-member-report",
+        },
+        {
+          title: "Fitness Consultant Report",
+          url: "/reports/member-report",
+          icon: Users,
+          requiredPermission: "menu:member-report",
+        },
+        {
+          title: "Personal Trainer Report",
+          url: "/reports/personal-trainers",
+          icon: Contact,
+          // requiredPermission: "report:pt",
+        },
         {
           title: "Sales Report",
-          url: "/finance/sales-report",
+          url: "/reports/sales-report",
           icon: DollarSign,
           requiredPermission: "menu:transaction",
         },

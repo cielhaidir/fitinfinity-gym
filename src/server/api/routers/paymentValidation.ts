@@ -90,6 +90,8 @@ export const paymentValidationRouter = createTRPCRouter({
         paymentMethod: z.string(),
         filePath: z.string(),
         voucherId: z.string().optional(), // Add voucherId to input
+        salesId: z.string().optional(), // Add salesId to input
+        salesType: z.string().optional(), // Add salesType to input
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -121,6 +123,8 @@ export const paymentValidationRouter = createTRPCRouter({
             paymentMethod: input.paymentMethod,
             filePath: input.filePath,
             paymentStatus: PaymentValidationStatus.WAITING,
+            salesId: input.salesId,
+            salesType: input.salesType,
           },
         });
 
@@ -267,6 +271,8 @@ export const paymentValidationRouter = createTRPCRouter({
             endDate: endDate,
             remainingSessions: remainingSessions,
             isActive: true,
+            salesId: paymentValidation.salesId,
+            salesType: paymentValidation.salesType,
           },
         });
 
@@ -444,14 +450,15 @@ export const paymentValidationRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(10),
         search: z.string().optional(),
         searchColumn: z.string().optional(),
+        status: z.string().optional(), // Add status filter
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { page, limit, search, searchColumn } = input;
+      const { page, limit, search, searchColumn, status } = input;
       const skip = (page - 1) * limit;
 
       // Build search conditions for offline payments
-      let offlineWhereCondition = {};
+      let offlineWhereCondition: any = {};
       if (search && searchColumn) {
         if (searchColumn === "member.user.name") {
           offlineWhereCondition = {
@@ -474,6 +481,11 @@ export const paymentValidationRouter = createTRPCRouter({
             },
           };
         }
+      }
+
+      // Add status filter for offline payments
+      if (status) {
+        offlineWhereCondition.paymentStatus = status;
       }
 
       // Fetch offline payments (payment validations)
@@ -507,7 +519,7 @@ export const paymentValidationRouter = createTRPCRouter({
       });
 
       // Build search conditions for online payments
-      let onlineWhereCondition = {};
+      let onlineWhereCondition: any = {};
       if (search && searchColumn) {
         if (searchColumn === "member.user.name") {
           onlineWhereCondition = {
@@ -532,16 +544,22 @@ export const paymentValidationRouter = createTRPCRouter({
         }
       }
 
+      // Add status filter to payments query for online payments
+      let paymentStatusFilter: any = {
+        NOT: {
+          orderReference: null, // Only get payments with order references (online)
+        },
+      };
+      if (status) {
+        paymentStatusFilter.status = status;
+      }
+
       // Fetch online payments through subscriptions
       const onlineSubscriptionsPromise = ctx.db.subscription.findMany({
         where: onlineWhereCondition,
         include: {
           payments: {
-            where: {
-              NOT: {
-                orderReference: null, // Only get payments with order references (online)
-              },
-            },
+            where: paymentStatusFilter,
           },
           member: {
             include: {
@@ -558,6 +576,7 @@ export const paymentValidationRouter = createTRPCRouter({
               },
             },
           },
+          
         },
       });
 
@@ -573,11 +592,12 @@ export const paymentValidationRouter = createTRPCRouter({
       const onlinePayments = onlineSubscriptions.flatMap((subscription) =>
         subscription.payments.map((payment) => ({
           id: payment.id,
+          subscriptionId: subscription.id, // Add subscription ID for editing
           createdAt: payment.createdAt,
           paymentStatus: payment.status,
           totalPayment: payment.totalPayment,
           paymentMethod: payment.method,
-          subsType: subscription.trainerId 
+          subsType: subscription.trainerId
             ? (subscription.package?.type === "GROUP_TRAINING" ? "group" : "trainer")
             : "gym",
           orderReference: payment.orderReference,
@@ -586,15 +606,24 @@ export const paymentValidationRouter = createTRPCRouter({
           member: subscription.member,
           isOnlinePayment: true,
           startDate: subscription.startDate,
-          endDate: subscription.endDate
+          endDate: subscription.endDate,
+          // Add sales information
+          salesId: subscription.salesId,
+          salesType: subscription.salesType,
         })),
       );
 
+      // Transform offline payments to include subscription-like data
+      // For offline payments, we need to create a subscription record or handle differently
+      const transformedOfflinePayments = offlinePayments.map((payment) => ({
+        ...payment,
+        subscriptionId: payment.id, // Use payment validation ID as fallback
+        isOnlinePayment: false,
+        salesId: null, // Offline payments don't have sales tracking yet
+        salesType: null,
+      }));
       // Combine and sort both payment types
-      const allPayments = [
-        ...offlinePayments.map((p) => ({ ...p, isOnlinePayment: false })),
-        ...onlinePayments,
-      ].sort(
+      const allPayments = [...transformedOfflinePayments, ...onlinePayments].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
@@ -735,10 +764,7 @@ export const paymentValidationRouter = createTRPCRouter({
       ]);
 
       // Combine and sort both payment types
-      const allPayments = [
-        ...offlinePayments.map((p) => ({ ...p, isOnlinePayment: false })),
-        ...onlinePayments,
-      ].sort(
+      const allPayments = [...transformedOfflinePayments, ...onlinePayments].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
