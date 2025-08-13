@@ -60,16 +60,18 @@ export default function SubscriptionPage({
   });
 
   // Check if member has active gym membership
-  const hasActiveGymMembership = memberSubscriptions?.items?.some(subscription => {
-    // Check if it's a gym membership package
-    const isGymMembership = subscription.package.type === "GYM_MEMBERSHIP";
-    // Check if it's currently active (not expired)
-    const isActive = subscription.endDate ? new Date(subscription.endDate) > new Date() : false;
-    // Check if payment is successful
-    const isPaid = subscription.payments?.some(payment => payment.status === "SUCCESS");
+  // const hasActiveGymMembership = memberSubscriptions?.items?.some(subscription => {
+  //   // Check if it's a gym membership package
+  //   const isGymMembership = subscription.package.type === "GYM_MEMBERSHIP";
+  //   // Check if it's currently active (not expired)
+  //   const isActive = subscription.endDate ? new Date(subscription.endDate) > new Date() : false;
+  //   // Check if payment is successful
+  //   const isPaid = subscription.payments?.some(payment => payment.status === "SUCCESS");
     
-    return isGymMembership && isActive && isPaid;
-  }) ?? false;
+  //   return isGymMembership && isActive && isPaid;
+  // }) ?? false;
+
+  const hasActiveGymMembership = true;
 
   const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer" | "group">(
     "gym",
