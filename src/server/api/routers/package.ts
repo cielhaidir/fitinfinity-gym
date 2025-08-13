@@ -166,7 +166,7 @@ export const packageRouter = createTRPCRouter({
     .input(z.object({ type: packageType }))
     .query(async ({ ctx, input }) => {
       return ctx.db.package.findMany({
-        where: { type: input.type },
+        where: { type: input.type, isActive: true },
       });
     }),
 
