@@ -12,6 +12,8 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError, z } from "zod";
 import { Session } from "next-auth";
+import * as fs from "fs";
+import * as path from "path";
 
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
@@ -117,6 +119,7 @@ export const createTRPCRouter = t.router;
 
 /**
  * Middleware for timing procedure execution and adding an artificial delay in development.
+ * Also logs slow operations to file.
  *
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
@@ -133,9 +136,145 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
   const result = await next();
 
   const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+  const executionTime = end - start;
+  
+  // Log all operations to console
+  // console.log(`[TRPC] ${path} took ${executionTime}ms to execute`);
+  
+  // Define slow query threshold (configurable via environment variable)
+  const slowThreshold = parseInt(process.env.SLOW_QUERY_THRESHOLD || '1000');
+  
+  // Log slow operations to file
+  if (executionTime > slowThreshold) {
+    const slowLogEntry = {
+      timestamp: new Date().toISOString(),
+      path,
+      executionTime,
+      threshold: slowThreshold,
+      type: 'SLOW_QUERY'
+    };
+    
+    writeSlowLog(`[SLOW] ${JSON.stringify(slowLogEntry)}`);
+  }
 
   return result;
+});
+
+/**
+ * Helper function to write audit logs to file
+ */
+const writeAuditLog = (message: string) => {
+  try {
+    const logDir = path.join(process.cwd(), 'logs');
+    const logFile = path.join(logDir, 'audit.log');
+    
+    // Ensure logs directory exists
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    
+    // Append log message with newline
+    fs.appendFileSync(logFile, message + '\n', 'utf8');
+  } catch (error) {
+    // Fallback to console if file logging fails
+    console.error('[AUDIT] Failed to write to audit log file:', error);
+    console.log(message);
+  }
+};
+
+/**
+ * Helper function to write slow query logs to file
+ */
+const writeSlowLog = (message: string) => {
+  try {
+    const logDir = path.join(process.cwd(), 'logs');
+    const logFile = path.join(logDir, 'slow.log');
+    
+    // Ensure logs directory exists
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    
+    // Append log message with newline
+    fs.appendFileSync(logFile, message + '\n', 'utf8');
+  } catch (error) {
+    // Fallback to console if file logging fails
+    console.error('[SLOW] Failed to write to slow log file:', error);
+    console.log(message);
+  }
+};
+
+/**
+ * Audit middleware for logging create, update, delete operations to file
+ */
+export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, input }) => {
+  // Only log mutations (create, update, delete operations)
+  if (type === 'mutation') {
+    const timestamp = new Date().toISOString();
+    let user = 'Unknown';
+    let userId = null;
+
+    // Extract user information from session or device context
+    if (ctx.session?.user) {
+      user = ctx.session.user.email || ctx.session.user.name || ctx.session.user.id;
+      userId = ctx.session.user.id;
+    } 
+    // Determine operation type from path
+    let operationType = 'UNKNOWN';
+    const pathLower = path.toLowerCase();
+    if (pathLower.includes('create') || pathLower.includes('add')) {
+      operationType = 'CREATE';
+    } else if (pathLower.includes('update') || pathLower.includes('edit') || pathLower.includes('modify')) {
+      operationType = 'UPDATE';
+    } else if (pathLower.includes('delete') || pathLower.includes('remove')) {
+      operationType = 'DELETE';
+    }
+
+    // Create audit log entry
+    const auditEntry = {
+      timestamp,
+      operationType,
+      path,
+      user,
+      userId,
+      status: 'STARTED'
+    };
+
+    // Log the operation before execution
+    writeAuditLog(`[AUDIT] ${JSON.stringify(auditEntry)}`);
+    
+    // Log input data for audit trail in development (be careful with sensitive data)
+    if (process.env.NODE_ENV === 'development') {
+      writeAuditLog(`[AUDIT] Input data for ${path}: ${JSON.stringify(input, null, 2)}`);
+    }
+
+    try {
+      const result = await next();
+      
+      // Log successful completion
+      const successEntry = {
+        ...auditEntry,
+        status: 'COMPLETED',
+        completedAt: new Date().toISOString()
+      };
+      writeAuditLog(`[AUDIT] ${JSON.stringify(successEntry)}`);
+      
+      return result;
+    } catch (error) {
+      // Log failed operations
+      const errorEntry = {
+        ...auditEntry,
+        status: 'FAILED',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        failedAt: new Date().toISOString()
+      };
+      writeAuditLog(`[AUDIT] ${JSON.stringify(errorEntry)}`);
+      throw error;
+    }
+  }
+
+  // For non-mutation operations, just continue without logging
+  return next();
 });
 
 /**
@@ -217,6 +356,33 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+* Audited procedure for operations that need audit logging
+*
+* Use this for create, update, delete operations that should be tracked
+*/
+export const auditedProcedure = t.procedure
+ .use(timingMiddleware)
+ .use(auditMiddleware);
+
+/**
+* Protected audited procedure for authenticated operations that need audit logging
+*/
+export const protectedAuditedProcedure = t.procedure
+ .use(timingMiddleware)
+ .use(auditMiddleware)
+ .use(({ ctx, next }) => {
+   if (!ctx.session || !ctx.session.user) {
+     throw new TRPCError({ code: "UNAUTHORIZED" });
+   }
+   return next({
+     ctx: {
+       // infers the `session` as non-nullable
+       session: { ...ctx.session, user: ctx.session.user },
+     },
+   });
+ });
 
 // Add this middleware to your existing TRPC setup
 

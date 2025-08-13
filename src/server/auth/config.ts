@@ -41,7 +41,7 @@ async function createUserMembership(userId: string | undefined) {
     return;
   }
 
-  console.log("Starting membership creation for user:", userId);
+
 
   try {
     // Check if membership already exists
@@ -121,8 +121,8 @@ export const authConfig = {
 
         // Validate password
         const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password,
+          String(credentials.password),
+          String(user.password),
         );
 
         if (!isPasswordValid) {

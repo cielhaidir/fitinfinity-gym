@@ -70,12 +70,6 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:manage-classes",
         },
         {
-          title: "Class Member Report",
-          url: "/management/class-member-report",
-          icon: BarChart3,
-            requiredPermission: "menu:manage-classes",
-        },
-        {
           title: "Employee",
           url: "/management/employee",
           icon: ContactRound,
@@ -435,13 +429,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Class Member Report",
           url: "/reports/class-member-report",
           icon: BarChart3,
-          requiredPermission: "menu:class-member-report",
-        },
-        {
-          title: "Fitness Consultant Report",
-          url: "/reports/member-report",
-          icon: Users,
-          requiredPermission: "report:fc",
+          // requiredPermission: "menu:class-member-report",
         },
         {
           title: "Personal Trainer Report",
@@ -453,7 +441,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Sales Report",
           url: "/reports/sales-report",
           icon: DollarSign,
-          // requiredPermission: "report:sales",
+          requiredPermission: "report:sales",
         },
       ],
     },
