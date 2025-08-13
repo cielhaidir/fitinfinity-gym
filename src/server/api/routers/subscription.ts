@@ -439,14 +439,23 @@ export const subscriptionRouter = createTRPCRouter({
     { leadGroupSubscriptions: { some: {} } }, // leader group
   ],
   ...(input.search
-    ? input.searchColumn?.startsWith("user.")
+    ? input.searchColumn === "member.user.name"
       ? {
           member: {
             user: {
-              [input.searchColumn.replace("user.", "")]: {
+              name: {
                 contains: input.search,
                 mode: "insensitive" as const,
               },
+            },
+          },
+        }
+      : input.searchColumn === "package.name"
+      ? {
+          package: {
+            name: {
+              contains: input.search,
+              mode: "insensitive" as const,
             },
           },
         }
@@ -499,7 +508,7 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      const total = await ctx.db.subscription.count();
+      const total = await ctx.db.subscription.count({ where: whereClause });
 
       return {
         items,
@@ -523,14 +532,23 @@ export const subscriptionRouter = createTRPCRouter({
       await updateExpiredSubscriptions(ctx);
 
       const whereClause: any = input.search
-        ? input.searchColumn?.startsWith("user.")
+        ? input.searchColumn === "member.user.name"
           ? {
               member: {
                 user: {
-                  [input.searchColumn.replace("user.", "")]: {
+                  name: {
                     contains: input.search,
                     mode: "insensitive" as const,
                   },
+                },
+              },
+            }
+          : input.searchColumn === "package.name"
+          ? {
+              package: {
+                name: {
+                  contains: input.search,
+                  mode: "insensitive" as const,
                 },
               },
             }
@@ -581,7 +599,7 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      const total = await ctx.db.subscription.count();
+      const total = await ctx.db.subscription.count({ where: whereClause });
 
       return {
         items,
