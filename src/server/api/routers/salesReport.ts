@@ -11,6 +11,7 @@ const salesReportInputSchema = z.object({
   paymentMethod: z.string().optional(),
   includePos: z.boolean().default(true),
   includeSubscriptions: z.boolean().default(true),
+  salesId: z.string().optional(),
 });
 
 // Type definitions for sales data
@@ -50,192 +51,161 @@ interface SalesReportResponse {
 }
 
 export const salesReportRouter = createTRPCRouter({
-  // Get sales summary report
-  getSalesSummary: protectedProcedure
-    .input(salesReportInputSchema)
+  getSalesList: protectedProcedure.query(async ({ ctx }) => {
+    const fcs = await ctx.db.fC.findMany({
+      select: { id: true, user: { select: { name: true } } },
+    });
+    const pts = await ctx.db.personalTrainer.findMany({
+      select: { id: true, user: { select: { name: true } } },
+    });
+
+    return [
+      ...fcs.map(fc => ({ id: fc.id, name: fc.user.name!, type: 'FC' })),
+      ...pts.map(pt => ({ id: pt.id, name: pt.user.name!, type: 'PT' })),
+    ];
+  }),
+
+  getRevenueBySales: protectedProcedure
+    .input(z.object({
+      startDate: z.date(),
+      endDate: z.date(),
+      salesId: z.string().optional(),
+    }))
     .query(async ({ ctx, input }) => {
-      const { startDate, endDate, paymentMethod, includePos, includeSubscriptions } = input;
+      const { startDate, endDate, salesId } = input;
 
-      // Default to last 30 days if no dates provided
-      const start = startDate ? startOfDay(startDate) : startOfDay(subDays(new Date(), 30));
-      const end = endDate ? endOfDay(endDate) : endOfDay(new Date());
+      // Ambil semua data PaymentValidation yang ACCEPTED untuk debugging
+      console.log('Date range:', { startDate, endDate, salesId });
 
-      let posSales: any[] = [];
-      let subscriptionPayments: any[] = [];
-      let posTotal = 0;
-      let subscriptionTotal = 0;
-
-      // Get POS sales
-      if (includePos) {
-        posSales = await ctx.db.pOSSale.findMany({
-          where: {
-            createdAt: {
-              gte: start,
-              lte: end,
-            },
-            ...(paymentMethod && { paymentMethod }),
-          },
-          select: {
-            id: true,
-            saleNumber: true,
-            total: true,
-            paymentMethod: true,
-            createdAt: true,
-            saleDate: true,
-            items: {
-              select: {
-                quantity: true,
-                price: true,
-                item: {
-                  select: {
-                    name: true,
-                    category: {
-                      select: { name: true }
-                    }
-                  }
-                }
-              }
+      const allAcceptedPayments = await ctx.db.paymentValidation.findMany({
+        where: {
+          paymentStatus: 'ACCEPTED',
+        },
+        select: {
+          id: true,
+          totalPayment: true,
+          createdAt: true,
+          salesId: true,
+          salesType: true,
+          fcId: true,
+          trainerId: true,
+          paymentMethod: true,
+          member: {
+            select: {
+              user: { select: { name: true } }
             }
           },
-          orderBy: { createdAt: 'desc' },
-        });
-        posTotal = posSales.reduce((sum: number, sale: any) => sum + sale.total, 0);
-      }
-
-      // Get subscription payments
-      if (includeSubscriptions) {
-        subscriptionPayments = await ctx.db.payment.findMany({
-          where: {
-            createdAt: {
-              gte: start,
-              lte: end,
-            },
-            status: 'SUCCESS',
-            ...(paymentMethod && { method: paymentMethod }),
-          },
-          select: {
-            id: true,
-            totalPayment: true,
-            method: true,
-            createdAt: true,
-            subscription: {
-              select: {
-                package: {
-                  select: { name: true }
-                }
-              }
+          package: {
+            select: {
+              name: true,
+              type: true
             }
           },
-          orderBy: { createdAt: 'desc' },
-        });
-        subscriptionTotal = subscriptionPayments.reduce((sum: number, payment: any) => sum + (payment.totalPayment || 0), 0);
-      }
-
-      // Calculate totals
-      const totalRevenue = posTotal + subscriptionTotal;
-      const totalTransactions = posSales.length + subscriptionPayments.length;
-      const averageTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
-
-      // Payment method breakdown
-      const paymentMethodBreakdown: PaymentMethodBreakdown[] = [];
-      const methodMap = new Map<string, { count: number; amount: number }>();
-
-      // Process POS sales
-      posSales.forEach((sale: any) => {
-        const method = sale.paymentMethod || 'Unknown';
-        const current = methodMap.get(method) || { count: 0, amount: 0 };
-        methodMap.set(method, {
-          count: current.count + 1,
-          amount: current.amount + sale.total,
-        });
+          trainer: {
+            select: {
+              user: { select: { name: true } }
+            }
+          },
+          fc: {
+            select: {
+              user: { select: { name: true } }
+            }
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50, // Ambil 50 data terbaru untuk debugging
       });
 
-      // Process subscription payments
-      subscriptionPayments.forEach((payment: any) => {
-        const method = payment.method || 'Unknown';
-        const current = methodMap.get(method) || { count: 0, amount: 0 };
-        methodMap.set(method, {
-          count: current.count + 1,
-          amount: current.amount + (payment.totalPayment || 0),
-        });
+      console.log(`Total ACCEPTED payments in DB: ${allAcceptedPayments.length}`);
+      console.log('Sample data:', allAcceptedPayments.slice(0, 3).map(p => ({
+        id: p.id,
+        amount: p.totalPayment,
+        createdAt: p.createdAt,
+        salesId: p.salesId,
+        salesType: p.salesType,
+        fcId: p.fcId,
+        trainerId: p.trainerId,
+        memberName: p.member?.user?.name,
+        packageName: p.package?.name
+      })));
+
+      // Filter berdasarkan tanggal
+      const filteredPayments = allAcceptedPayments.filter(p => {
+        const paymentDate = new Date(p.createdAt);
+        return paymentDate >= startOfDay(startDate) && paymentDate <= endOfDay(endDate);
       });
 
-      methodMap.forEach((data, method) => {
-        paymentMethodBreakdown.push({ method, ...data });
-      });
+      console.log(`Payments in date range: ${filteredPayments.length}`);
 
-      // Daily breakdown
-      const dailyBreakdown: DailyBreakdown[] = [];
-      const dailyMap = new Map<string, { revenue: number; transactions: number }>();
+      const salesSummaryMap = new Map<string, { salesName: string; salesType: string; totalRevenue: number }>();
 
-      [...posSales, ...subscriptionPayments].forEach((record: any) => {
-        const date = record.createdAt.toISOString().split('T')[0];
-        const amount = 'total' in record ? record.total : (record.totalPayment || 0);
-        const current = dailyMap.get(date) || { revenue: 0, transactions: 0 };
-        dailyMap.set(date, {
-          revenue: current.revenue + amount,
-          transactions: current.transactions + 1,
-        });
-      });
+      filteredPayments.forEach(pv => {
+        let salesPersonId = '';
+        let salesName = '';
+        let salesType = '';
 
-      dailyMap.forEach((data, date) => {
-        dailyBreakdown.push({ date, ...data });
-      });
-      dailyBreakdown.sort((a, b) => a.date.localeCompare(b.date));
+        // Cek berdasarkan fcId (untuk FC)
+        if (pv.fcId && pv.fc) {
+          salesPersonId = pv.fcId;
+          salesName = pv.fc.user.name!;
+          salesType = 'FC';
+        }
+        // Cek berdasarkan trainerId (untuk PT)
+        else if (pv.trainerId && pv.trainer) {
+          salesPersonId = pv.trainerId;
+          salesName = pv.trainer.user.name!;
+          salesType = 'PT';
+        }
 
-      // Get top selling items
-      const itemSales = new Map<string, { quantity: number; revenue: number }>();
-      posSales.forEach((sale: any) => {
-        sale.items.forEach((item: any) => {
-          const name = item.item.name;
-          const current = itemSales.get(name) || { quantity: 0, revenue: 0 };
-          itemSales.set(name, {
-            quantity: current.quantity + item.quantity,
-            revenue: current.revenue + (item.quantity * item.price),
+        if (salesPersonId && salesName) {
+          console.log('Processing payment:', {
+            id: pv.id,
+            amount: pv.totalPayment,
+            salesPersonId,
+            salesName,
+            salesType
           });
-        });
+
+          const existing = salesSummaryMap.get(salesPersonId) || {
+            salesName,
+            salesType,
+            totalRevenue: 0,
+          };
+          existing.totalRevenue += pv.totalPayment;
+          salesSummaryMap.set(salesPersonId, existing);
+        }
       });
 
-      const topSellingItems: TopSellingItem[] = Array.from(itemSales.entries())
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 10);
+      // Filter berdasarkan salesId jika dipilih
+      let finalPayments = filteredPayments;
+      if (salesId) {
+        finalPayments = filteredPayments.filter(pv =>
+          pv.fcId === salesId || pv.trainerId === salesId
+        );
+      }
+
+      const totalRevenue = filteredPayments.reduce((acc, pv) => acc + pv.totalPayment, 0);
+      const totalSubscriptions = filteredPayments.length;
+
+      console.log('Final Summary:', {
+        totalRevenue,
+        totalSubscriptions,
+        salesCount: salesSummaryMap.size,
+        salesSummary: Array.from(salesSummaryMap.entries())
+      });
 
       return {
         summary: {
           totalRevenue,
-          totalTransactions,
-          averageTransactionValue,
-          posRevenue: posTotal,
-          subscriptionRevenue: subscriptionTotal,
+          totalSubscriptions,
         },
-        paymentMethodBreakdown,
-        dailyBreakdown,
-        topSellingItems,
-        posSales: posSales.map((sale: any) => ({
-          id: sale.id,
-          saleNumber: sale.saleNumber,
-          total: sale.total,
-          paymentMethod: sale.paymentMethod,
-          createdAt: sale.createdAt,
-          items: sale.items.map((item: any) => ({
-            name: item.item.name,
-            category: item.item.category?.name || 'Uncategorized',
-            quantity: item.quantity,
-            price: item.price,
-            total: item.quantity * item.price,
-          })),
+        salesSummary: Array.from(salesSummaryMap.entries()).map(([salesId, data]) => ({
+          salesId,
+          ...data
         })),
-        subscriptionPayments: subscriptionPayments.map((payment: any) => ({
-          id: payment.id,
-          total: payment.totalPayment || 0,
-          method: payment.method,
-          createdAt: payment.createdAt,
-          packageName: payment.subscription?.package?.name || 'Unknown',
-        })),
+        subscriptions: finalPayments,
       };
     }),
-
   // Get detailed sales report with filters
   getDetailedReport: protectedProcedure
     .input(z.object({
