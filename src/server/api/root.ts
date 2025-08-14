@@ -39,6 +39,7 @@ import { posSaleRouter } from "./routers/posSale";
 import { mqttRouter } from "./routers/mqtt";
 import { trackingRouter } from "./routers/tracking";
 import { salesReportRouter } from "./routers/salesReport";
+import { cashBankReportRouter } from "./routers/cashBankReport";
 import { aiRateLimitRouter } from "./routers/aiRateLimit";
 
 /**
@@ -87,6 +88,7 @@ export const appRouter = createTRPCRouter({
   mqtt: mqttRouter,
   tracking: trackingRouter,
   salesReport: salesReportRouter,
+  cashBankReport: cashBankReportRouter,
   aiRateLimit: aiRateLimitRouter,
 });
 

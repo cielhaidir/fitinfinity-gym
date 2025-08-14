@@ -526,6 +526,26 @@ model BalanceAccount {
     bankTransactions Transaction[] @relation("BankTransactions")
     paymentValidations PaymentValidation[]
     posSales         POSSale[]
+    periodClosings   BalanceAccountPeriodClosing[]
+}
+
+model BalanceAccountPeriodClosing {
+    id               Int            @id @default(autoincrement())
+    balanceAccount   BalanceAccount @relation(fields: [balanceAccountId], references: [id])
+    balanceAccountId Int
+
+    startDate        DateTime
+    endDate          DateTime
+
+    initialBalance   Float          @default(0)
+    totalDebits      Float          @default(0)
+    totalCredits     Float          @default(0)
+    closingBalance   Float          @default(0)
+
+    closedAt         DateTime       @default(now())
+    closedBy         String?
+
+    @@unique([balanceAccountId, startDate, endDate])
 }
 
 model ChartAccount {

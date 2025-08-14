@@ -443,6 +443,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: DollarSign,
           requiredPermission: "report:sales",
         },
+        {
+          title: "Cash Bank Report",
+          url: "/finance/cash-bank-report",
+          icon: HandCoins,
+          // requiredPermission: "report:cash-bank",
+        },
       ],
     },
   ],
