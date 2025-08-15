@@ -441,7 +441,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Sales Report",
           url: "/reports/sales-report",
           icon: DollarSign,
-          requiredPermission: "report:sales",
+          // requiredPermission: "report:sales",
         },
         {
           title: "Cash Bank Report",

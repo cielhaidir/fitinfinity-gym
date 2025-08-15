@@ -5,6 +5,18 @@ import { useState } from "react";
 import { endOfDay, startOfDay, subDays } from "date-fns";
 import { CashBankReportItem, CashBankReportSummary } from "@/server/api/routers/cashBankReport";
 import * as XLSX from 'xlsx-js-style';
+import { Download, Lock, Unlock, AlertCircle, TrendingUp, TrendingDown, Scale, ChevronUp, ChevronDown } from "lucide-react";
+
+// shadcn/ui components
+import { Button } from "@/app/_components/ui/button";
+import { Input } from "@/app/_components/ui/input";
+import { Label } from "@/app/_components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/_components/ui/select";
+import { Skeleton } from "@/app/_components/ui/skeleton";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/app/_components/ui/dialog";
+import { Separator } from "@/app/_components/ui/separator";
 
 const CashBankReportPage = () => {
   const [startDate, setStartDate] = useState(startOfDay(subDays(new Date(), 30)));
@@ -67,10 +79,10 @@ const CashBankReportPage = () => {
 
   if (isReportLoading || isSummaryLoading || isBalanceAccountsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading Cash Bank Report...</p>
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <Skeleton className="h-4 w-[250px]" />
         </div>
       </div>
     );
@@ -78,23 +90,23 @@ const CashBankReportPage = () => {
 
   if (reportError || summaryError) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-md w-full mx-4">
-          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-6 text-center">
-            <div className="w-12 h-12 mx-auto bg-red-100 dark:bg-red-800 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="max-w-md w-full mx-4">
+          <CardHeader className="text-center">
+            <div className="w-12 h-12 mx-auto bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-6 h-6 text-destructive" />
             </div>
-            <h3 className="text-lg font-medium text-red-800 dark:text-red-200 mb-2">Error Loading Report</h3>
-            <p className="text-red-600 dark:text-red-400">{reportError?.message || summaryError?.message}</p>
-          </div>
-        </div>
+            <CardTitle className="text-destructive">Error Loading Report</CardTitle>
+            <CardDescription>
+              {reportError?.message || summaryError?.message}
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
   }
 
-  const handleExport = () => {
+  const handleExport = async () => {
     console.log("Exporting to Excel...");
     type ExportedItem = {
       'Reference ID': string;
@@ -107,8 +119,14 @@ const CashBankReportPage = () => {
       'Ending Balance'?: number;
     };
 
-    const dataToExport: ExportedItem[] = items.map(item => {
-      const baseData: ExportedItem = {
+    const wb = XLSX.utils.book_new();
+
+    if (balanceAccountId) {
+      // Export only the selected balance account
+      const selectedAccount = balanceAccounts?.find(acc => acc.id === balanceAccountId);
+      const accountName = selectedAccount?.name || `Account ${balanceAccountId}`;
+      
+      const dataToExport: ExportedItem[] = items.map(item => ({
         'Reference ID': item.referenceId,
         'Date': new Date(item.date).toLocaleDateString(),
         'Type': item.type,
@@ -116,20 +134,64 @@ const CashBankReportPage = () => {
         'Debit OC': item.debit,
         'Credit OC': item.credit,
         'Balance Account': item.balanceAccount || 'N/A',
-      };
-      
-      // Add ending balance column if balance account is selected
-      if (balanceAccountId && item.endingBalance !== undefined) {
-        baseData['Ending Balance'] = item.endingBalance;
+        'Ending Balance': item.endingBalance !== undefined ? item.endingBalance : 0,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const sheetName = accountName.length > 31 ? accountName.substring(0, 31) : accountName;
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    } else {
+      // Export all balance accounts, one sheet per account
+      if (balanceAccounts && balanceAccounts.length > 0) {
+        for (const account of balanceAccounts) {
+          try {
+            // Fetch data for each balance account
+            const accountReportData = await api.cashBankReport.getCashBankReport.fetch({
+              startDate,
+              endDate,
+              balanceAccountId: account.id,
+              page: 1,
+              limit: 10000, // Get all records for export
+              sortBy,
+              sortOrder,
+            });
+
+            const accountItems = accountReportData?.items || [];
+            const dataToExport: ExportedItem[] = accountItems.map(item => ({
+              'Reference ID': item.referenceId,
+              'Date': new Date(item.date).toLocaleDateString(),
+              'Type': item.type,
+              'Description': item.description,
+              'Debit OC': item.debit,
+              'Credit OC': item.credit,
+              'Balance Account': item.balanceAccount || 'N/A',
+              'Ending Balance': item.endingBalance !== undefined ? item.endingBalance : 0,
+            }));
+
+            if (dataToExport.length > 0) {
+              const ws = XLSX.utils.json_to_sheet(dataToExport);
+              const sheetName = account.name.length > 31 ? account.name.substring(0, 31) : account.name;
+              XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            }
+          } catch (error) {
+            console.error(`Error fetching data for account ${account.name}:`, error);
+          }
+        }
       }
       
-      return baseData;
-    });
+      // If no sheets were added, add an empty sheet
+      if (wb.SheetNames.length === 0) {
+        const emptyData = [{ Message: 'No data found for the selected criteria' }];
+        const ws = XLSX.utils.json_to_sheet(emptyData);
+        XLSX.utils.book_append_sheet(wb, ws, "No Data");
+      }
+    }
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Cash Bank Report");
-    XLSX.writeFile(wb, "CashBankReport.xlsx");
+    const filename = balanceAccountId
+      ? `CashBankReport_${balanceAccounts?.find(acc => acc.id === balanceAccountId)?.name || 'Account'}.xlsx`
+      : "CashBankReport_AllAccounts.xlsx";
+    
+    XLSX.writeFile(wb, filename);
   };
 
   const handleSort = (column: 'date' | 'debit' | 'credit') => {
@@ -141,317 +203,315 @@ const CashBankReportPage = () => {
     }
   };
 
+  const getSortIcon = (column: 'date' | 'debit' | 'credit') => {
+    if (sortBy !== column) return null;
+    return sortOrder === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />;
+  };
+
   return (
-    <div className="container mx-auto py-6 max-w-7xl">
+    <div className="container mx-auto py-6 max-w-7xl space-y-6">
       {/* Header and Export Button */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-gray-200 dark:border-infinity mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl sm:text-3xl font-bold">Cash Bank Report</h1>
-        <button
-          onClick={handleExport}
-          className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+        <Button onClick={handleExport} className="gap-2">
+          <Download className="h-4 w-4" />
           Export to Excel
-        </button>
+        </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className=" p-6 rounded-lg shadow-md flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-infinity dark:text-gray-300">Total Debits</h2>
-            <p className="text-3xl font-bold text-green-600 mt-1">{totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</p>
-          </div>
-          <div className="p-3 bg-green-100 dark:bg-green-800 rounded-full">
-            <svg className="w-8 h-8 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          </div>
-        </div>
-        <div className=" p-6 rounded-lg shadow-md flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-infinity dark:text-gray-300">Total Debits</h2>
-            <p className="text-3xl font-bold text-red-600 mt-1">{totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</p>
-          </div>
-          <div className="p-3 bg-red-100 dark:bg-red-800 rounded-full">
-            <svg className="w-8 h-8 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-            </svg>
-          </div>
-        </div>
-        <div className=" p-6 rounded-lg shadow-md flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-infinity dark:text-gray-300">Net Balance</h2>
-            <p className={`text-3xl font-bold mt-1 ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600 dark:text-red-300'}`}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Credits</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Debits</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+            <Scale className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
               {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-            </p>
-          </div>
-          <div className={`p-3 rounded-full ${netBalance >= 0 ? 'bg-blue-100 dark:bg-blue-800' : 'bg-red-100 dark:bg-red-800'}`}>
-            <svg className={`w-8 h-8 ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600 dark:text-red-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21H6.737a2 2 0 01-1.789-2.894l3.5-7A2 2 0 019.237 10h4.747M12 3v7" />
-            </svg>
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
-      <div className=" p-6 rounded-lg shadow-md mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-infinity dark:text-gray-300 mb-1">Start Date</label>
-            <input
-              type="date"
-              id="startDate"
-              value={startDate.toISOString().split('T')[0]}
-              onChange={(e) => setStartDate(startOfDay(new Date(e.target.value)))}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-infinity shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
-            />
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                type="date"
+                id="startDate"
+                value={startDate.toISOString().split('T')[0]}
+                onChange={(e) => setStartDate(startOfDay(new Date(e.target.value)))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                type="date"
+                id="endDate"
+                value={endDate.toISOString().split('T')[0]}
+                onChange={(e) => setEndDate(endOfDay(new Date(e.target.value)))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="balanceAccount">Balance Account</Label>
+              <Select
+                value={balanceAccountId?.toString() || undefined}
+                onValueChange={(value) => setBalanceAccountId(value && value !== "all" ? Number(value) : undefined)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Accounts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  {balanceAccounts?.map((account: { id: number; name: string; account_number: string }) => (
+                    <SelectItem key={account.id} value={account.id.toString()}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-infinity dark:text-gray-300 mb-1">End Date</label>
-            <input
-              type="date"
-              id="endDate"
-              value={endDate.toISOString().split('T')[0]}
-              onChange={(e) => setEndDate(endOfDay(new Date(e.target.value)))}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-infinity shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
-            />
-          </div>
-          <div>
-            <label htmlFor="balanceAccount" className="block text-sm font-medium text-infinity dark:text-gray-300 mb-1">Balance Account</label>
-            <select
-              id="balanceAccount"
-              value={balanceAccountId || ''}
-              onChange={(e) => setBalanceAccountId(e.target.value ? Number(e.target.value) : undefined)}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-infinity shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
-            >
-              <option value="">All Accounts</option>
-              {balanceAccounts?.map((account: { id: number; name: string; account_number: string }) => (
-                <option key={account.id} value={account.id}>{account.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Period Closing Section */}
       {balanceAccountId && (
-        <div className=" p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-lg font-semibold mb-4">Period Closing</h2>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              {periodClosedData?.isClosed ? (
-                <div className="flex items-center text-green-600 dark:text-green-400">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-medium">Period is closed</span>
-                  <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                    (Closed on {periodClosedData.closingData ? new Date(periodClosedData.closingData.closedAt).toLocaleDateString() : 'N/A'})
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center text-amber-600 dark:text-amber-400">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="font-medium">Period is open</span>
-                </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Period Closing</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-2">
+                {periodClosedData?.isClosed ? (
+                  <>
+                    <Lock className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-green-600">Period is closed</span>
+                    <span className="text-sm text-muted-foreground">
+                      (Closed on {periodClosedData.closingData ? new Date(periodClosedData.closingData.closedAt).toLocaleDateString() : 'N/A'})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-5 w-5 text-amber-600" />
+                    <span className="font-medium text-amber-600">Period is open</span>
+                  </>
+                )}
+              </div>
+              {!periodClosedData?.isClosed && (
+                <Button onClick={() => setShowClosingModal(true)} className="gap-2">
+                  <Lock className="h-4 w-4" />
+                  Close Period
+                </Button>
               )}
             </div>
-            {!periodClosedData?.isClosed && (
-              <button
-                onClick={() => setShowClosingModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Close Period
-              </button>
-            )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Data Table */}
-      <div className=" p-6 rounded-lg shadow-md overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-infinity">
-          <thead className="bg-gray-50 dark:bg-infinity">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reference ID</th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
-                onClick={() => handleSort('date')}
-              >
-                Date {sortBy === 'date' && (sortOrder === 'asc' ? '▲' : '▼')}
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
-                onClick={() => handleSort('debit')}
-              >
-                Debit OC {sortBy === 'debit' && (sortOrder === 'asc' ? '▲' : '▼')}
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
-                onClick={() => handleSort('credit')}
-              >
-                Credit OC {sortBy === 'credit' && (sortOrder === 'asc' ? '▲' : '▼')}
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Balance Account</th>
-              {balanceAccountId && (
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ending Balance</th>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Reference ID</TableHead>
+                <TableHead 
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('date')}
+                >
+                  <div className="flex items-center">
+                    Date
+                    {getSortIcon('date')}
+                  </div>
+                </TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead 
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('debit')}
+                >
+                  <div className="flex items-center">
+                    Debit OC
+                    {getSortIcon('debit')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer select-none"
+                  onClick={() => handleSort('credit')}
+                >
+                  <div className="flex items-center">
+                    Credit OC
+                    {getSortIcon('credit')}
+                  </div>
+                </TableHead>
+                <TableHead>Balance Account</TableHead>
+                {balanceAccountId && (
+                  <TableHead>Ending Balance</TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={balanceAccountId ? 8 : 7} className="text-center text-muted-foreground">
+                    No records found for the selected criteria.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item: CashBankReportItem) => (
+                  <TableRow key={item.referenceId}>
+                    <TableCell className="font-medium">{item.referenceId}</TableCell>
+                    <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{item.type}</TableCell>
+                    <TableCell className="max-w-xs truncate">{item.description}</TableCell>
+                    <TableCell className="text-green-600 font-medium">
+                      {item.debit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                    </TableCell>
+                    <TableCell className="text-red-600 font-medium">
+                      {item.credit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                    </TableCell>
+                    <TableCell>{item.balanceAccount || 'N/A'}</TableCell>
+                    {balanceAccountId && (
+                      <TableCell className="text-blue-600 font-medium">
+                        {item.endingBalance !== undefined ? item.endingBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
               )}
-            </tr>
-          </thead>
-          <tbody className=" divide-y divide-gray-200 dark:divide-infinity">
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={balanceAccountId ? 8 : 7} className="px-6 py-4 whitespace-nowrap text-center text-gray-500 dark:text-gray-400 text-sm">No records found for the selected criteria.</td>
-              </tr>
-            ) : (
-              items.map((item: CashBankReportItem) => (
-                <tr key={item.referenceId} className="hover:bg-gray-50 dark:hover:bg-infinity">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.referenceId}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(item.date).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{item.type}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 max-w-xs truncate">{item.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-600 font-medium">{item.debit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-300 font-medium">{item.credit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{item.balanceAccount || 'N/A'}</td>
-                  {balanceAccountId && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-300 font-medium">
-                      {item.endingBalance !== undefined ? item.endingBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}
-                    </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+            </TableBody>
+          </Table>
 
-        {/* Pagination */}
-        {pagination.total > 0 && (
-          <nav
-            className="flex items-center justify-between px-4 py-3 sm:px-6 mt-4 bg-gray-50 dark:bg-infinity rounded-b-lg"
-            aria-label="Pagination"
-          >
-            <div className="hidden sm:block">
-              <p className="text-sm text-infinity dark:text-gray-300">
-                Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{' '}
-                <span className="font-medium">{Math.min(page * limit, pagination.total)}</span> of{' '}
-                <span className="font-medium">{pagination.total}</span> results
-              </p>
-            </div>
-            <div className="flex-1 flex justify-between sm:justify-end">
-              <button
-                onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                disabled={pagination.page === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-infinity dark:text-gray-300  hover:bg-gray-50 dark:hover:bg-infinity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage(prev => Math.min(pagination.totalPages, prev + 1))}
-                disabled={pagination.page === pagination.totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-infinity dark:text-gray-300  hover:bg-gray-50 dark:hover:bg-infinity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </nav>
-        )}
-      </div>
+          {/* Pagination */}
+          {pagination.total > 0 && (
+            <>
+              <Separator />
+              <div className="flex items-center justify-between px-6 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{' '}
+                  <span className="font-medium">{Math.min(page * limit, pagination.total)}</span> of{' '}
+                  <span className="font-medium">{pagination.total}</span> results
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                    disabled={pagination.page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                    disabled={pagination.page === pagination.totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Period Closing Modal */}
-      {showClosingModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-            <div className="inline-block align-bottom  rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <div className="sm:flex sm:items-start">
-                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-800 sm:mx-0 sm:h-10 sm:w-10">
-                  <svg className="h-6 w-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
-                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                  <h3 className="text-lg leading-6 font-medium">
-                    Close Period
-                  </h3>
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Are you sure you want to close this period? This will lock all transactions from{' '}
-                      <strong>{startDate.toLocaleDateString()}</strong> to{' '}
-                      <strong>{endDate.toLocaleDateString()}</strong> for the selected account.
-                    </p>
-                    <div className="mt-4 bg-gray-50 dark:bg-infinity rounded-lg p-4">
-                      <h4 className="text-sm font-medium mb-2">Summary:</h4>
-                      <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                        <div className="flex justify-between">
-                          <span>Total Debits:</span>
-                          <span className="font-medium text-green-600">
-                            {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Total Credit:</span>
-                          <span className="font-medium text-red-600">
-                            {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-1">
-                          <span className="font-medium">Net Balance:</span>
-                          <span className={`font-medium ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                            {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+      <Dialog open={showClosingModal} onOpenChange={setShowClosingModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-blue-600" />
+              Close Period
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to close this period? This will lock all transactions from{' '}
+              <strong>{startDate.toLocaleDateString()}</strong> to{' '}
+              <strong>{endDate.toLocaleDateString()}</strong> for the selected account.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Total Debits:</span>
+                <span className="font-medium text-green-600">
+                  {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                </span>
               </div>
-              <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (balanceAccountId) {
-                      closePeriodMutation.mutate({
-                        balanceAccountId,
-                        startDate,
-                        endDate,
-                      });
-                    }
-                  }}
-                  disabled={closePeriodMutation.isPending}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                >
-                  {closePeriodMutation.isPending ? 'Closing...' : 'Close Period'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowClosingModal(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 dark:bg-infinity text-base font-medium text-infinity dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm"
-                >
-                  Cancel
-                </button>
+              <div className="flex justify-between text-sm">
+                <span>Total Credits:</span>
+                <span className="font-medium text-red-600">
+                  {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                </span>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+              <Separator />
+              <div className="flex justify-between text-sm font-medium">
+                <span>Net Balance:</span>
+                <span className={netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                  {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowClosingModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (balanceAccountId) {
+                  closePeriodMutation.mutate({
+                    balanceAccountId,
+                    startDate,
+                    endDate,
+                  });
+                }
+              }}
+              disabled={closePeriodMutation.isPending}
+            >
+              {closePeriodMutation.isPending ? 'Closing...' : 'Close Period'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
