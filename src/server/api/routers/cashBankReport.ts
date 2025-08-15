@@ -68,285 +68,168 @@ export const cashBankReportRouter = createTRPCRouter({
 
     return balanceAccounts;
   }),
+// Get cash bank report data
+getCashBankReport: protectedProcedure
+  .input(cashBankReportInputSchema)
+  .query(async ({ ctx, input }): Promise<CashBankReportResponse> => {
+    const { startDate, endDate, balanceAccountId, page, limit, sortBy, sortOrder } = input;
+    const skip = (page - 1) * limit;
 
-  // Get cash bank report data
-  getCashBankReport: protectedProcedure
-    .input(cashBankReportInputSchema)
-    .query(async ({ ctx, input }): Promise<CashBankReportResponse> => {
-      const { startDate, endDate, balanceAccountId, page, limit, sortBy, sortOrder } = input;
-      const skip = (page - 1) * limit;
-
-      // Get Payment records (Credits - successful payments only)
-      const paymentRecords = await ctx.db.payment.findMany({
-        where: {
-          createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
-          },
-          status: 'SUCCESS',
-          ...(balanceAccountId && {
-            subscription: {
-              // We need to join through PaymentValidation to get balance account
-              member: {
-                paymentValidations: {
-                  some: {
-                    balanceId: balanceAccountId,
-                  },
-                },
-              },
-            },
-          }),
-        },
-        include: {
+    // --- Fetch Payment Records (Credits)
+    const paymentRecords = await ctx.db.payment.findMany({
+      where: {
+        createdAt: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+        status: 'SUCCESS',
+        ...(balanceAccountId && {
           subscription: {
-            include: {
-              package: {
-                select: {
-                  name: true,
-                },
-              },
-              member: {
-                include: {
-                  paymentValidations: {
-                    include: {
-                      balanceAccount: {
-                        select: {
-                          name: true,
-                        },
-                      },
-                    },
-                    orderBy: {
-                      createdAt: 'desc',
-                    },
-                    take: 1,
-                  },
+            member: {
+              paymentValidations: { some: { balanceId: balanceAccountId } },
+            },
+          },
+        }),
+      },
+      include: {
+        subscription: {
+          include: {
+            package: { select: { name: true } },
+            member: {
+              include: {
+                paymentValidations: {
+                  include: { balanceAccount: { select: { name: true } } },
+                  orderBy: { createdAt: 'desc' },
+                  take: 1,
                 },
               },
             },
           },
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // --- Fetch POS Sale Records (Credits)
+    const posSaleRecords = await ctx.db.pOSSale.findMany({
+      where: {
+        saleDate: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+        ...(balanceAccountId && { balanceId: balanceAccountId }),
+      },
+      include: {
+        balanceAccount: { select: { name: true } },
+        items: { include: { item: { select: { name: true } } } },
+      },
+      orderBy: { saleDate: 'desc' },
+    });
+
+    // --- Fetch Transaction Records (Debits)
+    const transactionRecords = await ctx.db.transaction.findMany({
+      where: {
+        transaction_date: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+        ...(balanceAccountId && { bank_id: balanceAccountId }),
+      },
+      include: { bank: { select: { name: true } } },
+      orderBy: { transaction_date: 'desc' },
+    });
+
+    // --- Transform to unified format
+    const allRecords: CashBankReportItem[] = [];
+
+    paymentRecords.forEach((payment) => {
+      const balanceAccount = payment.subscription?.member?.paymentValidations?.[0]?.balanceAccount?.name || null;
+      allRecords.push({
+        referenceId: payment.id,
+        date: payment.createdAt,
+        type: 'Payment',
+        description: `Payment for ${payment.subscription?.package?.name || 'Unknown Package'}`,
+        debit: payment.totalPayment,
+        credit: 0,
+        balanceAccount,
       });
+    });
 
-      // Get POS Sale records (Credits)
-      const posSaleRecords = await ctx.db.pOSSale.findMany({
-        where: {
-          saleDate: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
-          },
-          ...(balanceAccountId && {
-            balanceId: balanceAccountId,
-          }),
-        },
-        include: {
-          balanceAccount: {
-            select: {
-              name: true,
-            },
-          },
-          items: {
-            include: {
-              item: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          saleDate: 'desc',
-        },
+    posSaleRecords.forEach((sale) => {
+      const itemNames = sale.items.map(i => i.item.name).join(', ');
+      allRecords.push({
+        referenceId: sale.saleNumber,
+        date: sale.saleDate,
+        type: 'POS',
+        description: `POS Sale - ${itemNames || 'No items'}`,
+        debit: sale.total,
+        credit: 0,
+        balanceAccount: sale.balanceAccount?.name || null,
       });
+    });
 
-      // Get Transaction records (Debits)
-      const transactionRecords = await ctx.db.transaction.findMany({
-        where: {
-          transaction_date: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
-          },
-          ...(balanceAccountId && {
-            bank_id: balanceAccountId,
-          }),
-        },
-        include: {
-          bank: {
-            select: {
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          transaction_date: 'desc',
-        },
+    transactionRecords.forEach((tx) => {
+      allRecords.push({
+        referenceId: tx.transaction_number,
+        date: tx.transaction_date,
+        type: 'Transaction',
+        description: tx.description,
+        debit: tx.type === 'expenses' ? 0 : tx.amount,
+        credit: tx.type === 'expenses' ? tx.amount : 0,
+        balanceAccount: tx.bank.name,
       });
+    });
 
-      // Transform data to unified format
-      const allRecords: CashBankReportItem[] = [];
+    // --- Get initial balance if specific account selected
+    let runningBalance = 0;
+    if (balanceAccountId) {
+      const balanceAccount = await ctx.db.balanceAccount.findUnique({ where: { id: balanceAccountId } });
 
-      // Add Payment records (Credits)
-      paymentRecords.forEach((payment) => {
-        const balanceAccount = payment.subscription?.member?.paymentValidations?.[0]?.balanceAccount?.name || null;
-        allRecords.push({
-          referenceId: payment.id,
-          date: payment.createdAt,
-          type: 'Payment',
-          description: `Payment for ${payment.subscription?.package?.name || 'Unknown Package'}`,
-          debit: 0,
-          credit: payment.totalPayment,
-          balanceAccount,
-        });
-      });
+      // Ambil lastBalance, jika kosong pakai initialBalance
+      runningBalance = balanceAccount?.lastBalance == 0
+        ? (balanceAccount?.initialBalance ?? 0)
+        : (balanceAccount?.lastBalance ?? 0);
 
-      // Add POS Sale records (Credits)
-      posSaleRecords.forEach((sale) => {
-        const itemNames = sale.items.map(item => item.item.name).join(', ');
-        allRecords.push({
-          referenceId: sale.saleNumber,
-          date: sale.saleDate,
-          type: 'POS',
-          description: `POS Sale - ${itemNames || 'No items'}`,
-          debit: 0,
-          credit: sale.total,
-          balanceAccount: sale.balanceAccount?.name || null,
-        });
-      });
+      console.log(`Initial balance for account ${balanceAccountId}: ${runningBalance}`);
+      console.log('balance account:', balanceAccount);
+    }
 
-      // Add Transaction records (Debits)
-      transactionRecords.forEach((transaction) => {
-        allRecords.push({
-          referenceId: transaction.transaction_number,
-          date: transaction.transaction_date,
-          type: 'Transaction',
-          description: transaction.description,
-          debit: transaction.amount,
-          credit: 0,
-          balanceAccount: transaction.bank.name,
-        });
-      });
+    // --- Sort records by date ascending for running balance calculation
+    const recordsForBalance = [...allRecords].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      // Sort all records by date (newest first)
-      // Apply sorting if specified
-      const sortedRecords = allRecords.sort((a, b) => {
-        if (!sortBy) return new Date(b.date).getTime() - new Date(a.date).getTime(); // Default sort by date desc
+    // --- Hitung ending balance sesuai aturan: debit +, credit -
+    recordsForBalance.forEach((record) => {
+      if (record.credit !== 0) runningBalance -= record.credit;
+      if (record.debit !== 0) runningBalance += record.debit;
+      record.endingBalance = runningBalance;
+    });
 
-        let comparison = 0;
-        if (sortBy === 'date') {
-          comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
-        } else if (sortBy === 'debit') {
-          comparison = a.debit - b.debit;
-        } else if (sortBy === 'credit') {
-          comparison = a.credit - b.credit;
-        }
+    console.log("Cash Bank Report Ending Balances:", recordsForBalance.map(r => ({
+      credit: r.credit,
+      debit: r.debit,
+      endingBalance: r.endingBalance,
+    })));
 
-        return sortOrder === 'desc' ? -comparison : comparison;
-      });
+   
+    // --- Sort back based on user preference
+    const sortedRecords = recordsForBalance.sort((a, b) => {
+      if (!sortBy) return new Date(b.date).getTime() - new Date(a.date).getTime();
 
-      // Apply balance account filter if specified
-      // The balance account filtering is already applied in the individual Prisma queries
-      const filteredRecords = sortedRecords;
+      let cmp = 0;
+      if (sortBy === 'date') cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+      else if (sortBy === 'debit') cmp = a.debit - b.debit;
+      else if (sortBy === 'credit') cmp = a.credit - b.credit;
 
-      // Add initial balance and calculate running balance if specific account is selected
-      let recordsWithBalance = [...filteredRecords];
-      if (balanceAccountId) {
-        // Get initial balance for the account
-        const balanceAccount = await ctx.db.balanceAccount.findUnique({
-          where: { id: balanceAccountId },
-        });
+      return sortOrder === 'desc' ? -cmp : cmp;
+    });
 
-        // Get the most recent closing balance before the start date
-        const previousClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
-          where: {
-            balanceAccountId,
-            endDate: {
-              lt: startDate,
-            },
-          },
-          orderBy: {
-            endDate: 'desc',
-          },
-        });
+    // --- Summary (exclude initial balance row)
+    const summaryRecords = sortedRecords.filter(r => r.type !== 'Initial Balance');
+    const totalCredits = summaryRecords.reduce((sum, r) => sum + r.credit, 0);
+    const totalDebits = summaryRecords.reduce((sum, r) => sum + r.debit, 0);
+    const netBalance = totalCredits - totalDebits;
+    const totalRecords = sortedRecords.length;
 
-        const initialBalance = previousClosing?.closingBalance || balanceAccount?.initialBalance || 0;
+    // --- Pagination
+    const paginatedRecords = sortedRecords.slice(skip, skip + limit);
 
-        // Sort records by date (oldest first) for balance calculation
-        const recordsForBalance = [...filteredRecords].sort((a, b) => 
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-
-        // Add initial balance row if there are transactions
-        if (recordsForBalance.length > 0) {
-          const initialBalanceRow: CashBankReportItem = {
-            referenceId: 'INITIAL_BALANCE',
-            date: startDate,
-            type: 'Initial Balance',
-            description: 'Opening Balance',
-            debit: 0,
-            credit: 0,
-            balanceAccount: balanceAccount?.name || null,
-            endingBalance: initialBalance,
-          };
-
-          recordsForBalance.unshift(initialBalanceRow);
-        }
-
-        // Calculate running balance
-        let runningBalance = initialBalance;
-        recordsForBalance.forEach((record, index) => {
-          if (record.type !== 'Initial Balance') {
-            // Credit increases balance, debit decreases balance
-            runningBalance = runningBalance + record.credit - record.debit;
-            record.endingBalance = runningBalance;
-          }
-        });
-
-        // Sort back to original order if needed
-        recordsWithBalance = recordsForBalance.sort((a, b) => {
-          if (!sortBy) return new Date(b.date).getTime() - new Date(a.date).getTime();
-
-          let comparison = 0;
-          if (sortBy === 'date') {
-            comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
-          } else if (sortBy === 'debit') {
-            comparison = a.debit - b.debit;
-          } else if (sortBy === 'credit') {
-            comparison = a.credit - b.credit;
-          }
-
-          return sortOrder === 'desc' ? -comparison : comparison;
-        });
-      }
-
-      // Calculate summary (excluding initial balance row)
-      const summaryRecords = recordsWithBalance.filter(r => r.type !== 'Initial Balance');
-      const totalCredits = summaryRecords.reduce((sum, record) => sum + record.credit, 0);
-      const totalDebits = summaryRecords.reduce((sum, record) => sum + record.debit, 0);
-      const netBalance = totalCredits - totalDebits;
-      const totalRecords = recordsWithBalance.length;
-
-      // Apply pagination
-      const paginatedRecords = recordsWithBalance.slice(skip, skip + limit);
-
-      return {
-        items: paginatedRecords,
-        summary: {
-          totalCredits,
-          totalDebits,
-          netBalance,
-          totalRecords,
-        },
-        pagination: {
-          page,
-          limit,
-          totalPages: Math.ceil(totalRecords / limit),
-          total: totalRecords,
-        },
-      };
-    }),
+    return {
+      items: paginatedRecords,
+      summary: { totalCredits, totalDebits, netBalance, totalRecords },
+      pagination: { page, limit, totalPages: Math.ceil(totalRecords / limit), total: totalRecords },
+    };
+  }),
 
   // Get cash bank report summary (for cards/overview)
   getCashBankSummary: protectedProcedure
@@ -816,7 +699,7 @@ export const cashBankReportRouter = createTRPCRouter({
       // Transform data to unified format
       const allRecords: CashBankReportItem[] = [];
 
-      // Add Payment records (Credits)
+      // Add Payment records (Credits - money coming in)
       paymentRecords.forEach((payment) => {
         const balanceAccount = payment.subscription?.member?.paymentValidations?.[0]?.balanceAccount?.name || null;
         allRecords.push({
@@ -830,7 +713,7 @@ export const cashBankReportRouter = createTRPCRouter({
         });
       });
 
-      // Add POS Sale records (Credits)
+      // Add POS Sale records (Credits - money coming in)
       posSaleRecords.forEach((sale) => {
         const itemNames = sale.items.map(item => item.item.name).join(', ');
         allRecords.push({
@@ -844,7 +727,7 @@ export const cashBankReportRouter = createTRPCRouter({
         });
       });
 
-      // Add Transaction records (Debits)
+      // Add Transaction records (Debits - money going out)
       transactionRecords.forEach((transaction) => {
         allRecords.push({
           referenceId: transaction.transaction_number,
@@ -897,9 +780,17 @@ export const cashBankReportRouter = createTRPCRouter({
         const initialBalance = previousClosing?.closingBalance || balanceAccount?.initialBalance || 0;
 
         // Sort records by date (oldest first) for balance calculation
-        const recordsForBalance = [...sortedRecords].sort((a, b) => 
+        const recordsForBalance = [...sortedRecords].sort((a, b) =>
           new Date(a.date).getTime() - new Date(b.date).getTime()
         );
+
+        // Calculate running balance for all records based on date order
+        let runningBalance = initialBalance;
+        recordsForBalance.forEach((record) => {
+          // Credit increases balance (money coming in), debit decreases balance (money going out)
+          runningBalance = runningBalance + record.credit - record.debit;
+          record.endingBalance = runningBalance;
+        });
 
         // Add initial balance row if there are transactions
         if (recordsForBalance.length > 0) {
@@ -917,17 +808,7 @@ export const cashBankReportRouter = createTRPCRouter({
           recordsForBalance.unshift(initialBalanceRow);
         }
 
-        // Calculate running balance
-        let runningBalance = initialBalance;
-        recordsForBalance.forEach((record, index) => {
-          if (record.type !== 'Initial Balance') {
-            // Credit increases balance, debit decreases balance
-            runningBalance = runningBalance + record.credit - record.debit;
-            record.endingBalance = runningBalance;
-          }
-        });
-
-        // Sort back to original order if needed
+        // Sort back to user's preferred order for display
         recordsWithBalance = recordsForBalance.sort((a, b) => {
           if (!sortBy) return new Date(b.date).getTime() - new Date(a.date).getTime();
 

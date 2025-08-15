@@ -13,7 +13,7 @@ const CashBankReportPage = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [sortBy, setSortBy] = useState<'date' | 'debit' | 'credit'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showClosingModal, setShowClosingModal] = useState(false);
 
   const { data: reportData, isLoading: isReportLoading, error: reportError } = api.cashBankReport.getCashBankReport.useQuery({
@@ -25,7 +25,7 @@ const CashBankReportPage = () => {
     sortBy,
     sortOrder,
   });
-
+  console.log("Cash Bank Report Data:", reportData);
   const { data: summaryData, isLoading: isSummaryLoading, error: summaryError } = api.cashBankReport.getCashBankSummary.useQuery({
     startDate,
     endDate,
@@ -96,15 +96,35 @@ const CashBankReportPage = () => {
 
   const handleExport = () => {
     console.log("Exporting to Excel...");
-    const dataToExport = items.map(item => ({
-      'Reference ID': item.referenceId,
-      'Date': new Date(item.date).toLocaleDateString(),
-      'Type': item.type,
-      'Description': item.description,
-      'Debit OC': item.debit,
-      'Credit OC': item.credit,
-      'Balance Account': item.balanceAccount || 'N/A',
-    }));
+    type ExportedItem = {
+      'Reference ID': string;
+      Date: string;
+      Type: "Payment" | "Transaction" | "POS" | "Initial Balance";
+      Description: string;
+      'Debit OC': number;
+      'Credit OC': number;
+      'Balance Account': string;
+      'Ending Balance'?: number;
+    };
+
+    const dataToExport: ExportedItem[] = items.map(item => {
+      const baseData: ExportedItem = {
+        'Reference ID': item.referenceId,
+        'Date': new Date(item.date).toLocaleDateString(),
+        'Type': item.type,
+        'Description': item.description,
+        'Debit OC': item.debit,
+        'Credit OC': item.credit,
+        'Balance Account': item.balanceAccount || 'N/A',
+      };
+      
+      // Add ending balance column if balance account is selected
+      if (balanceAccountId && item.endingBalance !== undefined) {
+        baseData['Ending Balance'] = item.endingBalance;
+      }
+      
+      return baseData;
+    });
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
@@ -122,10 +142,10 @@ const CashBankReportPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="container mx-auto py-6 max-w-7xl">
       {/* Header and Export Button */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-gray-200 dark:border-gray-700 mb-6 gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Cash Bank Report</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 border-b border-gray-200 dark:border-infinity mb-6 gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Cash Bank Report</h1>
         <button
           onClick={handleExport}
           className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
@@ -139,9 +159,9 @@ const CashBankReportPage = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
+        <div className=" p-6 rounded-lg shadow-md flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Total Debits</h2>
+            <h2 className="text-lg font-semibold text-infinity dark:text-gray-300">Total Debits</h2>
             <p className="text-3xl font-bold text-green-600 mt-1">{totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</p>
           </div>
           <div className="p-3 bg-green-100 dark:bg-green-800 rounded-full">
@@ -150,9 +170,9 @@ const CashBankReportPage = () => {
             </svg>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
+        <div className=" p-6 rounded-lg shadow-md flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Total Debits</h2>
+            <h2 className="text-lg font-semibold text-infinity dark:text-gray-300">Total Debits</h2>
             <p className="text-3xl font-bold text-red-600 mt-1">{totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</p>
           </div>
           <div className="p-3 bg-red-100 dark:bg-red-800 rounded-full">
@@ -161,9 +181,9 @@ const CashBankReportPage = () => {
             </svg>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
+        <div className=" p-6 rounded-lg shadow-md flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Net Balance</h2>
+            <h2 className="text-lg font-semibold text-infinity dark:text-gray-300">Net Balance</h2>
             <p className={`text-3xl font-bold mt-1 ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600 dark:text-red-300'}`}>
               {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
             </p>
@@ -177,35 +197,35 @@ const CashBankReportPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+      <div className=" p-6 rounded-lg shadow-md mb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+            <label htmlFor="startDate" className="block text-sm font-medium text-infinity dark:text-gray-300 mb-1">Start Date</label>
             <input
               type="date"
               id="startDate"
               value={startDate.toISOString().split('T')[0]}
               onChange={(e) => setStartDate(startOfDay(new Date(e.target.value)))}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-infinity shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
             />
           </div>
           <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+            <label htmlFor="endDate" className="block text-sm font-medium text-infinity dark:text-gray-300 mb-1">End Date</label>
             <input
               type="date"
               id="endDate"
               value={endDate.toISOString().split('T')[0]}
               onChange={(e) => setEndDate(endOfDay(new Date(e.target.value)))}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-infinity shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
             />
           </div>
           <div>
-            <label htmlFor="balanceAccount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Balance Account</label>
+            <label htmlFor="balanceAccount" className="block text-sm font-medium text-infinity dark:text-gray-300 mb-1">Balance Account</label>
             <select
               id="balanceAccount"
               value={balanceAccountId || ''}
               onChange={(e) => setBalanceAccountId(e.target.value ? Number(e.target.value) : undefined)}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-infinity shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2"
             >
               <option value="">All Accounts</option>
               {balanceAccounts?.map((account: { id: number; name: string; account_number: string }) => (
@@ -218,8 +238,8 @@ const CashBankReportPage = () => {
 
       {/* Period Closing Section */}
       {balanceAccountId && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Period Closing</h2>
+        <div className=" p-6 rounded-lg shadow-md mb-8">
+          <h2 className="text-lg font-semibold mb-4">Period Closing</h2>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               {periodClosedData?.isClosed ? (
@@ -257,9 +277,9 @@ const CashBankReportPage = () => {
       )}
 
       {/* Data Table */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700">
+      <div className=" p-6 rounded-lg shadow-md overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-infinity">
+          <thead className="bg-gray-50 dark:bg-infinity">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reference ID</th>
               <th
@@ -286,23 +306,31 @@ const CashBankReportPage = () => {
                 Credit OC {sortBy === 'credit' && (sortOrder === 'asc' ? '▲' : '▼')}
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Balance Account</th>
+              {balanceAccountId && (
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ending Balance</th>
+              )}
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className=" divide-y divide-gray-200 dark:divide-infinity">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-4 whitespace-nowrap text-center text-gray-500 dark:text-gray-400 text-sm">No records found for the selected criteria.</td>
+                <td colSpan={balanceAccountId ? 8 : 7} className="px-6 py-4 whitespace-nowrap text-center text-gray-500 dark:text-gray-400 text-sm">No records found for the selected criteria.</td>
               </tr>
             ) : (
               items.map((item: CashBankReportItem) => (
-                <tr key={item.referenceId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{item.referenceId}</td>
+                <tr key={item.referenceId} className="hover:bg-gray-50 dark:hover:bg-infinity">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{item.referenceId}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(item.date).toLocaleDateString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{item.type}</td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 max-w-xs truncate">{item.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-300 font-medium">{item.debit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-300 font-medium">{item.credit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-600 font-medium">{item.debit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-300 font-medium">{item.credit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{item.balanceAccount || 'N/A'}</td>
+                  {balanceAccountId && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-300 font-medium">
+                      {item.endingBalance !== undefined ? item.endingBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -312,11 +340,11 @@ const CashBankReportPage = () => {
         {/* Pagination */}
         {pagination.total > 0 && (
           <nav
-            className="flex items-center justify-between px-4 py-3 sm:px-6 mt-4 bg-gray-50 dark:bg-gray-700 rounded-b-lg"
+            className="flex items-center justify-between px-4 py-3 sm:px-6 mt-4 bg-gray-50 dark:bg-infinity rounded-b-lg"
             aria-label="Pagination"
           >
             <div className="hidden sm:block">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-sm text-infinity dark:text-gray-300">
                 Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{' '}
                 <span className="font-medium">{Math.min(page * limit, pagination.total)}</span> of{' '}
                 <span className="font-medium">{pagination.total}</span> results
@@ -326,14 +354,14 @@ const CashBankReportPage = () => {
               <button
                 onClick={() => setPage(prev => Math.max(1, prev - 1))}
                 disabled={pagination.page === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-infinity dark:text-gray-300  hover:bg-gray-50 dark:hover:bg-infinity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage(prev => Math.min(pagination.totalPages, prev + 1))}
                 disabled={pagination.page === pagination.totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-infinity dark:text-gray-300  hover:bg-gray-50 dark:hover:bg-infinity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -352,7 +380,7 @@ const CashBankReportPage = () => {
 
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div className="inline-block align-bottom  rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
               <div className="sm:flex sm:items-start">
                 <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-800 sm:mx-0 sm:h-10 sm:w-10">
                   <svg className="h-6 w-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -360,7 +388,7 @@ const CashBankReportPage = () => {
                   </svg>
                 </div>
                 <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100">
+                  <h3 className="text-lg leading-6 font-medium">
                     Close Period
                   </h3>
                   <div className="mt-2">
@@ -369,8 +397,8 @@ const CashBankReportPage = () => {
                       <strong>{startDate.toLocaleDateString()}</strong> to{' '}
                       <strong>{endDate.toLocaleDateString()}</strong> for the selected account.
                     </p>
-                    <div className="mt-4 bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Summary:</h4>
+                    <div className="mt-4 bg-gray-50 dark:bg-infinity rounded-lg p-4">
+                      <h4 className="text-sm font-medium mb-2">Summary:</h4>
                       <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                         <div className="flex justify-between">
                           <span>Total Debits:</span>
@@ -415,7 +443,7 @@ const CashBankReportPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowClosingModal(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 dark:bg-infinity text-base font-medium text-infinity dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm"
                 >
                   Cancel
                 </button>
