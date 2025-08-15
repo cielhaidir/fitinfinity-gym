@@ -493,19 +493,14 @@ export const esp32Router = createTRPCRouter({
 
         if (!alreadyCheckedInToday) {
           // Fetch config point
-          const config = await ctx.db.config.findUnique({
+            const config = await ctx.db.config.findUnique({
             where: { key: "rfid_point" }
-          });
-
-          if (!config) {
-            throw new TRPCError({
-              code: "INTERNAL_SERVER_ERROR",
-              message: "Config for RFID point not found",
             });
-          }
 
-          // Parse value string to number
-          const pointValue = parseInt(config.value) || 0;
+            // If config not found, use default value 5
+            const pointValue = config ? parseInt(config.value) || 0 : 1;
+
+ 
 
           // Update user point
           await ctx.db.user.update({

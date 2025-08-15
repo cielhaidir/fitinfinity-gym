@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Package, Users, Calendar, Clock, CreditCard, Edit } from "lucide-react";
+import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -27,6 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminSubscriptionHistoryPage() {
@@ -39,6 +47,22 @@ export default function AdminSubscriptionHistoryPage() {
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [selectedSalesId, setSelectedSalesId] = useState<string>("");
   const [selectedSalesType, setSelectedSalesType] = useState<string>("");
+  
+  // Transfer functionality state
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [selectedSubscriptionForTransfer, setSelectedSubscriptionForTransfer] = useState<any>(null);
+  const [transferNewUserId, setTransferNewUserId] = useState("");
+  const [transferNewUserName, setTransferNewUserName] = useState("");
+  const [transferUserSearch, setTransferUserSearch] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  
+  // Edit dates functionality state
+  const [editDatesDialogOpen, setEditDatesDialogOpen] = useState(false);
+  const [selectedSubscriptionForEdit, setSelectedSubscriptionForEdit] = useState<any>(null);
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  
   const { toast } = useToast();
 
   // Query for getting all subscriptions with required fields
@@ -62,6 +86,30 @@ export default function AdminSubscriptionHistoryPage() {
     enabled: !!session,
   });
 
+  // Search users for transfer functionality (only when search has 3+ characters)
+  const { data: searchedUsers = [], isLoading: isSearchingUsers } = api.user.search.useQuery(
+    {
+      query: transferUserSearch,
+      excludeUserIds: [], // We can add exclusions if needed
+    },
+    {
+      enabled: transferUserSearch.length >= 3,
+    }
+  );
+
+  // Debounce user search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (transferUserSearch.length >= 3) {
+        setShowUserDropdown(true);
+      } else {
+        setShowUserDropdown(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [transferUserSearch]);
+
   // Mutation for updating sales information
   const updateSalesMutation = api.subs.updateSales.useMutation({
     onSuccess: () => {
@@ -76,6 +124,50 @@ export default function AdminSubscriptionHistoryPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update sales information",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for transferring subscription
+  const transferSubscriptionMutation = api.subs.transfer.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subscription transferred successfully",
+      });
+      setTransferDialogOpen(false);
+      setSelectedSubscriptionForTransfer(null);
+      setTransferNewUserId("");
+      setTransferNewUserName("");
+      setTransferUserSearch("");
+      setTransferReason("");
+      setShowUserDropdown(false);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to transfer subscription",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for updating subscription dates
+  const updateSubscriptionDates = api.subs.update.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subscription dates updated successfully",
+      });
+      setEditDatesDialogOpen(false);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update subscription dates",
         variant: "destructive",
       });
     },
@@ -108,6 +200,87 @@ export default function AdminSubscriptionHistoryPage() {
     });
   };
 
+  // Transfer functionality handlers
+  const handleTransferSubscription = (subscription: any) => {
+    setSelectedSubscriptionForTransfer(subscription);
+    setTransferDialogOpen(true);
+  };
+
+  const handleConfirmTransfer = () => {
+    if (!selectedSubscriptionForTransfer || !transferNewUserId) return;
+
+    transferSubscriptionMutation.mutate({
+      subscriptionId: selectedSubscriptionForTransfer.id,
+      newUserId: transferNewUserId,
+      reason: transferReason.trim() || undefined,
+    });
+  };
+
+  const handleCancelTransfer = () => {
+    setTransferDialogOpen(false);
+    setSelectedSubscriptionForTransfer(null);
+    setTransferNewUserId("");
+    setTransferNewUserName("");
+    setTransferUserSearch("");
+    setTransferReason("");
+    setShowUserDropdown(false);
+  };
+
+  const handleUserSelect = (user: { id: string; name: string; email: string }) => {
+    setTransferNewUserId(user.id);
+    setTransferNewUserName(`${user.name} (${user.email})`);
+    setTransferUserSearch(`${user.name} (${user.email})`);
+    setShowUserDropdown(false);
+  };
+
+  // Edit dates functionality
+  const handleEditDates = (subscription: any) => {
+    setSelectedSubscriptionForEdit(subscription);
+    setEditStartDate(subscription.startDate ? new Date(subscription.startDate).toISOString().split('T')[0] : "");
+    setEditEndDate(subscription.endDate ? new Date(subscription.endDate).toISOString().split('T')[0] : "");
+    setEditDatesDialogOpen(true);
+  };
+
+  const handleUpdateDates = async () => {
+    if (!selectedSubscriptionForEdit || !editStartDate || !editEndDate) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const startDate = new Date(editStartDate);
+    const endDate = new Date(editEndDate);
+
+    if (startDate >= endDate) {
+      toast({
+        title: "Error",
+        description: "Start date must be before end date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await updateSubscriptionDates.mutateAsync({
+        id: selectedSubscriptionForEdit.id,
+        startDate: startDate,
+        endDate: endDate,
+      });
+    } catch (error) {
+      console.error("Failed to update subscription dates:", error);
+    }
+  };
+
+  const handleCancelEditDates = () => {
+    setEditDatesDialogOpen(false);
+    setSelectedSubscriptionForEdit(null);
+    setEditStartDate("");
+    setEditEndDate("");
+  };
+
   const columns: ColumnDef<any>[] = [
     {
       accessorKey: "member.user.name",
@@ -133,6 +306,16 @@ export default function AdminSubscriptionHistoryPage() {
       cell: ({ row }) => {
         const packageName = row.original.package?.name;
         return <span className="font-medium">{packageName || "N/A"}</span>;
+      },
+    },
+    {
+      accessorKey: "package.point",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Package Point" />
+      ),
+      cell: ({ row }) => {
+        const packagePoint = row.original.package?.point;
+        return <span className="font-medium">{packagePoint || "N/A"}</span>;
       },
     },
     {
@@ -196,15 +379,32 @@ export default function AdminSubscriptionHistoryPage() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
+        const isActive = row.original.isActive;
         return (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEditSales(row.original)}
-          >
-            <Edit className="h-4 w-4" />
-            Edit Sales
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleEditSales(row.original)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Sales
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEditDates(row.original)}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Edit Dates
+              </DropdownMenuItem>
+              {isActive && (
+                <DropdownMenuItem onClick={() => handleTransferSubscription(row.original)}>
+                  <ArrowRightLeft className="mr-2 h-4 w-4" />
+                  Transfer
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     },
@@ -316,6 +516,160 @@ export default function AdminSubscriptionHistoryPage() {
               disabled={updateSalesMutation.isPending}
             >
               {updateSalesMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Subscription Dialog */}
+      <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Transfer Subscription</DialogTitle>
+            <DialogDescription>
+              {selectedSubscriptionForTransfer && (
+                <>
+                  Transfer subscription for <strong>{selectedSubscriptionForTransfer.member?.user?.name}</strong> to another user.
+                  This action cannot be undone and will transfer associated points.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2 relative">
+              <Label htmlFor="newUser" className="text-sm font-medium">
+                New User *
+              </Label>
+              <Input
+                id="newUser"
+                placeholder="Type at least 3 characters to search users..."
+                value={transferUserSearch}
+                onChange={(e) => setTransferUserSearch(e.target.value)}
+                className="w-full"
+              />
+              {isSearchingUsers && transferUserSearch.length >= 3 && (
+                <div className="absolute top-full left-0 right-0 bg-black border hover:text-infinity border-gray-200 rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                  <div className="p-2 text-sm">Searching...</div>
+                </div>
+              )}
+              {showUserDropdown && searchedUsers.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-black border border-gray-200 rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                  {searchedUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="p-2 hover:bg-infinity cursor-pointer border-b last:border-b-0"
+                      onClick={() => handleUserSelect({
+                        id: user.id,
+                        name: user.name ?? "",
+                        email: user.email ?? ""
+                      })}
+                    >
+                      <div className="font-medium">{user.name}</div>
+                      <div className="text-sm">{user.email}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showUserDropdown && searchedUsers.length === 0 && !isSearchingUsers && transferUserSearch.length >= 3 && (
+                <div className="absolute top-full left-0 right-0 bg-black border border-gray-200 rounded-md shadow-lg z-10">
+                  <div className="p-2 text-sm">No users found</div>
+                </div>
+              )}
+              {transferUserSearch.length > 0 && transferUserSearch.length < 3 && (
+                <div className="text-xs mt-1">
+                  Type at least 3 characters to search
+                </div>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reason" className="text-sm font-medium">
+                Reason (Optional)
+              </Label>
+              <Textarea
+                id="reason"
+                placeholder="Enter reason for subscription transfer..."
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelTransfer}
+              disabled={transferSubscriptionMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmTransfer}
+              disabled={transferSubscriptionMutation.isPending || !transferNewUserId}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {transferSubscriptionMutation.isPending ? "Processing..." : "Confirm Transfer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dates Dialog */}
+      <Dialog open={editDatesDialogOpen} onOpenChange={setEditDatesDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Subscription Dates</DialogTitle>
+            <DialogDescription>
+              {selectedSubscriptionForEdit && (
+                <>
+                  Update start and end dates for <strong>{selectedSubscriptionForEdit.member?.user?.name}</strong>'s subscription.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="startDate" className="text-sm font-medium">
+                Start Date *
+              </Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={editStartDate}
+                onChange={(e) => setEditStartDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="endDate" className="text-sm font-medium">
+                End Date *
+              </Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelEditDates}
+              disabled={updateSubscriptionDates.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUpdateDates}
+              disabled={updateSubscriptionDates.isPending || !editStartDate || !editEndDate}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {updateSubscriptionDates.isPending ? "Updating..." : "Update Dates"}
             </Button>
           </DialogFooter>
         </DialogContent>

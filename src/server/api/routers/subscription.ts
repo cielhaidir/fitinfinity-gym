@@ -1080,4 +1080,134 @@ export const subscriptionRouter = createTRPCRouter({
 
       return updatedSubscription;
     }),
+
+  // Transfer subscription to another user
+  transfer: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        subscriptionId: z.string(),
+        newUserId: z.string(),
+        reason: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify the subscription exists and is active
+      const subscription = await ctx.db.subscription.findUnique({
+        where: { id: input.subscriptionId },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+          package: true,
+          payments: {
+            where: { status: "SUCCESS" },
+          },
+        },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription not found",
+        });
+      }
+
+      if (!subscription.isActive) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only active subscriptions can be transferred",
+        });
+      }
+
+      // Verify the new user exists
+      const newUser = await ctx.db.user.findUnique({
+        where: { id: input.newUserId },
+      });
+
+      if (!newUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Target user not found",
+        });
+      }
+
+      // Check if target user already has a membership
+      const existingMembership = await ctx.db.membership.findFirst({
+        where: { userId: input.newUserId },
+      });
+
+      if (existingMembership) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Target user already has a membership",
+        });
+      }
+
+      return ctx.db.$transaction(async (tx) => {
+        // Create new membership for the target user
+        const newMembership = await tx.membership.create({
+          data: {
+            userId: input.newUserId,
+            registerDate: new Date(),
+            isActive: true,
+            createdBy: ctx.session.user.id,
+          },
+        });
+
+        // Update the subscription to point to the new membership
+        const updatedSubscription = await tx.subscription.update({
+          where: { id: input.subscriptionId },
+          data: {
+            memberId: newMembership.id,
+          },
+          include: {
+            member: {
+              include: {
+                user: true,
+              },
+            },
+            package: true,
+          },
+        });
+
+        // Transfer points: Remove from old user, add to new user
+        if (subscription.package.point > 0) {
+          // Remove points from old user
+          await tx.user.update({
+            where: { id: subscription.member.userId },
+            data: {
+              point: { decrement: subscription.package.point },
+            },
+          });
+
+          // Add points to new user
+          await tx.user.update({
+            where: { id: input.newUserId },
+            data: {
+              point: { increment: subscription.package.point },
+            },
+          });
+        }
+
+        // Deactivate old membership if no other active subscriptions
+        const remainingSubscriptions = await tx.subscription.count({
+          where: {
+            memberId: subscription.memberId,
+            isActive: true,
+            id: { not: input.subscriptionId },
+          },
+        });
+
+        if (remainingSubscriptions === 0) {
+          await tx.membership.update({
+            where: { id: subscription.memberId },
+            data: { isActive: false },
+          });
+        }
+
+        return updatedSubscription;
+      });
+    }),
 });

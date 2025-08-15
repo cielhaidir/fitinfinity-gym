@@ -101,6 +101,7 @@ export default function SubscriptionPage({
     amount: number;
     discountType: "PERCENT" | "CASH";
   } | null>(null);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const selectedPackageDetails =
@@ -140,11 +141,11 @@ export default function SubscriptionPage({
     }
 
     // Calculate end date based on package type and day value
-    const startDate = new Date();
-    const endDate = new Date(startDate);
+    const memberStartDate = new Date(startDate);
+    const endDate = new Date(memberStartDate);
 
     // Add days to start date for both package types
-    endDate.setDate(startDate.getDate() + (selectedPackageDetails.day ?? 0));
+    endDate.setDate(memberStartDate.getDate() + (selectedPackageDetails.day ?? 0));
 
     if (paymentMethod === "qris") {
       const queryParams = new URLSearchParams();
@@ -209,7 +210,7 @@ export default function SubscriptionPage({
           trainerId: (subscriptionType === "trainer" || subscriptionType === "group") ? selectedTrainer : undefined,
           salesId: selectedSales,
           salesType: selectedSalesDetails?.type,
-          startDate: startDate,
+          startDate: memberStartDate,
           subsType: subscriptionType,
           duration:
             subscriptionType === "gym"
@@ -727,6 +728,24 @@ export default function SubscriptionPage({
                       "Apply Voucher"
                     )}
                   </Button>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 text-lg font-medium">Start Date</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Your membership start date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      This is when your membership will be activated and start counting. You can choose to start today or schedule it for a future date.
+                    </p>
+                  </div>
                 </div>
 
                 <div>
