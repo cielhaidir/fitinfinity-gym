@@ -34,6 +34,7 @@ interface CalendarProps {
   onNavigate: (direction: "prev" | "next") => void;
   onViewModeChange: (mode: "monthly" | "weekly") => void;
   onToday: () => void;
+  onRefreshData?: () => void;
 }
 
 export default function ManagerCalendar({
@@ -44,6 +45,7 @@ export default function ManagerCalendar({
   onNavigate,
   onViewModeChange,
   onToday,
+  onRefreshData,
 }: CalendarProps) {
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
 
@@ -65,7 +67,7 @@ export default function ManagerCalendar({
 
   return (
     <div>
-      <div className="mb-4 flex justify-between">
+      <div className="mb-4 flex flex-col sm:flex-row sm:justify-between gap-2">
         <div className="flex space-x-2">
           <Button
             onClick={() => onViewModeChange("monthly")}
@@ -75,6 +77,7 @@ export default function ManagerCalendar({
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : ""
             }
+            size="sm"
           >
             Monthly
           </Button>
@@ -86,21 +89,22 @@ export default function ManagerCalendar({
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : ""
             }
+            size="sm"
           >
             Weekly
           </Button>
         </div>
 
-        <div className="rounded-full bg-muted px-3 py-1 text-sm text-foreground">
+        <div className="rounded-full bg-muted px-3 py-1 text-xs sm:text-sm text-foreground text-center sm:text-left">
           {viewMode === "weekly"
-            ? `${format(weekStart, "dd MMMM")} - ${format(weekEnd, "dd MMMM yyyy")}`
+            ? `${format(weekStart, "dd MMM")} - ${format(weekEnd, "dd MMM yyyy")}`
             : format(currentDate, "MMMM yyyy")}
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg bg-background">
-        <div className="flex items-center justify-between border-b border-border p-4">
-          <div className="flex space-x-2">
+      <div className="overflow-hidden rounded-lg bg-background border border-border">
+        <div className="flex items-center justify-between border-b border-border p-2 sm:p-4">
+          <div className="flex space-x-1 sm:space-x-2">
             <Button
               onClick={() => onNavigate("prev")}
               variant="outline"
@@ -120,7 +124,7 @@ export default function ManagerCalendar({
             <Button
               onClick={onToday}
               variant="secondary"
-              className="h-8 text-xs"
+              className="h-8 text-xs px-2 sm:px-3"
             >
               today
             </Button>
@@ -128,84 +132,99 @@ export default function ManagerCalendar({
         </div>
 
         {viewMode === "weekly" && (
-          <div className="overflow-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="w-20 border-r border-border p-2"></th>
-                  {days.map((day) => (
-                    <th
-                      key={day.toString()}
-                      className={`border-r border-border p-2 text-center ${
-                        isToday(day) ? "bg-muted" : ""
-                      }`}
-                    >
-                      <div className="text-muted-foreground">
-                        {format(day, "EEE", { locale: id })}
-                      </div>
-                      <div
-                        className={`text-lg ${isToday(day) ? "font-bold text-primary" : "text-foreground"}`}
+          <div className="overflow-x-auto overflow-y-visible">
+            <div className="min-w-max">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="min-w-[80px] w-20 border-r border-border p-2 sticky left-0 bg-background z-10"></th>
+                    {days.map((day) => (
+                      <th
+                        key={day.toString()}
+                        className={`min-w-[120px] border-r border-border p-2 text-center ${
+                          isToday(day) ? "bg-muted" : ""
+                        }`}
                       >
-                        {format(day, "d/M")}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {timeSlots.map(({ label, hour }) => (
-                  <tr key={`time-${hour}`} className="border-t border-border">
-                    <td className="w-20 border-r border-border p-2 text-right font-medium text-muted-foreground">
-                      {label}
-                    </td>
-                    {days.map((day) => {
-                      const dateStr = format(day, "yyyy-MM-dd");
-                      const timeStr = `${hour.toString().padStart(2, "0")}:00`;
-                      const key = `${dateStr}-${timeStr}`;
-                      const sessions = sessionsByDateTime[key] || [];
-
-                      return (
-                        <td
-                          key={`${dateStr}-${hour}`}
-                          className={`h-[64px] border-r border-border p-1 align-top ${isToday(day) ? "bg-muted/50" : ""}`}
+                        <div className="text-muted-foreground text-sm">
+                          {format(day, "EEE", { locale: id })}
+                        </div>
+                        <div
+                          className={`text-base sm:text-lg ${isToday(day) ? "font-bold text-primary" : "text-foreground"}`}
                         >
-                          {sessions.map((session) => (
-                            <div
-                              key={session?._key || `session-${session?.id}`}
-                              className="bg-[#C9D953] rounded p-1 mb-1 cursor-pointer text-xs text-black"
-                              onClick={(e) => handleSessionClick(e, session)}
-                            >
-                              <div className="truncate">
-                                {session?.startTime ? format(new Date(session.startTime), "HH:mm") : "-"}
-                              </div>
-                              <div className="truncate">
-                                {session?.type === "group"
-                                  ? session?.groupName ?? "Group"
-                                  : session?.member?.user?.name || "-"}
-                              </div>
-                              <div className="truncate">
-                                {session?.trainer?.user?.name || "-"}
-                              </div>
-                            </div>
-                          ))}
-                        </td>
-                      );
-                    })}
+                          {format(day, "d/M")}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {timeSlots.map(({ label, hour }) => (
+                    <tr key={`time-${hour}`} className="border-t border-border">
+                      <td className="min-w-[80px] w-20 border-r border-border p-2 text-right font-medium text-muted-foreground sticky left-0 bg-background z-10 text-xs sm:text-sm">
+                        {label}
+                      </td>
+                      {days.map((day) => {
+                        const dateStr = format(day, "yyyy-MM-dd");
+                        const timeStr = `${hour.toString().padStart(2, "0")}:00`;
+                        const key = `${dateStr}-${timeStr}`;
+                        const sessions = sessionsByDateTime[key] || [];
+
+                        return (
+                          <td
+                            key={`${dateStr}-${hour}`}
+                            className={`min-w-[120px] h-[64px] border-r border-border p-1 align-top ${isToday(day) ? "bg-muted/50" : ""}`}
+                          >
+                            {sessions.map((session) => (
+                              <div
+                                key={session?._key || `session-${session?.id}`}
+                                className={`rounded p-1 mb-1 cursor-pointer text-xs text-black hover:opacity-90 transition-colors ${
+                                  session?.status === "ENDED"
+                                    ? "bg-green-200 border border-green-400"
+                                    : session?.status === "CANCELED"
+                                    ? "bg-red-200 border border-red-400"
+                                    : "bg-[#C9D953] hover:bg-[#B8C745]"
+                                }`}
+                                onClick={(e) => handleSessionClick(e, session)}
+                              >
+                                <div className="truncate font-medium">
+                                  {session?.startTime ? format(new Date(session.startTime), "HH:mm") : "-"}
+                                  {session?.status === "ENDED" && " ✓"}
+                                  {session?.status === "CANCELED" && " ✗"}
+                                </div>
+                                <div className="truncate">
+                                  {session?.type === "group"
+                                    ? `${session?.groupName ?? "Group"} ${session?.attendanceCount ? `(${session.attendanceCount})` : ""}`
+                                    : session?.member?.user?.name || "-"}
+                                </div>
+                                <div className="truncate text-[11px]">
+                                  {session?.trainer?.user?.name || "-"}
+                                </div>
+                                {session?.exerciseResult && (
+                                  <div className="truncate text-[10px] text-green-700 font-medium">
+                                    📋 Exercise Results
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {viewMode === "monthly" && (
-          <div className="p-4">
-            <div className="grid grid-cols-7 gap-1">
+          <div className="p-2 sm:p-4">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
                 (day) => (
                   <div
                     key={day}
-                    className="p-2 text-center font-medium text-muted-foreground"
+                    className="p-1 sm:p-2 text-center font-medium text-muted-foreground text-xs sm:text-sm"
                   >
                     {day}
                   </div>
@@ -220,39 +239,52 @@ export default function ManagerCalendar({
                 return (
                   <div
                     key={`month-${dateStr}`}
-                    className={`min-h-[100px] rounded-md border border-border p-2 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday(day) ? "border-primary" : ""} cursor-pointer hover:bg-muted`}
+                    className={`min-h-[80px] sm:min-h-[100px] rounded-md border border-border p-1 sm:p-2 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday(day) ? "border-primary bg-primary/5" : ""} cursor-pointer hover:bg-muted transition-colors`}
                   >
                     <div
-                      className={`text-right ${isToday(day) ? "font-bold text-primary" : ""}`}
+                      className={`text-right text-sm sm:text-base ${isToday(day) ? "font-bold text-primary" : ""}`}
                     >
                       {format(day, "d")}
                     </div>
 
-                    <div className="mt-1 max-h-[80px] space-y-1 overflow-y-auto">
+                    <div className="mt-1 max-h-[60px] sm:max-h-[80px] space-y-1 overflow-y-auto">
                       {sessions.slice(0, 3).map((session) => (
                         <div
                           key={session?._key || `session-${session?.id}`}
-                          className="bg-[#C9D953] rounded p-1 mb-1 cursor-pointer text-xs text-black"
+                          className={`rounded p-1 cursor-pointer text-[10px] sm:text-xs text-black hover:opacity-90 transition-colors ${
+                            session?.status === "ENDED"
+                              ? "bg-green-200 border border-green-400"
+                              : session?.status === "CANCELED"
+                              ? "bg-red-200 border border-red-400"
+                              : "bg-[#C9D953] hover:bg-[#B8C745]"
+                          }`}
                           onClick={(e) => handleSessionClick(e, session)}
                         >
-                          <div className="truncate">
+                          <div className="truncate font-medium">
                             {session?.startTime ? format(new Date(session.startTime), "HH:mm") : "-"}
+                            {session?.status === "ENDED" && " ✓"}
+                            {session?.status === "CANCELED" && " ✗"}
                           </div>
                           <div className="truncate">
                             {session?.type === "group"
-                              ? session?.groupName ?? "Group"
+                              ? `${session?.groupName ?? "Group"} ${session?.attendanceCount ? `(${session.attendanceCount})` : ""}`
                               : session?.member?.user?.name || "-"}
                           </div>
-                          <div className="truncate">
+                          <div className="truncate text-[9px] sm:text-[10px]">
                             {session?.trainer?.user?.name || "-"}
                           </div>
+                          {session?.exerciseResult && (
+                            <div className="truncate text-[8px] sm:text-[9px] text-green-700 font-medium">
+                              📋 Results
+                            </div>
+                          )}
                         </div>
                       ))}
 
                       {sessions.length > 3 && (
                         <div
                           key={`more-${dateStr}`}
-                          className="text-center text-xs text-muted-foreground"
+                          className="text-center text-[10px] sm:text-xs text-muted-foreground"
                         >
                           +{sessions.length - 3} more
                         </div>
@@ -271,6 +303,10 @@ export default function ManagerCalendar({
           session={selectedSession}
           isOpen={!!selectedSession}
           onClose={() => setSelectedSession(null)}
+          onUpdate={() => {
+            onRefreshData?.();
+            setSelectedSession(null);
+          }}
         />
       )}
     </div>
