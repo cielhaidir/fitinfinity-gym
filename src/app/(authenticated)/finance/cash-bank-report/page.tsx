@@ -141,8 +141,8 @@ const CashBankReportPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Total Credits</h2>
-            <p className="text-3xl font-bold text-green-600 mt-1">{totalCredits.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</p>
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Total Debits</h2>
+            <p className="text-3xl font-bold text-green-600 mt-1">{totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</p>
           </div>
           <div className="p-3 bg-green-100 dark:bg-green-800 rounded-full">
             <svg className="w-8 h-8 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -153,7 +153,7 @@ const CashBankReportPage = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Total Debits</h2>
-            <p className="text-3xl font-bold text-red-600 mt-1">{totalDebits.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</p>
+            <p className="text-3xl font-bold text-red-600 mt-1">{totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</p>
           </div>
           <div className="p-3 bg-red-100 dark:bg-red-800 rounded-full">
             <svg className="w-8 h-8 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -165,7 +165,7 @@ const CashBankReportPage = () => {
           <div>
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Net Balance</h2>
             <p className={`text-3xl font-bold mt-1 ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600 dark:text-red-300'}`}>
-              {netBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+              {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
             </p>
           </div>
           <div className={`p-3 rounded-full ${netBalance >= 0 ? 'bg-blue-100 dark:bg-blue-800' : 'bg-red-100 dark:bg-red-800'}`}>
@@ -300,8 +300,8 @@ const CashBankReportPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(item.date).toLocaleDateString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{item.type}</td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 max-w-xs truncate">{item.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-300 font-medium">{item.debit.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-300 font-medium">{item.credit.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-300 font-medium">{item.debit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-300 font-medium">{item.credit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{item.balanceAccount || 'N/A'}</td>
                 </tr>
               ))
@@ -373,21 +373,21 @@ const CashBankReportPage = () => {
                       <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Summary:</h4>
                       <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                         <div className="flex justify-between">
-                          <span>Total Credits:</span>
+                          <span>Total Debits:</span>
                           <span className="font-medium text-green-600">
-                            {totalCredits.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                            {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Total Debits:</span>
+                          <span>Total Credit:</span>
                           <span className="font-medium text-red-600">
-                            {totalDebits.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                            {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
                           </span>
                         </div>
                         <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-1">
                           <span className="font-medium">Net Balance:</span>
                           <span className={`font-medium ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                            {netBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                            {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
                           </span>
                         </div>
                       </div>
