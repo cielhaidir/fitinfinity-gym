@@ -426,6 +426,18 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:attendance-report",
         },
         {
+          title: "Member Attendance Report",
+          url: "/reports/member-attendance",
+          icon: UserCog,
+          requiredPermission: "menu:member",
+        },
+        {
+          title: "Employee Attendance Report",
+          url: "/reports/attendance-management",
+          icon: Clock,
+          requiredPermission: "menu:employees",
+        },
+        {
           title: "Class Member Report",
           url: "/reports/class-member-report",
           icon: BarChart3,
