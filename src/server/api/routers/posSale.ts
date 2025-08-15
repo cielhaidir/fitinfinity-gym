@@ -101,80 +101,104 @@ export const posSaleRouter = createTRPCRouter({
     }),
 
   create: permissionProtectedProcedure(["create:pos-sale"])
-    .input(
-      z.object({
-        items: z.array(
-          z.object({
-            itemId: z.string(),
-            quantity: z.number().int().min(1),
-            price: z.number().min(0),
-          })
-        ),
-        subtotal: z.number().min(0),
-        tax: z.number().min(0).default(0),
-        discount: z.number().min(0).default(0),
-        total: z.number().min(0),
-        amountPaid: z.number().min(0),
-        paymentMethod: z.string(),
-        balanceId: z.number().optional(),
-        notes: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const { items, ...saleData } = input;
-      
-      // Generate sale number
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0]?.replace(/-/g, '') || '';
-      const count = await ctx.db.pOSSale.count({
-        where: {
-          saleDate: {
-            gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-            lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
-          },
-        },
-      });
-      
-      const saleNumber = `POS${dateStr}${String(count + 1).padStart(4, '0')}`;
-      const change = saleData.amountPaid - saleData.total;
+  .input(
+    z.object({
+      items: z.array(
+        z.object({
+          itemId: z.string(),
+          quantity: z.number().int().min(1),
+          price: z.number().min(0),
+        })
+      ),
+      subtotal: z.number().min(0),
+      tax: z.number().min(0).default(0),
+      discount: z.number().min(0).default(0),
+      total: z.number().min(0),
+      amountPaid: z.number().min(0),
+      paymentMethod: z.string(),
+      balanceId: z.number().optional(),
+      notes: z.string().optional(),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { items, ...saleData } = input;
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0]?.replace(/-/g, '') || '';
+    const change = saleData.amountPaid - saleData.total;
 
-      return ctx.db.$transaction(async (tx) => {
-        // Create the sale
-        const sale = await tx.pOSSale.create({
-          data: {
-            saleNumber,
-            ...saleData,
-            change,
-            cashierId: ctx.session.user.id,
+    return ctx.db.$transaction(async (tx) => {
+      let sale: any;
+      let attempt = 0;
+
+      while (attempt < 2) { // maksimal 2 percobaan
+        // Hitung jumlah sale hari ini
+        const count = await tx.pOSSale.count({
+          where: {
+            saleDate: {
+              gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
+              lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
+            },
           },
         });
 
-        // Create sale items and update stock
-        for (const item of items) {
-          await tx.pOSSaleItem.create({
-            data: {
-              saleId: sale.id,
-              itemId: item.itemId,
-              quantity: item.quantity,
-              price: item.price,
-              subtotal: item.quantity * item.price,
-            },
-          });
+        // Generate saleNumber
+        let saleNumber = `POS${dateStr}${String(count + 1).padStart(4, '0')}`;
 
-          // Update item stock
-          await tx.pOSItem.update({
-            where: { id: item.itemId },
-            data: {
-              stock: {
-                decrement: item.quantity,
-              },
-            },
-          });
+        // Jika percobaan kedua, fallback dengan random 4 digit
+        if (attempt === 1) {
+          const randomNum = Math.floor(Math.random() * 10000);
+          saleNumber = `POS${dateStr}${String(randomNum).padStart(4, '0')}`;
         }
 
-        return sale;
-      });
-    }),
+        try {
+          // Buat sale
+          sale = await tx.pOSSale.create({
+            data: {
+              saleNumber,
+              ...saleData,
+              change,
+              cashierId: ctx.session.user.id,
+            },
+          });
+          break; // berhasil, keluar loop
+        } catch (e: any) {
+          if (e.code === "P2002") {
+            // Duplicate saleNumber, retry
+            attempt++;
+          } else {
+            throw e;
+          }
+        }
+      }
+
+      if (!sale) throw new Error("Failed to create sale with unique saleNumber");
+
+      // Buat sale items & update stock
+      for (const item of items) {
+        await tx.pOSSaleItem.create({
+          data: {
+            saleId: sale.id,
+            itemId: item.itemId,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.quantity * item.price,
+          },
+        });
+
+        await tx.pOSItem.update({
+          where: { id: item.itemId },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      }
+
+      return sale;
+    });
+  }),
+
 
   getSalesReport: permissionProtectedProcedure(["list:pos-sale"])
     .input(

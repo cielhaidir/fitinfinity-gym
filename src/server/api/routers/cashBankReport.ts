@@ -26,11 +26,12 @@ const cashBankExportInputSchema = z.object({
 export interface CashBankReportItem {
   referenceId: string;
   date: Date;
-  type: 'Payment' | 'POS' | 'Transaction';
+  type: 'Payment' | 'POS' | 'Transaction' | 'Initial Balance';
   description: string;
   debit: number;
   credit: number;
   balanceAccount: string | null;
+  endingBalance?: number; // Running balance for filtered account
 }
 
 export interface CashBankReportSummary {
@@ -247,16 +248,88 @@ export const cashBankReportRouter = createTRPCRouter({
 
       // Apply balance account filter if specified
       // The balance account filtering is already applied in the individual Prisma queries
-      const filteredRecords = allRecords;
+      const filteredRecords = sortedRecords;
 
-      // Calculate summary
-      const totalCredits = filteredRecords.reduce((sum, record) => sum + record.credit, 0);
-      const totalDebits = filteredRecords.reduce((sum, record) => sum + record.debit, 0);
+      // Add initial balance and calculate running balance if specific account is selected
+      let recordsWithBalance = [...filteredRecords];
+      if (balanceAccountId) {
+        // Get initial balance for the account
+        const balanceAccount = await ctx.db.balanceAccount.findUnique({
+          where: { id: balanceAccountId },
+        });
+
+        // Get the most recent closing balance before the start date
+        const previousClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
+          where: {
+            balanceAccountId,
+            endDate: {
+              lt: startDate,
+            },
+          },
+          orderBy: {
+            endDate: 'desc',
+          },
+        });
+
+        const initialBalance = previousClosing?.closingBalance || balanceAccount?.initialBalance || 0;
+
+        // Sort records by date (oldest first) for balance calculation
+        const recordsForBalance = [...filteredRecords].sort((a, b) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+        // Add initial balance row if there are transactions
+        if (recordsForBalance.length > 0) {
+          const initialBalanceRow: CashBankReportItem = {
+            referenceId: 'INITIAL_BALANCE',
+            date: startDate,
+            type: 'Initial Balance',
+            description: 'Opening Balance',
+            debit: 0,
+            credit: 0,
+            balanceAccount: balanceAccount?.name || null,
+            endingBalance: initialBalance,
+          };
+
+          recordsForBalance.unshift(initialBalanceRow);
+        }
+
+        // Calculate running balance
+        let runningBalance = initialBalance;
+        recordsForBalance.forEach((record, index) => {
+          if (record.type !== 'Initial Balance') {
+            // Credit increases balance, debit decreases balance
+            runningBalance = runningBalance + record.credit - record.debit;
+            record.endingBalance = runningBalance;
+          }
+        });
+
+        // Sort back to original order if needed
+        recordsWithBalance = recordsForBalance.sort((a, b) => {
+          if (!sortBy) return new Date(b.date).getTime() - new Date(a.date).getTime();
+
+          let comparison = 0;
+          if (sortBy === 'date') {
+            comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          } else if (sortBy === 'debit') {
+            comparison = a.debit - b.debit;
+          } else if (sortBy === 'credit') {
+            comparison = a.credit - b.credit;
+          }
+
+          return sortOrder === 'desc' ? -comparison : comparison;
+        });
+      }
+
+      // Calculate summary (excluding initial balance row)
+      const summaryRecords = recordsWithBalance.filter(r => r.type !== 'Initial Balance');
+      const totalCredits = summaryRecords.reduce((sum, record) => sum + record.credit, 0);
+      const totalDebits = summaryRecords.reduce((sum, record) => sum + record.debit, 0);
       const netBalance = totalCredits - totalDebits;
-      const totalRecords = filteredRecords.length;
+      const totalRecords = recordsWithBalance.length;
 
       // Apply pagination
-      const paginatedRecords = filteredRecords.slice(skip, skip + limit);
+      const paginatedRecords = recordsWithBalance.slice(skip, skip + limit);
 
       return {
         items: paginatedRecords,
@@ -800,14 +873,86 @@ export const cashBankReportRouter = createTRPCRouter({
         return sortOrder === 'desc' ? -comparison : comparison;
       });
 
-      // Calculate summary
-      const totalCredits = sortedRecords.reduce((sum, record) => sum + record.credit, 0);
-      const totalDebits = sortedRecords.reduce((sum, record) => sum + record.debit, 0);
+      // Add initial balance and calculate running balance if specific account is selected
+      let recordsWithBalance = [...sortedRecords];
+      if (balanceAccountId) {
+        // Get initial balance for the account
+        const balanceAccount = await ctx.db.balanceAccount.findUnique({
+          where: { id: balanceAccountId },
+        });
+
+        // Get the most recent closing balance before the start date
+        const previousClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
+          where: {
+            balanceAccountId,
+            endDate: {
+              lt: startDate,
+            },
+          },
+          orderBy: {
+            endDate: 'desc',
+          },
+        });
+
+        const initialBalance = previousClosing?.closingBalance || balanceAccount?.initialBalance || 0;
+
+        // Sort records by date (oldest first) for balance calculation
+        const recordsForBalance = [...sortedRecords].sort((a, b) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+        // Add initial balance row if there are transactions
+        if (recordsForBalance.length > 0) {
+          const initialBalanceRow: CashBankReportItem = {
+            referenceId: 'INITIAL_BALANCE',
+            date: startDate,
+            type: 'Initial Balance',
+            description: 'Opening Balance',
+            debit: 0,
+            credit: 0,
+            balanceAccount: balanceAccount?.name || null,
+            endingBalance: initialBalance,
+          };
+
+          recordsForBalance.unshift(initialBalanceRow);
+        }
+
+        // Calculate running balance
+        let runningBalance = initialBalance;
+        recordsForBalance.forEach((record, index) => {
+          if (record.type !== 'Initial Balance') {
+            // Credit increases balance, debit decreases balance
+            runningBalance = runningBalance + record.credit - record.debit;
+            record.endingBalance = runningBalance;
+          }
+        });
+
+        // Sort back to original order if needed
+        recordsWithBalance = recordsForBalance.sort((a, b) => {
+          if (!sortBy) return new Date(b.date).getTime() - new Date(a.date).getTime();
+
+          let comparison = 0;
+          if (sortBy === 'date') {
+            comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          } else if (sortBy === 'debit') {
+            comparison = a.debit - b.debit;
+          } else if (sortBy === 'credit') {
+            comparison = a.credit - b.credit;
+          }
+
+          return sortOrder === 'desc' ? -comparison : comparison;
+        });
+      }
+
+      // Calculate summary (excluding initial balance row)
+      const summaryRecords = recordsWithBalance.filter(r => r.type !== 'Initial Balance');
+      const totalCredits = summaryRecords.reduce((sum, record) => sum + record.credit, 0);
+      const totalDebits = summaryRecords.reduce((sum, record) => sum + record.debit, 0);
       const netBalance = totalCredits - totalDebits;
-      const totalRecords = sortedRecords.length;
+      const totalRecords = recordsWithBalance.length;
 
       return {
-        items: sortedRecords,
+        items: recordsWithBalance,
         summary: {
           totalCredits,
           totalDebits,
