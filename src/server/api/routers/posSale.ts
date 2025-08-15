@@ -126,33 +126,33 @@ export const posSaleRouter = createTRPCRouter({
     const dateStr = today.toISOString().split('T')[0]?.replace(/-/g, '') || '';
     const change = saleData.amountPaid - saleData.total;
 
-    return ctx.db.$transaction(async (tx) => {
-      let sale: any;
-      let attempt = 0;
+    let attempt = 0;
+    const maxAttempts = 3;
 
-      while (attempt < 2) { // maksimal 2 percobaan
-        // Hitung jumlah sale hari ini
-        const count = await tx.pOSSale.count({
-          where: {
-            saleDate: {
-              gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-              lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
+    while (attempt < maxAttempts) {
+      try {
+        return await ctx.db.$transaction(async (tx) => {
+          // Hitung jumlah sale hari ini
+          const count = await tx.pOSSale.count({
+            where: {
+              saleDate: {
+                gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
+                lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
+              },
             },
-          },
-        });
+          });
 
-        // Generate saleNumber
-        let saleNumber = `POS${dateStr}${String(count + 1).padStart(4, '0')}`;
+          // Generate saleNumber
+          let saleNumber = `POS${dateStr}${String(count + 1).padStart(4, '0')}`;
 
-        // Jika percobaan kedua, fallback dengan random 4 digit
-        if (attempt === 1) {
-          const randomNum = Math.floor(Math.random() * 10000);
-          saleNumber = `POS${dateStr}${String(randomNum).padStart(4, '0')}`;
-        }
+          // Jika bukan percobaan pertama, gunakan random number
+          if (attempt > 0) {
+            const randomNum = Math.floor(Math.random() * 10000);
+            saleNumber = `POS${dateStr}${String(randomNum).padStart(4, '0')}`;
+          }
 
-        try {
           // Buat sale
-          sale = await tx.pOSSale.create({
+          const sale = await tx.pOSSale.create({
             data: {
               saleNumber,
               ...saleData,
@@ -160,43 +160,43 @@ export const posSaleRouter = createTRPCRouter({
               cashierId: ctx.session.user.id,
             },
           });
-          break; // berhasil, keluar loop
-        } catch (e: any) {
-          if (e.code === "P2002") {
-            // Duplicate saleNumber, retry
-            attempt++;
-          } else {
-            throw e;
+
+          // Buat sale items & update stock
+          for (const item of items) {
+            await tx.pOSSaleItem.create({
+              data: {
+                saleId: sale.id,
+                itemId: item.itemId,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.quantity * item.price,
+              },
+            });
+
+            await tx.pOSItem.update({
+              where: { id: item.itemId },
+              data: {
+                stock: {
+                  decrement: item.quantity,
+                },
+              },
+            });
           }
+
+          return sale;
+        });
+      } catch (e: any) {
+        if (e.code === "P2002" && attempt < maxAttempts - 1) {
+          // Duplicate saleNumber, retry with new transaction
+          attempt++;
+          continue;
+        } else {
+          throw e;
         }
       }
+    }
 
-      if (!sale) throw new Error("Failed to create sale with unique saleNumber");
-
-      // Buat sale items & update stock
-      for (const item of items) {
-        await tx.pOSSaleItem.create({
-          data: {
-            saleId: sale.id,
-            itemId: item.itemId,
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.quantity * item.price,
-          },
-        });
-
-        await tx.pOSItem.update({
-          where: { id: item.itemId },
-          data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
-        });
-      }
-
-      return sale;
-    });
+    throw new Error("Failed to create sale with unique saleNumber after maximum attempts");
   }),
 
 
