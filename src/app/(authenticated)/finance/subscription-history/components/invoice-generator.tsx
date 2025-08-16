@@ -80,7 +80,7 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
     // Add header image (full width)
     try {
       const headerImg = new Image();
-      headerImg.src = '/assets/header-inv.png';
+      headerImg.src = '/assets/invoice/Header.png';
       await new Promise((resolve) => {
         headerImg.onload = resolve;
       });
@@ -156,7 +156,7 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
     // Add footer image (full width at bottom)
     try {
       const footerImg = new Image();
-      footerImg.src = '/assets/footer-inv.png';
+      footerImg.src = '/assets/invoice/Footer.png';
       await new Promise((resolve) => {
         footerImg.onload = resolve;
       });
