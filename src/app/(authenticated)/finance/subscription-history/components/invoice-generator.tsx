@@ -195,7 +195,7 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
       await new Promise((resolve) => {
         footerImg.onload = resolve;
       });
-      pdf.addImage(footerImg, 'PNG', 0, pageHeight - 40, pageWidth, 40);
+      pdf.addImage(footerImg, 'PNG', 0, pageHeight - 20, pageWidth, 20);
     } catch (error) {
       console.error('Error loading footer image:', error);
     }
@@ -206,7 +206,7 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
     pdf.text(
       `Generated on: ${new Date().toLocaleString('id-ID')}`, 
       pageWidth / 2, 
-      pageHeight - 5, 
+      pageHeight - 2, 
       { align: 'center' }
     );
 
