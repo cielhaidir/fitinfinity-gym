@@ -21,9 +21,11 @@ export default function ClassPage() {
     limit: null as number | null,
     instructorName: "",
     schedule: new Date(),
+    schedules: [] as Date[],
     duration: 60,
     price: 100000,
   });
+  const [isBulkMode, setIsBulkMode] = useState(false);
 
   // Table state
   const [search, setSearch] = useState("");
@@ -47,6 +49,7 @@ export default function ClassPage() {
 
   // Mutations
   const createMutation = api.class.create.useMutation();
+  const createBulkMutation = api.class.createBulk.useMutation();
   const updateMutation = api.class.update.useMutation();
   const deleteMutation = api.class.remove.useMutation();
 
@@ -70,9 +73,11 @@ export default function ClassPage() {
         limit: null,
         instructorName: "",
         schedule: new Date(),
+        schedules: [],
         duration: 60,
         price: 100000,
       });
+      setIsBulkMode(false);
     }
   }, [selectedClass]);
 
@@ -103,9 +108,20 @@ export default function ClassPage() {
     setFormData((prev) => ({ ...prev, price }));
   };
 
+  const handleSchedulesChange = (schedules: Date[]) => {
+    setFormData((prev) => ({ ...prev, schedules }));
+  };
+
+  const handleBulkModeChange = (bulkMode: boolean) => {
+    setIsBulkMode(bulkMode);
+    if (bulkMode && formData.schedules.length === 0) {
+      setFormData((prev) => ({ ...prev, schedules: [prev.schedule] }));
+    }
+  };
+
   const handleCreateOrUpdateClass = async () => {
     try {
-      console.log("Submitting form data:", formData); // Debug log
+      console.log("Submitting form data:", formData, "Bulk mode:", isBulkMode); // Debug log
 
       if (isEditMode && selectedClass) {
         await updateMutation.mutateAsync({
@@ -132,6 +148,30 @@ export default function ClassPage() {
           price: formData.price,
         });
         toast.success("Class updated successfully!");
+      } else if (isBulkMode) {
+        await createBulkMutation.mutateAsync({
+          name: formData.name as
+            | "yoga"
+            | "zumba"
+            | "strengh"
+            | "core"
+            | "booty shaping"
+            | "cardio dance"
+            | "bachata"
+            | "muaythai"
+            | "poundfit"
+            | "freestyle dance"
+            | "kpop dance"
+            | "circuit"
+            | "thaiboxig"
+            | "cardio u",
+          limit: formData.limit,
+          instructorName: formData.instructorName,
+          schedules: formData.schedules,
+          duration: formData.duration,
+          price: formData.price,
+        });
+        toast.success(`${formData.schedules.length} classes created successfully!`);
       } else {
         await createMutation.mutateAsync({
           name: formData.name as
@@ -167,9 +207,11 @@ export default function ClassPage() {
         limit: null,
         instructorName: "",
         schedule: new Date(),
+        schedules: [],
         duration: 60,
         price: 100000,
       });
+      setIsBulkMode(false);
 
       // Refresh data
       await utils.class.list.invalidate();
@@ -251,9 +293,11 @@ export default function ClassPage() {
               limit: null,
               instructorName: "",
               schedule: new Date(),
+              schedules: [],
               duration: 60,
               price: 100000,
             });
+            setIsBulkMode(false);
           }
         }}
       >
@@ -278,14 +322,18 @@ export default function ClassPage() {
           limit={formData.limit}
           instructorName={formData.instructorName}
           schedule={formData.schedule}
+          schedules={formData.schedules}
           duration={formData.duration}
           price={formData.price}
+          isBulkMode={isBulkMode}
           onNameChange={handleNameChange}
           onLimitChange={handleLimitChange}
           onInstructorNameChange={handleInstructorNameChange}
           onScheduleChange={handleScheduleChange}
+          onSchedulesChange={handleSchedulesChange}
           onDurationChange={handleDurationChange}
           onPriceChange={handlePriceChange}
+          onBulkModeChange={handleBulkModeChange}
           onCreateOrUpdateClass={handleCreateOrUpdateClass}
           isEditMode={isEditMode}
         />

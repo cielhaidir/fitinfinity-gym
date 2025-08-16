@@ -568,6 +568,7 @@ model Transaction {
     transaction_number String
     amount             Float
     closed_at          DateTime?
+    deleted_at         DateTime?
 
     // Relations
     bank    BalanceAccount @relation("BankTransactions", fields: [bank_id], references: [id])

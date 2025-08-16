@@ -80,44 +80,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
             }}
           />
         </div>
-        <div className="md:col-span-2">
-          <label htmlFor="subscriptionStartDate" className="block text-sm font-medium">
-            Subscription Start Date
-          </label>
-          <Input
-            id="subscriptionStartDate"
-            name="subscriptionStartDate"
-            type="date"
-            value={newMember.subscriptionStartDate ? newMember.subscriptionStartDate.toISOString().split('T')[0] : ""}
-            onChange={(e) => {
-              onInputChange({
-                target: {
-                  name: "subscriptionStartDate",
-                  value: e.target.value ? new Date(e.target.value) : null,
-                },
-              } as unknown as React.ChangeEvent<HTMLInputElement>);
-            }}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label htmlFor="subscriptionEndDate" className="block text-sm font-medium">
-            Subscription End Date
-          </label>
-          <Input
-            id="subscriptionEndDate"
-            name="subscriptionEndDate"
-            type="date"
-            value={newMember.subscriptionEndDate ? newMember.subscriptionEndDate.toISOString().split('T')[0] : ""}
-            onChange={(e) => {
-              onInputChange({
-                target: {
-                  name: "subscriptionEndDate",
-                  value: e.target.value ? new Date(e.target.value) : null,
-                },
-              } as unknown as React.ChangeEvent<HTMLInputElement>);
-            }}
-          />
-        </div>
+        
         <div className="md:col-span-2">
           <label htmlFor="rfidNumber" className="block text-sm font-medium">
             RFID Number
@@ -131,66 +94,9 @@ export const MemberForm: React.FC<MemberFormProps> = ({
           />
         </div>
 
-        <div className="md:col-span-2">
-          <label htmlFor="fcId" className="block text-sm font-medium">
-            Fitness Consultant
-          </label>
-          <Select
-            value={newMember.fcId ?? "none"}
-            onValueChange={(value) => {
-              onInputChange({
-                target: {
-                  name: "fcId",
-                  value: value === "none" ? null : value,
-                },
-              } as React.ChangeEvent<HTMLInputElement>);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select FC" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {fcs?.items.map((fc) => (
-                <SelectItem key={fc.id} value={fc.id}>
-                  {fc.user?.name || "Unnamed FC"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        
 
-        <div className="md:col-span-2">
-          <label
-            htmlFor="personalTrainerId"
-            className="block text-sm font-medium"
-          >
-            Personal Trainer
-          </label>
-          <Select
-            value={newMember.personalTrainerId ?? "none"}
-            onValueChange={(value) => {
-              onInputChange({
-                target: {
-                  name: "personalTrainerId",
-                  value: value === "none" ? null : value,
-                },
-              } as React.ChangeEvent<HTMLInputElement>);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select PT" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {pts?.items.map((pt) => (
-                <SelectItem key={pt.id} value={pt.id}>
-                  {pt.user?.name || "Unnamed PT"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        
       </div>
       <SheetFooter className="flex justify-end gap-2">
         <Button onClick={onUpdate} className="bg-infinity">

@@ -26,12 +26,22 @@ export const createColumns = ({
   },
   {
     accessorKey: "initialBalance",
-    header: "Account Number",
-    cell: ({ row }) => <div>{row.getValue("initialBalance")}</div>,
-  },
-  {
-    id: "actions",
+    header: "Initial balance",
     cell: ({ row }) => {
+          const amount = row.getValue("initialBalance") as number;
+          return (
+            <div>
+              {new Intl.NumberFormat("id-ID", {
+                style: "currency",
+                currency: "IDR",
+              }).format(amount)}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        cell: ({ row }) => {
       const account = row.original;
 
       return (

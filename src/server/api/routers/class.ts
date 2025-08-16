@@ -4,7 +4,7 @@ import {
   protectedProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
-import { createClassSchema } from "@/app/(authenticated)/management/class/schema";
+import { createClassSchema, createBulkClassSchema } from "@/app/(authenticated)/management/class/schema";
 
 export const classRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:classes"])
@@ -26,6 +26,36 @@ export const classRouter = createTRPCRouter({
         return newClass;
       } catch (error) {
         throw new Error("Failed to create class");
+      }
+    }),
+
+  createBulk: permissionProtectedProcedure(["create:classes"])
+    .input(createBulkClassSchema)
+    .mutation(async ({ ctx, input }) => {
+      console.log("Creating bulk classes with input:", input); // Debug log
+      try {
+        const { schedules, ...classData } = input;
+        
+        // Create multiple classes with different schedules
+        const createdClasses = await Promise.all(
+          schedules.map(schedule =>
+            ctx.db.class.create({
+              data: {
+                name: classData.name,
+                limit: classData.limit,
+                instructorName: classData.instructorName,
+                schedule: schedule,
+                duration: classData.duration,
+                price: classData.price,
+              },
+            })
+          )
+        );
+        
+        return createdClasses;
+      } catch (error) {
+        console.error("Failed to create bulk classes:", error);
+        throw new Error("Failed to create bulk classes");
       }
     }),
 

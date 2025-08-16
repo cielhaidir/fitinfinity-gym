@@ -105,6 +105,18 @@ export const transactionRouter = createTRPCRouter({
       });
     }),
 
+   remove: permissionProtectedProcedure(["delete:transaction"])
+      .input(
+      z.object({
+        id: z.number(),
+      }),
+      )
+      .mutation(async ({ ctx, input }) => {
+      return ctx.db.transaction.delete({
+        where: { id: input.id },
+      });
+      }),
+
   list: permissionProtectedProcedure(["list:transaction"])
     .input(
       z.object({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 
 export default function RolePermissionPage() {
   const utils = api.useUtils();
+    const { data: session, update } = useSession();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
@@ -46,6 +48,8 @@ export default function RolePermissionPage() {
             roleId: selectedRoleId,
             permissionIds: selectedPermissionIds,
           });
+          await update();
+          
         } else {
           await createRolePermissionMutation.mutateAsync({
             roleId: selectedRoleId,

@@ -535,4 +535,190 @@ getRevenueBySales: protectedProcedure
         })),
       };
     }),
+
+     getSalesSummary: protectedProcedure
+    .input(salesReportInputSchema)
+    .query(async ({ ctx, input }) => {
+      const { startDate, endDate, paymentMethod, includePos, includeSubscriptions } = input;
+
+      // Default to last 30 days if no dates provided
+      const start = startDate ? startOfDay(startDate) : startOfDay(subDays(new Date(), 30));
+      const end = endDate ? endOfDay(endDate) : endOfDay(new Date());
+
+      let posSales: any[] = [];
+      let subscriptionPayments: any[] = [];
+      let posTotal = 0;
+      let subscriptionTotal = 0;
+
+      // Get POS sales
+      if (includePos) {
+        posSales = await ctx.db.pOSSale.findMany({
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end,
+            },
+            ...(paymentMethod && { paymentMethod }),
+          },
+          select: {
+            id: true,
+            saleNumber: true,
+            total: true,
+            paymentMethod: true,
+            createdAt: true,
+            saleDate: true,
+            items: {
+              select: {
+                quantity: true,
+                price: true,
+                item: {
+                  select: {
+                    name: true,
+                    category: {
+                      select: { name: true }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        posTotal = posSales.reduce((sum: number, sale: any) => sum + sale.total, 0);
+      }
+
+      // Get subscription payments
+      if (includeSubscriptions) {
+        subscriptionPayments = await ctx.db.payment.findMany({
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end,
+            },
+            status: 'SUCCESS',
+            ...(paymentMethod && { method: paymentMethod }),
+          },
+          select: {
+            id: true,
+            totalPayment: true,
+            method: true,
+            createdAt: true,
+            subscription: {
+              select: {
+                package: {
+                  select: { name: true }
+                }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        subscriptionTotal = subscriptionPayments.reduce((sum: number, payment: any) => sum + (payment.totalPayment || 0), 0);
+      }
+
+      // Calculate totals
+      const totalRevenue = posTotal + subscriptionTotal;
+      const totalTransactions = posSales.length + subscriptionPayments.length;
+      const averageTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+      // Payment method breakdown
+      const paymentMethodBreakdown: PaymentMethodBreakdown[] = [];
+      const methodMap = new Map<string, { count: number; amount: number }>();
+
+      // Process POS sales
+      posSales.forEach((sale: any) => {
+        const method = sale.paymentMethod || 'Unknown';
+        const current = methodMap.get(method) || { count: 0, amount: 0 };
+        methodMap.set(method, {
+          count: current.count + 1,
+          amount: current.amount + sale.total,
+        });
+      });
+
+      // Process subscription payments
+      subscriptionPayments.forEach((payment: any) => {
+        const method = payment.method || 'Unknown';
+        const current = methodMap.get(method) || { count: 0, amount: 0 };
+        methodMap.set(method, {
+          count: current.count + 1,
+          amount: current.amount + (payment.totalPayment || 0),
+        });
+      });
+
+      methodMap.forEach((data, method) => {
+        paymentMethodBreakdown.push({ method, ...data });
+      });
+
+      // Daily breakdown
+      const dailyBreakdown: DailyBreakdown[] = [];
+      const dailyMap = new Map<string, { revenue: number; transactions: number }>();
+
+      [...posSales, ...subscriptionPayments].forEach((record: any) => {
+        const date = record.createdAt.toISOString().split('T')[0];
+        const amount = 'total' in record ? record.total : (record.totalPayment || 0);
+        const current = dailyMap.get(date) || { revenue: 0, transactions: 0 };
+        dailyMap.set(date, {
+          revenue: current.revenue + amount,
+          transactions: current.transactions + 1,
+        });
+      });
+
+      dailyMap.forEach((data, date) => {
+        dailyBreakdown.push({ date, ...data });
+      });
+      dailyBreakdown.sort((a, b) => a.date.localeCompare(b.date));
+
+      // Get top selling items
+      const itemSales = new Map<string, { quantity: number; revenue: number }>();
+      posSales.forEach((sale: any) => {
+        sale.items.forEach((item: any) => {
+          const name = item.item.name;
+          const current = itemSales.get(name) || { quantity: 0, revenue: 0 };
+          itemSales.set(name, {
+            quantity: current.quantity + item.quantity,
+            revenue: current.revenue + (item.quantity * item.price),
+          });
+        });
+      });
+
+      const topSellingItems: TopSellingItem[] = Array.from(itemSales.entries())
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 10);
+
+      return {
+        summary: {
+          totalRevenue,
+          totalTransactions,
+          averageTransactionValue,
+          posRevenue: posTotal,
+          subscriptionRevenue: subscriptionTotal,
+        },
+        paymentMethodBreakdown,
+        dailyBreakdown,
+        topSellingItems,
+        posSales: posSales.map((sale: any) => ({
+          id: sale.id,
+          saleNumber: sale.saleNumber,
+          total: sale.total,
+          paymentMethod: sale.paymentMethod,
+          createdAt: sale.createdAt,
+          items: sale.items.map((item: any) => ({
+            name: item.item.name,
+            category: item.item.category?.name || 'Uncategorized',
+            quantity: item.quantity,
+            price: item.price,
+            total: item.quantity * item.price,
+          })),
+        })),
+        subscriptionPayments: subscriptionPayments.map((payment: any) => ({
+          id: payment.id,
+          total: payment.totalPayment || 0,
+          method: payment.method,
+          createdAt: payment.createdAt,
+          packageName: payment.subscription?.package?.name || 'Unknown',
+        })),
+      };
+    }),
+
 });

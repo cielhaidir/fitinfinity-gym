@@ -52,4 +52,14 @@ export const createClassSchema = z.object({
   price: z.number().min(0, "Price must be greater than or equal to 0"),
 });
 
+export const createBulkClassSchema = z.object({
+  name: z.enum(CLASS_OPTIONS),
+  limit: z.number().nullable(),
+  instructorName: z.string().min(1, "Instructor name is required"),
+  schedules: z.array(z.date()).min(1, "At least one schedule is required"),
+  duration: z.number().min(1, "Duration is required"),
+  price: z.number().min(0, "Price must be greater than or equal to 0"),
+});
+
 export type CreateClassInput = z.infer<typeof createClassSchema>;
+export type CreateBulkClassInput = z.infer<typeof createBulkClassSchema>;

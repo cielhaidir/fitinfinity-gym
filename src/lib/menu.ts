@@ -420,28 +420,22 @@ export const Menu: { navMain: MenuGroup[] } = {
       url: "/reports",
       items: [
         {
-          title: "Employee Attendance Report",
-          url: "/reports/attendance",
-          icon: UserCog,
-          requiredPermission: "menu:attendance-report",
-        },
-        {
           title: "Member Attendance Report",
           url: "/reports/member-attendance",
           icon: UserCog,
-          requiredPermission: "menu:member",
+          requiredPermission: "report:member-attendance",
         },
         {
           title: "Employee Attendance Report",
           url: "/reports/attendance-management",
           icon: Clock,
-          requiredPermission: "menu:employees",
+          requiredPermission: "report:employees",
         },
         {
           title: "Class Member Report",
           url: "/reports/class-member-report",
           icon: BarChart3,
-          // requiredPermission: "menu:class-member-report",
+          requiredPermission: "report:class-member-report",
         },
         {
           title: "Personal Trainer Report",
@@ -453,13 +447,19 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Sales Report",
           url: "/reports/sales-report",
           icon: DollarSign,
-          // requiredPermission: "report:sales",
+          requiredPermission: "report:sales",
+        },
+        {
+          title: "Commission Report",
+          url: "/reports/commission-report",
+          icon: DollarSign,
+          requiredPermission: "report:commission",
         },
         {
           title: "Cash Bank Report",
           url: "/finance/cash-bank-report",
           icon: HandCoins,
-          // requiredPermission: "report:cash-bank",
+          requiredPermission: "report:cash-bank",
         },
       ],
     },

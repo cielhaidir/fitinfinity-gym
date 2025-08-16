@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-import { Plus, Minus, ShoppingCart, Trash2, CreditCard, History, Edit, Eye, Download, Filter, Calendar } from "lucide-react";
+import { Plus, Minus, ShoppingCart, Trash2, CreditCard, History, Edit, Eye, Download, Filter, Calendar, BarChart3 } from "lucide-react";
 import type { POSSaleItem } from "./schema";
 import * as XLSX from "xlsx";
 
@@ -34,6 +34,17 @@ export default function POSPage() {
   const [filterCashier, setFilterCashier] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  
+  // Summary tab states
+  const [summaryDateFrom, setSummaryDateFrom] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0] || "";
+  });
+  const [summaryDateTo, setSummaryDateTo] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0] || "";
+  });
+  const [summaryPaymentMethod, setSummaryPaymentMethod] = useState<string>("all");
 
   const { data: categories } = api.posCategory.getAll.useQuery();
   const { data: items } = api.posItem.getAll.useQuery();
@@ -47,6 +58,12 @@ export default function POSPage() {
     cashierId: filterCashier || undefined,
   });
   const { data: allUsers } = api.user.all.useQuery();
+  
+  // Summary data queries
+  const { data: summaryData, refetch: refetchSummary } = api.posSale.getSalesReport.useQuery({
+    dateFrom: summaryDateFrom ? new Date(summaryDateFrom) : new Date(),
+    dateTo: summaryDateTo ? new Date(summaryDateTo + 'T23:59:59') : new Date(),
+  });
   const createSaleMutation = api.posSale.create.useMutation();
   const updateSaleMutation = api.posSale.update.useMutation();
   const deleteSaleMutation = api.posSale.delete.useMutation();
@@ -304,6 +321,98 @@ export default function POSPage() {
     refetchSales();
   };
 
+  // Filter summary data by payment method
+  const filteredSummaryData = summaryData ? {
+    ...summaryData,
+    sales: summaryPaymentMethod && summaryPaymentMethod !== "all"
+      ? summaryData.sales?.filter(sale => sale.paymentMethod === summaryPaymentMethod) || []
+      : summaryData.sales || [],
+    paymentMethods: summaryPaymentMethod && summaryPaymentMethod !== "all"
+      ? Object.fromEntries(
+          Object.entries(summaryData.paymentMethods || {})
+            .filter(([method]) => method === summaryPaymentMethod)
+        )
+      : summaryData.paymentMethods || {},
+    summary: summaryPaymentMethod && summaryPaymentMethod !== "all" ? {
+      totalSales: summaryData.sales
+        ?.filter(sale => sale.paymentMethod === summaryPaymentMethod)
+        .reduce((sum, sale) => sum + sale.total, 0) || 0,
+      totalTransactions: summaryData.sales
+        ?.filter(sale => sale.paymentMethod === summaryPaymentMethod).length || 0,
+      totalTax: summaryData.sales
+        ?.filter(sale => sale.paymentMethod === summaryPaymentMethod)
+        .reduce((sum, sale) => sum + sale.tax, 0) || 0,
+      totalDiscount: summaryData.sales
+        ?.filter(sale => sale.paymentMethod === summaryPaymentMethod)
+        .reduce((sum, sale) => sum + sale.discount, 0) || 0,
+    } : summaryData.summary,
+    topItems: summaryPaymentMethod && summaryPaymentMethod !== "all" ?
+      summaryData.sales
+        ?.filter(sale => sale.paymentMethod === summaryPaymentMethod)
+        .flatMap(sale => sale.items)
+        .reduce((acc, saleItem) => {
+          const key = saleItem.item.name;
+          if (!acc[key]) {
+            acc[key] = {
+              name: saleItem.item.name,
+              category: saleItem.item.category.name,
+              quantity: 0,
+              revenue: 0,
+            };
+          }
+          acc[key].quantity += saleItem.quantity;
+          acc[key].revenue += saleItem.subtotal;
+          return acc;
+        }, {} as Record<string, any>) ?
+        Object.values(
+          summaryData.sales
+            ?.filter(sale => sale.paymentMethod === summaryPaymentMethod)
+            .flatMap(sale => sale.items)
+            .reduce((acc, saleItem) => {
+              const key = saleItem.item.name;
+              if (!acc[key]) {
+                acc[key] = {
+                  name: saleItem.item.name,
+                  category: saleItem.item.category.name,
+                  quantity: 0,
+                  revenue: 0,
+                };
+              }
+              acc[key].quantity += saleItem.quantity;
+              acc[key].revenue += saleItem.subtotal;
+              return acc;
+            }, {} as Record<string, any>)
+        ).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 10) : []
+      : summaryData.topItems || []
+  } : null;
+
+  // Calculate balance account totals
+  const balanceAccountTotals = summaryData?.sales?.reduce((acc, sale) => {
+    if (sale.balanceAccount) {
+      const accountName = sale.balanceAccount.name;
+      if (!acc[accountName]) {
+        acc[accountName] = {
+          name: accountName,
+          cash: 0,
+          digitalWallet: 0,
+          card: 0,
+          total: 0
+        };
+      }
+      
+      if (sale.paymentMethod === 'cash') {
+        acc[accountName].cash += sale.total;
+      } else if (sale.paymentMethod === 'digital_wallet') {
+        acc[accountName].digitalWallet += sale.total;
+      } else if (sale.paymentMethod === 'card') {
+        acc[accountName].card += sale.total;
+      }
+      
+      acc[accountName].total += sale.total;
+    }
+    return acc;
+  }, {} as Record<string, any>) || {};
+
   return (
     <ProtectedRoute requiredPermissions={["create:pos-sale"]}>
       <div className="h-full p-6">
@@ -315,7 +424,7 @@ export default function POSPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="pos" className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
               New Sale
@@ -323,6 +432,10 @@ export default function POSPage() {
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               Recent Sales
+            </TabsTrigger>
+            <TabsTrigger value="summary" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Summary
             </TabsTrigger>
           </TabsList>
 
@@ -565,7 +678,7 @@ export default function POSPage() {
                 </CardTitle>
                 
                 {showFilters && (
-                  <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="mt-4 space-y-4 p-4  rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1">Search</label>
@@ -932,6 +1045,217 @@ export default function POSPage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="summary" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    POS Summary
+                  </div>
+                </CardTitle>
+                
+                {/* Summary Filters */}
+                <div className="mt-4 space-y-4 p-4  rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">From Date</label>
+                      <Input
+                        type="date"
+                        value={summaryDateFrom}
+                        onChange={(e) => setSummaryDateFrom(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">To Date</label>
+                      <Input
+                        type="date"
+                        value={summaryDateTo}
+                        onChange={(e) => setSummaryDateTo(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Payment Method</label>
+                      <Select value={summaryPaymentMethod} onValueChange={setSummaryPaymentMethod}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All payment methods" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All payment methods</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="card">Card</SelectItem>
+                          <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button onClick={() => refetchSummary()} variant="default">
+                      Apply Filters
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const today = new Date().toISOString().split('T')[0] || "";
+                        setSummaryDateFrom(today);
+                        setSummaryDateTo(today);
+                        setSummaryPaymentMethod("all");
+                        refetchSummary();
+                      }}
+                      variant="outline"
+                    >
+                      Reset to Today
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Summary Statistics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground">Total Sales</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          Rp. {filteredSummaryData?.summary?.totalSales?.toFixed(2) || "0.00"}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground">Total Transactions</p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {filteredSummaryData?.summary?.totalTransactions || 0}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground">Total Tax</p>
+                        <p className="text-2xl font-bold text-orange-600">
+                          Rp. {filteredSummaryData?.summary?.totalTax?.toFixed(2) || "0.00"}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground">Total Discount</p>
+                        <p className="text-2xl font-bold text-red-600">
+                          Rp. {filteredSummaryData?.summary?.totalDiscount?.toFixed(2) || "0.00"}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Balance Account Totals */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Balance Account Totals</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {Object.keys(balanceAccountTotals).length > 0 ? (
+                        Object.values(balanceAccountTotals).map((account: any) => (
+                          <div key={account.name} className="p-4 border rounded-lg">
+                            <h3 className="font-semibold mb-3">{account.name}</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Cash</p>
+                                <p className="font-bold text-green-600">Rp. {account.cash.toFixed(2)}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Digital Wallet</p>
+                                <p className="font-bold text-blue-600">Rp. {account.digitalWallet.toFixed(2)}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Card</p>
+                                <p className="font-bold text-purple-600">Rp. {account.card.toFixed(2)}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm text-muted-foreground">Total</p>
+                                <p className="font-bold text-gray-800">Rp. {account.total.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground text-center py-4">No balance account data available</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payment Method Breakdown */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Payment Method Breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {filteredSummaryData?.paymentMethods && Object.keys(filteredSummaryData.paymentMethods).length > 0 ? (
+                        Object.entries(filteredSummaryData.paymentMethods).map(([method, amount]) => (
+                          <div key={method} className="flex justify-between items-center p-3 border rounded">
+                            <div className="flex items-center gap-3">
+                              <Badge variant={method === 'cash' ? 'secondary' : method === 'digital_wallet' ? 'default' : 'outline'}>
+                                {method === 'cash' ? 'Cash' : method === 'digital_wallet' ? 'Digital Wallet' : 'Card'}
+                              </Badge>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold">Rp. {(amount as number).toFixed(2)}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground text-center py-4">No payment data available</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Top Selling Items */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Top Selling Items</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {filteredSummaryData?.topItems && filteredSummaryData.topItems.length > 0 ? (
+                        filteredSummaryData.topItems.map((item: any, index: number) => (
+                          <div key={index} className="flex justify-between items-center p-3 border rounded">
+                            <div className="flex-1">
+                              <p className="font-medium">{item.name}</p>
+                              <p className="text-sm text-muted-foreground">{item.category}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold">Qty: {item.quantity}</p>
+                              <p className="text-sm text-green-600">Rp. {item.revenue.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground text-center py-4">No sales data available</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </TabsContent>
