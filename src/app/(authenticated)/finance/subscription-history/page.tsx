@@ -104,6 +104,11 @@ export default function SubscriptionHistoryPage() {
       duration: subscriptionData.duration || 0,
       salesPerson: subscriptionData.salesPerson,
       salesType: subscriptionData.salesType,
+      // Add discount/voucher fields if available
+      discount: subscriptionData.discount || 0,
+      discountPercent: subscriptionData.discountPercent || 0,
+      voucherCode: subscriptionData.voucherCode || subscriptionData.voucher?.code || '',
+      originalPrice: subscriptionData.originalPrice || subscriptionData.package?.price || parseFloat(subscriptionData.totalPayment || "0"),
     };
     
     setSelectedInvoiceData(invoiceData);

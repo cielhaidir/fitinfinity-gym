@@ -25,7 +25,11 @@ interface InvoiceData {
   createdAt: string;
   subsType: string;
   trainerName?: string;
-  duration? : number
+  duration? : number;
+  discount?: number; // discount amount
+  discountPercent?: number; // discount percentage
+  voucherCode?: string; // voucher code if any
+  originalPrice?: number; // original price before discount
 }
 
 interface InvoiceGeneratorProps {
@@ -109,12 +113,12 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
     const endDateStr = formatDate(invoiceData.endDate);
     const durationStr = invoiceData.duration;
 
-    // Subscription Details Table
+    // Subscription Details Table (will use originalPrice calculated later)
     const tableData = [[
       invoiceData.packageName + (invoiceData.trainerName ? `\nTrainer: ${invoiceData.trainerName}` : ''),
       invoiceData.subsType === "gym" ? "Gym Membership" : "Personal Training",
       durationStr || "N/A",
-      formatCurrency(invoiceData.amount || 0)
+      formatCurrency(invoiceData.originalPrice || invoiceData.amount || 0)
     ]];
 
     autoTable(pdf, {
@@ -143,14 +147,46 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
     pdf.text(`Payment Method: ${invoiceData.paymentMethod || "Manual Payment"}`, 10, finalY + 7);
     pdf.text(`Payment Status: ${getStatusLabel(invoiceData.paymentStatus)}`, 10, finalY + 14);
 
+    // Calculate original price and discount
+    const originalPrice = invoiceData.originalPrice || invoiceData.amount;
+    const discountAmount = invoiceData.discount || 0;
+    const discountPercent = invoiceData.discountPercent || 0;
+    const voucherCode = invoiceData.voucherCode || '';
+    
+    // Calculate actual discount amount if percentage is provided
+    const actualDiscountAmount = discountAmount > 0 ? discountAmount : 
+      (discountPercent > 0 ? (originalPrice * discountPercent / 100) : 0);
+    
+    // If no explicit discount but originalPrice > amount, calculate discount from difference
+    const inferredDiscount = (originalPrice > invoiceData.amount) ? (originalPrice - invoiceData.amount) : 0;
+    const finalDiscountAmount = actualDiscountAmount > 0 ? actualDiscountAmount : inferredDiscount;
+    
+    const finalTotal = originalPrice - finalDiscountAmount;
+
     // Total Section
     pdf.text('Subtotal:', pageWidth - 70, finalY);
-    pdf.text(formatCurrency(invoiceData.amount), pageWidth - 10, finalY, { align: 'right' });
-    pdf.text('Tax:', pageWidth - 70, finalY + 7);
-    pdf.text(formatCurrency(0), pageWidth - 10, finalY + 7, { align: 'right' });
-    pdf.setFontSize(12);
-    pdf.text('Total:', pageWidth - 70, finalY + 14);
-    pdf.text(formatCurrency(invoiceData.amount), pageWidth - 10, finalY + 14, { align: 'right' });
+    pdf.text(formatCurrency(originalPrice), pageWidth - 10, finalY, { align: 'right' });
+    
+    // Show discount if any
+    if (finalDiscountAmount > 0) {
+      let discountLabel = 'Discount:';
+      if (voucherCode) {
+        discountLabel = `Voucher (${voucherCode}):`;
+      } else if (discountPercent > 0) {
+        discountLabel = `Discount (${discountPercent}%):`;
+      }
+      
+      pdf.text(discountLabel, pageWidth - 70, finalY + 7);
+      pdf.text(`-${formatCurrency(finalDiscountAmount)}`, pageWidth - 10, finalY + 7, { align: 'right' });
+      
+      pdf.setFontSize(12);
+      pdf.text('Total:', pageWidth - 70, finalY + 14);
+      pdf.text(formatCurrency(finalTotal), pageWidth - 10, finalY + 14, { align: 'right' });
+    } else {
+      pdf.setFontSize(12);
+      pdf.text('Total:', pageWidth - 70, finalY + 7);
+      pdf.text(formatCurrency(finalTotal), pageWidth - 10, finalY + 7, { align: 'right' });
+    }
 
     // Add footer image (full width at bottom)
     try {
