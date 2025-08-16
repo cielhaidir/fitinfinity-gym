@@ -103,7 +103,6 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
     pdf.setFontSize(11);
     pdf.text('Invoice Details:', pageWidth - 60, 50);
     pdf.text(`Date: ${formatDate(invoiceData.createdAt)}`, pageWidth - 60, 57);
-    pdf.text(`Status: ${getStatusLabel(invoiceData.paymentStatus)}`, pageWidth - 60, 64);
 
     // Format duration string
     const startDateStr = formatDate(invoiceData.startDate);
