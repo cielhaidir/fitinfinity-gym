@@ -290,6 +290,11 @@ model Subscription {
     frozenAt          DateTime?
     payments          Payment[]
     
+      // Reminder tracking
+    isReminder        Boolean          @default(false)   // sudah dikirim reminder atau belum
+    reminderAt        DateTime?                        // kapan terakhir reminder dikirim
+    reminderStage     Int?                             // tahap reminder (misal 1 = H-7, 2 = H-3, 3 = H-1)
+    
     // Group subscription relations
     leadGroupSubscriptions GroupSubscription[]
     groupMembers      GroupMember[]
