@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { type Voucher } from "./schema";
 import { useState, useEffect } from "react";
 import {
@@ -25,7 +26,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar } from "./components/calendar";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -285,6 +285,38 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
             value={voucher.maxClaim ?? 1}
             onChange={onInputChange}
           />
+        </div>
+
+        <div>
+          <label htmlFor="minimumPurchase" className="mb-2 block text-sm font-medium">
+            Minimum Purchase (Rp) - Optional
+          </label>
+          <Input
+            id="minimumPurchase"
+            name="minimumPurchase"
+            type="number"
+            min={0}
+            placeholder="Enter minimum purchase amount (0 for no minimum)"
+            value={voucher.minimumPurchase ?? 0}
+            onChange={onInputChange}
+          />
+          <p className="mt-1 text-sm text-muted-foreground">
+            Minimum purchase amount required to use this voucher. Leave as 0 for no minimum.
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="allowStack"
+            checked={voucher.allowStack ?? false}
+            onCheckedChange={(checked) => onSelectChange("allowStack", checked.toString())}
+          />
+          <label htmlFor="allowStack" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Allow Stacking
+          </label>
+          <p className="text-sm text-muted-foreground">
+            Allow members to use multiple vouchers at the same time
+          </p>
         </div>
 
         {voucher.type === "REFERRAL" && (

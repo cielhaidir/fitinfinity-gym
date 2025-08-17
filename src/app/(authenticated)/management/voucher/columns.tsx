@@ -69,8 +69,8 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Amount" />
     ),
     cell: ({ row }) => {
-      const amount = row.getValue("amount");
-      const discountType = row.getValue("discountType");
+      const amount = row.getValue("amount") as number;
+      const discountType = row.getValue("discountType") as string;
       return (
         <div>
           {discountType === "PERCENT"
@@ -86,6 +86,33 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Max Claim" />
     ),
     cell: ({ row }) => <div>{row.getValue("maxClaim")}</div>,
+  },
+  {
+    accessorKey: "minimumPurchase",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Min Purchase" />
+    ),
+    cell: ({ row }) => {
+      const minimumPurchase = row.getValue("minimumPurchase") as number | null;
+      return (
+        <div>
+          {minimumPurchase && minimumPurchase > 0
+            ? `Rp ${minimumPurchase.toLocaleString()}`
+            : "No minimum"}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "allowStack",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Allow Stack" />
+    ),
+    cell: ({ row }) => (
+      <Badge variant={row.getValue("allowStack") ? "default" : "secondary"}>
+        {row.getValue("allowStack") ? "Yes" : "No"}
+      </Badge>
+    ),
   },
   {
     accessorKey: "isActive",
@@ -104,7 +131,7 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Expiry Date" />
     ),
     cell: ({ row }) => {
-      const expiryDate = row.getValue("expiryDate");
+      const expiryDate = row.getValue("expiryDate") as Date | null;
       return (
         <div>
           {expiryDate

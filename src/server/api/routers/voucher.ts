@@ -48,6 +48,7 @@ export const voucherRouter = createTRPCRouter({
       z.object({
         voucherId: z.string().optional(),
         referralCode: z.string().optional(),
+        purchaseAmount: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -83,6 +84,14 @@ export const voucherRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Voucher sudah mencapai batas klaim maksimum",
+        });
+      }
+
+      // Check minimum purchase requirement
+      if (voucher.minimumPurchase && input.purchaseAmount && input.purchaseAmount < voucher.minimumPurchase) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Minimum pembelian untuk voucher ini adalah Rp ${voucher.minimumPurchase.toLocaleString()}`,
         });
       }
 
@@ -183,6 +192,8 @@ export const voucherRouter = createTRPCRouter({
         discountType: z.enum(["PERCENT", "CASH"]),
         referralCode: z.string().optional(),
         amount: z.number().min(1, "Amount must be at least 1"),
+        minimumPurchase: z.number().min(0).optional(),
+        allowStack: z.boolean().optional(),
         expiryDate: z.date().nullable().optional(),
       }),
     )
@@ -205,6 +216,8 @@ export const voucherRouter = createTRPCRouter({
         discountType: z.enum(["PERCENT", "CASH"]),
         referralCode: z.string().optional(),
         amount: z.number().min(1, "Amount must be at least 1"),
+        minimumPurchase: z.number().min(0).optional(),
+        allowStack: z.boolean().optional(),
         isActive: z.boolean(),
         expiryDate: z.date().nullable().optional(),
       }),
@@ -235,4 +248,6 @@ export const voucherRouter = createTRPCRouter({
       });
     },
   ),
+
+
 });

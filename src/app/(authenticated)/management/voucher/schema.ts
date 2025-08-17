@@ -8,6 +8,8 @@ export const voucherSchema = z.object({
   discountType: z.enum(["PERCENT", "CASH"]),
   referralCode: z.string().nullable(),
   amount: z.number(),
+  minimumPurchase: z.number().nullable(),
+  allowStack: z.boolean(),
   isActive: z.boolean(),
   expiryDate: z.date().nullable(),
   createdAt: z.date(),

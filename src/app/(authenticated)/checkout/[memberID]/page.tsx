@@ -95,12 +95,14 @@ export default function SubscriptionPage({
   const [selectedSales, setSelectedSales] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("qr");
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
-  const [selectedVoucher, setSelectedVoucher] = useState<{
+  const [selectedVouchers, setSelectedVouchers] = useState<{
     id: string;
     name: string;
     amount: number;
     discountType: "PERCENT" | "CASH";
-  } | null>(null);
+    minimumPurchase?: number | null;
+    allowStack?: boolean;
+  }[]>([]);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -115,13 +117,19 @@ export default function SubscriptionPage({
     if (!selectedPackageDetails) return 0;
 
     let total = selectedPackageDetails.price;
-    if (selectedVoucher) {
-      if (selectedVoucher.discountType === "PERCENT") {
-        total = total - (total * selectedVoucher.amount) / 100;
-      } else {
-        total = total - selectedVoucher.amount;
+    
+    // Apply all vouchers
+    selectedVouchers.forEach(voucher => {
+      // Check minimum purchase requirement
+      if (!voucher.minimumPurchase || selectedPackageDetails.price >= voucher.minimumPurchase) {
+        if (voucher.discountType === "PERCENT") {
+          total = total - (total * voucher.amount) / 100;
+        } else {
+          total = total - voucher.amount;
+        }
       }
-    }
+    });
+    
     // Ensure total is not negative
     return Math.max(0, total);
   };
@@ -185,11 +193,14 @@ export default function SubscriptionPage({
         }
       }
 
-      if (selectedVoucher) {
-        queryParams.set("voucherId", selectedVoucher.id);
-        queryParams.set("voucherName", selectedVoucher.name);
-        queryParams.set("voucherAmount", selectedVoucher.amount.toString());
-        queryParams.set("voucherDiscountType", selectedVoucher.discountType);
+      if (selectedVouchers.length > 0) {
+        // For QRIS, we'll pass the first voucher for compatibility
+        // In a full implementation, you might want to pass all vouchers
+        const firstVoucher = selectedVouchers[0];
+        queryParams.set("voucherId", firstVoucher.id);
+        queryParams.set("voucherName", firstVoucher.name);
+        queryParams.set("voucherAmount", firstVoucher.amount.toString());
+        queryParams.set("voucherDiscountType", firstVoucher.discountType);
       }
 
       toast.info("Proceeding to payment validation...");
@@ -713,14 +724,16 @@ export default function SubscriptionPage({
                     className="w-full"
                     onClick={() => setIsVoucherModalOpen(true)}
                   >
-                    {selectedVoucher ? (
+                    {selectedVouchers.length > 0 ? (
                       <div className="flex w-full items-center justify-between">
                         <span>
-                          {selectedVoucher.name} (
-                          {selectedVoucher.discountType === "PERCENT"
-                            ? `${selectedVoucher.amount}% off`
-                            : `Rp ${selectedVoucher.amount.toLocaleString()} off`}
-                          )
+                          {selectedVouchers.length === 1
+                            ? `${selectedVouchers[0].name} (${
+                                selectedVouchers[0].discountType === "PERCENT"
+                                  ? `${selectedVouchers[0].amount}% off`
+                                  : `Rp ${selectedVouchers[0].amount.toLocaleString()} off`
+                              })`
+                            : `${selectedVouchers.length} vouchers applied`}
                         </span>
                         <span className="text-green-600">Applied</span>
                       </div>
@@ -803,16 +816,20 @@ export default function SubscriptionPage({
                           </span>
                         </div>
 
-                        {selectedVoucher && (
+                        {selectedVouchers.length > 0 && (
                           <>
-                            <div className="flex justify-between text-green-600">
-                              <span>Discount:</span>
-                              <span>
-                                {selectedVoucher.discountType === "PERCENT"
-                                  ? `${selectedVoucher.amount}%`
-                                  : `Rp ${selectedVoucher.amount.toLocaleString()}`}
-                              </span>
-                            </div>
+                            {selectedVouchers.map((voucher, index) => (
+                              <div key={voucher.id} className="flex justify-between text-green-600">
+                                <span>
+                                  {selectedVouchers.length > 1 ? `Voucher ${index + 1}:` : "Discount:"}
+                                </span>
+                                <span>
+                                  {voucher.discountType === "PERCENT"
+                                    ? `${voucher.amount}%`
+                                    : `Rp ${voucher.amount.toLocaleString()}`}
+                                </span>
+                              </div>
+                            ))}
                           </>
                         )}
 
@@ -866,10 +883,9 @@ export default function SubscriptionPage({
       <VoucherModal
         isOpen={isVoucherModalOpen}
         onClose={() => setIsVoucherModalOpen(false)}
-        onVoucherApplied={(voucher) =>
-          setSelectedVoucher(voucher.id ? voucher : null)
-        }
-        currentVoucher={selectedVoucher || undefined}
+        onVoucherApplied={(vouchers) => setSelectedVouchers(vouchers)}
+        currentVouchers={selectedVouchers}
+        packagePrice={selectedPackageDetails?.price || 0}
       />
     </>
   );

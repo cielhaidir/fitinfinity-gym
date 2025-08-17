@@ -410,6 +410,8 @@ model Voucher {
     discountType DiscountType
     referralCode String? // Optional referral code, only used for REFERRAL type
     amount       Int // Amount of discount (in percentage or cash value)
+    minimumPurchase Int?        @default(0) // Minimum purchase amount required to use this voucher
+    allowStack   Boolean        @default(false) // Allow using multiple vouchers at the same time
     isActive     Boolean        @default(true)
     expiryDate   DateTime? // Optional expiry date for the voucher
     createdAt    DateTime       @default(now())

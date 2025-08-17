@@ -22,6 +22,8 @@ export default function VoucherPage() {
     type: "GENERAL",
     discountType: "CASH",
     amount: 0,
+    minimumPurchase: 0,
+    allowStack: false,
     isActive: true,
   });
   const [search, setSearch] = useState("");
@@ -57,6 +59,8 @@ export default function VoucherPage() {
         type: "GENERAL",
         discountType: "CASH",
         amount: 0,
+        minimumPurchase: 0,
+        allowStack: false,
         isActive: true,
       });
     },
@@ -103,12 +107,12 @@ export default function VoucherPage() {
     if (isEditMode && selectedVoucher) {
       setSelectedVoucher((prev) => ({
         ...prev!,
-        [name]: value,
+        [name]: name === "allowStack" ? value === "true" : value,
       }));
     } else {
       setNewVoucher((prev) => ({
         ...prev,
-        [name]: value,
+        [name]: name === "allowStack" ? value === "true" : value,
       }));
     }
   };
@@ -126,6 +130,8 @@ export default function VoucherPage() {
           discountType: selectedVoucher.discountType,
           referralCode: selectedVoucher.referralCode ?? undefined,
           amount: Number(selectedVoucher.amount),
+          minimumPurchase: Number(selectedVoucher.minimumPurchase) || undefined,
+          allowStack: selectedVoucher.allowStack,
           isActive: selectedVoucher.isActive,
           expiryDate: selectedVoucher.expiryDate ?? undefined,
         });
@@ -137,6 +143,8 @@ export default function VoucherPage() {
           discountType: newVoucher.discountType!,
           referralCode: newVoucher.referralCode ?? undefined,
           amount: Number(newVoucher.amount),
+          minimumPurchase: Number(newVoucher.minimumPurchase) || undefined,
+          allowStack: newVoucher.allowStack ?? false,
           expiryDate: newVoucher.expiryDate ?? undefined,
         });
       }
