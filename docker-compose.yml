@@ -64,6 +64,7 @@
         - /development/data-fit/assets/profile:/app/public/assets/profile
         - /development/data-fit/assets/PT:/app/public/assets/PT
         - /development/data-fit/assets/exercise:/app/public/assets/exercise
+        - /development/data-fit/logs:/app/logs
 
       networks:
         - fitinfinity-network

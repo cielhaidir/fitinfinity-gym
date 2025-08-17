@@ -179,7 +179,7 @@ export const memberRouter = createTRPCRouter({
             orderBy: {
               startDate: "desc", // Replace with a valid field from SubscriptionOrderByWithRelationInput
             },
-            take: 1,
+            // take: 1,
           },
         },
       });
