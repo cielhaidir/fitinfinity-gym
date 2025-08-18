@@ -8,21 +8,22 @@ import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLi
 
 // Helper function to check if user has active membership
 async function checkActiveMembership(db: any, userId: string) {
-  const existingMembership = await db.membership.findUnique({
-    where: { 
+const existingActiveSubscription = await db.subscription.findFirst({
+  where: {
+    isActive: true,
+    member: {
       userId: userId,
-      isActive: true
     },
-  });
-
-  if (!existingMembership) {
+  },
+});
+  if (!existingActiveSubscription) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Active membership required to use AI features. Please contact the gym to activate your membership.",
     });
   }
 
-  return existingMembership;
+  return existingActiveSubscription;
 }
 
 // Note: Use 'processImage' endpoint for direct AI image analysis (recommended)

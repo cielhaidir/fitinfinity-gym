@@ -1197,23 +1197,7 @@ export const subscriptionRouter = createTRPCRouter({
             },
           });
         }
-
-        // Deactivate old membership if no other active subscriptions
-        const remainingSubscriptions = await tx.subscription.count({
-          where: {
-            memberId: subscription.memberId,
-            isActive: true,
-            id: { not: input.subscriptionId },
-          },
-        });
-
-        if (remainingSubscriptions === 0) {
-          await tx.membership.update({
-            where: { id: subscription.memberId },
-            data: { isActive: false },
-          });
-        }
-
+        
         return updatedSubscription;
       });
     }),

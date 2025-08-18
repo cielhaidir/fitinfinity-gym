@@ -61,11 +61,7 @@ export const memberUcRouter = createTRPCRouter({
           endDate: {
             gte: now,
           },
-          payments: {
-            some: {
-              status: "SUCCESS",
-            },
-          },
+          isActive: true,
         },
         include: {
           package: true,
@@ -79,9 +75,6 @@ export const memberUcRouter = createTRPCRouter({
             },
           },
           payments: {
-            where: {
-              status: "SUCCESS",
-            },
             orderBy: {
               createdAt: "desc",
             },
