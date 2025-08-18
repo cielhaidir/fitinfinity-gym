@@ -10,6 +10,8 @@ import { Toaster } from "sonner";
 import { toast } from "sonner";
 import { useRBAC } from "@/hooks/useRBAC";
 import { Menu } from "@/lib/menu";
+import { RFIDProvider } from "../hooks/useRFIDCheckIn";
+import { GlobalCheckInModal } from "../rfid/GlobalCheckInModal";
 
 interface AuthenticatedLayoutProps {
   children: ReactNode;
@@ -101,16 +103,19 @@ if (
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <AppNavbar />
-        <Toaster position="top-center" richColors expand={false} />
-        <main className="flex flex-1 flex-col gap-4 bg-muted/5 p-4">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <RFIDProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <AppNavbar />
+          <Toaster position="top-center" richColors expand={false} />
+          <main className="flex flex-1 flex-col gap-4 bg-muted/5 p-4">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+      <GlobalCheckInModal />
+    </RFIDProvider>
   );
 }
 

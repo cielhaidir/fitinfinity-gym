@@ -507,4 +507,26 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
+  findByRFID: protectedProcedure
+    .input(z.object({ rfidNumber: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const member = await ctx.db.membership.findFirst({
+        where: {
+          rfidNumber: input.rfidNumber,
+          isActive: true
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      return member;
+    }),
+
 });
