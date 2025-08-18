@@ -1133,35 +1133,42 @@ export const subscriptionRouter = createTRPCRouter({
         });
       }
 
-      // Check if target user already has a membership
+      // // Check if target user already has a membership
       const existingMembership = await ctx.db.membership.findFirst({
         where: { userId: input.newUserId },
       });
 
-      if (existingMembership) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Target user already has a membership",
-        });
-      }
+      // if (existingMembership) {
+      //   throw new TRPCError({
+      //     code: "CONFLICT",
+      //     message: "Target user already has a membership",
+      //   });
+      // }
 
       return ctx.db.$transaction(async (tx) => {
         // Create new membership for the target user
-        const newMembership = await tx.membership.create({
-          data: {
-            userId: input.newUserId,
-            registerDate: new Date(),
-            isActive: true,
-            createdBy: ctx.session.user.id,
-          },
-        });
+
+          let membershipId: string;
+
+          if (!existingMembership) {
+            const newMembership = await tx.membership.create({
+              data: {
+                userId: input.newUserId,
+                registerDate: new Date(),
+                isActive: true,
+                createdBy: ctx.session.user.id,
+              },
+            });
+            membershipId = newMembership.id;
+          } else {
+            membershipId = existingMembership.id;
+          }
+
 
         // Update the subscription to point to the new membership
         const updatedSubscription = await tx.subscription.update({
           where: { id: input.subscriptionId },
-          data: {
-            memberId: newMembership.id,
-          },
+          data: { memberId: membershipId },
           include: {
             member: {
               include: {

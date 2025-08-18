@@ -244,9 +244,9 @@ export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, inpu
     writeAuditLog(`[AUDIT] ${JSON.stringify(auditEntry)}`);
     
     // Log input data for audit trail in development (be careful with sensitive data)
-    if (process.env.NODE_ENV === 'development') {
-      writeAuditLog(`[AUDIT] Input data for ${path}: ${JSON.stringify(input, null, 2)}`);
-    }
+   
+    writeAuditLog(`[AUDIT] Input data for ${path}: ${JSON.stringify(input, null, 2)}`);
+    
 
     try {
       const result = await next();
