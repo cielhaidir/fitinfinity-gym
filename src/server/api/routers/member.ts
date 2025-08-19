@@ -128,19 +128,19 @@ export const memberRouter = createTRPCRouter({
       const whereClause = input.search
         ? input.searchColumn?.startsWith("user.")
           ? {
-              user: {
-                [input.searchColumn.replace("user.", "")]: {
-                  contains: input.search,
-                  mode: "insensitive" as const,
-                }
-              },
-            }
-          : {
-              [input.searchColumn ?? "rfidNumber"]: {
+            user: {
+              [input.searchColumn.replace("user.", "")]: {
                 contains: input.search,
                 mode: "insensitive" as const,
-              },
-            }
+              }
+            },
+          }
+          : {
+            [input.searchColumn ?? "rfidNumber"]: {
+              contains: input.search,
+              mode: "insensitive" as const,
+            },
+          }
         : {};
 
       console.log("MEMBER SEARCH whereClause:", JSON.stringify(whereClause, null, 2));
@@ -210,18 +210,18 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
-    getByUserid: permissionProtectedProcedure(["show:member"])
-      .input(z.object({ userId: z.string() }))
-      .query(async ({ ctx, input }) => {
-        return ctx.db.membership.findFirst({
-          where: { userId: input.userId },
-          include: {
-            user: true,
-            subscriptions: true,
-          },
-        });
-      }),
-      
+  getByUserid: permissionProtectedProcedure(["show:member"])
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.membership.findFirst({
+        where: { userId: input.userId },
+        include: {
+          user: true,
+          subscriptions: true,
+        },
+      });
+    }),
+
   update: permissionProtectedProcedure(["update:member"])
     .input(
       z.object({
@@ -236,7 +236,7 @@ export const memberRouter = createTRPCRouter({
             disconnect: z.boolean().optional(),
           })
           .optional(),
-          personalTrainer: z.any(),
+        personalTrainer: z.any(),
         user: z
           .object({
             name: z.string().min(1),
@@ -308,15 +308,15 @@ export const memberRouter = createTRPCRouter({
           fc: input.fc,
           user: input.user
             ? {
-                update: {
-                  name: input.user.name,
-                  email: input.user.email,
-                  address: input.user.address ?? null,
-                  phone: input.user.phone ?? null,  
-                  birthDate: input.user.birthDate ?? null,
-                  idNumber: input.user.idNumber ?? null,
-                },
-              }
+              update: {
+                name: input.user.name,
+                email: input.user.email,
+                address: input.user.address ?? null,
+                phone: input.user.phone ?? null,
+                birthDate: input.user.birthDate ?? null,
+                idNumber: input.user.idNumber ?? null,
+              },
+            }
             : undefined,
         },
         include: {
@@ -367,7 +367,11 @@ export const memberRouter = createTRPCRouter({
       return await ctx.db.membership.findFirst({
         where: {
           userId: ctx.session.user.id,
-          isActive: true,
+          subscriptions: {
+            some: {
+              isActive: true
+            }
+          }
         },
       });
     },
@@ -513,7 +517,7 @@ export const memberRouter = createTRPCRouter({
       const member = await ctx.db.membership.findFirst({
         where: {
           rfidNumber: input.rfidNumber,
-          isActive: true
+
         },
         include: {
           user: {
