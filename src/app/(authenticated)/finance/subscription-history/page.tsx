@@ -5,7 +5,8 @@ import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Receipt, Package, ExternalLink, CreditCard, FileText, Edit3, MoreHorizontal } from "lucide-react";
+import { Receipt, Package, ExternalLink, CreditCard, FileText, Edit3, MoreHorizontal, Files } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import { DataTableColumnHeader } from "@/components/datatable/data-table-column-
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { InvoiceGenerator } from "./components/invoice-generator";
+import { CombinedInvoiceGenerator } from "./components/combined-invoice-generator";
 import {
   Select,
   SelectContent,
@@ -54,6 +56,10 @@ export default function SubscriptionHistoryPage() {
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [selectedSalesPerson, setSelectedSalesPerson] = useState<string>("");
   const [selectedSalesType, setSelectedSalesType] = useState<string>("");
+  
+  // Multi-select state
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [isCombinedInvoiceModalOpen, setIsCombinedInvoiceModalOpen] = useState(false);
 
   // Query for getting all subscriptions with payment details
   const { data: subscriptions, isLoading, refetch } =
@@ -115,6 +121,58 @@ export default function SubscriptionHistoryPage() {
     setIsInvoiceModalOpen(true);
   };
 
+  // Multi-select helper functions
+  const handleRowSelect = (rowId: string, isSelected: boolean) => {
+    const newSelectedRows = new Set(selectedRows);
+    if (isSelected) {
+      newSelectedRows.add(rowId);
+    } else {
+      newSelectedRows.delete(rowId);
+    }
+    setSelectedRows(newSelectedRows);
+  };
+
+  const handleSelectAll = (isSelected: boolean) => {
+    if (isSelected) {
+      const allRowIds = subscriptions?.items?.map((item) => item.id) || [];
+      setSelectedRows(new Set(allRowIds));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const generateCombinedInvoice = () => {
+    if (selectedRows.size === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select at least one transaction to generate a combined invoice.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const selectedSubscriptions = subscriptions?.items?.filter((item) =>
+      selectedRows.has(item.id)
+    ) || [];
+
+    if (selectedSubscriptions.length === 0) {
+      toast({
+        title: "Error",
+        description: "Selected transactions not found.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set the selected data for combined invoice generation
+    setSelectedInvoiceData(selectedSubscriptions);
+    setIsCombinedInvoiceModalOpen(true);
+  };
+
+  const clearSelection = () => {
+    setSelectedRows(new Set());
+  };
+
   // Navigate to payment confirmation page for online payments
   const goToPaymentStatus = (orderReference: string, memberId: string) => {
     if (memberId) {
@@ -164,7 +222,8 @@ export default function SubscriptionHistoryPage() {
     // console.log('Selected subs', selectedSubscription)
     // If "none" is selected, pass null values
     const salesId = selectedSalesPerson === "none" ? null : selectedSalesPerson;
-    const salesType = selectedSalesPerson === "none" ? null : selectedSalesType;
+    const validSalesType = selectedSalesType === "PersonalTrainer" || selectedSalesType === "FC" ? selectedSalesType : null;
+    const salesType = selectedSalesPerson === "none" ? null : validSalesType;
 
     updateSalesMutation.mutate({
       subscriptionId: selectedSubscription.subscriptionId ,
@@ -174,6 +233,30 @@ export default function SubscriptionHistoryPage() {
   };
 
   const columns: ColumnDef<any>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => {
+            table.toggleAllPageRowsSelected(!!value);
+            handleSelectAll(!!value);
+          }}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedRows.has(row.original.id)}
+          onCheckedChange={(value) => {
+            handleRowSelect(row.original.id, !!value);
+          }}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: "member.user.name",
       header: ({ column }) => (
@@ -445,8 +528,8 @@ export default function SubscriptionHistoryPage() {
         </Card>
       </div>
 
-      {/* Status Filter */}
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center">
+      {/* Status Filter and Multi-select Actions */}
+      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center space-x-2">
           <label className="text-sm font-medium">Status:</label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -462,6 +545,32 @@ export default function SubscriptionHistoryPage() {
               <SelectItem value="DECLINED">Declined</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        
+        {/* Multi-select Actions */}
+        <div className="flex items-center gap-2">
+          {selectedRows.size > 0 && (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {selectedRows.size} selected
+              </span>
+              <Button
+                onClick={generateCombinedInvoice}
+                className="flex items-center gap-2"
+                disabled={selectedRows.size === 0}
+              >
+                <Files className="h-4 w-4" />
+                Generate Combined Invoice
+              </Button>
+              <Button
+                variant="outline"
+                onClick={clearSelection}
+                className="flex items-center gap-2"
+              >
+                Clear Selection
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -488,6 +597,16 @@ export default function SubscriptionHistoryPage() {
           setSelectedInvoiceData(null);
         }}
         invoiceData={selectedInvoiceData}
+      />
+
+      {/* Combined Invoice Generator Modal */}
+      <CombinedInvoiceGenerator
+        isOpen={isCombinedInvoiceModalOpen}
+        onClose={() => {
+          setIsCombinedInvoiceModalOpen(false);
+          setSelectedInvoiceData(null);
+        }}
+        invoiceData={Array.isArray(selectedInvoiceData) ? selectedInvoiceData : null}
       />
 
       {/* Edit Sales Modal */}
