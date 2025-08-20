@@ -43,32 +43,22 @@ export const voucherRouter = createTRPCRouter({
       );
     }),
 
-  claim: permissionProtectedProcedure(["claim:voucher"])
+  claimVoucher: permissionProtectedProcedure(["claim:voucher"])
     .input(
       z.object({
-        voucherId: z.string().optional(),
-        referralCode: z.string().optional(),
+        voucherId: z.string(),
         purchaseAmount: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { voucherId, referralCode } = input;
+      const { voucherId } = input;
 
       // Find the voucher first
       const voucher = await ctx.db.voucher.findFirst({
         where: {
-          AND: [
-            {
-              OR: [
-                { id: voucherId },
-                { referralCode: referralCode, type: VoucherType.REFERRAL },
-              ],
-            },
-            { isActive: true },
-            {
-              OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
-            },
-          ],
+          id: voucherId,
+          isActive: true,
+          OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
         },
       });
 
@@ -92,6 +82,90 @@ export const voucherRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Minimum pembelian untuk voucher ini adalah Rp ${voucher.minimumPurchase.toLocaleString()}`,
+        });
+      }
+
+      // Check if user has already claimed this voucher
+      const existingClaim = await ctx.db.voucherClaim.findFirst({
+        where: {
+          memberId: ctx.user.id,
+          voucherId: voucher.id,
+        },
+      });
+
+      if (existingClaim) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Anda sudah mengklaim voucher ini sebelumnya",
+        });
+      }
+
+      // Return the complete voucher information without creating VoucherClaim
+      return {
+        id: voucher.id,
+        name: voucher.name,
+        amount: voucher.amount,
+        discountType: voucher.discountType,
+        minimumPurchase: voucher.minimumPurchase,
+        allowStack: voucher.allowStack,
+      };
+    }),
+
+  claimReferralCode: permissionProtectedProcedure(["claim:voucher"])
+    .input(
+      z.object({
+        referralCode: z.string(),
+        purchaseAmount: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { referralCode } = input;
+
+      // Find the voucher by referral code
+      const voucher = await ctx.db.voucher.findFirst({
+        where: {
+          referralCode: referralCode,
+          type: VoucherType.REFERRAL,
+          isActive: true,
+          OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+        },
+      });
+
+      if (!voucher) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Kode referral tidak ditemukan atau sudah tidak aktif",
+        });
+      }
+
+      // Check if voucher has reached max claim
+      if (voucher.maxClaim <= 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Voucher sudah mencapai batas klaim maksimum",
+        });
+      }
+
+      // Check minimum purchase requirement
+      if (voucher.minimumPurchase && input.purchaseAmount && input.purchaseAmount < voucher.minimumPurchase) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Minimum pembelian untuk voucher ini adalah Rp ${voucher.minimumPurchase.toLocaleString()}`,
+        });
+      }
+
+      // Check if user has already claimed this voucher
+      const existingClaim = await ctx.db.voucherClaim.findFirst({
+        where: {
+          memberId: ctx.user.id,
+          voucherId: voucher.id,
+        },
+      });
+
+      if (existingClaim) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Anda sudah mengklaim voucher ini sebelumnya",
         });
       }
 

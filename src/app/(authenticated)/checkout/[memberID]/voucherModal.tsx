@@ -48,9 +48,10 @@ export function VoucherModal({
     isActive: true,
   });
 
-  const claimVoucherMutation = api.voucher.claim.useMutation({
-    onSuccess: (voucher, variables) => {
-      // console.log("Voucher claim successful:", { voucher, variables });
+  // Single mutation using the new separate endpoints
+  const claimVoucherMutation = api.voucher.claimVoucher.useMutation({
+    onSuccess: (voucher: any) => {
+      console.log("General voucher claim successful:", voucher);
       
       const newVoucher = {
         id: voucher.id,
@@ -61,41 +62,66 @@ export function VoucherModal({
         allowStack: voucher.allowStack,
       };
 
-      // // Log what type of voucher was applied
-      // if (variables.referralCode) {
-      //   console.log("Applied referral code voucher:", variables.referralCode, newVoucher);
-      // } else if (variables.voucherId) {
-      //   console.log("Applied general voucher:", variables.voucherId, newVoucher);
-      // }
-
-      // Check if voucher allows stacking
-      if (newVoucher.allowStack && currentVouchers.length > 0) {
-        // Add to existing vouchers
-        const updatedVouchers = [...currentVouchers, newVoucher];
-        onVoucherApplied(updatedVouchers);
-        toast.success("Voucher berhasil ditambahkan");
-      } else if (currentVouchers.length === 0) {
-        // First voucher
-        onVoucherApplied([newVoucher]);
-        toast.success("Voucher berhasil diapply");
-      } else {
-        // Replace existing vouchers if stacking not allowed
-        onVoucherApplied([newVoucher]);
-        toast.success("Voucher berhasil diapply (voucher sebelumnya telah diganti)");
-      }
-      
-      // Clear referral code input if it was a referral code
-      if (variables.referralCode) {
-        setReferralCode("");
-      }
-      
-      onClose();
+      applyVoucherToList(newVoucher);
     },
-    onError: (error) => {
-      console.error("Voucher claim error:", error);
+    onError: (error: any) => {
+      console.error("General voucher claim error:", error);
       toast.error(error.message);
     },
   });
+
+  const claimReferralCodeMutation = api.voucher.claimReferralCode.useMutation({
+    onSuccess: (voucher: any) => {
+      console.log("Referral code claim successful:", voucher);
+      
+      const newVoucher = {
+        id: voucher.id,
+        name: voucher.name,
+        amount: voucher.amount,
+        discountType: voucher.discountType,
+        minimumPurchase: voucher.minimumPurchase,
+        allowStack: voucher.allowStack,
+      };
+
+      applyVoucherToList(newVoucher);
+      setReferralCode(""); // Clear referral code input
+    },
+    onError: (error: any) => {
+      console.error("Referral code claim error:", error);
+      toast.error(error.message);
+    },
+  });
+
+  // Loading state for referral code
+  const [isApplyingReferral, setIsApplyingReferral] = useState(false);
+
+  // Common function to apply voucher to the list
+  const applyVoucherToList = (newVoucher: {
+    id: string;
+    name: string;
+    amount: number;
+    discountType: "PERCENT" | "CASH";
+    minimumPurchase?: number | null;
+    allowStack?: boolean;
+  }) => {
+    // Check if voucher allows stacking
+    if (newVoucher.allowStack && currentVouchers.length > 0) {
+      // Add to existing vouchers
+      const updatedVouchers = [...currentVouchers, newVoucher];
+      onVoucherApplied(updatedVouchers);
+      toast.success("Voucher berhasil ditambahkan");
+    } else if (currentVouchers.length === 0) {
+      // First voucher
+      onVoucherApplied([newVoucher]);
+      toast.success("Voucher berhasil diapply");
+    } else {
+      // Replace existing vouchers if stacking not allowed
+      onVoucherApplied([newVoucher]);
+      toast.success("Voucher berhasil diapply (voucher sebelumnya telah diganti)");
+    }
+    
+    onClose();
+  };
 
   const applyVoucher = async (voucher: {
     id: string;
@@ -135,6 +161,26 @@ export function VoucherModal({
       });
     } catch (error) {
       // Error is handled by the mutation
+    }
+  };
+
+  const applyReferralCode = async () => {
+    if (!referralCode.trim()) {
+      toast.error("Silakan masukkan kode referral");
+      return;
+    }
+
+    setIsApplyingReferral(true);
+    try {
+      console.log("Applying referral code:", referralCode);
+      await claimReferralCodeMutation.mutateAsync({
+        referralCode: referralCode.trim(),
+        purchaseAmount: packagePrice
+      });
+    } catch (error) {
+      // Error is handled by the mutation
+    } finally {
+      setIsApplyingReferral(false);
     }
   };
 
@@ -283,17 +329,10 @@ export function VoucherModal({
               />
               <Button
                 variant="outline"
-                onClick={() => {
-                  if (referralCode.trim()) {
-                    console.log("Applying referral code:", referralCode);
-                    claimVoucherMutation.mutateAsync({
-                      referralCode: referralCode.trim(),
-                      purchaseAmount: packagePrice
-                    });
-                  }
-                }}
+                onClick={applyReferralCode}
+                disabled={isApplyingReferral}
               >
-                Apply
+                {isApplyingReferral ? "Applying..." : "Apply"}
               </Button>
             </div>
           </div>
