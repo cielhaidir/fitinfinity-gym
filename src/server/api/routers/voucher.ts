@@ -95,12 +95,14 @@ export const voucherRouter = createTRPCRouter({
         });
       }
 
-      // Return the voucher information without creating VoucherClaim
+      // Return the complete voucher information without creating VoucherClaim
       return {
         id: voucher.id,
         name: voucher.name,
         amount: voucher.amount,
         discountType: voucher.discountType,
+        minimumPurchase: voucher.minimumPurchase,
+        allowStack: voucher.allowStack,
       };
     }),
 
@@ -166,6 +168,8 @@ export const voucherRouter = createTRPCRouter({
           name: result.name,
           amount: result.amount,
           discountType: result.discountType,
+          minimumPurchase: result.minimumPurchase,
+          allowStack: result.allowStack,
         };
       } catch (error) {
         throw new TRPCError({

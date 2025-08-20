@@ -49,7 +49,9 @@ export function VoucherModal({
   });
 
   const claimVoucherMutation = api.voucher.claim.useMutation({
-    onSuccess: (voucher) => {
+    onSuccess: (voucher, variables) => {
+      // console.log("Voucher claim successful:", { voucher, variables });
+      
       const newVoucher = {
         id: voucher.id,
         name: voucher.name,
@@ -58,6 +60,13 @@ export function VoucherModal({
         minimumPurchase: voucher.minimumPurchase,
         allowStack: voucher.allowStack,
       };
+
+      // // Log what type of voucher was applied
+      // if (variables.referralCode) {
+      //   console.log("Applied referral code voucher:", variables.referralCode, newVoucher);
+      // } else if (variables.voucherId) {
+      //   console.log("Applied general voucher:", variables.voucherId, newVoucher);
+      // }
 
       // Check if voucher allows stacking
       if (newVoucher.allowStack && currentVouchers.length > 0) {
@@ -74,9 +83,16 @@ export function VoucherModal({
         onVoucherApplied([newVoucher]);
         toast.success("Voucher berhasil diapply (voucher sebelumnya telah diganti)");
       }
+      
+      // Clear referral code input if it was a referral code
+      if (variables.referralCode) {
+        setReferralCode("");
+      }
+      
       onClose();
     },
     onError: (error) => {
+      console.error("Voucher claim error:", error);
       toast.error(error.message);
     },
   });
@@ -112,6 +128,7 @@ export function VoucherModal({
         }
       }
 
+      console.log("Applying general voucher:", voucher);
       await claimVoucherMutation.mutateAsync({
         voucherId: voucher.id,
         purchaseAmount: packagePrice
@@ -267,9 +284,10 @@ export function VoucherModal({
               <Button
                 variant="outline"
                 onClick={() => {
-                  if (referralCode) {
+                  if (referralCode.trim()) {
+                    console.log("Applying referral code:", referralCode);
                     claimVoucherMutation.mutateAsync({
-                      referralCode,
+                      referralCode: referralCode.trim(),
                       purchaseAmount: packagePrice
                     });
                   }
