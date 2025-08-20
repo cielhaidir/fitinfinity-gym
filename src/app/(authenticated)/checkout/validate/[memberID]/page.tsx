@@ -46,16 +46,9 @@ function CheckoutValidateContent() {
   }
 
   // Extract details from query parameters with null checks
-  const packageId = searchParams?.get("packageId") || "";
-  const packageName = searchParams?.get("packageName") || "N/A";
-  const packagePrice = searchParams?.get("packagePrice") || "0";
-  const packageType = searchParams?.get("packageType") || "N/A";
-  const duration = searchParams?.get("duration") || "0";
-  const sessions = searchParams?.get("sessions") || "0";
+  const cartParam = searchParams?.get("cart");
   const totalPayment = searchParams?.get("totalPayment") || "0";
   const paymentMethod = searchParams?.get("paymentMethod") || "N/A";
-  const trainerId = searchParams?.get("trainerId");
-  const trainerName = searchParams?.get("trainerName");
   const voucherId = searchParams?.get("voucherId");
   const voucherName = searchParams?.get("voucherName");
   const voucherAmount = searchParams?.get("voucherAmount");
@@ -63,6 +56,48 @@ function CheckoutValidateContent() {
   const salesId = searchParams?.get("salesId");
   const salesType = searchParams?.get("salesType");
   const salesName = searchParams?.get("salesName");
+
+  // Parse cart data for multi-item or fallback to single-item for backward compatibility
+  let cartItems: Array<{
+    type: string;
+    packageId: string;
+    name: string;
+    price: number;
+    trainerId?: string;
+    sessions?: number;
+    day?: number;
+  }> = [];
+
+  if (cartParam) {
+    try {
+      cartItems = JSON.parse(decodeURIComponent(cartParam));
+    } catch (error) {
+      console.error("Failed to parse cart data:", error);
+    }
+  }
+
+  // Fallback to single-item mode for backward compatibility
+  if (cartItems.length === 0) {
+    const packageId = searchParams?.get("packageId") || "";
+    const packageName = searchParams?.get("packageName") || "N/A";
+    const packagePrice = searchParams?.get("packagePrice") || "0";
+    const packageType = searchParams?.get("packageType") || "N/A";
+    const duration = searchParams?.get("duration") || "0";
+    const sessions = searchParams?.get("sessions") || "0";
+    const trainerId = searchParams?.get("trainerId");
+
+    if (packageId) {
+      cartItems = [{
+        type: packageType,
+        packageId: packageId,
+        name: packageName,
+        price: parseFloat(packagePrice),
+        trainerId: trainerId || undefined,
+        sessions: packageType === "trainer" || packageType === "group" ? parseInt(sessions) : undefined,
+        day: packageType === "gym" ? parseInt(duration) : undefined,
+      }];
+    }
+  }
 
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,7 +116,7 @@ function CheckoutValidateContent() {
       toast.error("Please upload your proof of payment.");
       return;
     }
-    if (!memberID || !packageId) {
+    if (!memberID || cartItems.length === 0) {
       toast.error("Missing necessary information to proceed.");
       return;
     }
@@ -116,22 +151,23 @@ function CheckoutValidateContent() {
         throw new Error("File upload failed");
       }
 
-      // Step 2: Create PaymentValidation entry
-      await createPaymentValidation.mutateAsync({
-        memberId: memberID,
-        packageId: packageId,
-        trainerId: trainerId || undefined,
-        subsType: packageType,
-        duration: parseInt(duration, 10),
-        sessions:
-          packageType === "trainer" || packageType === "group" ? parseInt(sessions, 10) : undefined,
-        totalPayment: parseFloat(totalPayment),
-        paymentMethod: paymentMethod,
-        filePath: uploadResult.filePath,
-        voucherId: voucherId || undefined,
-        salesId: salesId || undefined,
-        salesType: salesType || undefined,
-      });
+      // Step 2: Create PaymentValidation entries for each cart item
+      for (const item of cartItems) {
+        await createPaymentValidation.mutateAsync({
+          memberId: memberID,
+          packageId: item.packageId,
+          trainerId: item.trainerId || undefined,
+          subsType: item.type,
+          duration: item.day || 0,
+          sessions: item.sessions || undefined,
+          totalPayment: item.price,
+          paymentMethod: paymentMethod,
+          filePath: uploadResult.filePath,
+          voucherId: voucherId || undefined,
+          salesId: salesId || undefined,
+          salesType: salesType || undefined,
+        });
+      }
 
       toast.success(
         "Proof of payment submitted successfully! Please wait for admin approval.",
@@ -175,36 +211,43 @@ function CheckoutValidateContent() {
                 <span>Member ID:</span>
                 <span>{memberID}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Package:</span>
-                <span>{packageName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Type:</span>
-                <span>
-                  {packageType === "gym"
-                    ? "Gym Membership"
-                    : packageType === "trainer"
-                    ? "Personal Training"
-                    : "Group Training"}
-                </span>
-              </div>
-              {(packageType === "trainer" || packageType === "group") && trainerName && (
-                <div className="flex justify-between">
-                  <span>Trainer:</span>
-                  <span>{trainerName}</span>
+              
+              {/* Cart Items */}
+              {cartItems.map((item, index) => (
+                <div key={index} className="border-b pb-2 mb-2 last:border-b-0">
+                  <div className="flex justify-between">
+                    <span>Package:</span>
+                    <span>{item.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Type:</span>
+                    <span>
+                      {item.type === "gym"
+                        ? "Gym Membership"
+                        : item.type === "trainer"
+                        ? "Personal Training"
+                        : "Group Training"}
+                    </span>
+                  </div>
+                  {item.trainerId && (
+                    <div className="flex justify-between">
+                      <span>Trainer ID:</span>
+                      <span>{item.trainerId}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Duration:</span>
+                    <span>
+                      {item.type === "gym" ? item.day : item.sessions} {item.type === "gym" ? "Days" : "Sessions"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Price:</span>
+                    <span>{formatCurrency(item.price)}</span>
+                  </div>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span>Duration:</span>
-                <span>
-                  {duration} {packageType === "gym" ? "Days" : "Sessions"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Price:</span>
-                <span>{formatCurrency(packagePrice)}</span>
-              </div>
+              ))}
+              
               {voucherName && (
                 <div className="flex justify-between text-green-600">
                   <span>Voucher: {voucherName}</span>

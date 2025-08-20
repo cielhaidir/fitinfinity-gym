@@ -31,6 +31,17 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { VoucherModal } from "./voucherModal";
 
+// Cart item type for multi-item checkout
+interface CartItem {
+  type: "gym" | "trainer" | "group";
+  packageId: string;
+  trainerId?: string;
+  name: string;
+  price: number;
+  day?: number;
+  sessions?: number;
+}
+
 export default function SubscriptionPage({
   params,
 }: {
@@ -103,8 +114,11 @@ export default function SubscriptionPage({
     minimumPurchase?: number | null;
     allowStack?: boolean;
   }[]>([]);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0] || "");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  
+  // Cart state for multi-item checkout
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   const selectedPackageDetails =
     subscriptionType === "gym"
@@ -113,15 +127,54 @@ export default function SubscriptionPage({
       ? trainerPackages?.find((p) => p.id === selectedPackage)
       : groupPackages?.find((p) => p.id === selectedPackage);
 
-  const calculateTotal = () => {
-    if (!selectedPackageDetails) return 0;
-
-    let total = selectedPackageDetails.price;
+  // Cart helper functions
+  const addToCart = (item: CartItem) => {
+    // Prevent duplicate gym membership
+    if (item.type === "gym" && cart.some(cartItem => cartItem.type === "gym")) {
+      toast.error("Only one gym membership can be added to cart");
+      return;
+    }
     
-    // Apply all vouchers
+    // Prevent duplicate items (same package and trainer combination)
+    const isDuplicate = cart.some(cartItem =>
+      cartItem.packageId === item.packageId &&
+      cartItem.trainerId === item.trainerId
+    );
+    
+    if (isDuplicate) {
+      toast.error("This package is already in your cart");
+      return;
+    }
+    
+    setCart(prev => [...prev, item]);
+    toast.success(`${item.name} added to cart`);
+    
+    // Clear current selections
+    setSelectedPackage("");
+    setSelectedTrainer("");
+  };
+
+  const removeFromCart = (index: number) => {
+    setCart(prev => prev.filter((_, i) => i !== index));
+    toast.success("Item removed from cart");
+  };
+
+  // Calculate cart subtotal
+  const calculateSubtotal = () => {
+    return cart.reduce((sum, item) => sum + item.price, 0);
+  };
+
+  // Calculate total with vouchers applied to cart subtotal
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    if (subtotal === 0) return 0;
+
+    let total = subtotal;
+    
+    // Apply all vouchers to the cart subtotal
     selectedVouchers.forEach(voucher => {
-      // Check minimum purchase requirement
-      if (!voucher.minimumPurchase || selectedPackageDetails.price >= voucher.minimumPurchase) {
+      // Check minimum purchase requirement against subtotal
+      if (!voucher.minimumPurchase || subtotal >= voucher.minimumPurchase) {
         if (voucher.discountType === "PERCENT") {
           total = total - (total * voucher.amount) / 100;
         } else {
@@ -135,53 +188,47 @@ export default function SubscriptionPage({
   };
 
   const l = async () => {
-    if (!selectedPackageDetails) {
-      toast.error("Please select a package.");
+    // Validate cart
+    if (cart.length === 0) {
+      toast.error("Please add at least one package to your cart.");
       return;
     }
-    if ((subscriptionType === "trainer" || subscriptionType === "group") && !hasActiveGymMembership) {
+
+    // Check if any trainer/group items exist and validate gym membership requirement
+    const hasTrainerOrGroup = cart.some(item => item.type === "trainer" || item.type === "group");
+    if (hasTrainerOrGroup && !hasActiveGymMembership) {
       toast.error("You need an active gym membership to purchase training sessions.");
       return;
     }
-    if ((subscriptionType === "trainer" || subscriptionType === "group") && !selectedTrainer) {
-      toast.error("Please select a personal trainer.");
+
+    // Validate that trainer/group items have trainerId
+    const invalidTrainerItems = cart.filter(item =>
+      (item.type === "trainer" || item.type === "group") && !item.trainerId
+    );
+    if (invalidTrainerItems.length > 0) {
+      toast.error("Please select a trainer for all training packages.");
       return;
     }
 
-    // Calculate end date based on package type and day value
     const memberStartDate = new Date(startDate);
-    const endDate = new Date(memberStartDate);
-
-    // Add days to start date for both package types
-    endDate.setDate(memberStartDate.getDate() + (selectedPackageDetails.day ?? 0));
 
     if (paymentMethod === "qris") {
       const queryParams = new URLSearchParams();
-      queryParams.set("packageId", selectedPackage);
-      queryParams.set("packageName", selectedPackageDetails.name);
-      queryParams.set("packagePrice", selectedPackageDetails.price.toString());
-      queryParams.set("packageType", subscriptionType);
-      queryParams.set(
-        "duration",
-        subscriptionType === "gym"
-          ? (selectedPackageDetails.day?.toString() ?? "0")
-          : (selectedPackageDetails.sessions?.toString() ?? "0"),
-      );
-      if (subscriptionType === "trainer" || subscriptionType === "group") {
-        queryParams.set(
-          "sessions",
-          selectedPackageDetails.sessions?.toString() ?? "0",
-        );
-      }
+      
+      // Send cart data for multi-item support
+      const cartData = cart.map(item => ({
+        type: item.type,
+        packageId: item.packageId,
+        name: item.name,
+        price: item.price,
+        trainerId: item.trainerId,
+        sessions: item.sessions,
+        day: item.day
+      }));
+      
+      queryParams.set("cart", encodeURIComponent(JSON.stringify(cartData)));
       queryParams.set("totalPayment", calculateTotal().toString());
       queryParams.set("paymentMethod", paymentMethod);
-      if ((subscriptionType === "trainer" || subscriptionType === "group") && selectedTrainer) {
-        queryParams.set("trainerId", selectedTrainer);
-        const trainerInfo = trainers?.find((t) => t.id === selectedTrainer);
-        if (trainerInfo?.user?.name) {
-          queryParams.set("trainerName", trainerInfo.user.name);
-        }
-      }
 
       // Add sales information
       if (selectedSales) {
@@ -193,68 +240,97 @@ export default function SubscriptionPage({
         }
       }
 
+      // Keep first voucher for backward compatibility
       if (selectedVouchers.length > 0) {
-        // For QRIS, we'll pass the first voucher for compatibility
-        // In a full implementation, you might want to pass all vouchers
         const firstVoucher = selectedVouchers[0];
-        queryParams.set("voucherId", firstVoucher.id);
-        queryParams.set("voucherName", firstVoucher.name);
-        queryParams.set("voucherAmount", firstVoucher.amount.toString());
-        queryParams.set("voucherDiscountType", firstVoucher.discountType);
+        if (firstVoucher) {
+          queryParams.set("voucherId", firstVoucher.id);
+          queryParams.set("voucherName", firstVoucher.name);
+          queryParams.set("voucherAmount", firstVoucher.amount.toString());
+          queryParams.set("voucherDiscountType", firstVoucher.discountType);
+        }
       }
 
       toast.info("Proceeding to payment validation...");
       router.push(`/checkout/validate/${memberID}?${queryParams.toString()}`);
     } else {
       setIsProcessingPayment(true);
+      const createdSubscriptions: string[] = [];
+      
       try {
-        // Create a unique order ID
+        // Create a unique order ID for all subscriptions
         const orderId = `FIT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         // Find selected sales person details
         const selectedSalesDetails = salesList?.find(s => s.id === selectedSales);
         
-        // Create subscription record first (with pending status)
-        const subscription = await createSubscriptionMutation.mutateAsync({
-          memberId: memberID,
-          packageId: selectedPackage,
-          trainerId: (subscriptionType === "trainer" || subscriptionType === "group") ? selectedTrainer : undefined,
-          salesId: selectedSales,
-          salesType: selectedSalesDetails?.type,
-          startDate: memberStartDate,
-          subsType: subscriptionType,
-          duration:
-            subscriptionType === "gym"
-              ? (selectedPackageDetails.day ?? 0)
-              : (selectedPackageDetails.sessions ?? 0),
-          paymentMethod: paymentMethod,
-          totalPayment: calculateTotal(),
-          status: "PENDING",
-          orderReference: orderId,
+        // Create subscription records for each cart item (with pending status)
+        // Use Promise.all for better performance but handle individual failures
+        const subscriptionPromises = cart.map(async (item) => {
+          try {
+            const subscription = await createSubscriptionMutation.mutateAsync({
+              memberId: memberID,
+              packageId: item.packageId,
+              trainerId: item.trainerId,
+              salesId: selectedSales,
+              salesType: selectedSalesDetails?.type,
+              startDate: memberStartDate,
+              subsType: item.type,
+              duration: item.type === "gym" ? (item.day ?? 0) : (item.sessions ?? 0),
+              paymentMethod: paymentMethod,
+              totalPayment: item.price, // Keep full package price
+              status: "PENDING",
+              orderReference: orderId,
+            });
+            
+            return { success: true as const, id: subscription.id, item };
+          } catch (error) {
+            console.error(`Failed to create subscription for ${item.name}:`, error);
+            return { success: false as const, error, item };
+          }
         });
 
-        // Format item details
-          const itemDetails = [
-            {
-              id: selectedPackage,
-              name: selectedPackageDetails.name,
-              price: calculateTotal(),
-              quantity: 1,
-              sku: generateSKU(selectedPackageDetails.name),
-              category: "services"
-            },
-        ];
+        const subscriptionResults = await Promise.all(subscriptionPromises);
+        const successfulSubscriptions = subscriptionResults.filter((result): result is { success: true; id: string; item: CartItem } => result.success);
+        const failedSubscriptions = subscriptionResults.filter(result => !result.success);
+
+        if (failedSubscriptions.length > 0) {
+          const failedItems = failedSubscriptions.map(result => result.item.name).join(", ");
+          throw new Error(`Failed to create subscriptions for: ${failedItems}`);
+        }
+
+        // Collect successful subscription IDs
+        successfulSubscriptions.forEach(result => {
+          createdSubscriptions.push(result.id);
+        });
+
+        if (createdSubscriptions.length === 0) {
+          throw new Error("No subscriptions were created successfully");
+        }
+
+        // Get primary subscription (first one) for payment gateway
+        const primarySubscriptionId = createdSubscriptions[0];
+
+        // Format item details from cart
+        const itemDetails = cart.map(item => ({
+          id: item.packageId,
+          name: `${item.name} (${item.type === "gym" ? "Gym" : item.type === "trainer" ? "PT" : "Group"})`,
+          price: item.price,
+          quantity: 1,
+          sku: generateSKU(item.name),
+          category: "services"
+        }));
 
         // Create the transaction with payment gateway
         const transactionResponse = await createPaymentMutation.mutateAsync({
           orderId,
-          amount: calculateTotal(),
-          subscriptionId: subscription.id,
+          amount: calculateTotal(), // Use discounted total for payment
+          subscriptionId: primarySubscriptionId ?? "",
           customerName: Member?.user?.name || "Member",
           customerEmail: Member?.user?.email || undefined,
           itemDetails,
-          callbackUrl: `${window.location.origin}/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}`,
-          paymentGateway: paymentMethod,
+          callbackUrl: `${window.location.origin}/checkout/confirmation/${memberID}?subscriptionId=${primarySubscriptionId}`,
+          paymentGateway: paymentMethod as "midtrans" | "doku" | "shopee" | "kredivo" | "akulaku" | "qr" | undefined,
         });
 
         if (transactionResponse.redirect_url) {
@@ -273,13 +349,31 @@ export default function SubscriptionPage({
               window.snap.pay(transactionResponse.token, {
                 onSuccess: async function (result: any) {
                   try {
-                    await updatePaymentStatusMutation.mutateAsync({
-                      orderReference: orderId,
-                      status: "SUCCESS",
-                      gatewayResponse: result,
+                    // Update status for all created subscriptions with better error handling
+                    const updatePromises = createdSubscriptions.map(async (subscriptionId) => {
+                      try {
+                        await updatePaymentStatusMutation.mutateAsync({
+                          orderReference: orderId,
+                          status: "SUCCESS",
+                          gatewayResponse: result,
+                        });
+                        return { success: true, subscriptionId };
+                      } catch (error) {
+                        console.error(`Failed to update subscription ${subscriptionId}:`, error);
+                        return { success: false, error, subscriptionId };
+                      }
                     });
 
-                    toast.success("Payment successful!");
+                    const updateResults = await Promise.all(updatePromises);
+                    const failedUpdates = updateResults.filter(result => !result.success);
+
+                    if (failedUpdates.length > 0) {
+                      console.warn(`${failedUpdates.length} subscription updates failed`);
+                      toast.warning("Payment successful, but some subscriptions may need manual verification");
+                    } else {
+                      toast.success("Payment successful!");
+                    }
+
                     await utils.subs.getByIdMember.invalidate({
                       memberId: memberID,
                     });
@@ -290,28 +384,47 @@ export default function SubscriptionPage({
                       "Payment was processed but there was an error updating your subscription",
                     );
                     router.push(
-                      `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=SUCCESS`,
+                      `/checkout/confirmation/${memberID}?subscriptionId=${primarySubscriptionId}&orderRef=${orderId}&status=SUCCESS`,
                     );
                   }
                 },
                 onPending: function (result: any) {
+                  // Update status for all created subscriptions
+                  createdSubscriptions.forEach(async (subscriptionId) => {
+                    try {
+                      await updatePaymentStatusMutation.mutateAsync({
+                        orderReference: orderId,
+                        status: "PENDING",
+                        gatewayResponse: result,
+                      });
+                    } catch (error) {
+                      console.error("Error updating pending status:", error);
+                    }
+                  });
+                  
                   toast.info("Payment pending, waiting for confirmation");
                   router.push(
-                    `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=PENDING`,
+                    `/checkout/confirmation/${memberID}?subscriptionId=${primarySubscriptionId}&orderRef=${orderId}&status=PENDING`,
                   );
                 },
                 onError: function (result: any) {
-                  updatePaymentStatusMutation
-                    .mutateAsync({
-                      orderReference: orderId,
-                      status: "FAILED",
-                      gatewayResponse: result,
-                    })
-                    .catch(console.error);
+                  // Update status for all created subscriptions
+                  createdSubscriptions.forEach(async (subscriptionId) => {
+                    try {
+                      await updatePaymentStatusMutation.mutateAsync({
+                        orderReference: orderId,
+                        status: "FAILED",
+                        gatewayResponse: result,
+                      });
+                    } catch (error) {
+                      console.error("Error updating failed status:", error);
+                    }
+                  });
+                  
                   toast.error("Payment failed");
                   console.error(result);
                   router.push(
-                    `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}&status=FAILED`,
+                    `/checkout/confirmation/${memberID}?subscriptionId=${primarySubscriptionId}&orderRef=${orderId}&status=FAILED`,
                   );
                 },
                 onClose: function () {
@@ -319,7 +432,7 @@ export default function SubscriptionPage({
                     "Payment window closed, transaction may still be processing",
                   );
                   router.push(
-                    `/checkout/confirmation/${memberID}?subscriptionId=${subscription.id}&orderRef=${orderId}`,
+                    `/checkout/confirmation/${memberID}?subscriptionId=${primarySubscriptionId}&orderRef=${orderId}`,
                   );
                 },
               });
@@ -332,8 +445,29 @@ export default function SubscriptionPage({
           toast.error("Failed to initialize payment");
         }
       } catch (error) {
+        // If subscription creation failed, clean up any partially created subscriptions
+        console.error("Subscription creation failed:", error);
+        
+        // If we have any created subscriptions, we should mark them as failed
+        if (createdSubscriptions.length > 0) {
+          try {
+            // Update status to FAILED for any subscriptions that were created
+            await Promise.allSettled(
+              createdSubscriptions.map(subscriptionId =>
+                updatePaymentStatusMutation.mutateAsync({
+                  orderReference: orderId,
+                  status: "FAILED",
+                  gatewayResponse: { error: "Subscription creation failed" },
+                })
+              )
+            );
+          } catch (cleanupError) {
+            console.error("Failed to cleanup partial subscriptions:", cleanupError);
+          }
+        }
+        
         toast.error(
-          error instanceof Error ? error.message : "Payment process failed",
+          error instanceof Error ? error.message : "Failed to create subscriptions",
         );
       } finally {
         setIsProcessingPayment(false);
@@ -437,6 +571,24 @@ export default function SubscriptionPage({
                             ))}
                           </div>
                         </RadioGroup>
+                        
+                        {selectedPackage && selectedPackageDetails && (
+                          <Button
+                            onClick={() => {
+                              addToCart({
+                                type: "gym",
+                                packageId: selectedPackage,
+                                name: selectedPackageDetails.name,
+                                price: selectedPackageDetails.price,
+                                day: selectedPackageDetails.day || undefined,
+                              });
+                            }}
+                            className="mt-4 w-full"
+                            variant="outline"
+                          >
+                            Add to Order
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
@@ -507,6 +659,25 @@ export default function SubscriptionPage({
                               ))}
                             </div>
                           </RadioGroup>
+                          
+                          {selectedPackage && selectedPackageDetails && selectedTrainer && (
+                            <Button
+                              onClick={() => {
+                                addToCart({
+                                  type: "trainer",
+                                  packageId: selectedPackage,
+                                  trainerId: selectedTrainer,
+                                  name: selectedPackageDetails.name,
+                                  price: selectedPackageDetails.price,
+                                  sessions: selectedPackageDetails.sessions || undefined,
+                                });
+                              }}
+                              className="mt-4 w-full"
+                              variant="outline"
+                            >
+                              Add to Order
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -590,6 +761,25 @@ export default function SubscriptionPage({
                               ))}
                             </div>
                           </RadioGroup>
+                          
+                          {selectedPackage && selectedPackageDetails && selectedTrainer && (
+                            <Button
+                              onClick={() => {
+                                addToCart({
+                                  type: "group",
+                                  packageId: selectedPackage,
+                                  trainerId: selectedTrainer,
+                                  name: selectedPackageDetails.name,
+                                  price: selectedPackageDetails.price,
+                                  sessions: selectedPackageDetails.sessions || undefined,
+                                });
+                              }}
+                              className="mt-4 w-full"
+                              variant="outline"
+                            >
+                              Add to Order
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -728,10 +918,10 @@ export default function SubscriptionPage({
                       <div className="flex w-full items-center justify-between">
                         <span>
                           {selectedVouchers.length === 1
-                            ? `${selectedVouchers[0].name} (${
-                                selectedVouchers[0].discountType === "PERCENT"
-                                  ? `${selectedVouchers[0].amount}% off`
-                                  : `Rp ${selectedVouchers[0].amount.toLocaleString()} off`
+                            ? `${selectedVouchers[0]?.name} (${
+                                selectedVouchers[0]?.discountType === "PERCENT"
+                                  ? `${selectedVouchers[0]?.amount}% off`
+                                  : `Rp ${selectedVouchers[0]?.amount?.toLocaleString()} off`
                               })`
                             : `${selectedVouchers.length} vouchers applied`}
                         </span>
@@ -762,89 +952,88 @@ export default function SubscriptionPage({
                 </div>
 
                 <div>
-                  <h3 className="mb-3 text-lg font-medium">Order Summary</h3>
+                  <h3 className="mb-3 text-lg font-medium">Cart Summary</h3>
                   <div className="space-y-2">
-                    {selectedPackageDetails ? (
+                    {cart.length > 0 ? (
                       <>
-                        <div className="flex justify-between">
-                          <span>Subscription:</span>
-                          <span>
-                            {subscriptionType === "gym"
-                              ? "Gym Membership"
-                              : subscriptionType === "trainer"
-                              ? "Personal Training"
-                              : "Group Training"}
-                          </span>
+                        {/* Cart Items */}
+                        <div className="space-y-3 mb-4">
+                          {cart.map((item, index) => (
+                            <div key={index} className="border rounded-md p-3 ">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <div className="font-medium">
+                                    {item.name}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {item.type === "gym"
+                                      ? `Gym Membership (${item.day} days)`
+                                      : item.type === "trainer"
+                                      ? `Personal Training (${item.sessions} sessions)`
+                                      : `Group Training (${item.sessions} sessions)`
+                                    }
+                                  </div>
+                                  {item.trainerId && (
+                                    <div className="text-sm text-muted-foreground">
+                                      Trainer: {trainers?.find(t => t.id === item.trainerId)?.user?.name}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-semibold">
+                                    Rp {item.price.toLocaleString("id-ID")}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeFromCart(index)}
+                                    className="text-red-500 hover:text-red-700 mt-1"
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
 
-                        {(subscriptionType === "trainer" || subscriptionType === "group") && selectedTrainer && (
+                        {/* Pricing Summary */}
+                        <div className="space-y-2 pt-2 border-t">
                           <div className="flex justify-between">
-                            <span>Trainer:</span>
+                            <span>Subtotal:</span>
+                            <span>Rp {calculateSubtotal().toLocaleString("id-ID")}</span>
+                          </div>
+
+                          {selectedVouchers.length > 0 && (
+                            <>
+                              {selectedVouchers.map((voucher, index) => (
+                                <div key={voucher.id} className="flex justify-between text-green-600">
+                                  <span>
+                                    {selectedVouchers.length > 1 ? `Voucher ${index + 1}:` : "Discount:"}
+                                  </span>
+                                  <span>
+                                    -{voucher.discountType === "PERCENT"
+                                      ? `${voucher.amount}%`
+                                      : `Rp ${voucher.amount.toLocaleString()}`}
+                                  </span>
+                                </div>
+                              ))}
+                            </>
+                          )}
+
+                          <Separator className="my-2" />
+
+                          <div className="flex justify-between font-bold text-lg">
+                            <span>Total:</span>
                             <span>
-                              {
-                                trainers?.find((t) => t.id === selectedTrainer)
-                                  ?.user?.name
-                              }
+                              Rp {calculateTotal().toLocaleString("id-ID")}
                             </span>
                           </div>
-                        )}
-
-                        <div className="flex justify-between">
-                          <span>Package:</span>
-                          <span>
-                            {selectedPackageDetails.name}
-                            {subscriptionType === "group" && selectedPackageDetails.isGroupPackage && (
-                              <span className="text-sm text-muted-foreground block">
-                                Max {selectedPackageDetails.maxUsers} people
-                              </span>
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span>Price:</span>
-                          <span>
-                            Rp{" "}
-                            {selectedPackageDetails.price.toLocaleString(
-                              "id-ID",
-                            )}
-                            {subscriptionType === "group" && selectedPackageDetails.isGroupPackage && selectedPackageDetails.groupPriceType === "TOTAL" && (
-                              <span className="text-sm text-muted-foreground block">
-                                (to be split among group)
-                              </span>
-                            )}
-                          </span>
-                        </div>
-
-                        {selectedVouchers.length > 0 && (
-                          <>
-                            {selectedVouchers.map((voucher, index) => (
-                              <div key={voucher.id} className="flex justify-between text-green-600">
-                                <span>
-                                  {selectedVouchers.length > 1 ? `Voucher ${index + 1}:` : "Discount:"}
-                                </span>
-                                <span>
-                                  {voucher.discountType === "PERCENT"
-                                    ? `${voucher.amount}%`
-                                    : `Rp ${voucher.amount.toLocaleString()}`}
-                                </span>
-                              </div>
-                            ))}
-                          </>
-                        )}
-
-                        <Separator className="my-2" />
-
-                        <div className="flex justify-between font-bold">
-                          <span>Total:</span>
-                          <span>
-                            Rp {calculateTotal().toLocaleString("id-ID")}
-                          </span>
                         </div>
                       </>
                     ) : (
                       <p className="text-muted-foreground">
-                        Select a package to see the summary
+                        Add packages to your cart to see the summary
                       </p>
                     )}
                   </div>
@@ -854,9 +1043,7 @@ export default function SubscriptionPage({
                 <Button
                   className="w-full bg-infinity"
                   disabled={
-                    !selectedPackageDetails ||
-                   
-                    ((subscriptionType === "trainer" || subscriptionType === "group") && !selectedTrainer) ||
+                    cart.length === 0 ||
                     isProcessingPayment
                   }
                   onClick={l}
@@ -885,7 +1072,7 @@ export default function SubscriptionPage({
         onClose={() => setIsVoucherModalOpen(false)}
         onVoucherApplied={(vouchers) => setSelectedVouchers(vouchers)}
         currentVouchers={selectedVouchers}
-        packagePrice={selectedPackageDetails?.price || 0}
+        packagePrice={calculateSubtotal()}
       />
     </>
   );
