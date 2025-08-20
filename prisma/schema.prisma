@@ -186,6 +186,7 @@ model User {
     trackingUsers      TrackingUser[]    @relation("TrackingUserToUser")
     aiRateLimits       AIRateLimit[]     @relation("UserAIRateLimit")
     aiRequestLogs      AIRequestLog[]    @relation("UserAIRequestLog")
+    // upgradePackages    UpgradePackage[]  @relation("UpgradeCreatedBy")
 }
 
 model Class {
@@ -298,6 +299,9 @@ model Subscription {
     // Group subscription relations
     leadGroupSubscriptions GroupSubscription[]
     groupMembers      GroupMember[]
+    
+    // Upgrade relations
+    upgradePackages   UpgradePackage[]
 }
 
 model Payment {
@@ -375,6 +379,10 @@ model Package {
     subscription Subscription[]
     paymentValidations PaymentValidation[]
     groupSubscriptions GroupSubscription[]
+    
+    // Upgrade relations
+    upgradeOldPackages UpgradePackage[] @relation("UpgradeOldPackage")
+    upgradeNewPackages UpgradePackage[] @relation("UpgradeNewPackage")
 }
 
 enum PackageType {
@@ -938,4 +946,24 @@ model AIRequestLog {
     @@index([requestType])
     @@index([createdAt])
     @@index([userId, requestType, createdAt])
+}
+
+// Upgrade Package Model for tracking membership upgrades
+model UpgradePackage {
+    id               String       @id @default(cuid())
+    subscriptionId   String
+    oldPackageId     String
+    newPackageId     String
+    paymentProofPath String?
+    createdBy        String
+    createdAt        DateTime     @default(now())
+    
+    subscription     Subscription @relation(fields: [subscriptionId], references: [id])
+    oldPackage       Package      @relation("UpgradeOldPackage", fields: [oldPackageId], references: [id])
+    newPackage       Package      @relation("UpgradeNewPackage", fields: [newPackageId], references: [id])
+    // createdByUser    User         @relation("UpgradeCreatedBy", fields: [createdBy], references: [id])
+    
+    @@index([subscriptionId, createdAt])
+    @@index([oldPackageId])
+    @@index([newPackageId])
 }

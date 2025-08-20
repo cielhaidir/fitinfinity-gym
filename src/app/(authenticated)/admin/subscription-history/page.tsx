@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal } from "lucide-react";
+import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,13 @@ export default function AdminSubscriptionHistoryPage() {
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
   
+  // Upgrade functionality state
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [selectedSubscriptionForUpgrade, setSelectedSubscriptionForUpgrade] = useState<any>(null);
+  const [upgradeNewPackageId, setUpgradeNewPackageId] = useState("");
+  const [upgradeNewEndDate, setUpgradeNewEndDate] = useState("");
+  const [upgradePaymentProofPath, setUpgradePaymentProofPath] = useState("");
+  
   const { toast } = useToast();
 
   // Query for getting all subscriptions with required fields
@@ -97,6 +104,10 @@ export default function AdminSubscriptionHistoryPage() {
     }
   );
 
+  // Query for getting gym packages for upgrade functionality
+  const { data: gymPackages = [] } = api.subs.getGymPackages.useQuery(undefined, {
+    enabled: !!session,
+  });
   // Debounce user search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -168,6 +179,29 @@ export default function AdminSubscriptionHistoryPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update subscription dates",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for upgrading subscription
+  const upgradeSubscriptionMutation = api.subs.upgradeGymSimple.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subscription upgraded successfully",
+      });
+      setUpgradeDialogOpen(false);
+      setSelectedSubscriptionForUpgrade(null);
+      setUpgradeNewPackageId("");
+      setUpgradeNewEndDate("");
+      setUpgradePaymentProofPath("");
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upgrade subscription",
         variant: "destructive",
       });
     },
@@ -287,6 +321,59 @@ export default function AdminSubscriptionHistoryPage() {
     setEditEndDate("");
   };
 
+  // Upgrade functionality handlers
+  const handleUpgradeSubscription = (subscription: any) => {
+    setSelectedSubscriptionForUpgrade(subscription);
+    setUpgradeNewPackageId("");
+    const currentEndDate = subscription.endDate
+      ? new Date(subscription.endDate).toISOString().split('T')[0] || ""
+      : "";
+    setUpgradeNewEndDate(currentEndDate);
+    setUpgradePaymentProofPath("");
+    setUpgradeDialogOpen(true);
+  };
+
+  const handleConfirmUpgrade = async () => {
+    if (!selectedSubscriptionForUpgrade || !upgradeNewPackageId || !upgradeNewEndDate) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newEndDate = new Date(upgradeNewEndDate);
+    const currentEndDate = new Date(selectedSubscriptionForUpgrade.endDate);
+
+    if (newEndDate <= currentEndDate) {
+      toast({
+        title: "Error",
+        description: "New end date must be after current end date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await upgradeSubscriptionMutation.mutateAsync({
+        subscriptionId: selectedSubscriptionForUpgrade.id,
+        newPackageId: upgradeNewPackageId,
+        newEndDate: newEndDate,
+        paymentProofPath: upgradePaymentProofPath.trim() || undefined,
+      });
+    } catch (error) {
+      console.error("Failed to upgrade subscription:", error);
+    }
+  };
+
+  const handleCancelUpgrade = () => {
+    setUpgradeDialogOpen(false);
+    setSelectedSubscriptionForUpgrade(null);
+    setUpgradeNewPackageId("");
+    setUpgradeNewEndDate("");
+    setUpgradePaymentProofPath("");
+  };
   const columns: ColumnDef<any>[] = [
     {
       accessorKey: "member.user.name",
@@ -327,7 +414,7 @@ export default function AdminSubscriptionHistoryPage() {
       ),
       cell: ({ row }) => {
         const startDate = row.getValue("startDate") as Date;
-        const endDate = row.getValue("endDate") as Date;
+        const endDate = row.original.endDate as Date;
         return (
           <div className="flex flex-col min-w-[100px]">
             <span className="text-sm">{startDate ? format(new Date(startDate), "dd/MM/yy") : "N/A"}</span>
@@ -410,6 +497,12 @@ export default function AdminSubscriptionHistoryPage() {
                   <DropdownMenuItem onClick={() => handleTransferSubscription(row.original)}>
                     <ArrowRightLeft className="mr-2 h-4 w-4" />
                     Transfer
+                  </DropdownMenuItem>
+                )}
+                {isActive && row.original.package?.type === "GYM_MEMBERSHIP" && (
+                  <DropdownMenuItem onClick={() => handleUpgradeSubscription(row.original)}>
+                    <TrendingUp className="mr-2 h-4 w-4" />
+                    Upgrade
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -684,6 +777,97 @@ export default function AdminSubscriptionHistoryPage() {
               className="bg-green-600 hover:bg-green-700"
             >
               {updateSubscriptionDates.isPending ? "Updating..." : "Update Dates"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Subscription Dialog */}
+      <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px] mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Upgrade Subscription</DialogTitle>
+            <DialogDescription className="text-sm">
+              {selectedSubscriptionForUpgrade && (
+                <>
+                  Upgrade gym membership for <strong>{selectedSubscriptionForUpgrade.member?.user?.name}</strong> to a new package.
+                  Current package: <strong>{selectedSubscriptionForUpgrade.package?.name}</strong>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="newPackage" className="text-sm font-medium">
+                New Package *
+              </Label>
+              <Select
+                value={upgradeNewPackageId}
+                onValueChange={setUpgradeNewPackageId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new package" />
+                </SelectTrigger>
+                <SelectContent>
+                  {gymPackages
+                    ?.filter(pkg => pkg.id !== selectedSubscriptionForUpgrade?.packageId)
+                    .map((pkg) => (
+                      <SelectItem key={pkg.id} value={pkg.id}>
+                        {pkg.name} - {pkg.point} pts
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="newEndDate" className="text-sm font-medium">
+                New End Date *
+              </Label>
+              <Input
+                id="newEndDate"
+                type="date"
+                value={upgradeNewEndDate}
+                onChange={(e) => setUpgradeNewEndDate(e.target.value)}
+                className="w-full"
+              />
+              <div className="text-xs text-muted-foreground">
+                Current end date: {selectedSubscriptionForUpgrade?.endDate 
+                  ? format(new Date(selectedSubscriptionForUpgrade.endDate), "dd/MM/yyyy")
+                  : "N/A"}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="paymentProof" className="text-sm font-medium">
+                Payment Proof Path (Optional)
+              </Label>
+              <Input
+                id="paymentProof"
+                placeholder="Enter payment proof URL or path..."
+                value={upgradePaymentProofPath}
+                onChange={(e) => setUpgradePaymentProofPath(e.target.value)}
+                className="w-full"
+              />
+              <div className="text-xs text-muted-foreground">
+                Provide a URL or file path for payment verification (optional for Phase 1)
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelUpgrade}
+              disabled={upgradeSubscriptionMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmUpgrade}
+              disabled={upgradeSubscriptionMutation.isPending || !upgradeNewPackageId || !upgradeNewEndDate}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {upgradeSubscriptionMutation.isPending ? "Upgrading..." : "Confirm Upgrade"}
             </Button>
           </DialogFooter>
         </DialogContent>

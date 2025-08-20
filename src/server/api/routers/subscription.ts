@@ -1283,4 +1283,173 @@ export const subscriptionRouter = createTRPCRouter({
         return updatedSubscription;
       });
     }),
+
+  // Upgrade gym membership to a new package
+  upgradeGymSimple: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        subscriptionId: z.string(),
+        newPackageId: z.string(),
+        newEndDate: z.date(),
+        paymentProofPath: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.$transaction(async (tx) => {
+        // Verify the subscription exists and is eligible for upgrade
+        const subscription = await tx.subscription.findUnique({
+          where: { id: input.subscriptionId },
+          include: {
+            member: {
+              include: {
+                user: true,
+              },
+            },
+            package: true,
+          },
+        });
+
+        if (!subscription) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Subscription not found",
+          });
+        }
+
+        if (!subscription.isActive) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Only active subscriptions can be upgraded",
+          });
+        }
+
+        if (subscription.isFrozen) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot upgrade frozen subscription",
+          });
+        }
+
+        if (subscription.package.type !== "GYM_MEMBERSHIP") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Only gym memberships can be upgraded with this function",
+          });
+        }
+
+        // Verify the new package exists and is a gym membership
+        const newPackage = await tx.package.findUnique({
+          where: { id: input.newPackageId },
+        });
+
+        if (!newPackage) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "New package not found",
+          });
+        }
+
+        if (newPackage.type !== "GYM_MEMBERSHIP") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "New package must be a gym membership",
+          });
+        }
+
+        if (!newPackage.isActive) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "New package is not active",
+          });
+        }
+
+        if (newPackage.id === subscription.packageId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot upgrade to the same package",
+          });
+        }
+
+        // Validate new end date
+        if (input.newEndDate <= subscription.startDate) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "New end date must be after subscription start date",
+          });
+        }
+
+        if (subscription.endDate && input.newEndDate <= subscription.endDate) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "New end date must be after current subscription end date",
+          });
+        }
+
+        // Create upgrade record
+        await tx.upgradePackage.create({
+          data: {
+            subscriptionId: subscription.id,
+            oldPackageId: subscription.packageId,
+            newPackageId: input.newPackageId,
+            paymentProofPath: input.paymentProofPath,
+            createdBy: ctx.session.user.id,
+          },
+        });
+
+        // Update the subscription with new package and end date
+        const updatedSubscription = await tx.subscription.update({
+          where: { id: input.subscriptionId },
+          data: {
+            packageId: input.newPackageId,
+            endDate: input.newEndDate,
+          },
+          include: {
+            member: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            package: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                type: true,
+                point: true,
+              },
+            },
+          },
+        });
+
+        return updatedSubscription;
+      });
+    }),
+
+  // Get gym packages for upgrade dropdown
+  getGymPackages: permissionProtectedProcedure(["list:subscription"])
+    .query(async ({ ctx }) => {
+      return ctx.db.package.findMany({
+        where: {
+          type: "GYM_MEMBERSHIP",
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          point: true,
+          day: true,
+          description: true,
+        },
+        orderBy: {
+          price: "asc",
+        },
+      });
+    }),
 });
