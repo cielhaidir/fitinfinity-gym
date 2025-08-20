@@ -764,7 +764,7 @@ export const paymentValidationRouter = createTRPCRouter({
       ]);
 
       // Combine and sort both payment types
-      const allPayments = [...transformedOfflinePayments, ...onlinePayments].sort(
+      const allPayments = [...offlinePayments, ...onlinePayments].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );

@@ -662,6 +662,88 @@ export const subscriptionRouter = createTRPCRouter({
       };
     }),
 
+  // Get subscription history for a specific member (for member profile view)
+  getSubscriptionHistory: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        memberId: z.string(),
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Update expired subscriptions before query
+      await updateExpiredSubscriptions(ctx);
+
+      const items = await ctx.db.subscription.findMany({
+        where: {
+          memberId: input.memberId,
+          payments: {
+            some: {
+              status: "SUCCESS"
+            }
+          }
+        },
+        skip: (input.page - 1) * input.limit,
+        take: input.limit,
+        orderBy: { id: "desc" },
+        include: {
+          package: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              type: true,
+              point: true,
+            },
+          },
+          payments: {
+            where: {
+              status: "SUCCESS"
+            },
+            select: {
+              id: true,
+              status: true,
+              method: true,
+              totalPayment: true,
+              orderReference: true,
+              paidAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 1, // Get only the latest successful payment
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const total = await ctx.db.subscription.count({
+        where: {
+          memberId: input.memberId,
+          payments: {
+            some: {
+              status: "SUCCESS"
+            }
+          }
+        },
+      });
+
+      return {
+        items,
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
+
   getById: permissionProtectedProcedure(["show:subscription"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {

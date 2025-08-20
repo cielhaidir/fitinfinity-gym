@@ -236,8 +236,14 @@ export default function AdminSubscriptionHistoryPage() {
   // Edit dates functionality
   const handleEditDates = (subscription: any) => {
     setSelectedSubscriptionForEdit(subscription);
-    setEditStartDate(subscription.startDate ? new Date(subscription.startDate).toISOString().split('T')[0] : "");
-    setEditEndDate(subscription.endDate ? new Date(subscription.endDate).toISOString().split('T')[0] : "");
+    const startDateStr = subscription.startDate
+      ? new Date(subscription.startDate).toISOString().split('T')[0] || ""
+      : "";
+    const endDateStr = subscription.endDate
+      ? new Date(subscription.endDate).toISOString().split('T')[0] || ""
+      : "";
+    setEditStartDate(startDateStr);
+    setEditEndDate(endDateStr);
     setEditDatesDialogOpen(true);
   };
 
@@ -285,15 +291,15 @@ export default function AdminSubscriptionHistoryPage() {
     {
       accessorKey: "member.user.name",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Member Name" />
+        <DataTableColumnHeader column={column} title="Member" />
       ),
       cell: ({ row }) => {
         const memberName = row.original.member?.user?.name as string | undefined;
         const memberEmail = row.original.member?.user?.email as string | undefined;
         return (
-          <div className="flex flex-col">
-            <span className="font-medium">{memberName || "N/A"}</span>
-            <span className="text-xs text-muted-foreground">{memberEmail}</span>
+          <div className="flex flex-col min-w-[150px]">
+            <span className="font-medium text-sm truncate">{memberName || "N/A"}</span>
+            <span className="text-xs text-muted-foreground truncate">{memberEmail}</span>
           </div>
         );
       },
@@ -301,64 +307,64 @@ export default function AdminSubscriptionHistoryPage() {
     {
       accessorKey: "package.name",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Package Name" />
+        <DataTableColumnHeader column={column} title="Package" />
       ),
       cell: ({ row }) => {
         const packageName = row.original.package?.name;
-        return <span className="font-medium">{packageName || "N/A"}</span>;
-      },
-    },
-    {
-      accessorKey: "package.point",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Package Point" />
-      ),
-      cell: ({ row }) => {
         const packagePoint = row.original.package?.point;
-        return <span className="font-medium">{packagePoint || "N/A"}</span>;
+        return (
+          <div className="flex flex-col min-w-[120px]">
+            <span className="font-medium text-sm truncate">{packageName || "N/A"}</span>
+            <span className="text-xs text-muted-foreground">{packagePoint ? `${packagePoint} pts` : "N/A"}</span>
+          </div>
+        );
       },
     },
     {
       accessorKey: "startDate",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Start Date" />
+        <DataTableColumnHeader column={column} title="Period" />
       ),
       cell: ({ row }) => {
         const startDate = row.getValue("startDate") as Date;
-        return startDate ? format(new Date(startDate), "dd MMM yyyy") : "N/A";
-      },
-    },
-    {
-      accessorKey: "endDate",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="End Date" />
-      ),
-      cell: ({ row }) => {
         const endDate = row.getValue("endDate") as Date;
-        return endDate ? format(new Date(endDate), "dd MMM yyyy") : "N/A";
+        return (
+          <div className="flex flex-col min-w-[100px]">
+            <span className="text-sm">{startDate ? format(new Date(startDate), "dd/MM/yy") : "N/A"}</span>
+            <span className="text-xs text-muted-foreground">{endDate ? format(new Date(endDate), "dd/MM/yy") : "N/A"}</span>
+          </div>
+        );
       },
     },
     {
       accessorKey: "remainingSessions",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Remaining Sessions" />
+        <DataTableColumnHeader column={column} title="Sessions" />
       ),
       cell: ({ row }) => {
         const remaining = row.original.remainingSessions;
-        return <span>{remaining ?? "N/A"}</span>;
+        return (
+          <div className="text-center min-w-[70px]">
+            <span className="font-medium">{remaining ?? "N/A"}</span>
+          </div>
+        );
       },
     },
     {
       accessorKey: "salesPerson",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Sales Name" />
+        <DataTableColumnHeader column={column} title="Sales" />
       ),
       cell: ({ row }) => {
         const salesName = getSalesPersonName(
           row.original.salesId,
           row.original.salesType
         );
-        return <span>{salesName}</span>;
+        return (
+          <div className="min-w-[100px]">
+            <span className="text-sm truncate block">{salesName}</span>
+          </div>
+        );
       },
     },
     {
@@ -369,9 +375,11 @@ export default function AdminSubscriptionHistoryPage() {
       cell: ({ row }) => {
         const isActive = row.original.isActive;
         return (
-          <Badge variant={isActive ? "default" : "secondary"}>
-            {isActive ? "Active" : "Inactive"}
-          </Badge>
+          <div className="min-w-[70px]">
+            <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
+              {isActive ? "Active" : "Inactive"}
+            </Badge>
+          </div>
         );
       },
     },
@@ -381,30 +389,32 @@ export default function AdminSubscriptionHistoryPage() {
       cell: ({ row }) => {
         const isActive = row.original.isActive;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleEditSales(row.original)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Sales
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleEditDates(row.original)}>
-                <Calendar className="mr-2 h-4 w-4" />
-                Edit Dates
-              </DropdownMenuItem>
-              {isActive && (
-                <DropdownMenuItem onClick={() => handleTransferSubscription(row.original)}>
-                  <ArrowRightLeft className="mr-2 h-4 w-4" />
-                  Transfer
+          <div className="min-w-[60px]">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleEditSales(row.original)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Sales
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onClick={() => handleEditDates(row.original)}>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Edit Dates
+                </DropdownMenuItem>
+                {isActive && (
+                  <DropdownMenuItem onClick={() => handleTransferSubscription(row.original)}>
+                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                    Transfer
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         );
       },
     },
@@ -422,41 +432,45 @@ export default function AdminSubscriptionHistoryPage() {
   };
 
   return (
-    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Subscription History</h2>
-          <p className="text-muted-foreground">
-            View all subscription history with detailed member and package information
-          </p>
+    <div className="w-full min-h-screen bg-background p-2 sm:p-4 lg:p-8">
+      <div className="max-w-full mx-auto">
+        <div className="mb-4 sm:mb-8 flex flex-col items-start justify-between gap-2 sm:gap-4 md:flex-row md:items-center">
+          <div className="space-y-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Subscription History</h2>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              View all subscription history with detailed member and package information
+            </p>
+          </div>
         </div>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Subscriptions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={columns}
-            data={subscriptions ?? { items: [], total: 0, page: 1, limit: 10 }}
-            searchColumns={[
-              { id: "member.user.name", placeholder: "Search by member name..." },
-              { id: "package.name", placeholder: "Search by package name..." },
-            ]}
-            isLoading={isLoading}
-            onPaginationChange={handlePaginationChange}
-            onSearch={handleSearch}
-          />
-        </CardContent>
-      </Card>
+        <Card className="w-full">
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="text-lg sm:text-xl">All Subscriptions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 sm:p-6">
+            <div className="w-full">
+              <DataTable
+                columns={columns}
+                data={subscriptions ?? { items: [], total: 0, page: 1, limit: 10 }}
+                searchColumns={[
+                  { id: "member.user.name", placeholder: "Search by member name..." },
+                  { id: "package.name", placeholder: "Search by package name..." },
+                ]}
+                isLoading={isLoading}
+                onPaginationChange={handlePaginationChange}
+                onSearch={handleSearch}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Edit Sales Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
-            <DialogTitle>Edit Sales Information</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Edit Sales Information</DialogTitle>
+            <DialogDescription className="text-sm">
               Update the sales person assigned to this subscription.
             </DialogDescription>
           </DialogHeader>
@@ -523,10 +537,10 @@ export default function AdminSubscriptionHistoryPage() {
 
       {/* Transfer Subscription Dialog */}
       <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="w-[95vw] max-w-[500px] mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Transfer Subscription</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Transfer Subscription</DialogTitle>
+            <DialogDescription className="text-sm">
               {selectedSubscriptionForTransfer && (
                 <>
                   Transfer subscription for <strong>{selectedSubscriptionForTransfer.member?.user?.name}</strong> to another user.
@@ -617,10 +631,10 @@ export default function AdminSubscriptionHistoryPage() {
 
       {/* Edit Dates Dialog */}
       <Dialog open={editDatesDialogOpen} onOpenChange={setEditDatesDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
-            <DialogTitle>Edit Subscription Dates</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Edit Subscription Dates</DialogTitle>
+            <DialogDescription className="text-sm">
               {selectedSubscriptionForEdit && (
                 <>
                   Update start and end dates for <strong>{selectedSubscriptionForEdit.member?.user?.name}</strong>'s subscription.

@@ -36,14 +36,14 @@ export function DataTableToolbar<TData>({
   );
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-2">
       {searchColumns && (
-        <div className="flex flex-1 items-center space-x-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-1 sm:items-center sm:space-x-2">
           <Select value={selectedColumn} onValueChange={(value) => {
             console.log("TOOLBAR COLUMN CHANGE:", { from: selectedColumn, to: value });
             setSelectedColumn(value);
           }}>
-            <SelectTrigger className="w-[140px] sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[140px] md:w-[180px]">
               <SelectValue placeholder="Select column" />
             </SelectTrigger>
             <SelectContent>
@@ -56,27 +56,29 @@ export function DataTableToolbar<TData>({
               </SelectGroup>
             </SelectContent>
           </Select>
-          <Input
-            placeholder="Search..."
-            onChange={(event) => {
-              console.log("TOOLBAR SEARCH:", { value: event.target.value, selectedColumn });
-              onSearch?.(event.target.value, selectedColumn);
-            }}
-            className="h-8 flex-1 min-w-0 sm:w-[150px] lg:w-[200px]"
-          />
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              onClick={() => table.resetColumnFilters()}
-              className="h-8 px-2 lg:px-3"
-            >
-              Reset
-              <X />
-            </Button>
-          )}
+          <div className="flex items-center gap-2 w-full sm:flex-1">
+            <Input
+              placeholder="Search..."
+              onChange={(event) => {
+                console.log("TOOLBAR SEARCH:", { value: event.target.value, selectedColumn });
+                onSearch?.(event.target.value, selectedColumn);
+              }}
+              className="h-8 flex-1 min-w-0"
+            />
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                onClick={() => table.resetColumnFilters()}
+                className="h-8 px-2 lg:px-3 flex-shrink-0"
+              >
+                <span className="hidden sm:inline mr-1">Reset</span>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
-      <div className="flex justify-end">
+      <div className="flex justify-end sm:justify-start">
         <DataTableViewOptions table={table} />
       </div>
     </div>

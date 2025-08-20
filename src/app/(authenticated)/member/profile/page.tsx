@@ -11,8 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
-import { Camera } from "lucide-react";
+import { Camera, Package2 } from "lucide-react";
 import { ChangePasswordDialog } from "./change-password-dialog";
+import { DataTable } from "@/components/datatable/data-table";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
+import { Badge } from "@/components/ui/badge";
 
 export default function ProfilePage() {
   const utils = api.useUtils();
@@ -40,6 +44,23 @@ export default function ProfilePage() {
       enabled: !!session?.user.id,
     }
   );
+
+  // Get subscription history for current member
+  const { data: subscriptionHistory, isLoading: isLoadingHistory } = api.subs.getSubscriptionHistory.useQuery(
+    {
+      memberId: memberId || "",
+      page: 1,
+      limit: 10,
+    },
+    {
+      enabled: !!memberId,
+    }
+  );
+
+  // Debug logging
+  console.log("Profile:", profile);
+  console.log("Subscription History:", subscriptionHistory);
+  console.log("Is Loading History:", isLoadingHistory);
 
   const updateProfile = api.profile.update.useMutation({
     onSuccess: async () => {
@@ -124,10 +145,13 @@ export default function ProfilePage() {
 
     // If phone is not registered or hasn't changed, proceed with update
     const genderValue = ["MALE", "FEMALE", "OTHER"].includes(formData.gender)
-      ? formData.gender
+      ? (formData.gender as "MALE" | "FEMALE" | "OTHER")
       : undefined;
     const data = {
-      ...formData,
+      name: formData.name,
+      phone: formData.phone,
+      address: formData.address,
+      image: formData.image,
       birthDate: formData.birthDate ? new Date(formData.birthDate) : undefined,
       height: formData.height ? parseFloat(formData.height) : undefined,
       weight: formData.weight ? parseFloat(formData.weight) : undefined,
@@ -200,9 +224,132 @@ export default function ProfilePage() {
     setFormData({ ...formData, phone: value });
   };
 
+  // Mobile-friendly subscription history component
+  const SubscriptionHistoryMobile = ({ subscriptions }: { subscriptions: any[] }) => (
+    <div className="space-y-4 md:hidden">
+      {subscriptions.map((subscription) => (
+        <Card key={subscription.id} className="p-4">
+          <div className="space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="font-semibold text-[#BFFF00]">{subscription.package?.name || "N/A"}</h4>
+                <p className="text-sm text-muted-foreground">
+                  {subscription.trainer?.user?.name ? `Trainer: ${subscription.trainer.user.name}` : "No trainer"}
+                </p>
+              </div>
+              <Badge variant={subscription.isActive ? "default" : "secondary"}>
+                {subscription.isActive ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Start:</span>
+                <p className="font-medium">
+                  {subscription.startDate ? format(new Date(subscription.startDate), "dd MMM yyyy") : "N/A"}
+                </p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">End:</span>
+                <p className="font-medium">
+                  {subscription.endDate ? format(new Date(subscription.endDate), "dd MMM yyyy") : "N/A"}
+                </p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Sessions:</span>
+                <p className="font-medium">{subscription.remainingSessions }</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Payment:</span>
+                <Badge
+                  variant="default"
+                  className="text-xs bg-green-600 hover:bg-green-700"
+                >
+                  SUCCESS
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+
+  // Desktop subscription history columns - optimized for larger screens
+  const subscriptionColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: "package.name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Package" />
+      ),
+      cell: ({ row }) => {
+        const packageName = row.original.package?.name;
+        return <span className="font-medium">{packageName || "N/A"}</span>;
+      },
+    },
+    {
+      accessorKey: "startDate",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Start Date" />
+      ),
+      cell: ({ row }) => {
+        const startDate = row.getValue("startDate") as Date;
+        return startDate ? format(new Date(startDate), "dd MMM yyyy") : "N/A";
+      },
+    },
+    {
+      accessorKey: "endDate",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="End Date" />
+      ),
+      cell: ({ row }) => {
+        const endDate = row.getValue("endDate") as Date;
+        return endDate ? format(new Date(endDate), "dd MMM yyyy") : "N/A";
+      },
+    },
+    {
+      accessorKey: "remainingSessions",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Sessions" />
+      ),
+      cell: ({ row }) => {
+        const remaining = row.original.remainingSessions;
+        return <span>{remaining ?? 0}</span>;
+      },
+    },
+    {
+      accessorKey: "trainer",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Trainer" />
+      ),
+      cell: ({ row }) => {
+        const trainer = row.original.trainer;
+        return trainer?.user?.name ? (
+          <span className="text-sm">{trainer.user.name}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">No trainer</span>
+        );
+      },
+    },
+    {
+      accessorKey: "isActive",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) => {
+        const isActive = row.original.isActive;
+        return (
+          <Badge variant={isActive ? "default" : "secondary"}>
+            {isActive ? "Active" : "Inactive"}
+          </Badge>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="container mx-auto py-8">
-      <Card className="mx-auto max-w-2xl">
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <Card className="mx-auto max-w-4xl">
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="relative">
@@ -239,38 +386,10 @@ export default function ProfilePage() {
               <h2 className="text-2xl font-bold text-[#BFFF00]">
                 {profile?.name || "User"}
               </h2>
-              <p className="text-muted-foreground">{ profile.email ?? session.user.email}</p>
+              <p className="text-muted-foreground">{profile?.email ?? session?.user?.email}</p>
             </div>
           </div>
-          {!isViewingOtherMember && !isEditing ? (
-            <Button
-              onClick={() => setIsEditing(true)}
-              className="bg-[#C9D953] hover:bg-[#C9D953]/90"
-            >
-              Edit Profile
-            </Button>
-          ) : !isViewingOtherMember && isEditing ? (
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
-                Cancel
-              </Button>
-              <Button
-                form="profile-form"
-                type="submit"
-                disabled={updateProfile.isPending}
-                className="bg-[#C9D953] hover:bg-[#C9D953]/90"
-              >
-                {updateProfile.isPending ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          ) : isViewingOtherMember ? (
-            <Button
-              onClick={() => router.back()}
-              variant="outline"
-            >
-              Back to Admin
-            </Button>
-          ) : null}
+       
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
@@ -397,7 +516,89 @@ export default function ProfilePage() {
               </div>
             </form>
             <ChangePasswordDialog />
+               {!isViewingOtherMember && !isEditing ? (
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="bg-[#C9D953] hover:bg-[#C9D953]/90"
+            >
+              Edit Profile
+            </Button>
+          ) : !isViewingOtherMember && isEditing ? (
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+              <Button
+                form="profile-form"
+                type="submit"
+                disabled={updateProfile.isPending}
+                className="bg-[#C9D953] hover:bg-[#C9D953]/90"
+              >
+                {updateProfile.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          ) : isViewingOtherMember ? (
+            <Button
+              onClick={() => router.back()}
+              variant="outline"
+            >
+              Back to Admin
+            </Button>
+          ) : null}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Subscription History Section - Separate Card */}
+      <Card className="mx-auto max-w-4xl mt-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg md:text-xl font-semibold text-[#BFFF00]">
+            Subscription History
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Your subscription history with successful payments
+          </p>
+        </CardHeader>
+        <CardContent className="p-3 md:p-6">
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BFFF00] mx-auto mb-2"></div>
+                <p className="text-sm text-muted-foreground">Loading subscription history...</p>
+              </div>
+            </div>
+          ) : subscriptionHistory?.items && subscriptionHistory.items.length > 0 ? (
+            <>
+              {/* Mobile View */}
+              <SubscriptionHistoryMobile subscriptions={subscriptionHistory.items} />
+              
+              {/* Desktop View */}
+              <div className="hidden md:block">
+                <DataTable
+                  columns={subscriptionColumns}
+                  data={subscriptionHistory ?? { items: [], total: 0, page: 1, limit: 10 }}
+                  isLoading={isLoadingHistory}
+                />
+              </div>
+              
+              {/* Show total count */}
+              <div className="mt-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Showing {subscriptionHistory.items.length} of {subscriptionHistory.total} subscriptions
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <Package2 className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">No subscription history</h3>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                You haven't made any successful subscription purchases yet. Your subscription history will appear here once you complete a purchase.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

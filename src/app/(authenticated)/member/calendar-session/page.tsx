@@ -45,12 +45,12 @@ export default function MemberSchedulePage() {
   });
 
   return (
-    <div className="relative p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-black dark:text-white">
+    <div className="relative p-4 sm:p-6">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-black dark:text-white">
           Jadwal Latihan Anda
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Lihat jadwal latihan Anda dengan personal trainer
         </p>
       </div>

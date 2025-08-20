@@ -128,8 +128,9 @@ export default function PaymentHistoryPage() {
         <DataTableColumnHeader column={column} title="Method" />
       ),
       cell: ({ row }) => {
-        const method = row.getValue("paymentMethod");
+        const method = row.getValue("paymentMethod") as string | null | undefined;
         const isOnline = row.original.isOnlinePayment;
+        const displayMethod = method || (isOnline ? "Online" : "Manual");
         return (
           <div className="flex items-center">
             {isOnline ? (
@@ -138,7 +139,7 @@ export default function PaymentHistoryPage() {
               <Receipt className="mr-1 h-4 w-4" />
             )}
             <span className="capitalize">
-              {method || (isOnline ? "Online" : "Manual")}
+              {displayMethod}
             </span>
           </div>
         );
@@ -201,8 +202,11 @@ export default function PaymentHistoryPage() {
               size="sm"
               onClick={() => goToPaymentStatus(orderReference)}
               disabled={!orderReference}
+              className="w-full sm:w-auto text-xs sm:text-sm"
             >
-              <ExternalLink className="mr-2 h-4 w-4" /> Check Status
+              <ExternalLink className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Check Status</span>
+              <span className="sm:hidden">Status</span>
             </Button>
           );
         }
@@ -214,13 +218,16 @@ export default function PaymentHistoryPage() {
               variant="outline"
               size="sm"
               onClick={() => openImageModal(filePath)}
+              className="w-full sm:w-auto text-xs sm:text-sm"
             >
-              <Receipt className="mr-2 h-4 w-4" /> View Proof
+              <Receipt className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">View Proof</span>
+              <span className="sm:hidden">Proof</span>
             </Button>
           );
         }
 
-        return <span className="text-sm text-muted-foreground">No action</span>;
+        return <span className="text-xs text-muted-foreground sm:text-sm">No action</span>;
       },
     },
   ];
@@ -231,19 +238,19 @@ export default function PaymentHistoryPage() {
   };
 
   return (
-    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+    <div className="container mx-auto min-h-screen bg-background p-2 sm:p-4 md:p-8">
+      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 md:flex-row md:items-center md:gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Payment History</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Payment History</h2>
+          <p className="text-sm text-muted-foreground sm:text-base">
             View your payment history and transaction details
           </p>
         </div>
       </div>
 
       {/* Cards Section */}
-      <div className="mb-8 grid gap-4 md:grid-cols-2">
-        <Card>
+      <div className="mb-6 grid gap-3 sm:gap-4 sm:grid-cols-2 sm:mb-8">
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Transactions
@@ -251,14 +258,14 @@ export default function PaymentHistoryPage() {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{transactions?.total ?? 0}</div>
+            <div className="text-xl font-bold sm:text-2xl">{transactions?.total ?? 0}</div>
             <p className="text-xs text-muted-foreground">
               All time transactions
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Packages
@@ -266,7 +273,7 @@ export default function PaymentHistoryPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl font-bold sm:text-2xl">
               {new Set(transactions?.items.map((t) => t.package?.name)).size ??
                 0}
             </div>
@@ -278,7 +285,7 @@ export default function PaymentHistoryPage() {
       </div>
 
       {/* Transactions Table */}
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <DataTable
           columns={columns}
           data={transactions ?? { items: [], total: 0, page: 1, limit: 10 }}
@@ -292,26 +299,32 @@ export default function PaymentHistoryPage() {
 
       {/* Image Preview Modal */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Payment Proof</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] w-full sm:max-w-xl overflow-hidden">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-base sm:text-lg">Payment Proof</DialogTitle>
+            <DialogDescription className="text-sm">
               Review your uploaded payment proof below.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 flex justify-center">
+          <div className="flex justify-center overflow-auto max-h-[60vh] sm:max-h-[70vh]">
             {selectedImageUrl ? (
               <Link
                 href={selectedImageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="block"
               >
                 <Image
                   src={selectedImageUrl}
                   alt="Payment Proof"
                   width={500}
                   height={700}
-                  style={{ objectFit: "contain", maxHeight: "70vh" }}
+                  className="max-w-full h-auto object-contain"
+                  style={{
+                    maxHeight: "60vh",
+                    width: "auto",
+                    height: "auto"
+                  }}
                   onError={(e) => {
                     console.error("Error loading image:", e);
                     (e.target as HTMLImageElement).src =
@@ -321,13 +334,16 @@ export default function PaymentHistoryPage() {
                 />
               </Link>
             ) : (
-              <p>No image to display or image URL is invalid.</p>
+              <p className="text-center text-muted-foreground p-4">
+                No image to display or image URL is invalid.
+              </p>
             )}
           </div>
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-4 pt-4 border-t">
             <Button
               variant="outline"
               onClick={() => setIsImageModalOpen(false)}
+              className="w-full sm:w-auto"
             >
               Close
             </Button>

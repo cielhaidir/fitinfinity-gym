@@ -64,12 +64,12 @@ export default function AppNavbar() {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-2 sm:px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <DynamicBreadcrumb />
       {/* Login/Logout Button */}
-      <div className="ml-auto flex items-center space-x-4">
+      <div className="ml-auto flex items-center space-x-1 sm:space-x-4">
         {isInstallable && (
           <Button
             onClick={handleInstallClick}
@@ -78,7 +78,7 @@ export default function AppNavbar() {
             className="flex items-center gap-1"
           >
             <Download size={16} />
-            <span className="hidden sm:inline">Install App</span>
+            <span className="hidden md:inline">Install App</span>
           </Button>
         )}
         {/* Tampilkan NavUser jika user login */}
@@ -91,7 +91,7 @@ export default function AppNavbar() {
             }}
           />
         ) : (
-          <Button onClick={handleLogout} className="rounded border bg-infinity">
+          <Button onClick={handleLogout} className="rounded border bg-infinity text-sm px-2 sm:px-4">
             Logout
           </Button>
         )}
