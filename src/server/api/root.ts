@@ -41,6 +41,7 @@ import { trackingRouter } from "./routers/tracking";
 import { salesReportRouter } from "./routers/salesReport";
 import { cashBankReportRouter } from "./routers/cashBankReport";
 import { aiRateLimitRouter } from "./routers/aiRateLimit";
+import { financeRouter } from "./routers/finance";
 
 /**
  * This is the primary router for your server.
@@ -90,6 +91,7 @@ export const appRouter = createTRPCRouter({
   salesReport: salesReportRouter,
   cashBankReport: cashBankReportRouter,
   aiRateLimit: aiRateLimitRouter,
+  finance: financeRouter,
 });
 
 // export type definition of API

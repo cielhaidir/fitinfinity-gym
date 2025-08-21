@@ -66,15 +66,42 @@ export const employeeRouter = createTRPCRouter({
       const { page, limit, search, searchColumn } = input;
       const skip = (page - 1) * limit;
 
-      const where = search
-        ? {
+      let where = {};
+      
+      if (search) {
+        if (searchColumn) {
+          // Column-specific search
+          switch (searchColumn) {
+            case "user.name":
+              where = { user: { name: { contains: search } } };
+              break;
+            case "user.email":
+              where = { user: { email: { contains: search } } };
+              break;
+            case "rfidTag":
+              where = { rfidTag: { contains: search } };
+              break;
+            default:
+              // If searchColumn is provided but not recognized, fall back to OR search
+              where = {
+                OR: [
+                  { user: { name: { contains: search } } },
+                  { user: { email: { contains: search } } },
+                  { rfidTag: { contains: search } },
+                ],
+              };
+          }
+        } else {
+          // No specific column, search all
+          where = {
             OR: [
               { user: { name: { contains: search } } },
               { user: { email: { contains: search } } },
               { rfidTag: { contains: search } },
             ],
-          }
-        : {};
+          };
+        }
+      }
 
       const [items, total] = await Promise.all([
         ctx.db.employee.findMany({
