@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { BarChart3, Users, UserCheck, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { BarChart3, Users, UserCheck, Clock, Download, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
 
 interface ClassReportData {
   id: string;
@@ -113,13 +115,64 @@ const columns: ColumnDef<ClassReportData>[] = [
 export default function ClassMemberReportPage() {
   const [page, setPage] = useState(1);
   const [includePast, setIncludePast] = useState(false);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const limit = 20;
 
-  const { data, isLoading, error } = api.memberClass.reportClassMemberCount.useQuery({
+  // Helper function to validate and convert date
+  const isValidDate = (dateString: string): boolean => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    return !isNaN(date.getTime());
+  };
+
+  // Prepare query parameters with date validation
+  const queryParams = {
     page,
     limit,
     includePast,
+    ...(startDate && isValidDate(startDate) && { startDate: new Date(startDate) }),
+    ...(endDate && isValidDate(endDate) && { endDate: new Date(endDate) }),
+  };
+
+  const { data, isLoading, error } = api.memberClass.reportClassMemberCount.useQuery(queryParams);
+
+  // Excel export mutation
+  const exportMutation = api.memberClass.exportClassMemberReport.useMutation({
+    onSuccess: (data: any) => {
+      // Create blob and download
+      const blob = new Blob([Buffer.from(data.buffer)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Excel file downloaded successfully");
+    },
+    onError: (error: any) => {
+      toast.error(`Export failed: ${error.message}`);
+    },
   });
+
+  const handleExport = () => {
+    const exportParams = {
+      includePast,
+      ...(startDate && isValidDate(startDate) && { startDate: new Date(startDate) }),
+      ...(endDate && isValidDate(endDate) && { endDate: new Date(endDate) }),
+    };
+    exportMutation.mutate(exportParams);
+  };
+
+  const clearFilters = () => {
+    setStartDate("");
+    setEndDate("");
+    setIncludePast(false);
+  };
 
   const handlePaginationChange = (newPage: number, newLimit: number) => {
     setPage(newPage);
@@ -150,15 +203,73 @@ export default function ClassMemberReportPage() {
             Overview of member registrations and waitlists for all classes
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="include-past"
-            checked={includePast}
-            onCheckedChange={setIncludePast}
-          />
-          <Label htmlFor="include-past">Include past classes</Label>
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+            variant="outline"
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            {exportMutation.isPending ? "Exporting..." : "Export Excel"}
+          </Button>
         </div>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>
+            Filter classes by date range and status
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className={startDate && !isValidDate(startDate) ? "border-red-500" : ""}
+              />
+              {startDate && !isValidDate(startDate) && (
+                <p className="text-xs text-red-500 mt-1">Please enter a valid date</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={endDate && !isValidDate(endDate) ? "border-red-500" : ""}
+              />
+              {endDate && !isValidDate(endDate) && (
+                <p className="text-xs text-red-500 mt-1">Please enter a valid date</p>
+              )}
+            </div>
+            <div className="flex items-end">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="include-past"
+                  checked={includePast}
+                  onCheckedChange={setIncludePast}
+                />
+                <Label htmlFor="include-past">Include past classes</Label>
+              </div>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={clearFilters} variant="outline" className="w-full">
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">

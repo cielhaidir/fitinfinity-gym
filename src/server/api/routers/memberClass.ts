@@ -405,12 +405,25 @@ export const memberClassRouter = createTRPCRouter({
         page: z.number().min(1).optional().default(1),
         limit: z.number().min(1).max(100).optional().default(50),
         includePast: z.boolean().optional().default(false),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const whereClause = input.includePast 
-        ? {} 
-        : { schedule: { gt: new Date() } };
+      let whereClause: any = {};
+      
+      // Handle date filtering
+      if (input.startDate || input.endDate) {
+        whereClause.schedule = {};
+        if (input.startDate) {
+          whereClause.schedule.gte = input.startDate;
+        }
+        if (input.endDate) {
+          whereClause.schedule.lte = input.endDate;
+        }
+      } else if (!input.includePast) {
+        whereClause.schedule = { gt: new Date() };
+      }
 
       const [classes, total] = await Promise.all([
         ctx.db.class.findMany({
@@ -447,6 +460,150 @@ export const memberClassRouter = createTRPCRouter({
         total,
         page: input.page,
         limit: input.limit,
+      };
+    }),
+
+  /**
+   * Export class member report to Excel
+   */
+  exportClassMemberReport: permissionProtectedProcedure(["list:classes"])
+    .input(
+      z.object({
+        includePast: z.boolean().optional().default(false),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const XLSX = await import("xlsx");
+      
+      let whereClause: any = {};
+      
+      // Handle date filtering (same logic as reportClassMemberCount)
+      if (input.startDate || input.endDate) {
+        whereClause.schedule = {};
+        if (input.startDate) {
+          whereClause.schedule.gte = input.startDate;
+        }
+        if (input.endDate) {
+          whereClause.schedule.lte = input.endDate;
+        }
+      } else if (!input.includePast) {
+        whereClause.schedule = { gt: new Date() };
+      }
+
+      const classes = await ctx.db.class.findMany({
+        where: whereClause,
+        include: {
+          _count: {
+            select: {
+              registeredMembers: true,
+              waitingList: true,
+            },
+          },
+          registeredMembers: {
+            include: {
+              member: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+          waitingList: {
+            include: {
+              member: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          schedule: "asc",
+        },
+      });
+
+      // Prepare summary data for Excel export
+      const summaryData = classes.map((classItem) => ({
+        'Class Name': classItem.name,
+        'Schedule Date': classItem.schedule.toLocaleDateString(),
+        'Schedule Time': classItem.schedule.toLocaleTimeString(),
+        'Class Limit': classItem.limit || 'Unlimited',
+        'Registered Members': classItem._count.registeredMembers,
+        'Waitlist Count': classItem._count.waitingList,
+        'Available Spots': classItem.limit ? classItem.limit - classItem._count.registeredMembers : 'Unlimited',
+        'Status': classItem.schedule > new Date() ? 'Upcoming' : 'Past',
+      }));
+
+      // Prepare detailed member data
+      const memberDetailData: any[] = [];
+      
+      classes.forEach((classItem) => {
+        // Add registered members
+        classItem.registeredMembers.forEach((registration) => {
+          memberDetailData.push({
+            'Member Name': registration.member.user.name || 'N/A',
+            'Member Email': registration.member.user.email || 'N/A',
+            'Member Phone': registration.member.user.phone || 'N/A',
+            'Class Name': classItem.name,
+            'Schedule Date': classItem.schedule.toLocaleDateString(),
+            'Schedule Time': classItem.schedule.toLocaleTimeString(),
+            'Registration Status': 'Registered',
+            'Registration Type': 'Member',
+          });
+        });
+
+        // Add waitlist members
+        classItem.waitingList.forEach((waitlist) => {
+          memberDetailData.push({
+            'Member Name': waitlist.member.user.name || 'N/A',
+            'Member Email': waitlist.member.user.email || 'N/A',
+            'Member Phone': waitlist.member.user.phone || 'N/A',
+            'Class Name': classItem.name,
+            'Schedule Date': classItem.schedule.toLocaleDateString(),
+            'Schedule Time': classItem.schedule.toLocaleTimeString(),
+            'Registration Status': 'Waitlist',
+            'Registration Type': 'Member',
+          });
+        });
+      });
+
+      // Create workbook and worksheets
+      const workbook = XLSX.utils.book_new();
+      
+      // Summary sheet
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Class Summary");
+
+      // Member details sheet
+      if (memberDetailData.length > 0) {
+        const memberWorksheet = XLSX.utils.json_to_sheet(memberDetailData);
+        XLSX.utils.book_append_sheet(workbook, memberWorksheet, "Member Details");
+      }
+
+      // Generate Excel file buffer
+      const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+      // Generate filename with date range
+      let filename = "class-member-report";
+      if (input.startDate && input.endDate) {
+        const startStr = input.startDate.toISOString().split('T')[0];
+        const endStr = input.endDate.toISOString().split('T')[0];
+        filename += `-${startStr}-to-${endStr}`;
+      } else if (input.startDate) {
+        filename += `-from-${input.startDate.toISOString().split('T')[0]}`;
+      } else if (input.endDate) {
+        filename += `-until-${input.endDate.toISOString().split('T')[0]}`;
+      } else {
+        filename += `-${new Date().toISOString().split('T')[0]}`;
+      }
+      filename += ".xlsx";
+
+      return {
+        buffer: Array.from(buffer),
+        filename,
       };
     }),
 });
