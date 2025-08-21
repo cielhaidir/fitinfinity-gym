@@ -58,6 +58,20 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
   useEffect(() => {
     setCurrentDiscountType(voucher.discountType || "CASH");
     setAmountInput(voucher.amount?.toString() || "0");
+        {/* ...existing code... */}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="isActive"
+            checked={voucher.isActive ?? true}
+            onCheckedChange={(checked) => onSelectChange("isActive", checked)}
+          />
+          <label htmlFor="isActive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Voucher Active
+          </label>
+          <p className="text-sm text-muted-foreground">
+            Toggle to activate or deactivate this voucher
+          </p>
+        </div>
     setExpiryDate(
       voucher.expiryDate ? new Date(voucher.expiryDate) : undefined,
     );
@@ -316,6 +330,20 @@ export const VoucherForm: React.FC<VoucherFormProps> = ({
           </label>
           <p className="text-sm text-muted-foreground">
             Allow members to use multiple vouchers at the same time
+          </p>
+        </div>
+        {/* Checkbox for Voucher Active status */}
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="isActive"
+            checked={voucher.isActive ?? true}
+            onCheckedChange={(checked) => onSelectChange("isActive", checked.toString())}
+          />
+          <label htmlFor="isActive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Voucher Active
+          </label>
+          <p className="text-sm text-muted-foreground">
+            Toggle to activate or deactivate this voucher
           </p>
         </div>
 
