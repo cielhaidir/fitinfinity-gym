@@ -725,6 +725,62 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
+      // Get sales information for each subscription
+      const subscriptionsWithSales = await Promise.all(
+        items.map(async (subscription) => {
+          let salesPerson = null;
+          
+          if (subscription.salesId && subscription.salesType) {
+            if (subscription.salesType === "PersonalTrainer") {
+              const pt = await ctx.db.personalTrainer.findUnique({
+                where: { id: subscription.salesId },
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              });
+              if (pt) {
+                salesPerson = {
+                  id: pt.id,
+                  name: pt.user?.name || "Unknown PT",
+                  email: pt.user?.email || "",
+                  type: "PersonalTrainer" as const,
+                };
+              }
+            } else if (subscription.salesType === "FC") {
+              const fc = await ctx.db.fC.findUnique({
+                where: { id: subscription.salesId },
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              });
+              if (fc) {
+                salesPerson = {
+                  id: fc.id,
+                  name: fc.user?.name || "Unknown FC",
+                  email: fc.user?.email || "",
+                  type: "FC" as const,
+                };
+              }
+            }
+          }
+
+          return {
+            ...subscription,
+            salesPerson,
+          };
+        })
+      );
+
       const total = await ctx.db.subscription.count({
         where: {
           memberId: input.memberId,
@@ -737,7 +793,7 @@ export const subscriptionRouter = createTRPCRouter({
       });
 
       return {
-        items,
+        items: subscriptionsWithSales,
         total,
         page: input.page,
         limit: input.limit,

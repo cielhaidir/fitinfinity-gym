@@ -247,6 +247,142 @@ export const profileRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Admin endpoint to update member profiles
+  updateMember: permissionProtectedProcedure(["update:member"])
+    .input(
+      z.object({
+        memberId: z.string(),
+        name: z.string().min(1).optional(),
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        birthDate: z.date().optional(),
+        image: z.string().optional(),
+        height: z.number().optional(),
+        weight: z.number().optional(),
+        gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Find the membership to get the user ID
+      const membership = await ctx.db.membership.findUnique({
+        where: { id: input.memberId },
+        include: { user: true },
+      });
+
+      if (!membership) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Member not found",
+        });
+      }
+
+      const { memberId, ...updateData } = input;
+
+      return ctx.db.user.update({
+        where: { id: membership.userId },
+        data: updateData,
+      });
+    }),
+
+  // Admin endpoint to change password without requiring current password
+  adminChangePassword: permissionProtectedProcedure(["update:member"])
+    .input(
+      z.object({
+        memberId: z.string().optional(), // For admin changing member password
+        newPassword: z
+          .string()
+          .min(6, "New password must be at least 6 characters"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      let userId = ctx.session.user.id;
+
+      // If memberId is provided, admin is changing another user's password
+      if (input.memberId) {
+        const membership = await ctx.db.membership.findUnique({
+          where: { id: input.memberId },
+        });
+
+        if (!membership) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member not found",
+          });
+        }
+
+        userId = membership.userId;
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(input.newPassword, 10);
+
+      // Update password
+      await ctx.db.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+        },
+      });
+
+      return { success: true };
+    }),
+
+  // Account transfer functionality
+  transferAccount: permissionProtectedProcedure(["update:member"])
+    .input(
+      z.object({
+        fromUserId: z.string(),
+        toUserEmail: z.string().email(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.$transaction(async (tx) => {
+        // Find the target user by email
+        const toUser = await tx.user.findUnique({
+          where: { email: input.toUserEmail },
+        });
+
+        if (!toUser) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Target user not found",
+          });
+        }
+
+        // Find the from user's account records
+        const fromAccounts = await tx.account.findMany({
+          where: { userId: input.fromUserId },
+        });
+
+        if (fromAccounts.length === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "No accounts found for the source user",
+          });
+        }
+
+        // Transfer all accounts to the new user
+        for (const account of fromAccounts) {
+          await tx.account.update({
+            where: { id: account.id },
+            data: { userId: toUser.id },
+          });
+        }
+
+        // Update sessions if any exist
+        await tx.session.updateMany({
+          where: { userId: input.fromUserId },
+          data: { userId: toUser.id },
+        });
+
+        return {
+          success: true,
+          transferredAccounts: fromAccounts.length,
+          toUserId: toUser.id,
+        };
+      });
+    }),
+
   checkPhone: publicProcedure
     .input(
       z.object({

@@ -15,7 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/trpc/react";
 
-export function ChangePasswordDialog() {
+interface ChangePasswordDialogProps {
+  isAdmin?: boolean;
+  memberId?: string;
+}
+
+export function ChangePasswordDialog({ isAdmin = false, memberId }: ChangePasswordDialogProps) {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -35,7 +40,22 @@ export function ChangePasswordDialog() {
         confirmPassword: "",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      toast.error(error.message);
+    },
+  });
+
+  const adminChangePassword = api.profile.adminChangePassword.useMutation({
+    onSuccess: () => {
+      toast.success("Password changed successfully");
+      setIsOpen(false);
+      setFormData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    },
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
@@ -56,10 +76,24 @@ export function ChangePasswordDialog() {
     }
 
     try {
-      await changePassword.mutateAsync({
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword,
-      });
+      if (isAdmin && memberId) {
+        // Admin changing member password - no current password required
+        await adminChangePassword.mutateAsync({
+          memberId,
+          newPassword: formData.newPassword,
+        });
+      } else if (isAdmin && !memberId) {
+        // Admin changing their own password - no current password required
+        await adminChangePassword.mutateAsync({
+          newPassword: formData.newPassword,
+        });
+      } else {
+        // Regular user changing their own password - current password required
+        await changePassword.mutateAsync({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+        });
+      }
     } catch (error) {
       console.error("Password change error:", error);
     }
@@ -78,18 +112,21 @@ export function ChangePasswordDialog() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="space-y-2">
-            <Label htmlFor="currentPassword">Current Password</Label>
-            <Input
-              id="currentPassword"
-              type="password"
-              value={formData.currentPassword}
-              onChange={(e) =>
-                setFormData({ ...formData, currentPassword: e.target.value })
-              }
-              required
-            />
-          </div>
+          {/* Only show current password field for non-admin users */}
+          {!isAdmin && (
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                value={formData.currentPassword}
+                onChange={(e) =>
+                  setFormData({ ...formData, currentPassword: e.target.value })
+                }
+                required
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
             <Input
@@ -124,10 +161,10 @@ export function ChangePasswordDialog() {
             </Button>
             <Button
               type="submit"
-              disabled={changePassword.isPending}
+              disabled={changePassword.isPending || adminChangePassword.isPending}
               className="bg-[#C9D953] hover:bg-[#C9D953]/90"
             >
-              {changePassword.isPending ? "Changing..." : "Change Password"}
+              {(changePassword.isPending || adminChangePassword.isPending) ? "Changing..." : "Change Password"}
             </Button>
           </div>
         </form>

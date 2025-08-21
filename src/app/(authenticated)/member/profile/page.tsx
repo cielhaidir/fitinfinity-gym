@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
-import { Camera, Package2 } from "lucide-react";
+import { Camera, Package2, UserCog, Users } from "lucide-react";
 import { ChangePasswordDialog } from "./change-password-dialog";
 import { DataTable } from "@/components/datatable/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
+import { useRBAC } from "@/hooks/useRBAC";
 
 export default function ProfilePage() {
   const utils = api.useUtils();
@@ -27,6 +28,14 @@ export default function ProfilePage() {
   const isViewingOtherMember = !!memberId;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [transferEmail, setTransferEmail] = useState("");
+  
+  // RBAC hooks
+  const { hasPermission } = useRBAC();
+  const canEditProfile = hasPermission("update:profile");
+  const canManageMembers = hasPermission("update:member") || hasPermission("list:member");
+  const isAdmin = canManageMembers; // Admin can edit any member profile
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -75,6 +84,35 @@ export default function ProfilePage() {
       } else {
         toast.error(error.message);
       }
+    },
+  });
+
+  // Admin-specific mutation for updating member profiles
+  const updateMemberProfile = api.profile.updateMember.useMutation({
+    onSuccess: async () => {
+      await utils.profile.get.invalidate();
+      toast.success("Member profile updated successfully");
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      if (error.message.includes("phone")) {
+        toast.error("Phone number is already registered");
+      } else {
+        toast.error(error.message);
+      }
+    },
+  });
+
+  // Account transfer mutation
+  const transferAccount = api.profile.transferAccount.useMutation({
+    onSuccess: () => {
+      toast.success("Account transferred successfully");
+      setShowTransferDialog(false);
+      setTransferEmail("");
+      router.push("/admin/member"); // Redirect to member list
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
     },
   });
 
@@ -157,7 +195,22 @@ export default function ProfilePage() {
       weight: formData.weight ? parseFloat(formData.weight) : undefined,
       gender: genderValue,
     };
-    updateProfile.mutate(data);
+
+    // Use appropriate mutation based on admin status and viewing mode
+    if (isAdmin && isViewingOtherMember && memberId) {
+      updateMemberProfile.mutate({ ...data, memberId });
+    } else {
+      updateProfile.mutate(data);
+    }
+  };
+
+  const handleTransferAccount = () => {
+    if (!transferEmail || !profile?.id) return;
+    
+    transferAccount.mutate({
+      fromUserId: profile.id,
+      toUserEmail: transferEmail,
+    });
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,6 +289,11 @@ export default function ProfilePage() {
                 <p className="text-sm text-muted-foreground">
                   {subscription.trainer?.user?.name ? `Trainer: ${subscription.trainer.user.name}` : "No trainer"}
                 </p>
+                {subscription.salesPerson && (
+                  <p className="text-sm text-muted-foreground">
+                    Sales: {subscription.salesPerson.name} ({subscription.salesPerson.type === "PersonalTrainer" ? "PT" : "FC"})
+                  </p>
+                )}
               </div>
               <Badge variant={subscription.isActive ? "default" : "secondary"}>
                 {subscription.isActive ? "Active" : "Inactive"}
@@ -328,6 +386,25 @@ export default function ProfilePage() {
           <span className="text-sm">{trainer.user.name}</span>
         ) : (
           <span className="text-muted-foreground text-sm">No trainer</span>
+        );
+      },
+    },
+    {
+      accessorKey: "salesPerson",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Sales" />
+      ),
+      cell: ({ row }) => {
+        const salesPerson = row.original.salesPerson;
+        return salesPerson ? (
+          <div className="text-sm">
+            <span className="font-medium">{salesPerson.name}</span>
+            <span className="text-muted-foreground ml-1">
+              ({salesPerson.type === "PersonalTrainer" ? "PT" : "FC"})
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-sm">No sales</span>
         );
       },
     },
@@ -434,7 +511,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    disabled={!isEditing || isViewingOtherMember}
+                    disabled={!isEditing || (isViewingOtherMember && !isAdmin)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -443,7 +520,7 @@ export default function ProfilePage() {
                     id="phone"
                     value={formData.phone}
                     onChange={handlePhoneChange}
-                    disabled={!isEditing || isViewingOtherMember}
+                    disabled={!isEditing || (isViewingOtherMember && !isAdmin)}
                     placeholder="62xxxxxxxxxx"
                   />
                 </div>
@@ -455,7 +532,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, address: e.target.value })
                     }
-                    disabled={!isEditing || isViewingOtherMember}
+                    disabled={!isEditing || (isViewingOtherMember && !isAdmin)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -467,7 +544,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, birthDate: e.target.value })
                     }
-                    disabled={!isEditing || isViewingOtherMember}
+                    disabled={!isEditing || (isViewingOtherMember && !isAdmin)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -479,7 +556,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, height: e.target.value })
                     }
-                    disabled={!isEditing || isViewingOtherMember}
+                    disabled={!isEditing || (isViewingOtherMember && !isAdmin)}
                     min={0}
                   />
                 </div>
@@ -492,7 +569,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, weight: e.target.value })
                     }
-                    disabled={!isEditing || isViewingOtherMember}
+                    disabled={!isEditing || (isViewingOtherMember && !isAdmin)}
                     min={0}
                   />
                 </div>
@@ -504,7 +581,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, gender: e.target.value })
                     }
-                    disabled={!isEditing || isViewingOtherMember}
+                    disabled={!isEditing || (isViewingOtherMember && !isAdmin)}
                     className="w-full rounded border px-3 py-2"
                   >
                     <option value="">Select Gender</option>
@@ -515,36 +592,95 @@ export default function ProfilePage() {
                 </div>
               </div>
             </form>
-            <ChangePasswordDialog />
-               {!isViewingOtherMember && !isEditing ? (
-            <Button
-              onClick={() => setIsEditing(true)}
-              className="bg-[#C9D953] hover:bg-[#C9D953]/90"
-            >
-              Edit Profile
-            </Button>
-          ) : !isViewingOtherMember && isEditing ? (
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
-                Cancel
-              </Button>
+            <ChangePasswordDialog isAdmin={isAdmin} memberId={isViewingOtherMember ? memberId : undefined} />
+            
+            {/* Profile editing buttons */}
+            {!isEditing && ((!isViewingOtherMember) || (isViewingOtherMember && isAdmin)) ? (
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  className="bg-[#C9D953] hover:bg-[#C9D953]/90 w-full md:w-auto"
+                >
+                  <UserCog className="mr-2 h-4 w-4" />
+                  {isViewingOtherMember ? "Edit Member Profile" : "Edit Profile"}
+                </Button>
+                
+                {/* Admin-only transfer account button */}
+                {/* {isAdmin && isViewingOtherMember && (
+                  <Button
+                    onClick={() => setShowTransferDialog(true)}
+                    variant="outline"
+                    className="w-full md:w-auto"
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    Transfer Account
+                  </Button>
+                )} */}
+              </div>
+            ) : isEditing ? (
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  form="profile-form"
+                  type="submit"
+                  disabled={updateProfile.isPending || updateMemberProfile.isPending}
+                  className="bg-[#C9D953] hover:bg-[#C9D953]/90"
+                >
+                  {(updateProfile.isPending || updateMemberProfile.isPending) ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            ) : isViewingOtherMember && !isAdmin ? (
               <Button
-                form="profile-form"
-                type="submit"
-                disabled={updateProfile.isPending}
-                className="bg-[#C9D953] hover:bg-[#C9D953]/90"
+                onClick={() => router.back()}
+                variant="outline"
               >
-                {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                Back to Admin
               </Button>
-            </div>
-          ) : isViewingOtherMember ? (
-            <Button
-              onClick={() => router.back()}
-              variant="outline"
-            >
-              Back to Admin
-            </Button>
-          ) : null}
+            ) : null}
+
+            {/* Account Transfer Dialog */}
+            {showTransferDialog && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md">
+                  <h3 className="text-lg font-semibold mb-4">Transfer Account</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Transfer this member's account credentials to another user by email.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="transferEmail">Target User Email</Label>
+                      <Input
+                        id="transferEmail"
+                        type="email"
+                        value={transferEmail}
+                        onChange={(e) => setTransferEmail(e.target.value)}
+                        placeholder="user@example.com"
+                      />
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowTransferDialog(false);
+                          setTransferEmail("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      {/* <Button
+                        onClick={handleTransferAccount}
+                        disabled={!transferEmail || transferAccount.isPending}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {transferAccount.isPending ? "Transferring..." : "Transfer Account"}
+                      </Button> */}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
