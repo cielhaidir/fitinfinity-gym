@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 import { TRPCError } from "@trpc/server";
 import { siteConfig } from "@/lib/config/siteConfig";
 import { start } from "repl";
+import { useRFIDCheckIn } from "@/app/_components/hooks/useRFIDCheckIn";
 
 export const paymentValidationRouter = createTRPCRouter({
   uploadFile: permissionProtectedProcedure(["upload:payment"])
@@ -26,11 +27,11 @@ export const paymentValidationRouter = createTRPCRouter({
         fileData: z.string(), // base64 string
         fileName: z.string(),
         fileType: z.string(),
-        memberId: z.string(),
+        userId: z.string(),
       }),
     )
     .mutation(async ({ input }) => {
-      const { fileData, fileName, fileType, memberId } = input;
+      const { fileData, fileName, fileType, userId } = input;
 
       // Validate file type
       const validTypes = [
@@ -60,7 +61,7 @@ export const paymentValidationRouter = createTRPCRouter({
       const uniqueFilename = `${uuidv4()}${extension}`;
 
       // Construct the path relative to the public directory
-      const relativeUploadDir = path.join("assets", "transaction", memberId);
+      const relativeUploadDir = path.join("assets", "transaction", userId);
       const uploadDir = path.join(process.cwd(), "public", relativeUploadDir);
       const filePath = path.join("/", relativeUploadDir, uniqueFilename); // Path to be stored in DB
 
@@ -80,7 +81,7 @@ export const paymentValidationRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:payment"])
     .input(
       z.object({
-        memberId: z.string(),
+        userId: z.string(),
         packageId: z.string(),
         trainerId: z.string().optional(),
         subsType: z.string(), // "gym", "trainer", or "group"
@@ -99,7 +100,7 @@ export const paymentValidationRouter = createTRPCRouter({
       return ctx.db.$transaction(async (tx) => {
         // Get the membership to get the user ID
         const membership = await tx.membership.findUnique({
-          where: { id: input.memberId },
+          where: { userId: input.userId },
           include: { user: true },
         });
 
@@ -113,7 +114,7 @@ export const paymentValidationRouter = createTRPCRouter({
         // Create PaymentValidation entry
         const paymentValidation = await tx.paymentValidation.create({
           data: {
-            memberId: input.memberId,
+            memberId: membership.id,
             packageId: input.packageId,
             trainerId: input.trainerId,
             subsType: input.subsType,
@@ -133,7 +134,7 @@ export const paymentValidationRouter = createTRPCRouter({
           // Create voucher claim using the user ID
           await tx.voucherClaim.create({
             data: {
-              memberId: membership.user.id, // Use user ID instead of member ID
+              memberId: input.userId, // Use user ID instead of member ID
               voucherId: input.voucherId,
             },
           });

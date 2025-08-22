@@ -142,7 +142,7 @@ function CheckoutValidateContent() {
         fileData: base64Data,
         fileName: paymentProofFile.name,
         fileType: paymentProofFile.type,
-        memberId: memberID,
+        userId: memberID,
       });
 
       console.log("File uploaded successfully:", uploadResult);
@@ -154,7 +154,7 @@ function CheckoutValidateContent() {
       // Step 2: Create PaymentValidation entries for each cart item
       for (const item of cartItems) {
         await createPaymentValidation.mutateAsync({
-          memberId: memberID,
+          userId: memberID,
           packageId: item.packageId,
           trainerId: item.trainerId || undefined,
           subsType: item.type,
