@@ -341,7 +341,7 @@ export default function MemberPage() {
   };
 
   const directToSubs = (member: Member) => {
-    router.push(`/checkout/${member.id}`);
+    router.push(`/checkout/${member.userId}`);
   };
 
   const directToLogs = (member: Member) => {

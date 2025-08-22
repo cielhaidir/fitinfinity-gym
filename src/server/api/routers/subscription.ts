@@ -97,7 +97,7 @@ export const subscriptionRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const member = await ctx.db.membership.findUnique({
-        where: { id: input.memberId },
+        where: { userId: input.memberId },
       });
 
       if (!member) {
@@ -108,7 +108,7 @@ export const subscriptionRouter = createTRPCRouter({
       }
 
       const data = {
-        memberId: input.memberId,
+        memberId: member.id,
         packageId: input.packageId,
         startDate: input.startDate,
         salesId: input.salesId || null,
@@ -619,7 +619,7 @@ export const subscriptionRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       // Update expired subscriptions sebelum query
-      await updateExpiredSubscriptions(ctx);
+      // await updateExpiredSubscriptions(ctx);
 
       const items = await ctx.db.subscription.findMany({
         where: { memberId: input.memberId },
@@ -804,7 +804,7 @@ export const subscriptionRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       // Update expired subscriptions sebelum query
-      await updateExpiredSubscriptions(ctx);
+      // await updateExpiredSubscriptions(ctx);
 
       const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.id },

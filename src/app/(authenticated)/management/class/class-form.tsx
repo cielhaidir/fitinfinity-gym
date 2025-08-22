@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
@@ -92,99 +91,67 @@ export const ClassForm = ({
   onCreateOrUpdateClass,
   isEditMode,
 }: ClassFormProps) => {
-  // Local state
-  const [localName, setLocalName] = useState(name);
-  const [localLimit, setLocalLimit] = useState<number | null>(limit);
-  const [localInstructorName, setLocalInstructorName] = useState(instructorName);
-  const [localSchedule, setLocalSchedule] = useState(schedule);
-  const [localSchedules, setLocalSchedules] = useState<Date[]>(schedules);
-  const [localDuration, setLocalDuration] = useState(duration);
-  const [localPrice, setLocalPrice] = useState(price);
-  const [localIsBulkMode, setLocalIsBulkMode] = useState(isBulkMode);
-
-  // Update local state when props change
-  useEffect(() => {
-    setLocalName(name);
-    setLocalLimit(limit);
-    setLocalInstructorName(instructorName);
-    setLocalSchedule(schedule);
-    setLocalSchedules(schedules);
-    setLocalDuration(duration);
-    setLocalPrice(price);
-    setLocalIsBulkMode(isBulkMode);
-  }, [name, limit, instructorName, schedule, schedules, duration, price, isBulkMode]);
-
-  // Handle local changes and propagate to parent
+  // Handle changes and propagate to parent
   const handleNameChange = (value: ClassName) => {
-    setLocalName(value);
     onNameChange(value);
   };
 
   const handleLimitChange = (value: string) => {
     const newLimit = value ? parseInt(value) : null;
-    setLocalLimit(newLimit);
     onLimitChange(newLimit);
   };
 
   const handleInstructorNameChange = (value: string) => {
-    setLocalInstructorName(value);
     onInstructorNameChange(value);
   };
 
   const handleScheduleChange = (value: Date) => {
-    setLocalSchedule(value);
     onScheduleChange(value);
   };
 
   const handleDurationChange = (value: string) => {
     const newDuration = parseInt(value);
-    setLocalDuration(newDuration);
     onDurationChange(newDuration);
   };
 
   const handlePriceChange = (value: string) => {
     // Pastikan value tidak kosong dan valid
     if (value === "") {
-      setLocalPrice(0);
       onPriceChange(0);
       return;
     }
 
     const newPrice = parseInt(value.replace(/[^0-9]/g, "")) || 0;
-    setLocalPrice(newPrice);
     onPriceChange(newPrice);
   };
 
   const handleBulkModeChange = (checked: boolean) => {
-    setLocalIsBulkMode(checked);
     onBulkModeChange?.(checked);
     
     // Initialize with current schedule if switching to bulk mode
-    if (checked && localSchedules.length === 0) {
-      const newSchedules = [localSchedule];
-      setLocalSchedules(newSchedules);
+    if (checked && schedules.length === 0) {
+      const newSchedules = [schedule];
       onSchedulesChange?.(newSchedules);
     }
   };
 
   const handleSchedulesChange = (schedules: Date[]) => {
-    setLocalSchedules(schedules);
     onSchedulesChange?.(schedules);
   };
 
   const addSchedule = () => {
-    const newSchedule = new Date(localSchedule);
-    const newSchedules = [...localSchedules, newSchedule];
+    const newSchedule = new Date(schedule);
+    const newSchedules = [...schedules, newSchedule];
     handleSchedulesChange(newSchedules);
   };
 
   const removeSchedule = (index: number) => {
-    const newSchedules = localSchedules.filter((_, i) => i !== index);
+    const newSchedules = schedules.filter((_, i) => i !== index);
     handleSchedulesChange(newSchedules);
   };
 
   const updateSchedule = (index: number, newSchedule: Date) => {
-    const newSchedules = [...localSchedules];
+    const newSchedules = [...schedules];
     newSchedules[index] = newSchedule;
     handleSchedulesChange(newSchedules);
   };
@@ -204,7 +171,7 @@ export const ClassForm = ({
           <label htmlFor="name" className="block text-sm font-medium">
             Class Name
           </label>
-          <Select value={localName} onValueChange={handleNameChange}>
+          <Select value={name} onValueChange={handleNameChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select a class" />
             </SelectTrigger>
@@ -225,7 +192,7 @@ export const ClassForm = ({
           <Input
             type="number"
             id="limit"
-            value={localLimit ?? ""}
+            value={limit ?? ""}
             onChange={(e) => handleLimitChange(e.target.value)}
             placeholder="Enter student limit"
           />
@@ -238,7 +205,7 @@ export const ClassForm = ({
           <Input
             type="text"
             id="instructorName"
-            value={localInstructorName}
+            value={instructorName}
             onChange={(e) => handleInstructorNameChange(e.target.value)}
             placeholder="Enter instructor name"
           />
@@ -248,14 +215,14 @@ export const ClassForm = ({
           <div className="flex items-center space-x-2">
             <Switch
               id="bulk-mode"
-              checked={localIsBulkMode}
+              checked={isBulkMode}
               onCheckedChange={handleBulkModeChange}
             />
             <Label htmlFor="bulk-mode">Create multiple classes with different dates</Label>
           </div>
         )}
 
-        {!localIsBulkMode ? (
+        {!isBulkMode ? (
           <div>
             <label htmlFor="schedule" className="block text-sm font-medium">
               Schedule
@@ -264,8 +231,8 @@ export const ClassForm = ({
               type="datetime-local"
               id="schedule"
               value={
-                localSchedule
-                  ? new Date(localSchedule.getTime() - localSchedule.getTimezoneOffset() * 60000)
+                schedule
+                  ? new Date(schedule.getTime() - schedule.getTimezoneOffset() * 60000)
                       .toISOString()
                       .slice(0, 16)
                   : ""
@@ -280,7 +247,7 @@ export const ClassForm = ({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium">
-                Schedules ({localSchedules.length})
+                Schedules ({schedules.length})
               </label>
               <Button
                 type="button"
@@ -292,7 +259,7 @@ export const ClassForm = ({
               </Button>
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {localSchedules.map((scheduleDate, index) => (
+              {schedules.map((scheduleDate, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <Input
                     type="datetime-local"
@@ -314,7 +281,7 @@ export const ClassForm = ({
                     variant="outline"
                     size="sm"
                     onClick={() => removeSchedule(index)}
-                    disabled={localSchedules.length <= 1}
+                    disabled={schedules.length <= 1}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -331,7 +298,7 @@ export const ClassForm = ({
           <Input
             type="number"
             id="duration"
-            value={localDuration}
+            value={duration}
             onChange={(e) => handleDurationChange(e.target.value)}
             placeholder="Enter class duration"
           />
@@ -344,14 +311,13 @@ export const ClassForm = ({
           <Input
             type="text"
             id="price"
-            value={localPrice === 0 ? "" : localPrice.toLocaleString("id-ID")}
+            value={price === 0 ? "" : price.toLocaleString("id-ID")}
             onChange={(e) => handlePriceChange(e.target.value)}
             placeholder="Enter class price"
             onBlur={(e) => {
               const value = e.target.value.replace(/[^0-9]/g, "");
-              const price = parseInt(value) || 0;
-              setLocalPrice(price);
-              onPriceChange(price);
+              const newPrice = parseInt(value) || 0;
+              onPriceChange(newPrice);
             }}
           />
         </div>
@@ -363,12 +329,12 @@ export const ClassForm = ({
           onClick={onCreateOrUpdateClass}
           className="bg-infinity"
           disabled={
-            !localName ||
-            !localInstructorName ||
-            (localIsBulkMode && localSchedules.length === 0)
+            !name ||
+            !instructorName ||
+            (isBulkMode && schedules.length === 0)
           }
         >
-          {isEditMode ? "Update" : localIsBulkMode ? `Create ${localSchedules.length} Classes` : "Create"} Class
+          {isEditMode ? "Update" : isBulkMode ? `Create ${schedules.length} Classes` : "Create"} Class
         </Button>
       </SheetFooter>
     </SheetContent>

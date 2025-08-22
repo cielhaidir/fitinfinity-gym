@@ -18,9 +18,12 @@ interface DokuPaymentRequest {
     currency: string;
     callback_url: string;
     line_items?: Array<{
+      id?: string;
       name: string;
       price: number;
       quantity: number;
+      category?: string;
+      sku?: string;
     }>;
     auto_redirect?: boolean; // Automatically redirect after payment
   };
@@ -169,6 +172,23 @@ export class DokuPaymentService {
 
   constructor(config: DokuConfig) {
     this.config = config;
+  }
+
+  // Sanitize text to only include characters allowed by Doku API
+  // Allowed: a-z A-Z 0-9 . - / + , = _ : ' @ %
+  private sanitizeText(text: string): string {
+    if (!text) return '';
+    
+    // Replace common problematic characters with allowed alternatives
+    return text
+      .replace(/[()]/g, '') // Remove parentheses
+      .replace(/[{}]/g, '') // Remove curly braces
+      .replace(/[\[\]]/g, '') // Remove square brackets
+      .replace(/[<>]/g, '') // Remove angle brackets
+      .replace(/[|\\]/g, '') // Remove pipes and backslashes
+      .replace(/["`]/g, "'") // Replace backticks and double quotes with single quotes
+      .replace(/[^\w\s.\-/+,=_:'@%]/g, '') // Remove any other non-allowed characters
+      .trim();
   }
 
   // Read private key from file
@@ -439,9 +459,12 @@ export class DokuPaymentService {
     customerPhone: string;
     callbackUrl: string;
     items?: Array<{
+      id?: string;
       name: string;
       price: number;
       quantity: number;
+      category?: string;
+      sku?: string;
     }>;
   }): Promise<DokuPaymentResponse> {
 
@@ -454,21 +477,21 @@ export class DokuPaymentService {
     const lineItems = [...(params.items || [])];
     
     // Add service fee as line item
-lineItems.push({
-  name: 'Service Fee 5%',
-  price: serviceFeePct,
-  quantity: 1,
-  category: 'service',
-  sku: 'SRV-5PCT'
-});
+    lineItems.push({
+      name: this.sanitizeText('Service Fee 5%'),
+      price: serviceFeePct,
+      quantity: 1,
+      category: 'service',
+      sku: 'SRV-5PCT'
+    });
 
-lineItems.push({
-  name: 'Admin Fee',
-  price: adminFee,
-  quantity: 1,
-  category: 'service',
-  sku: 'ADMIN-FEE'
-});
+    lineItems.push({
+      name: this.sanitizeText('Admin Fee'),
+      price: adminFee,
+      quantity: 1,
+      category: 'service',
+      sku: 'ADMIN-FEE'
+    });
 
     const paymentRequest: DokuPaymentRequest = {
       order: {
@@ -476,7 +499,12 @@ lineItems.push({
         invoice_number: params.orderId,
         currency: 'IDR',
         callback_url: params.callbackUrl,
-        line_items: lineItems,
+        line_items: lineItems.map(item => ({
+          ...item,
+          name: this.sanitizeText(item.name),
+          category: item.category ? this.sanitizeText(item.category) : undefined,
+          sku: item.sku ? this.sanitizeText(item.sku) : undefined,
+        })),
         auto_redirect: true, // Automatically redirect after payment
       },
       payment: {
@@ -506,9 +534,9 @@ lineItems.push({
       ]
       },
       customer: {
-        id: params.customerId, // Use orderId as customer ID
-        name: params.customerName,
-        phone: params.customerPhone,
+        id: this.sanitizeText(params.customerId), // Use orderId as customer ID
+        name: this.sanitizeText(params.customerName),
+        phone: this.sanitizeText(params.customerPhone),
       },
     };
 
