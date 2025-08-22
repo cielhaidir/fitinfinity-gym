@@ -388,11 +388,22 @@ export const profileRouter = createTRPCRouter({
       z.object({
         phone: z
           .string()
-          .min(10, "Phone number must be at least 10 digits")
-          .regex(/^\d+$/, "Phone number must contain only digits"),
+          .refine((val) => {
+            // Allow empty string (no validation needed for empty phone)
+            if (val === "" || val === null || val === undefined) {
+              return true;
+            }
+            // For non-empty values, apply validation
+            return val.length >= 10 && /^\d+$/.test(val);
+          }, "Phone number must be at least 10 digits and contain only digits"),
       }),
     )
     .query(async ({ ctx, input }) => {
+      // If phone is empty, return false (not taken)
+      if (!input.phone || input.phone === "") {
+        return false;
+      }
+      
       const user = await ctx.db.user.findFirst({
         where: { phone: input.phone },
       });

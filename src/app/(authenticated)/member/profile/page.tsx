@@ -168,16 +168,19 @@ export default function ProfilePage() {
 
     // Validate if phone number is different from current user's phone
     if (formData.phone !== profile?.phone) {
-      try {
-        // Check if phone number is already registered
-        const { data: phoneExists } = await checkPhone();
-        if (phoneExists) {
-          toast.error("Phone number is already registered");
+      // Only check phone if it's not empty
+      if (formData.phone && formData.phone.trim() !== "") {
+        try {
+          // Check if phone number is already registered
+          const { data: phoneExists } = await checkPhone();
+          if (phoneExists) {
+            toast.error("Phone number is already registered");
+            return;
+          }
+        } catch (error) {
+          console.error("Phone check error:", error);
           return;
         }
-      } catch (error) {
-        console.error("Phone check error:", error);
-        return;
       }
     }
 
