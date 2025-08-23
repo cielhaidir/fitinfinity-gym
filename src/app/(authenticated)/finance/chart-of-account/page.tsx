@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ChartAccountForm } from "./chart-account-form";
 import { DataTable } from "@/app/_components/datatable/data-table";
 import type { ChartAccount } from "./schema";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function ChartAccountPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -69,26 +70,28 @@ export default function ChartAccountPage() {
   };
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Chart of Accounts</h1>
-        <Button onClick={handleAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Account
-        </Button>
+    <ProtectedRoute requiredPermissions={["menu:finance-chart-of-account"]}>
+      <div className="container mx-auto py-10">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Chart of Accounts</h1>
+          <Button onClick={handleAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Account
+          </Button>
+        </div>
+
+        <DataTable
+          columns={columns}
+          data={tableData}
+          onPaginationChange={handlePaginationChange}
+        />
+
+        <ChartAccountForm
+          open={isOpen}
+          onClose={handleClose}
+          account={selectedAccount}
+        />
       </div>
-
-      <DataTable
-        columns={columns}
-        data={tableData}
-        onPaginationChange={handlePaginationChange}
-      />
-
-      <ChartAccountForm
-        open={isOpen}
-        onClose={handleClose}
-        account={selectedAccount}
-      />
-    </div>
+    </ProtectedRoute>
   );
 }

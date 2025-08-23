@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { UserForm } from "./user-form";
 import { createColumns } from "./columns";
 import { signIn } from "next-auth/react";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function UserPage() {
   const utils = api.useUtils();
@@ -132,7 +133,8 @@ export default function UserPage() {
   });
 
   return (
-    <div className="container mx-auto py-10">
+    <ProtectedRoute requiredPermissions={["menu:user"]}>
+      <div className="container mx-auto py-10">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">User Management</h1>
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -167,6 +169,7 @@ export default function UserPage() {
           setSearchColumn(column);
         }}
       />
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

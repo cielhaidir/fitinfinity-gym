@@ -25,6 +25,7 @@ import { EmailConfigForm } from "./email-config-form";
 import { EmailTemplateForm } from "./email-template-form";
 import { Loader2 } from "lucide-react";
 import type { EmailConfig, EmailTemplate } from "./schema";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function EmailConfigPage() {
   const [editingConfig, setEditingConfig] = useState<EmailConfig | null>(null);
@@ -94,6 +95,7 @@ export default function EmailConfigPage() {
   const { data: templates, isLoading: isLoadingTemplates } =
     api.email.listTemplates.useQuery();
   return (
+       <ProtectedRoute requiredPermissions={["menu:configs"]}>
     <div className="container mx-auto space-y-4 py-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Email Configuration</h1>
@@ -224,5 +226,6 @@ export default function EmailConfigPage() {
         </DialogContent>
       </Dialog>
     </div>
+      </ProtectedRoute>
   );
 }

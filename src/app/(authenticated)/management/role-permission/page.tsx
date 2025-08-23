@@ -10,6 +10,7 @@ import { roleColumns } from "./columns";
 import { api } from "@/trpc/react";
 import { RolePermissionForm } from "./role-permission-form";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function RolePermissionPage() {
   const utils = api.useUtils();
@@ -121,7 +122,7 @@ export default function RolePermissionPage() {
   });
 
   return (
-    <>
+    <ProtectedRoute requiredPermissions={["menu:role-permission"]}>
       <Sheet
         open={isSheetOpen}
         onOpenChange={(open) => {
@@ -175,6 +176,6 @@ export default function RolePermissionPage() {
           isEditMode={isEditMode}
         />
       </Sheet>
-    </>
+    </ProtectedRoute>
   );
 }

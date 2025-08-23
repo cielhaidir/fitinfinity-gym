@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function SubscriptionHistoryPage() {
   const router = useRouter();
@@ -464,252 +465,254 @@ export default function SubscriptionHistoryPage() {
   ) ?? 0;
 
   return (
-    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Subscription History</h2>
-          <p className="text-muted-foreground">
-            View all subscription history with invoice generation capabilities
-          </p>
-        </div>
-      </div>
-
-      {/* Statistics Cards */}
-      <div className="mb-8 grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Subscriptions
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalSubscriptions}</div>
-            <p className="text-xs text-muted-foreground">
-              All time subscriptions
+    <ProtectedRoute requiredPermissions={["menu:finance-subscription-history"]}>
+      <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+        <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">Subscription History</h2>
+            <p className="text-muted-foreground">
+              View all subscription history with invoice generation capabilities
             </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Subscriptions
-            </CardTitle>
-            <CreditCard className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{activeSubscriptions}</div>
-            <p className="text-xs text-muted-foreground">
-              Currently active memberships
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Revenue
-            </CardTitle>
-            <Receipt className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: "IDR",
-                minimumFractionDigits: 0,
-              }).format(totalRevenue)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              From all subscriptions
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Status Filter and Multi-select Actions */}
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium">Status:</label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="SUCCESS">Active</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="FAILED">Failed</SelectItem>
-              <SelectItem value="EXPIRED">Expired</SelectItem>
-              <SelectItem value="DECLINED">Declined</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {/* Multi-select Actions */}
-        <div className="flex items-center gap-2">
-          {selectedRows.size > 0 && (
-            <>
-              <span className="text-sm text-muted-foreground">
-                {selectedRows.size} selected
-              </span>
-              <Button
-                onClick={generateCombinedInvoice}
-                className="flex items-center gap-2"
-                disabled={selectedRows.size === 0}
-              >
-                <Files className="h-4 w-4" />
-                Generate Combined Invoice
-              </Button>
-              <Button
-                variant="outline"
-                onClick={clearSelection}
-                className="flex items-center gap-2"
-              >
-                Clear Selection
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Subscriptions Table */}
-      <div className="rounded-md border">
-        <DataTable
-          columns={columns}
-          data={subscriptions ?? { items: [], total: 0, page: 1, limit: 10 }}
-          searchColumns={[
-            { id: "member.user.name", placeholder: "Search by member name..." },
-            { id: "package.name", placeholder: "Search by package..." },
-          ]}
-          isLoading={isLoading}
-          onPaginationChange={handlePaginationChange}
-          onSearch={handleSearch}
-        />
-      </div>
-
-      {/* Invoice Generator Modal */}
-      <InvoiceGenerator
-        isOpen={isInvoiceModalOpen}
-        onClose={() => {
-          setIsInvoiceModalOpen(false);
-          setSelectedInvoiceData(null);
-        }}
-        invoiceData={selectedInvoiceData}
-      />
-
-      {/* Combined Invoice Generator Modal */}
-      <CombinedInvoiceGenerator
-        isOpen={isCombinedInvoiceModalOpen}
-        onClose={() => {
-          setIsCombinedInvoiceModalOpen(false);
-          setSelectedInvoiceData(null);
-        }}
-        invoiceData={Array.isArray(selectedInvoiceData) ? selectedInvoiceData : null}
-      />
-
-      {/* Edit Sales Modal */}
-      <Dialog open={isEditSalesModalOpen} onOpenChange={setIsEditSalesModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Sales Information</DialogTitle>
-            <DialogDescription>
-              Update the sales person associated with this subscription.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium">Sales Person</label>
-              <Select 
-                value={selectedSalesPerson} 
-                onValueChange={(value) => {
-                  setSelectedSalesPerson(value);
-                  if (value === "none") {
-                    setSelectedSalesType("");
-                  } else {
-                    const selected = salesList?.find(s => s.id === value);
-                    setSelectedSalesType(selected?.type || "");
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sales person" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {salesList?.map((sales) => (
-                    <SelectItem key={sales.id} value={sales.id}>
-                      {sales.name} ({sales.type === "PersonalTrainer" ? "PT" : "FC"})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditSalesModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUpdateSales}
-              disabled={updateSalesMutation.isPending}
-            >
-              {updateSalesMutation.isPending ? "Updating..." : "Update"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Statistics Cards */}
+        <div className="mb-8 grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Subscriptions
+              </CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalSubscriptions}</div>
+              <p className="text-xs text-muted-foreground">
+                All time subscriptions
+              </p>
+            </CardContent>
+          </Card>
 
-      {/* Image Preview Modal */}
-      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Payment Proof</DialogTitle>
-            <DialogDescription>
-              Review the uploaded payment proof for this subscription.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 flex justify-center">
-            {selectedImageUrl ? (
-              <Link
-                href={selectedImageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Image
-                  src={selectedImageUrl}
-                  alt="Payment Proof"
-                  width={500}
-                  height={700}
-                  style={{ objectFit: "contain", maxHeight: "70vh" }}
-                  onError={(e) => {
-                    console.error("Error loading image:", e);
-                    (e.target as HTMLImageElement).src =
-                      "/placeholder-error.png";
-                    (e.target as HTMLImageElement).alt = "Error loading image";
-                  }}
-                />
-              </Link>
-            ) : (
-              <p>No image to display or image URL is invalid.</p>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Active Subscriptions
+              </CardTitle>
+              <CreditCard className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{activeSubscriptions}</div>
+              <p className="text-xs text-muted-foreground">
+                Currently active memberships
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Revenue
+              </CardTitle>
+              <Receipt className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                {new Intl.NumberFormat("id-ID", {
+                  style: "currency",
+                  currency: "IDR",
+                  minimumFractionDigits: 0,
+                }).format(totalRevenue)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                From all subscriptions
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Status Filter and Multi-select Actions */}
+        <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium">Status:</label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="SUCCESS">Active</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="FAILED">Failed</SelectItem>
+                <SelectItem value="EXPIRED">Expired</SelectItem>
+                <SelectItem value="DECLINED">Declined</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Multi-select Actions */}
+          <div className="flex items-center gap-2">
+            {selectedRows.size > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {selectedRows.size} selected
+                </span>
+                <Button
+                  onClick={generateCombinedInvoice}
+                  className="flex items-center gap-2"
+                  disabled={selectedRows.size === 0}
+                >
+                  <Files className="h-4 w-4" />
+                  Generate Combined Invoice
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearSelection}
+                  className="flex items-center gap-2"
+                >
+                  Clear Selection
+                </Button>
+              </>
             )}
           </div>
-          <DialogFooter className="mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsImageModalOpen(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        {/* Subscriptions Table */}
+        <div className="rounded-md border">
+          <DataTable
+            columns={columns}
+            data={subscriptions ?? { items: [], total: 0, page: 1, limit: 10 }}
+            searchColumns={[
+              { id: "member.user.name", placeholder: "Search by member name..." },
+              { id: "package.name", placeholder: "Search by package..." },
+            ]}
+            isLoading={isLoading}
+            onPaginationChange={handlePaginationChange}
+            onSearch={handleSearch}
+          />
+        </div>
+
+        {/* Invoice Generator Modal */}
+        <InvoiceGenerator
+          isOpen={isInvoiceModalOpen}
+          onClose={() => {
+            setIsInvoiceModalOpen(false);
+            setSelectedInvoiceData(null);
+          }}
+          invoiceData={selectedInvoiceData}
+        />
+
+        {/* Combined Invoice Generator Modal */}
+        <CombinedInvoiceGenerator
+          isOpen={isCombinedInvoiceModalOpen}
+          onClose={() => {
+            setIsCombinedInvoiceModalOpen(false);
+            setSelectedInvoiceData(null);
+          }}
+          invoiceData={Array.isArray(selectedInvoiceData) ? selectedInvoiceData : null}
+        />
+
+        {/* Edit Sales Modal */}
+        <Dialog open={isEditSalesModalOpen} onOpenChange={setIsEditSalesModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Sales Information</DialogTitle>
+              <DialogDescription>
+                Update the sales person associated with this subscription.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm font-medium">Sales Person</label>
+                <Select
+                  value={selectedSalesPerson}
+                  onValueChange={(value) => {
+                    setSelectedSalesPerson(value);
+                    if (value === "none") {
+                      setSelectedSalesType("");
+                    } else {
+                      const selected = salesList?.find(s => s.id === value);
+                      setSelectedSalesType(selected?.type || "");
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sales person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {salesList?.map((sales) => (
+                      <SelectItem key={sales.id} value={sales.id}>
+                        {sales.name} ({sales.type === "PersonalTrainer" ? "PT" : "FC"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditSalesModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateSales}
+                disabled={updateSalesMutation.isPending}
+              >
+                {updateSalesMutation.isPending ? "Updating..." : "Update"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Image Preview Modal */}
+        <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Payment Proof</DialogTitle>
+              <DialogDescription>
+                Review the uploaded payment proof for this subscription.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 flex justify-center">
+              {selectedImageUrl ? (
+                <Link
+                  href={selectedImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Image
+                    src={selectedImageUrl}
+                    alt="Payment Proof"
+                    width={500}
+                    height={700}
+                    style={{ objectFit: "contain", maxHeight: "70vh" }}
+                    onError={(e) => {
+                      console.error("Error loading image:", e);
+                      (e.target as HTMLImageElement).src =
+                        "/placeholder-error.png";
+                      (e.target as HTMLImageElement).alt = "Error loading image";
+                    }}
+                  />
+                </Link>
+              ) : (
+                <p>No image to display or image URL is invalid.</p>
+              )}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsImageModalOpen(false)}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ProtectedRoute>
   );
 }

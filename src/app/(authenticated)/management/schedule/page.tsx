@@ -6,6 +6,7 @@ import { format, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
 import ManagerCalendar from "./components/calendar";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function JadwalManagerPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -66,7 +67,8 @@ export default function JadwalManagerPage() {
   };
 
   return (
-    <div className="relative p-6">
+    <ProtectedRoute requiredPermissions={["menu:trainers"]}>
+      <div className="relative p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Jadwal Semua Sesi Personal Trainer</h1>
         <p className="text-muted-foreground">
@@ -117,6 +119,7 @@ export default function JadwalManagerPage() {
         onToday={() => setCurrentDate(new Date())}
         onRefreshData={handleRefreshData}
       />
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

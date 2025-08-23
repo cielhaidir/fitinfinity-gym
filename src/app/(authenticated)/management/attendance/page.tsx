@@ -25,6 +25,7 @@ import {
 import { format } from "date-fns";
 import { Download, Filter, Search, Users, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function AttendanceManagementPage() {
   const [startDate, setStartDate] = useState<Date>();
@@ -91,7 +92,8 @@ export default function AttendanceManagementPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <ProtectedRoute requiredPermissions={["menu:employees"]}>
+      <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Attendance Management</h1>
@@ -367,6 +369,7 @@ export default function AttendanceManagementPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

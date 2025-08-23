@@ -24,6 +24,7 @@ import { api } from "@/trpc/react";
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { Loader2 } from "lucide-react";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function RewardPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -90,77 +91,79 @@ export default function RewardPage() {
   const columns = createColumns();
 
   return (
-    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Member Rewards</h2>
-          <p className="text-muted-foreground">
-            Manage member reward claims and track point usage
-          </p>
-        </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full bg-infinity md:w-auto">
-              Claim Reward
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Claim Reward</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="member">Select Member</Label>
-                <Select
-                  value={selectedMember}
-                  onValueChange={setSelectedMember}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {members?.items.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.user.name} - {member.user.point} points
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="reward">Select Reward</Label>
-                <Select
-                  value={selectedReward}
-                  onValueChange={setSelectedReward}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a reward" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rewards?.items.map((reward) => (
-                      <SelectItem key={reward.id} value={reward.id}>
-                        {reward.name} - {reward.price} points
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                onClick={handleCreateReward}
-                disabled={isCreating}
-                className="bg-infinity"
-              >
-                {isCreating ? "Claiming..." : "Claim Reward"}
+    <ProtectedRoute requiredPermissions={["menu:reward"]}>
+      <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+        <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">Member Rewards</h2>
+            <p className="text-muted-foreground">
+              Manage member reward claims and track point usage
+            </p>
+          </div>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full bg-infinity md:w-auto">
+                Claim Reward
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Claim Reward</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="member">Select Member</Label>
+                  <Select
+                    value={selectedMember}
+                    onValueChange={setSelectedMember}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a member" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {members?.items.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.user.name} - {member.user.point} points
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="reward">Select Reward</Label>
+                  <Select
+                    value={selectedReward}
+                    onValueChange={setSelectedReward}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a reward" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rewards?.items.map((reward) => (
+                        <SelectItem key={reward.id} value={reward.id}>
+                          {reward.name} - {reward.price} points
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  onClick={handleCreateReward}
+                  disabled={isCreating}
+                  className="bg-infinity"
+                >
+                  {isCreating ? "Claiming..." : "Claim Reward"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
 
-      <DataTable
-        columns={columns}
-        data={memberRewards || { items: [], total: 0, page: 1, limit: 10 }}
-      />
-    </div>
+        <DataTable
+          columns={columns}
+          data={memberRewards || { items: [], total: 0, page: 1, limit: 10 }}
+        />
+      </div>
+    </ProtectedRoute>
   );
 }

@@ -10,6 +10,7 @@ import { api } from "@/trpc/react";
 import { type Voucher } from "./schema";
 import { VoucherForm } from "./voucher-form";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function VoucherPage() {
   const utils = api.useUtils();
@@ -196,7 +197,7 @@ export default function VoucherPage() {
   });
 
   return (
-    <>
+    <ProtectedRoute requiredPermissions={["menu:voucher"]}>
       <Sheet
         open={isSheetOpen}
         onOpenChange={(open) => {
@@ -248,6 +249,6 @@ export default function VoucherPage() {
           isEditMode={isEditMode}
         />
       </Sheet>
-    </>
+    </ProtectedRoute>
   );
 }

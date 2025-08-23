@@ -21,6 +21,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function PaymentHistoryPage() {
   const router = useRouter();
@@ -238,118 +239,120 @@ export default function PaymentHistoryPage() {
   };
 
   return (
-    <div className="container mx-auto min-h-screen bg-background p-2 sm:p-4 md:p-8">
-      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 md:flex-row md:items-center md:gap-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Payment History</h2>
-          <p className="text-sm text-muted-foreground sm:text-base">
-            View your payment history and transaction details
-          </p>
-        </div>
-      </div>
-
-      {/* Cards Section */}
-      <div className="mb-6 grid gap-3 sm:gap-4 sm:grid-cols-2 sm:mb-8">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Transactions
-            </CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold sm:text-2xl">{transactions?.total ?? 0}</div>
-            <p className="text-xs text-muted-foreground">
-              All time transactions
+    <ProtectedRoute requiredPermissions={["menu:payment-history"]}>
+      <div className="container mx-auto min-h-screen bg-background p-2 sm:p-4 md:p-8">
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 md:flex-row md:items-center md:gap-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Payment History</h2>
+            <p className="text-sm text-muted-foreground sm:text-base">
+              View your payment history and transaction details
             </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Packages
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold sm:text-2xl">
-              {new Set(transactions?.items.map((t) => t.package?.name)).size ??
-                0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Different package types purchased
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Transactions Table */}
-      <div className="rounded-md border bg-card">
-        <DataTable
-          columns={columns}
-          data={transactions ?? { items: [], total: 0, page: 1, limit: 10 }}
-          searchColumns={[
-            { id: "package.name", placeholder: "Search by package..." },
-          ]}
-          isLoading={isLoading}
-          onPaginationChange={handlePaginationChange}
-        />
-      </div>
-
-      {/* Image Preview Modal */}
-      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-[95vw] max-h-[90vh] w-full sm:max-w-xl overflow-hidden">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-base sm:text-lg">Payment Proof</DialogTitle>
-            <DialogDescription className="text-sm">
-              Review your uploaded payment proof below.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center overflow-auto max-h-[60vh] sm:max-h-[70vh]">
-            {selectedImageUrl ? (
-              <Link
-                href={selectedImageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Image
-                  src={selectedImageUrl}
-                  alt="Payment Proof"
-                  width={500}
-                  height={700}
-                  className="max-w-full h-auto object-contain"
-                  style={{
-                    maxHeight: "60vh",
-                    width: "auto",
-                    height: "auto"
-                  }}
-                  onError={(e) => {
-                    console.error("Error loading image:", e);
-                    (e.target as HTMLImageElement).src =
-                      "/placeholder-error.png";
-                    (e.target as HTMLImageElement).alt = "Error loading image";
-                  }}
-                />
-              </Link>
-            ) : (
-              <p className="text-center text-muted-foreground p-4">
-                No image to display or image URL is invalid.
-              </p>
-            )}
           </div>
-          <DialogFooter className="mt-4 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setIsImageModalOpen(false)}
-              className="w-full sm:w-auto"
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        {/* Cards Section */}
+        <div className="mb-6 grid gap-3 sm:gap-4 sm:grid-cols-2 sm:mb-8">
+          <Card className="border-l-4 border-l-blue-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Transactions
+              </CardTitle>
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold sm:text-2xl">{transactions?.total ?? 0}</div>
+              <p className="text-xs text-muted-foreground">
+                All time transactions
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-green-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Packages
+              </CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold sm:text-2xl">
+                {new Set(transactions?.items.map((t) => t.package?.name)).size ??
+                  0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Different package types purchased
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Transactions Table */}
+        <div className="rounded-md border bg-card">
+          <DataTable
+            columns={columns}
+            data={transactions ?? { items: [], total: 0, page: 1, limit: 10 }}
+            searchColumns={[
+              { id: "package.name", placeholder: "Search by package..." },
+            ]}
+            isLoading={isLoading}
+            onPaginationChange={handlePaginationChange}
+          />
+        </div>
+
+        {/* Image Preview Modal */}
+        <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+          <DialogContent className="max-w-[95vw] max-h-[90vh] w-full sm:max-w-xl overflow-hidden">
+            <DialogHeader className="pb-2">
+              <DialogTitle className="text-base sm:text-lg">Payment Proof</DialogTitle>
+              <DialogDescription className="text-sm">
+                Review your uploaded payment proof below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-center overflow-auto max-h-[60vh] sm:max-h-[70vh]">
+              {selectedImageUrl ? (
+                <Link
+                  href={selectedImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <Image
+                    src={selectedImageUrl}
+                    alt="Payment Proof"
+                    width={500}
+                    height={700}
+                    className="max-w-full h-auto object-contain"
+                    style={{
+                      maxHeight: "60vh",
+                      width: "auto",
+                      height: "auto"
+                    }}
+                    onError={(e) => {
+                      console.error("Error loading image:", e);
+                      (e.target as HTMLImageElement).src =
+                        "/placeholder-error.png";
+                      (e.target as HTMLImageElement).alt = "Error loading image";
+                    }}
+                  />
+                </Link>
+              ) : (
+                <p className="text-center text-muted-foreground p-4">
+                  No image to display or image URL is invalid.
+                </p>
+              )}
+            </div>
+            <DialogFooter className="mt-4 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setIsImageModalOpen(false)}
+                className="w-full sm:w-auto"
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ProtectedRoute>
   );
 }

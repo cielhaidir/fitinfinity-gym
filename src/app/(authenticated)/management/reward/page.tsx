@@ -12,6 +12,7 @@ import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
 import { RewardDialog } from "./reward-dialog";
 import { Loader2 } from "lucide-react";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function RewardPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -166,6 +167,7 @@ export default function RewardPage() {
   });
 
   return (
+     <ProtectedRoute requiredPermissions={["menu:reward"]}>
     <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
       <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
@@ -215,5 +217,6 @@ export default function RewardPage() {
         reward={selectedReward}
       />
     </div>
+    </ProtectedRoute>
   );
 }

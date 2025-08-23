@@ -10,6 +10,7 @@ import { api } from "@/trpc/react";
 import { type BalanceAccount, BalanceAccountList } from "./schema";
 import { BalanceAccountForm } from "./_components/balance-account-form";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function BalanceAccountPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -84,55 +85,57 @@ export default function BalanceAccountPage() {
   });
 
   return (
-    <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
-      <div className="flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Balance Account Management
-          </h2>
-          <p className="text-muted-foreground">
-            Here&apos;s a list of your balance accounts!
-          </p>
-        </div>
-        <Sheet
-          open={isSheetOpen}
-          onOpenChange={(open) => {
-            setIsSheetOpen(open);
-            if (!open) {
-              setSelectedAccount(null);
-            }
-          }}
-        >
-          <SheetTrigger asChild>
-            <Button className="mb-4 bg-infinity">
-              <Plus className="mr-2 h-4 w-4" /> Create Account
-            </Button>
-          </SheetTrigger>
-
-          <BalanceAccountForm
+    <ProtectedRoute requiredPermissions={["menu:finance-balance-account"]}>
+      <div className="h-full flex-1 flex-col space-y-8 p-8 md:flex">
+        <div className="flex items-center justify-between space-y-2">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Balance Account Management
+            </h2>
+            <p className="text-muted-foreground">
+              Here&apos;s a list of your balance accounts!
+            </p>
+          </div>
+          <Sheet
             open={isSheetOpen}
-            onClose={() => {
-              setIsSheetOpen(false);
-              setSelectedAccount(null);
+            onOpenChange={(open) => {
+              setIsSheetOpen(open);
+              if (!open) {
+                setSelectedAccount(null);
+              }
             }}
-            account={selectedAccount}
-          />
-        </Sheet>
-      </div>
+          >
+            <SheetTrigger asChild>
+              <Button className="mb-4 bg-infinity">
+                <Plus className="mr-2 h-4 w-4" /> Create Account
+              </Button>
+            </SheetTrigger>
 
-      <DataTable
-        data={accounts}
-        columns={columns}
-        onPaginationChange={handlePaginationChange}
-        searchColumns={[
-          { id: "name", placeholder: "Search by name..." },
-          { id: "account_number", placeholder: "Search by account number..." },
-        ]}
-        onSearch={(value, column) => {
-          setSearch(value);
-          setSearchColumn(column);
-        }}
-      />
-    </div>
+            <BalanceAccountForm
+              open={isSheetOpen}
+              onClose={() => {
+                setIsSheetOpen(false);
+                setSelectedAccount(null);
+              }}
+              account={selectedAccount}
+            />
+          </Sheet>
+        </div>
+
+        <DataTable
+          data={accounts}
+          columns={columns}
+          onPaginationChange={handlePaginationChange}
+          searchColumns={[
+            { id: "name", placeholder: "Search by name..." },
+            { id: "account_number", placeholder: "Search by account number..." },
+          ]}
+          onSearch={(value, column) => {
+            setSearch(value);
+            setSearchColumn(column);
+          }}
+        />
+      </div>
+    </ProtectedRoute>
   );
 }

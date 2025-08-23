@@ -11,6 +11,7 @@ import { api } from "@/trpc/react";
 import { type Transaction } from "./schema";
 import { TransactionForm } from "./transaction-form";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function TransactionPage() {
   const utils = api.useUtils();
@@ -175,7 +176,7 @@ export default function TransactionPage() {
   });
 
   return (
-    <>
+    <ProtectedRoute requiredPermissions={["menu:transaction"]}>
       <Dialog
         open={isModalOpen}
         onOpenChange={(open) => {

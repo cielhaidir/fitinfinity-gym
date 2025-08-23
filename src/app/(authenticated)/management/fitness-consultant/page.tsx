@@ -15,6 +15,7 @@ import { FCForm } from "./fc-form";
 import { toast } from "sonner";
 import { SelectUserModal } from "./select-user-modal";
 import { type User } from "@prisma/client";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function FCPage() {
   const utils = api.useUtils();
@@ -310,7 +311,7 @@ export default function FCPage() {
   };
 
   return (
-    <>
+   <ProtectedRoute requiredPermissions={["menu:manage-fc"]}>
       <Sheet
         open={isSheetOpen}
         onOpenChange={(open) => {
@@ -375,6 +376,6 @@ export default function FCPage() {
         onSelectUser={handleSelectUser}
         onAddNew={handleAddNew}
       />
-    </>
+    </ProtectedRoute>
   );
 }

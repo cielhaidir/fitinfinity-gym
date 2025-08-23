@@ -10,6 +10,7 @@ import { ClassForm } from "./class-form";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import type { Class } from "./schema";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function ClassPage() {
   // Form state
@@ -240,7 +241,8 @@ export default function ClassPage() {
   };
 
   return (
-    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+    <ProtectedRoute requiredPermissions={["menu:manage-classes"]}>
+      <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
       <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">Classes</h2>
@@ -338,6 +340,7 @@ export default function ClassPage() {
           isEditMode={isEditMode}
         />
       </Sheet>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "@/app/_components/ui/dialog";
 import { FCMemberForm } from "./fc-member-form";
 import type { FcMember } from "@prisma/client";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 // import { createColumns } from "./columns";
 
 interface FCMembersPageProps {
@@ -76,39 +77,41 @@ export default function FCMembersPage({ searchParams }: FCMembersPageProps) {
   // const columns = createColumns({ onEditModel: handleEdit, onDeleteModel: handleDelete })
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Member Management</h1>
-        <Button onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Member
-        </Button>
+    <ProtectedRoute requiredPermissions={["menu:fc-member"]}>
+      <div className="container mx-auto py-10">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Member Management</h1>
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Member
+          </Button>
+        </div>
+
+        <DataTable
+          columns={columns(handleEdit, handleDelete)}
+          data={data ? { ...data, page, limit } : { items: [], total: 0, page, limit }}
+          onPaginationChange={(newPage: number, newLimit: number) => {
+            setPage(newPage);
+            setLimit(newLimit);
+          }}
+          isLoading={isLoading}
+        />
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {selectedMember ? "Edit Member" : "Add New Member"}
+              </DialogTitle>
+            </DialogHeader>
+            <FCMemberForm
+              initialData={selectedMember || undefined}
+              onSuccess={() => setOpen(false)}
+              onCancel={() => setOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
-
-      <DataTable
-        columns={columns(handleEdit, handleDelete)}
-        data={data ? { ...data, page, limit } : { items: [], total: 0, page, limit }}
-        onPaginationChange={(newPage: number, newLimit: number) => {
-          setPage(newPage);
-          setLimit(newLimit);
-        }}
-        isLoading={isLoading}
-      />
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {selectedMember ? "Edit Member" : "Add New Member"}
-            </DialogTitle>
-          </DialogHeader>
-          <FCMemberForm
-            initialData={selectedMember || undefined}
-            onSuccess={() => setOpen(false)}
-            onCancel={() => setOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
+    </ProtectedRoute>
   );
 }

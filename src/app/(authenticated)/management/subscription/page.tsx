@@ -21,6 +21,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function PaymentHistoryPage() {
   const router = useRouter();
@@ -249,6 +250,7 @@ export default function PaymentHistoryPage() {
   };
 
   return (
+    <ProtectedRoute requiredPermissions={["menu:subscription"]}>
     <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
       <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
@@ -353,5 +355,6 @@ export default function PaymentHistoryPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ProtectedRoute>
   );
 }

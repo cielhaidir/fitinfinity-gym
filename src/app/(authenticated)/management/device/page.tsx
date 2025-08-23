@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { DeviceForm } from "./device-form";
 import { FirmwareManagement } from "./firmware-management";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function DevicePage() {
   const [open, setOpen] = useState(false);
@@ -48,7 +49,8 @@ export default function DevicePage() {
   };
 
   return (
-    <div className="container mx-auto py-10">
+    <ProtectedRoute requiredPermissions={["menu:employees"]}>
+      <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">ESP32 Devices</h1>
         <div className="flex gap-2">
@@ -170,6 +172,7 @@ export default function DevicePage() {
           </TableBody>
         </Table>
       </div>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

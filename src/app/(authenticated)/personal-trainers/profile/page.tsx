@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { Camera } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { ChangePasswordDialog } from "@/app/(authenticated)/member/profile/change-password-dialog";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function PTProfilePage() {
   const { data: session } = useSession();
@@ -218,215 +219,217 @@ export default function PTProfilePage() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <Card className="mx-auto max-w-2xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Avatar className="h-16 w-16 border-2 border-[#BFFF00]">
-                <AvatarImage
-                  src={formData.image || session.user.image || ""}
-                  alt={profile?.name || "Trainer"}
-                />
-                <AvatarFallback className="bg-[#BFFF00] font-semibold text-black">
-                  {profile?.name?.charAt(0) || "T"}
-                </AvatarFallback>
-              </Avatar>
-              {isEditing && (
-                <>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleImageChange}
+    <ProtectedRoute requiredPermissions={["menu:profile-pt"]}>
+      <div className="container mx-auto py-8">
+        <Card className="mx-auto max-w-2xl">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Avatar className="h-16 w-16 border-2 border-[#BFFF00]">
+                  <AvatarImage
+                    src={formData.image || session.user.image || ""}
+                    alt={profile?.name || "Trainer"}
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-background"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
+                  <AvatarFallback className="bg-[#BFFF00] font-semibold text-black">
+                    {profile?.name?.charAt(0) || "T"}
+                  </AvatarFallback>
+                </Avatar>
+                {isEditing && (
+                  <>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-background"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-[#BFFF00]">
+                  {profile?.name || "Trainer"}
+                </h2>
+                <p className="text-muted-foreground">{session.user.email}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-[#BFFF00]">
-                {profile?.name || "Trainer"}
-              </h2>
-              <p className="text-muted-foreground">{session.user.email}</p>
-            </div>
-          </div>
-          {!isEditing ? (
-            <Button
-              onClick={() => setIsEditing(true)}
-              className="bg-[#C9D953] hover:bg-[#C9D953]/90"
-            >
-              Edit Profile
-            </Button>
-          ) : (
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
-                Cancel
-              </Button>
+            {!isEditing ? (
               <Button
-                form="profile-form"
-                type="submit"
-                disabled={updateProfile.isPending || updatePT.isPending}
+                onClick={() => setIsEditing(true)}
                 className="bg-[#C9D953] hover:bg-[#C9D953]/90"
               >
-                {updateProfile.isPending || updatePT.isPending
-                  ? "Saving..."
-                  : "Save Changes"}
+                Edit Profile
               </Button>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Member Since</p>
-                <p>
-                  {profile?.createdAt
-                    ? format(profile.createdAt, "MMMM d, yyyy")
-                    : "N/A"}
-                </p>
+            ) : (
+              <div className="flex space-x-2">
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  form="profile-form"
+                  type="submit"
+                  disabled={updateProfile.isPending || updatePT.isPending}
+                  className="bg-[#C9D953] hover:bg-[#C9D953]/90"
+                >
+                  {updateProfile.isPending || updatePT.isPending
+                    ? "Saving..."
+                    : "Save Changes"}
+                </Button>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Points</p>
-                <p>{profile?.point || 0}</p>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Member Since</p>
+                  <p>
+                    {profile?.createdAt
+                      ? format(profile.createdAt, "MMMM d, yyyy")
+                      : "N/A"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Points</p>
+                  <p>{profile?.point || 0}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Age</p>
+                  <p>
+                    {profile?.birthDate
+                      ? Math.floor(
+                          (new Date().getTime() -
+                            new Date(profile.birthDate).getTime()) /
+                            (1000 * 60 * 60 * 24 * 365.25),
+                        )
+                      : "N/A"}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Age</p>
-                <p>
-                  {profile?.birthDate
-                    ? Math.floor(
-                        (new Date().getTime() -
-                          new Date(profile.birthDate).getTime()) /
-                          (1000 * 60 * 60 * 24 * 365.25),
-                      )
-                    : "N/A"}
-                </p>
-              </div>
-            </div>
 
-            <form
-              id="profile-form"
-              onSubmit={handleSubmit}
-              className="space-y-4"
-            >
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    disabled={!isEditing}
-                  />
+              <form
+                id="profile-form"
+                onSubmit={handleSubmit}
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                      disabled={!isEditing}
+                      placeholder="62xxxxxxxxxx"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) =>
+                        setFormData({ ...formData, address: e.target.value })
+                      }
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="birthDate">Birth Date</Label>
+                    <Input
+                      id="birthDate"
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) =>
+                        setFormData({ ...formData, birthDate: e.target.value })
+                      }
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="height">Height (cm)</Label>
+                    <Input
+                      id="height"
+                      type="number"
+                      value={formData.height}
+                      onChange={(e) =>
+                        setFormData({ ...formData, height: e.target.value })
+                      }
+                      disabled={!isEditing}
+                      min={0}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Input
+                      id="weight"
+                      type="number"
+                      value={formData.weight}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weight: e.target.value })
+                      }
+                      disabled={!isEditing}
+                      min={0}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <select
+                      id="gender"
+                      value={formData.gender}
+                      onChange={(e) =>
+                        setFormData({ ...formData, gender: e.target.value })
+                      }
+                      disabled={!isEditing}
+                      className="w-full rounded border px-3 py-2"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={handlePhoneChange}
-                    disabled={!isEditing}
-                    placeholder="62xxxxxxxxxx"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData({ ...formData, description: e.target.value })
+                      }
+                      disabled={!isEditing}
+                      placeholder="Tell us about yourself..."
+                      className="min-h-[150px]"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
-                    }
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="birthDate">Birth Date</Label>
-                  <Input
-                    id="birthDate"
-                    type="date"
-                    value={formData.birthDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, birthDate: e.target.value })
-                    }
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="height">Height (cm)</Label>
-                  <Input
-                    id="height"
-                    type="number"
-                    value={formData.height}
-                    onChange={(e) =>
-                      setFormData({ ...formData, height: e.target.value })
-                    }
-                    disabled={!isEditing}
-                    min={0}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Weight (kg)</Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    value={formData.weight}
-                    onChange={(e) =>
-                      setFormData({ ...formData, weight: e.target.value })
-                    }
-                    disabled={!isEditing}
-                    min={0}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Gender</Label>
-                  <select
-                    id="gender"
-                    value={formData.gender}
-                    onChange={(e) =>
-                      setFormData({ ...formData, gender: e.target.value })
-                    }
-                    disabled={!isEditing}
-                    className="w-full rounded border px-3 py-2"
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    disabled={!isEditing}
-                    placeholder="Tell us about yourself..."
-                    className="min-h-[150px]"
-                  />
-                </div>
-              </div>
-            </form>
-            <ChangePasswordDialog />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              </form>
+              <ChangePasswordDialog />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </ProtectedRoute>
   );
 }

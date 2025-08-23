@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import Calendar from "./components/calendar";
 import AppointmentForm from "./components/appointment-form";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function JadwalPTPage() {
   const { data: session } = useSession();
@@ -249,48 +250,50 @@ export default function JadwalPTPage() {
   }, [trainerSessions, isLoading]);
 
   return (
-    <div className="relative p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Jadwal Latihan</h1>
-        <p className="text-muted-foreground">
-          Atur jadwal latihan Anda dengan personal trainer pilihan untuk hasil
-          yang maksimal
-        </p>
-      </div>
-
-      <Calendar
-        currentDate={currentDate}
-        viewMode={viewMode}
-        sessionsByDateTime={sessionsByDateTime}
-        sessionsByDate={sessionsByDate}
-        onDateClick={handleDateClick}
-        onNavigate={handleNavigate}
-        onViewModeChange={setViewMode}
-        onToday={() => setCurrentDate(new Date())}
-        onSessionUpdate={handleSessionUpdate}
-        onSessionDelete={handleSessionDelete}
-        onSessionCancel={handleSessionCancel}
-      />
-
-      <div
-        className={`fixed right-0 top-0 z-50 h-full w-96 transform border-l border-border bg-background shadow-lg transition-transform duration-300 ease-in-out ${
-          showForm ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="h-full overflow-y-auto p-6">
-          <AppointmentForm
-            selectedDate={selectedDate}
-            onClose={() => setShowForm(false)}
-          />
+    <ProtectedRoute requiredPermissions={["menu:schedule-pt"]}>
+      <div className="relative p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground">Jadwal Latihan</h1>
+          <p className="text-muted-foreground">
+            Atur jadwal latihan Anda dengan personal trainer pilihan untuk hasil
+            yang maksimal
+          </p>
         </div>
-      </div>
 
-      {showForm && (
+        <Calendar
+          currentDate={currentDate}
+          viewMode={viewMode}
+          sessionsByDateTime={sessionsByDateTime}
+          sessionsByDate={sessionsByDate}
+          onDateClick={handleDateClick}
+          onNavigate={handleNavigate}
+          onViewModeChange={setViewMode}
+          onToday={() => setCurrentDate(new Date())}
+          onSessionUpdate={handleSessionUpdate}
+          onSessionDelete={handleSessionDelete}
+          onSessionCancel={handleSessionCancel}
+        />
+
         <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
-          onClick={() => setShowForm(false)}
-        ></div>
-      )}
-    </div>
+          className={`fixed right-0 top-0 z-50 h-full w-96 transform border-l border-border bg-background shadow-lg transition-transform duration-300 ease-in-out ${
+            showForm ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="h-full overflow-y-auto p-6">
+            <AppointmentForm
+              selectedDate={selectedDate}
+              onClose={() => setShowForm(false)}
+            />
+          </div>
+        </div>
+
+        {showForm && (
+          <div
+            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+            onClick={() => setShowForm(false)}
+          ></div>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }

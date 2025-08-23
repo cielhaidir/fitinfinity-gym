@@ -8,6 +8,7 @@ import type { Class } from "./types";
 import { Loader2 } from "lucide-react";
 import { PackageType, PaymentStatus } from "@prisma/client";
 import { useSession } from "next-auth/react";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 interface Subscription {
   id: string;
@@ -132,58 +133,60 @@ export default function MemberClassesPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-black dark:text-white">
-          Available Classes
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Browse and register for upcoming fitness classes
-        </p>
+    <ProtectedRoute requiredPermissions={["menu:classes"]}>
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-black dark:text-white">
+            Available Classes
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Browse and register for upcoming fitness classes
+          </p>
+        </div>
+
+        {/* Debug information */}
+        {/* <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded">
+          <p>Total classes from API: {classes?.items?.length || 0}</p>
+          <p>Filtered upcoming classes: {upcomingClasses?.length || 0}</p>
+          <p>Classes loading: {classesLoading ? 'Yes' : 'No'}</p>
+          <p>Classes error: {classesError ? classesError.message : 'None'}</p>
+        </div> */}
+
+        {upcomingClasses?.length === 0 ? (
+          <div className="text-center text-gray-600 dark:text-gray-400">
+            <p>No upcoming classes available at the moment</p>
+            {classes?.items?.length > 0 && (
+              <p className="mt-2 text-sm">
+                Found {classes.items.length} total classes, but none are upcoming
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {upcomingClasses?.map((class_) => (
+              <ClassCard
+                key={class_.id}
+                class_={class_}
+                onClick={() => handleClassClick(class_)}
+                hasValidSubscription={hasValidSubscription(class_)}
+                isRegistrationEnabled={isRegistrationEnabled(class_)}
+              />
+            ))}
+          </div>
+        )}
+
+        <ClassDetailsDialog
+          class_={selectedClass}
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          hasValidSubscription={
+            selectedClass ? hasValidSubscription(selectedClass) : false
+          }
+          isRegistrationEnabled={
+            selectedClass ? isRegistrationEnabled(selectedClass) : false
+          }
+        />
       </div>
-
-      {/* Debug information */}
-      {/* <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded">
-        <p>Total classes from API: {classes?.items?.length || 0}</p>
-        <p>Filtered upcoming classes: {upcomingClasses?.length || 0}</p>
-        <p>Classes loading: {classesLoading ? 'Yes' : 'No'}</p>
-        <p>Classes error: {classesError ? classesError.message : 'None'}</p>
-      </div> */}
-
-      {upcomingClasses?.length === 0 ? (
-        <div className="text-center text-gray-600 dark:text-gray-400">
-          <p>No upcoming classes available at the moment</p>
-          {classes?.items?.length > 0 && (
-            <p className="mt-2 text-sm">
-              Found {classes.items.length} total classes, but none are upcoming
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {upcomingClasses?.map((class_) => (
-            <ClassCard
-              key={class_.id}
-              class_={class_}
-              onClick={() => handleClassClick(class_)}
-              hasValidSubscription={hasValidSubscription(class_)}
-              isRegistrationEnabled={isRegistrationEnabled(class_)}
-            />
-          ))}
-        </div>
-      )}
-
-      <ClassDetailsDialog
-        class_={selectedClass}
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        hasValidSubscription={
-          selectedClass ? hasValidSubscription(selectedClass) : false
-        }
-        isRegistrationEnabled={
-          selectedClass ? isRegistrationEnabled(selectedClass) : false
-        }
-      />
-    </div>
+    </ProtectedRoute>
   );
 }

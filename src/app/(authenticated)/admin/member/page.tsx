@@ -32,6 +32,7 @@ import { type Member, type UserMember } from "./schema";
 import { MemberForm } from "./member-form";
 import { MemberNewMemberForm } from "./member-new-member-form";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 function generateRandomPassword(length = 10) {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -447,7 +448,7 @@ export default function MemberPage() {
   });
 
   return (
-    <>
+    <ProtectedRoute requiredPermissions={["menu:member"]}>
       <Sheet
         open={isSheetOpen}
         onOpenChange={(open) => {
@@ -609,7 +610,6 @@ export default function MemberPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-    </>
+    </ProtectedRoute>
   );
 }

@@ -9,6 +9,7 @@ import ModalEdit from "./modaledit";
 
 import { getColumns } from "./columns";
 import { type Member } from "./schema";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 interface MemberData {
   id: string;
@@ -125,37 +126,39 @@ export default function MemberListPage() {
   };
 
   return (
-    <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Member List</h2>
-          <p className="text-muted-foreground">
-            View and manage your members here
-          </p>
+    <ProtectedRoute requiredPermissions={["menu:member-list-pt"]}>
+      <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
+        <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">Member List</h2>
+            <p className="text-muted-foreground">
+              View and manage your members here
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Tabel untuk desktop */}
-      <div className="rounded-md overflow-x-auto">
-        <div className="min-w-[700px]">
-          <DataTable
-            columns={getColumns(handleEdit)}
-            data={formattedData}
-            searchColumns={[
-              { id: "name", placeholder: "Search by member name..." },
-              { id: "email", placeholder: "Search by email..." },
-            ]}
-            isLoading={isLoading}
-            onPaginationChange={handlePaginationChange}
-          />
+        {/* Tabel untuk desktop */}
+        <div className="rounded-md overflow-x-auto">
+          <div className="min-w-[700px]">
+            <DataTable
+              columns={getColumns(handleEdit)}
+              data={formattedData}
+              searchColumns={[
+                { id: "name", placeholder: "Search by member name..." },
+                { id: "email", placeholder: "Search by email..." },
+              ]}
+              isLoading={isLoading}
+              onPaginationChange={handlePaginationChange}
+            />
+          </div>
         </div>
+        <ModalEdit
+          open={modalOpen}
+          onClose={handleClose}
+          member={selectedMember}
+          onSave={handleSave}
+        />
       </div>
-      <ModalEdit
-        open={modalOpen}
-        onClose={handleClose}
-        member={selectedMember}
-        onSave={handleSave}
-      />
-    </div>
+    </ProtectedRoute>
   );
 }

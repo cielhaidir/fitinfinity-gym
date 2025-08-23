@@ -11,6 +11,7 @@ import { format, subDays } from "date-fns";
 import { Clock, Users, Calendar, FileSpreadsheet, Filter } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as XLSX from "xlsx-js-style";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 interface TrainerSummary {
   trainerId: string;
@@ -241,197 +242,149 @@ export default function PersonalTrainerReportPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Personal Trainer Conduct Report</h1>
-        <Button onClick={exportToExcel} variant="outline" className="bg-green-600 hover:bg-green-700 text-white">
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Export Excel
-        </Button>
-      </div>
+    <ProtectedRoute requiredPermissions={["menu:report-personal-trainers"]}>
+      <div className="space-y-6 p-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Personal Trainer Conduct Report</h1>
+          <Button onClick={exportToExcel} variant="outline" className="bg-green-600 hover:bg-green-700 text-white">
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Export Excel
+          </Button>
+        </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  value={format(tempStartDate, "yyyy-MM-dd")}
-                  onChange={(e) => setTempStartDate(new Date(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={format(tempEndDate, "yyyy-MM-dd")}
-                  onChange={(e) => setTempEndDate(new Date(e.target.value))}
-                />
-              </div>
-              <div>
-                <Label>Personal Trainer</Label>
-                <Select value={tempSelectedTrainer} onValueChange={setTempSelectedTrainer}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Trainers</SelectItem>
-                    {trainers?.map((trainer) => (
-                      <SelectItem key={trainer.id} value={trainer.id}>
-                        {trainer.user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={handleResetFilters}
-              >
-                Reset
-              </Button>
-              <Button
-                onClick={handleApplyFilters}
-                disabled={isLoadingReport}
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                Apply Filters
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Conduct Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {displayData.totalHours.toFixed(1)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {displayData.totalSessions}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Trainers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {displayData.summary.length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">View Mode</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {displayData.isAllTrainers ? "All Trainers" : "Single Trainer"}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Summary Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {displayData.isAllTrainers ? "All Trainers Summary" : "Trainer Summary"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">Trainer Name</th>
-                  <th className="text-left py-2">Email</th>
-                  <th className="text-right py-2">Total Hours</th>
-                  <th className="text-right py-2">Total Sessions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayData.summary.map((item: TrainerSummary) => (
-                  <tr key={item.trainerId} className="border-b hover:bg-infinity">
-                    <td className="py-2 font-medium">{item.trainerName}</td>
-                    <td className="py-2 text-sm text-gray-600">{item.trainerEmail}</td>
-                    <td className="text-right py-2">{item.totalHours.toFixed(1)}</td>
-                    <td className="text-right py-2">{item.sessionCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Session Details - Only show for single trainer view */}
-      {!displayData.isAllTrainers && displayData.sessions.length > 0 && (
+        {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Session Details</CardTitle>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <Label>Start Date</Label>
+                  <Input
+                    type="date"
+                    value={format(tempStartDate, "yyyy-MM-dd")}
+                    onChange={(e) => setTempStartDate(new Date(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label>End Date</Label>
+                  <Input
+                    type="date"
+                    value={format(tempEndDate, "yyyy-MM-dd")}
+                    onChange={(e) => setTempEndDate(new Date(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label>Personal Trainer</Label>
+                  <Select value={tempSelectedTrainer} onValueChange={setTempSelectedTrainer}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Trainers</SelectItem>
+                      {trainers?.map((trainer) => (
+                        <SelectItem key={trainer.id} value={trainer.id}>
+                          {trainer.user.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={handleResetFilters}
+                >
+                  Reset
+                </Button>
+                <Button
+                  onClick={handleApplyFilters}
+                  disabled={isLoadingReport}
+                >
+                  <Filter className="mr-2 h-4 w-4" />
+                  Apply Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Conduct Hours</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {displayData.totalHours.toFixed(1)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {displayData.totalSessions}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Trainers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {displayData.summary.length}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">View Mode</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-lg font-bold">
+                {displayData.isAllTrainers ? "All Trainers" : "Single Trainer"}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Summary Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {displayData.isAllTrainers ? "All Trainers Summary" : "Trainer Summary"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2">Date</th>
-                    <th className="text-left py-2">Time</th>
-                    <th className="text-left py-2">Member</th>
-                    <th className="text-left py-2">Type</th>
-                    <th className="text-right py-2">Duration</th>
-                    <th className="text-left py-2">Notes</th>
+                    <th className="text-left py-2">Trainer Name</th>
+                    <th className="text-left py-2">Email</th>
+                    <th className="text-right py-2">Total Hours</th>
+                    <th className="text-right py-2">Total Sessions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayData.sessions.map((session: SessionDetail) => (
-                    <tr key={session.id} className="border-b hover:bg-infinity">
-                      <td className="py-2">{format(new Date(session.date), "MMM d, yyyy")}</td>
-                      <td className="py-2">
-                        {format(new Date(session.startTime), "HH:mm")} - {format(new Date(session.endTime), "HH:mm")}
-                      </td>
-                      <td className="py-2">
-                        <div className="font-medium">{session.memberName}</div>
-                        <div className="text-sm text-gray-600">{session.memberEmail}</div>
-                      </td>
-                      <td className="py-2">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          session.isGroup 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-blue-100 text-blue-800"
-                        }`}>
-                          {session.isGroup ? "Group" : "Individual"}
-                        </span>
-                      </td>
-                      <td className="text-right py-2">{session.hours}h</td>
-                      {/* <td className="py-2 text-sm text-gray-600">{session.description || "-"}</td> */}
+                  {displayData.summary.map((item: TrainerSummary) => (
+                    <tr key={item.trainerId} className="border-b hover:bg-infinity">
+                      <td className="py-2 font-medium">{item.trainerName}</td>
+                      <td className="py-2 text-sm text-gray-600">{item.trainerEmail}</td>
+                      <td className="text-right py-2">{item.totalHours.toFixed(1)}</td>
+                      <td className="text-right py-2">{item.sessionCount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -439,7 +392,57 @@ export default function PersonalTrainerReportPage() {
             </div>
           </CardContent>
         </Card>
-      )}
-    </div>
+
+        {/* Session Details - Only show for single trainer view */}
+        {!displayData.isAllTrainers && displayData.sessions.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Session Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2">Date</th>
+                      <th className="text-left py-2">Time</th>
+                      <th className="text-left py-2">Member</th>
+                      <th className="text-left py-2">Type</th>
+                      <th className="text-right py-2">Duration</th>
+                      <th className="text-left py-2">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.sessions.map((session: SessionDetail) => (
+                      <tr key={session.id} className="border-b hover:bg-infinity">
+                        <td className="py-2">{format(new Date(session.date), "MMM d, yyyy")}</td>
+                        <td className="py-2">
+                          {format(new Date(session.startTime), "HH:mm")} - {format(new Date(session.endTime), "HH:mm")}
+                        </td>
+                        <td className="py-2">
+                          <div className="font-medium">{session.memberName}</div>
+                          <div className="text-sm text-gray-600">{session.memberEmail}</div>
+                        </td>
+                        <td className="py-2">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            session.isGroup
+                              ? "bg-green-100 text-green-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}>
+                            {session.isGroup ? "Group" : "Individual"}
+                          </span>
+                        </td>
+                        <td className="text-right py-2">{session.hours}h</td>
+                        {/* <td className="py-2 text-sm text-gray-600">{session.description || "-"}</td> */}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }

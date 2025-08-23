@@ -11,6 +11,7 @@ import { format, subDays } from "date-fns";
 import { DollarSign, ShoppingCart, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as XLSX from "xlsx-js-style";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 // Rupiah formatting helper
 const formatRupiah = (amount: number) =>
@@ -121,154 +122,156 @@ export default function SalesReportPage() {
   const { summary, salesSummary, subscriptions } = salesReport;
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Commission Report</h1>
-        <Button onClick={exportToExcel} variant="outline" className="bg-green-600 hover:bg-green-700 text-white">
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Export Excel
-        </Button>
-      </div>
+    <ProtectedRoute requiredPermissions={["menu:report-commission"]}>
+      <div className="space-y-6 p-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Commission Report</h1>
+          <Button onClick={exportToExcel} variant="outline" className="bg-green-600 hover:bg-green-700 text-white">
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Export Excel
+          </Button>
+        </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <Label>Start Date</Label>
-              <Input
-                type="date"
-                value={format(startDate, "yyyy-MM-dd")}
-                onChange={(e) => setStartDate(new Date(e.target.value))}
-              />
-            </div>
-            <div>
-              <Label>End Date</Label>
-              <Input
-                type="date"
-                value={format(endDate, "yyyy-MM-dd")}
-                onChange={(e) => setEndDate(new Date(e.target.value))}
-              />
-            </div>
-            <div>
-              <Label>Select Sales</Label>
-              <Select value={salesId} onValueChange={setSalesId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sales</SelectItem>
-                  {salesList?.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.type})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatRupiah(summary.totalRevenue)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Subscriptions</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {summary.totalSubscriptions}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sales</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {salesSummary.length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Sales Summary Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sales Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <table className="w-full">
-            <thead>
-              <tr className="text-left">
-                <th className="p-2">Sales Name</th>
-                <th className="p-2">Sales Type</th>
-                <th className="p-2">Total Revenue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {salesSummary.map(s => (
-                <tr key={s.salesId}>
-                  <td className="p-2">{s.salesName}</td>
-                  <td className="p-2">{s.salesType}</td>
-                  <td className="p-2">{formatRupiah(s.totalRevenue)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-
-      {/* Sales Detail Table */}
-      {salesId !== 'all' && (
+        {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Sales Detail</CardTitle>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <Label>Start Date</Label>
+                <Input
+                  type="date"
+                  value={format(startDate, "yyyy-MM-dd")}
+                  onChange={(e) => setStartDate(new Date(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label>End Date</Label>
+                <Input
+                  type="date"
+                  value={format(endDate, "yyyy-MM-dd")}
+                  onChange={(e) => setEndDate(new Date(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label>Select Sales</Label>
+                <Select value={salesId} onValueChange={setSalesId}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales</SelectItem>
+                    {salesList?.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name} ({s.type})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(summary.totalRevenue)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Subscriptions</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {summary.totalSubscriptions}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Sales</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {salesSummary.length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sales Summary Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Sales Summary</CardTitle>
           </CardHeader>
           <CardContent>
             <table className="w-full">
               <thead>
                 <tr className="text-left">
-                  {/* <th className="p-2">Payment ID</th> */}
-                  <th className="p-2">Member Name</th>
-                  <th className="p-2">Package</th>
-                  <th className="p-2">Amount</th>
-                  {/* <th className="p-2">Payment Method</th> */}
-                  {/* <th className="p-2">Created At</th> */}
+                  <th className="p-2">Sales Name</th>
+                  <th className="p-2">Sales Type</th>
+                  <th className="p-2">Total Revenue</th>
                 </tr>
               </thead>
               <tbody>
-                {subscriptions.map((sub: any) => (
-                  <tr key={sub.id}>
-                    {/* <td className="p-2">{sub.id}</td> */}
-                    <td className="p-2">{sub.member?.user?.name || "N/A"}</td>
-                    <td className="p-2">{sub.package?.name || "N/A"}</td>
-                    <td className="p-2">{formatRupiah(sub.payments?.[0]?.totalPayment ?? 0)}</td>
-                    {/* <td className="p-2">{sub.paymentMethod || "N/A"}</td> */}
-                    {/* <td className="p-2">{format(new Date(sub.createdAt), "yyyy-MM-dd HH:mm")}</td> */}
+                {salesSummary.map(s => (
+                  <tr key={s.salesId}>
+                    <td className="p-2">{s.salesName}</td>
+                    <td className="p-2">{s.salesType}</td>
+                    <td className="p-2">{formatRupiah(s.totalRevenue)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </CardContent>
         </Card>
-      )}
-    </div>
+
+        {/* Sales Detail Table */}
+        {salesId !== 'all' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Detail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left">
+                    {/* <th className="p-2">Payment ID</th> */}
+                    <th className="p-2">Member Name</th>
+                    <th className="p-2">Package</th>
+                    <th className="p-2">Amount</th>
+                    {/* <th className="p-2">Payment Method</th> */}
+                    {/* <th className="p-2">Created At</th> */}
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscriptions.map((sub: any) => (
+                    <tr key={sub.id}>
+                      {/* <td className="p-2">{sub.id}</td> */}
+                      <td className="p-2">{sub.member?.user?.name || "N/A"}</td>
+                      <td className="p-2">{sub.package?.name || "N/A"}</td>
+                      <td className="p-2">{formatRupiah(sub.payments?.[0]?.totalPayment ?? 0)}</td>
+                      {/* <td className="p-2">{sub.paymentMethod || "N/A"}</td> */}
+                      {/* <td className="p-2">{format(new Date(sub.createdAt), "yyyy-MM-dd HH:mm")}</td> */}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }

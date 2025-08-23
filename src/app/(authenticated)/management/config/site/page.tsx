@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function SiteConfigPage() {
   const { toast } = useToast();
@@ -96,6 +97,7 @@ export default function SiteConfigPage() {
     configs?.filter((config) => config.category === "site") ?? [];
 
   return (
+     <ProtectedRoute requiredPermissions={["menu:configs"]}>
     <div className="container mx-auto py-6">
       <Card>
         <CardHeader>
@@ -175,5 +177,6 @@ export default function SiteConfigPage() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedRoute>
   );
 }

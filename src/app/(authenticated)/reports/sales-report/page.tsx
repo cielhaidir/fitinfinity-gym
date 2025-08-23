@@ -11,6 +11,7 @@ import { format, subDays } from "date-fns";
 import { DollarSign, ShoppingCart, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as XLSX from "xlsx-js-style";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 // Rupiah formatting helper
 const formatRupiah = (amount: number) =>
@@ -226,192 +227,194 @@ export default function SalesReportPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Sales Report</h1>
-        <Button onClick={exportToExcel} variant="outline" className="bg-green-600 hover:bg-green-700 text-white">
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Export Excel
-        </Button>
-      </div>
+    <ProtectedRoute requiredPermissions={["menu:report-sales"]}>
+      <div className="space-y-6 p-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Sales Report</h1>
+          <Button onClick={exportToExcel} variant="outline" className="bg-green-600 hover:bg-green-700 text-white">
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Export Excel
+          </Button>
+        </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <Label>Start Date</Label>
-              <Input
-                type="date"
-                value={format(startDate, "yyyy-MM-dd")}
-                onChange={(e) => setStartDate(new Date(e.target.value))}
-              />
-            </div>
-            <div>
-              <Label>End Date</Label>
-              <Input
-                type="date"
-                value={format(endDate, "yyyy-MM-dd")}
-                onChange={(e) => setEndDate(new Date(e.target.value))}
-              />
-            </div>
-            <div>
-              <Label>Payment Method</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="include-pos"
-                checked={includePos}
-                onChange={(e) => setIncludePos(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <Label htmlFor="include-pos">Include POS Sales</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="include-subscriptions"
-                checked={includeSubscriptions}
-                onChange={(e) => setIncludeSubscriptions(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <Label htmlFor="include-subscriptions">Include Subscriptions</Label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Filters */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatRupiah(salesSummary.summary.totalRevenue)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {salesSummary.summary.totalTransactions}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Transaction</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatRupiah(salesSummary.summary.averageTransactionValue)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">POS Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatRupiah(salesSummary.summary.posRevenue)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Methods Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {salesSummary.paymentMethodBreakdown.map((item: PaymentMethodBreakdown, index: number) => (
-              <div key={index} className="flex justify-between items-center p-2  rounded">
-                <span className="font-medium">{item.method}</span>
-                <span>{item.count} transactions · {formatRupiah(item.amount)}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label>Start Date</Label>
+                <Input
+                  type="date"
+                  value={format(startDate, "yyyy-MM-dd")}
+                  onChange={(e) => setStartDate(new Date(e.target.value))}
+                />
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div>
+                <Label>End Date</Label>
+                <Input
+                  type="date"
+                  value={format(endDate, "yyyy-MM-dd")}
+                  onChange={(e) => setEndDate(new Date(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label>Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Methods</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="include-pos"
+                  checked={includePos}
+                  onChange={(e) => setIncludePos(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="include-pos">Include POS Sales</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="include-subscriptions"
+                  checked={includeSubscriptions}
+                  onChange={(e) => setIncludeSubscriptions(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="include-subscriptions">Include Subscriptions</Label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(salesSummary.summary.totalRevenue)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {salesSummary.summary.totalTransactions}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Average Transaction</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(salesSummary.summary.averageTransactionValue)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">POS Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(salesSummary.summary.posRevenue)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
-            <CardTitle>Top Selling Items</CardTitle>
+            <CardTitle>Payment Methods Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {salesSummary.topSellingItems.slice(0, 5).map((item: TopSellingItem, index: number) => (
-                <div key={index} className="flex justify-between items-center">
-                  <span className="text-sm">{item.name}</span>
-                  <span className="text-sm font-medium">{formatRupiah(item.revenue)}</span>
+              {salesSummary.paymentMethodBreakdown.map((item: PaymentMethodBreakdown, index: number) => (
+                <div key={index} className="flex justify-between items-center p-2  rounded">
+                  <span className="font-medium">{item.method}</span>
+                  <span>{item.count} transactions · {formatRupiah(item.amount)}</span>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily Revenue Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {salesSummary.dailyBreakdown.slice(-7).map((item: DailyBreakdown, index: number) => (
-                <div key={index} className="flex justify-between items-center">
-                  <span className="text-sm">{format(new Date(item.date), "MMM d")}</span>
-                  <span className="text-sm font-medium">{formatRupiah(item.revenue)}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Selling Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {salesSummary.topSellingItems.slice(0, 5).map((item: TopSellingItem, index: number) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <span className="text-sm">{item.name}</span>
+                    <span className="text-sm font-medium">{formatRupiah(item.revenue)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Revenue Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {salesSummary.dailyBreakdown.slice(-7).map((item: DailyBreakdown, index: number) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <span className="text-sm">{format(new Date(item.date), "MMM d")}</span>
+                    <span className="text-sm font-medium">{formatRupiah(item.revenue)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Monthly Summary */}
+        {salesSummary.monthlySummary && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Revenue - {new Date().getFullYear()}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {salesSummary.monthlySummary.map((month: MonthlySummary, index: number) => (
+                  <div key={index} className="text-center p-4  rounded">
+                    <div className="text-sm font-medium">{month.monthName}</div>
+                    <div className="text-lg font-bold">{formatRupiah(month.revenue)}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      {/* Monthly Summary */}
-      {salesSummary.monthlySummary && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Revenue - {new Date().getFullYear()}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {salesSummary.monthlySummary.map((month: MonthlySummary, index: number) => (
-                <div key={index} className="text-center p-4  rounded">
-                  <div className="text-sm font-medium">{month.monthName}</div>
-                  <div className="text-lg font-bold">{formatRupiah(month.revenue)}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    </ProtectedRoute>
   );
 }

@@ -21,6 +21,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { SelectUserModal } from "./select-user-modal";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function EmployeePage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -264,7 +265,8 @@ export default function EmployeePage() {
   });
 
   return (
-    <div className="container mx-auto py-10">
+    <ProtectedRoute requiredPermissions={["menu:employees"]}>
+      <div className="container mx-auto py-10">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Employee Management</h1>
         <Button
@@ -336,6 +338,7 @@ export default function EmployeePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

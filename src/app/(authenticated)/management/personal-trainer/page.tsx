@@ -15,6 +15,7 @@ import { TrainerForm } from "./trainer-form";
 import { toast } from "sonner";
 import { SelectUserModal } from "./select-user-modal";
 import { type User } from "@prisma/client";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function PersonalTrainerPage() {
   const utils = api.useUtils();
@@ -292,7 +293,7 @@ export default function PersonalTrainerPage() {
   };
 
   return (
-    <>
+    <ProtectedRoute requiredPermissions={["menu:trainers"]}>
       <Sheet
         open={isSheetOpen}
         onOpenChange={(open) => {
@@ -357,6 +358,6 @@ export default function PersonalTrainerPage() {
         onSelectUser={handleSelectUser}
         onAddNew={handleAddNew}
       />
-    </>
+    </ProtectedRoute>
   );
 }

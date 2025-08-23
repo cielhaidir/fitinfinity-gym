@@ -10,6 +10,7 @@ import { api } from "@/trpc/react";
 import { type Permission } from "./schema";
 import { PermissionForm } from "./permission-form";
 import { toast } from "sonner";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function PermissionPage() {
   const utils = api.useUtils();
@@ -136,7 +137,7 @@ export default function PermissionPage() {
   });
 
   return (
-    <>
+    <ProtectedRoute requiredPermissions={["menu:permission"]}>
       <Sheet
         open={isSheetOpen}
         onOpenChange={(open) => {
@@ -181,6 +182,6 @@ export default function PermissionPage() {
           isEditMode={isEditMode}
         />
       </Sheet>
-    </>
+    </ProtectedRoute>
   );
 }

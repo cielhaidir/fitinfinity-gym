@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import type { Class } from "@/app/(authenticated)/member/classes/types";
 import { AdminClassRegisterDialog } from "./register-dialog";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function AdminClassRegisterPage() {
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
@@ -46,38 +47,40 @@ export default function AdminClassRegisterPage() {
   });
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-black dark:text-white">
-          Register Member to Class
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Select a class to register a member
-        </p>
+    <ProtectedRoute requiredPermissions={["menu:member"]}>
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-black dark:text-white">
+            Register Member to Class
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Select a class to register a member
+          </p>
+        </div>
+        {upcomingClasses?.length === 0 ? (
+          <div className="text-center text-gray-600 dark:text-gray-400">
+            <p>No upcoming classes available at the moment</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {upcomingClasses?.map((class_) => (
+              <ClassCard
+                key={class_.id}
+                class_={class_}
+                onClick={() => handleClassClick(class_)}
+                hasValidSubscription={true}
+                isRegistrationEnabled={true}
+              />
+            ))}
+          </div>
+        )}
+        <AdminClassRegisterDialog
+          class_={selectedClass}
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+        />
       </div>
-      {upcomingClasses?.length === 0 ? (
-        <div className="text-center text-gray-600 dark:text-gray-400">
-          <p>No upcoming classes available at the moment</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {upcomingClasses?.map((class_) => (
-            <ClassCard
-              key={class_.id}
-              class_={class_}
-              onClick={() => handleClassClick(class_)}
-              hasValidSubscription={true}
-              isRegistrationEnabled={true}
-            />
-          ))}
-        </div>
-      )}
-      <AdminClassRegisterDialog
-        class_={selectedClass}
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-      />
-    </div>
+    </ProtectedRoute>
   );
 }
 

@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { TRPCClientError } from "@trpc/client";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 // Define a type for the items, aligning with what listWaiting returns
 // This should ideally be inferred or imported from your tRPC types if possible
@@ -192,122 +193,124 @@ export default function AdminPaymentValidationPage() {
   }
 
   return (
-    <div className="container mx-auto p-5 md:p-8">
-      <div className="mb-6 flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Payment Validations
-          </h2>
-          <p className="text-muted-foreground">
-            Review and process pending direct payments.
-          </p>
-        </div>
-      </div>
-
-      <DataTable
-        columns={columns}
-        data={validationData ?? { items: [], total: 0, page: 1, limit: 10 }}
-        onPaginationChange={handlePaginationChange}
-        // searchColumns can be added if listWaiting supports search
-      />
-
-      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Payment Proof</DialogTitle>
-            <DialogDescription>
-              Review the uploaded payment proof below.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 flex justify-center">
-            {selectedImageUrl ? (
-              <Link
-                href={selectedImageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Image
-                  src={selectedImageUrl}
-                  alt="Payment Proof"
-                  width={500}
-                  height={700}
-                  style={{ objectFit: "contain", maxHeight: "70vh" }}
-                  onError={(e) => {
-                    console.error("Error loading image:", e);
-                    (e.target as HTMLImageElement).src =
-                      "/placeholder-error.png"; // Fallback image
-                    (e.target as HTMLImageElement).alt = "Error loading image";
-                  }}
-                />
-              </Link>
-            ) : (
-              <p>No image to display or image URL is invalid.</p>
-            )}
+    <ProtectedRoute requiredPermissions={["menu:payment"]}>
+      <div className="container mx-auto p-5 md:p-8">
+        <div className="mb-6 flex items-center justify-between space-y-2">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Payment Validations
+            </h2>
+            <p className="text-muted-foreground">
+              Review and process pending direct payments.
+            </p>
           </div>
-          <DialogFooter className="mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsImageModalOpen(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      {/* Modal konfirmasi */}
-      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Are you sure?</DialogTitle>
-          </DialogHeader>
-          {selectedAction === "accept" && (
-            <div className="mb-4">
-              <label
-                htmlFor="balance-account"
-                className="mb-2 block font-medium"
-              >
-                Select Balance Account
-              </label>
-              {accounts.length > 0 ? (
-                <select
-                  id="balance-account"
-                  className="w-full rounded border px-3 py-2"
-                  value={selectedBalanceId ?? ""}
-                  onChange={(e) => setSelectedBalanceId(Number(e.target.value))}
+        <DataTable
+          columns={columns}
+          data={validationData ?? { items: [], total: 0, page: 1, limit: 10 }}
+          onPaginationChange={handlePaginationChange}
+          // searchColumns can be added if listWaiting supports search
+        />
+
+        <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Payment Proof</DialogTitle>
+              <DialogDescription>
+                Review the uploaded payment proof below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 flex justify-center">
+              {selectedImageUrl ? (
+                <Link
+                  href={selectedImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  <option value="" disabled>
-                    Select account
-                  </option>
-                  {accounts.map((acc: any) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name}
-                    </option>
-                  ))}
-                </select>
+                  <Image
+                    src={selectedImageUrl}
+                    alt="Payment Proof"
+                    width={500}
+                    height={700}
+                    style={{ objectFit: "contain", maxHeight: "70vh" }}
+                    onError={(e) => {
+                      console.error("Error loading image:", e);
+                      (e.target as HTMLImageElement).src =
+                        "/placeholder-error.png"; // Fallback image
+                      (e.target as HTMLImageElement).alt = "Error loading image";
+                    }}
+                  />
+                </Link>
               ) : (
-                <div className="text-sm text-muted-foreground">
-                  No balance account available.
-                </div>
+                <p>No image to display or image URL is invalid.</p>
               )}
             </div>
-          )}
-          <DialogFooter>
-            <Button
-              onClick={handleConfirm}
-              disabled={selectedAction === "accept" && !selectedBalanceId}
-            >
-              Confirm
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowConfirmModal(false)}
-            >
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsImageModalOpen(false)}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal konfirmasi */}
+        <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure?</DialogTitle>
+            </DialogHeader>
+            {selectedAction === "accept" && (
+              <div className="mb-4">
+                <label
+                  htmlFor="balance-account"
+                  className="mb-2 block font-medium"
+                >
+                  Select Balance Account
+                </label>
+                {accounts.length > 0 ? (
+                  <select
+                    id="balance-account"
+                    className="w-full rounded border px-3 py-2"
+                    value={selectedBalanceId ?? ""}
+                    onChange={(e) => setSelectedBalanceId(Number(e.target.value))}
+                  >
+                    <option value="" disabled>
+                      Select account
+                    </option>
+                    {accounts.map((acc: any) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    No balance account available.
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                onClick={handleConfirm}
+                disabled={selectedAction === "accept" && !selectedBalanceId}
+              >
+                Confirm
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmModal(false)}
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ProtectedRoute>
   );
 }

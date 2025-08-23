@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 type MemberCheckinLog = {
   id: string;
@@ -146,286 +147,288 @@ export default function MemberAttendanceReportPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Member Attendance Report</h1>
-          <p className="text-muted-foreground">
-            View and analyze member check-in attendance records
-          </p>
+    <ProtectedRoute requiredPermissions={["menu:report-member-attendance"]}>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Member Attendance Report</h1>
+            <p className="text-muted-foreground">
+              View and analyze member check-in attendance records
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters & Reports</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div>
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={handleApplyFilters} className="w-full">
-                Apply Filters
-              </Button>
-            </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={clearFilters} variant="outline" className="w-full">
-                Clear
-              </Button>
-            </div>
-          </div>
-
-          {/* Weekly Report Section */}
-          <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold mb-3">Weekly Report</h3>
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex gap-2">
-                <Button onClick={() => handleWeekNavigation('prev')} variant="outline" size="sm">
-                  Previous Week
-                </Button>
-                <Button onClick={() => handleWeekNavigation('current')} variant="outline" size="sm">
-                  Current Week
-                </Button>
-                <Button onClick={() => handleWeekNavigation('next')} variant="outline" size="sm">
-                  Next Week
+        {/* Filters Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters & Reports</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div>
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <Button onClick={handleApplyFilters} className="w-full">
+                  Apply Filters
                 </Button>
               </div>
-              <Button onClick={handleWeeklyReport} className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Load Week Report
+              <div className="flex items-end gap-2">
+                <Button onClick={clearFilters} variant="outline" className="w-full">
+                  Clear
+                </Button>
+              </div>
+            </div>
+
+            {/* Weekly Report Section */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-semibold mb-3">Weekly Report</h3>
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex gap-2">
+                  <Button onClick={() => handleWeekNavigation('prev')} variant="outline" size="sm">
+                    Previous Week
+                  </Button>
+                  <Button onClick={() => handleWeekNavigation('current')} variant="outline" size="sm">
+                    Current Week
+                  </Button>
+                  <Button onClick={() => handleWeekNavigation('next')} variant="outline" size="sm">
+                    Next Week
+                  </Button>
+                </div>
+                <Button onClick={handleWeeklyReport} className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Load Week Report
+                </Button>
+                <div className="text-sm text-muted-foreground">
+                  Week: {format(currentWeekStart, "MMM dd")} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "MMM dd, yyyy")}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <Button onClick={handleDownloadReport} className="flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Download Report
               </Button>
-              <div className="text-sm text-muted-foreground">
-                Week: {format(currentWeekStart, "MMM dd")} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "MMM dd, yyyy")}
-              </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="mt-4">
-            <Button onClick={handleDownloadReport} className="flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Download Report
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Member Attendance Records</CardTitle>
-            {data && (
-              <div className="text-sm text-muted-foreground">
-                Showing {data.data.length} of {data.totalCount} records
-                (Page {data.currentPage} of {data.totalPages})
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            </div>
-          ) : error ? (
-            <div className="text-red-500">Error loading member attendance records.</div>
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Check-in Time</TableHead>
-                      <TableHead>Checkout Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Member ID</TableHead>
-                      <TableHead>Member Name</TableHead>
-                      <TableHead>User Name</TableHead>
-                      <TableHead>Facility Description</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data?.data && data.data.length > 0 ? (
-                      data.data.map((log: MemberCheckinLog) => (
-                        <TableRow key={log.id}>
-                          <TableCell>
-                            {log.checkin
-                              ? typeof log.checkin === "string"
-                                ? format(new Date(log.checkin), "yyyy-MM-dd HH:mm")
-                                : format(log.checkin, "yyyy-MM-dd HH:mm")
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {log.checkout
-                              ? typeof log.checkout === "string"
-                                ? format(new Date(log.checkout), "yyyy-MM-dd HH:mm")
-                                : format(log.checkout, "yyyy-MM-dd HH:mm")
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {log.status}
-                          </TableCell>
-                          <TableCell>{log.memberId}</TableCell>
-                          <TableCell>{log.memberName ?? "-"}</TableCell>
-                          <TableCell>{log.userName ?? "-"}</TableCell>
-                          <TableCell>{log.facilityDescription ?? "-"}</TableCell>
-                          <TableCell className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditDialog(log)}
-                            >
-                              <Pencil className="w-4 h-4 mr-1" />
-                              Edit
-                            </Button>
-                            {!log.checkout && (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                disabled={checkoutMutation.isPending}
-                                onClick={async () => {
-                                  try {
-                                    await checkoutMutation.mutateAsync({
-                                      attendanceId: log.id,
-                                    });
-                                    toast.success("Checked out successfully");
-                                    await refetch();
-                                  } catch (err: any) {
-                                    toast.error("Failed to checkout");
-                                  }
-                                }}
-                              >
-                                Checkout
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center">
-                          No member attendance records found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              
-              {/* Pagination Controls */}
-              {data && data.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, data.totalCount)} of {data.totalCount} results
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={!data.hasPreviousPage}
-                    >
-                      Previous
-                    </Button>
-                    
-                    <div className="flex items-center gap-1">
-                      {/* Show page numbers */}
-                      {Array.from({ length: Math.min(5, data.totalPages) }, (_, i) => {
-                        const pageNum = i + 1;
-                        const isCurrentPage = pageNum === currentPage;
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={isCurrentPage ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setCurrentPage(pageNum)}
-                            className="w-10"
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      })}
-                      
-                      {data.totalPages > 5 && (
-                        <>
-                          <span className="px-2">...</span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(data.totalPages)}
-                            className="w-10"
-                          >
-                            {data.totalPages}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={!data.hasNextPage}
-                    >
-                      Next
-                    </Button>
-                  </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Member Attendance Records</CardTitle>
+              {data && (
+                <div className="text-sm text-muted-foreground">
+                  Showing {data.data.length} of {data.totalCount} records
+                  (Page {data.currentPage} of {data.totalPages})
                 </div>
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={!!editingLog} onOpenChange={() => setEditingLog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Member Attendance Record</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Facility Description</Label>
-              <Input
-                value={editFacility}
-                onChange={(e) => setEditFacility(e.target.value)}
-              />
             </div>
-            <div className="flex gap-2 mt-2">
-              <Button onClick={handleSave} disabled={updateMutation.isPending}>
-                Save
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setEditingLog(null)}
-                type="button"
-              >
-                Cancel
-              </Button>
-            </div>
-            {updateMutation.isError && (
-              <div className="text-red-500 mt-2">Failed to update record.</div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : error ? (
+              <div className="text-red-500">Error loading member attendance records.</div>
+            ) : (
+              <>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Check-in Time</TableHead>
+                        <TableHead>Checkout Time</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Member ID</TableHead>
+                        <TableHead>Member Name</TableHead>
+                        <TableHead>User Name</TableHead>
+                        <TableHead>Facility Description</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data?.data && data.data.length > 0 ? (
+                        data.data.map((log: MemberCheckinLog) => (
+                          <TableRow key={log.id}>
+                            <TableCell>
+                              {log.checkin
+                                ? typeof log.checkin === "string"
+                                  ? format(new Date(log.checkin), "yyyy-MM-dd HH:mm")
+                                  : format(log.checkin, "yyyy-MM-dd HH:mm")
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {log.checkout
+                                ? typeof log.checkout === "string"
+                                  ? format(new Date(log.checkout), "yyyy-MM-dd HH:mm")
+                                  : format(log.checkout, "yyyy-MM-dd HH:mm")
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {log.status}
+                            </TableCell>
+                            <TableCell>{log.memberId}</TableCell>
+                            <TableCell>{log.memberName ?? "-"}</TableCell>
+                            <TableCell>{log.userName ?? "-"}</TableCell>
+                            <TableCell>{log.facilityDescription ?? "-"}</TableCell>
+                            <TableCell className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditDialog(log)}
+                              >
+                                <Pencil className="w-4 h-4 mr-1" />
+                                Edit
+                              </Button>
+                              {!log.checkout && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  disabled={checkoutMutation.isPending}
+                                  onClick={async () => {
+                                    try {
+                                      await checkoutMutation.mutateAsync({
+                                        attendanceId: log.id,
+                                      });
+                                      toast.success("Checked out successfully");
+                                      await refetch();
+                                    } catch (err: any) {
+                                      toast.error("Failed to checkout");
+                                    }
+                                  }}
+                                >
+                                  Checkout
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center">
+                            No member attendance records found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Pagination Controls */}
+                {data && data.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, data.totalCount)} of {data.totalCount} results
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={!data.hasPreviousPage}
+                      >
+                        Previous
+                      </Button>
+                      
+                      <div className="flex items-center gap-1">
+                        {/* Show page numbers */}
+                        {Array.from({ length: Math.min(5, data.totalPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          const isCurrentPage = pageNum === currentPage;
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={isCurrentPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(pageNum)}
+                              className="w-10"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                        
+                        {data.totalPages > 5 && (
+                          <>
+                            <span className="px-2">...</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(data.totalPages)}
+                              className="w-10"
+                            >
+                              {data.totalPages}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={!data.hasNextPage}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </CardContent>
+        </Card>
+
+        <Dialog open={!!editingLog} onOpenChange={() => setEditingLog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Member Attendance Record</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Facility Description</Label>
+                <Input
+                  value={editFacility}
+                  onChange={(e) => setEditFacility(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                  Save
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setEditingLog(null)}
+                  type="button"
+                >
+                  Cancel
+                </Button>
+              </div>
+              {updateMutation.isError && (
+                <div className="text-red-500 mt-2">Failed to update record.</div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ProtectedRoute>
   );
 }

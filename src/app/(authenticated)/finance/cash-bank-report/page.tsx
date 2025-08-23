@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/app/_components/ui/dialog";
 import { Separator } from "@/app/_components/ui/separator";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 const CashBankReportPage = () => {
   const [startDate, setStartDate] = useState(startOfDay(subDays(new Date(), 30)));
@@ -209,310 +210,312 @@ const CashBankReportPage = () => {
   };
 
   return (
-    <div className="container mx-auto py-6 max-w-7xl space-y-6">
-      {/* Header and Export Button */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold">Cash Bank Report</h1>
-        <Button onClick={handleExport} className="gap-2">
-          <Download className="h-4 w-4" />
-          Export to Excel
-        </Button>
-      </div>
+    <ProtectedRoute requiredPermissions={["menu:finance-cash-bank-report"]}>
+      <div className="container mx-auto py-6 max-w-7xl space-y-6">
+        {/* Header and Export Button */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold">Cash Bank Report</h1>
+          <Button onClick={handleExport} className="gap-2">
+            <Download className="h-4 w-4" />
+            Export to Excel
+          </Button>
+        </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Credits</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Debits</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
-            <Scale className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-              {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                type="date"
-                id="startDate"
-                value={startDate.toISOString().split('T')[0]}
-                onChange={(e) => setStartDate(startOfDay(new Date(e.target.value)))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                type="date"
-                id="endDate"
-                value={endDate.toISOString().split('T')[0]}
-                onChange={(e) => setEndDate(endOfDay(new Date(e.target.value)))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="balanceAccount">Balance Account</Label>
-              <Select
-                value={balanceAccountId?.toString() || undefined}
-                onValueChange={(value) => setBalanceAccountId(value && value !== "all" ? Number(value) : undefined)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Accounts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Accounts</SelectItem>
-                  {balanceAccounts?.map((account: { id: number; name: string; account_number: string }) => (
-                    <SelectItem key={account.id} value={account.id.toString()}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Period Closing Section */}
-      {balanceAccountId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Period Closing</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-2">
-                {periodClosedData?.isClosed ? (
-                  <>
-                    <Lock className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-green-600">Period is closed</span>
-                    <span className="text-sm text-muted-foreground">
-                      (Closed on {periodClosedData.closingData ? new Date(periodClosedData.closingData.closedAt).toLocaleDateString() : 'N/A'})
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Unlock className="h-5 w-5 text-amber-600" />
-                    <span className="font-medium text-amber-600">Period is open</span>
-                  </>
-                )}
-              </div>
-              {!periodClosedData?.isClosed && (
-                <Button onClick={() => setShowClosingModal(true)} className="gap-2">
-                  <Lock className="h-4 w-4" />
-                  Close Period
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Data Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Reference ID</TableHead>
-                <TableHead 
-                  className="cursor-pointer select-none"
-                  onClick={() => handleSort('date')}
-                >
-                  <div className="flex items-center">
-                    Date
-                    {getSortIcon('date')}
-                  </div>
-                </TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead 
-                  className="cursor-pointer select-none"
-                  onClick={() => handleSort('debit')}
-                >
-                  <div className="flex items-center">
-                    Debit OC
-                    {getSortIcon('debit')}
-                  </div>
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer select-none"
-                  onClick={() => handleSort('credit')}
-                >
-                  <div className="flex items-center">
-                    Credit OC
-                    {getSortIcon('credit')}
-                  </div>
-                </TableHead>
-                <TableHead>Balance Account</TableHead>
-                {balanceAccountId && (
-                  <TableHead>Ending Balance</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={balanceAccountId ? 8 : 7} className="text-center text-muted-foreground">
-                    No records found for the selected criteria.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items.map((item: CashBankReportItem) => (
-                  <TableRow key={item.referenceId}>
-                    <TableCell className="font-medium">{item.referenceId}</TableCell>
-                    <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
-                    <TableCell>{item.type}</TableCell>
-                    <TableCell className="max-w-xs truncate">{item.description}</TableCell>
-                    <TableCell className="text-green-600 font-medium">
-                      {item.debit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                    </TableCell>
-                    <TableCell className="text-red-600 font-medium">
-                      {item.credit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                    </TableCell>
-                    <TableCell>{item.balanceAccount || 'N/A'}</TableCell>
-                    {balanceAccountId && (
-                      <TableCell className="text-blue-600 font-medium">
-                        {item.endingBalance !== undefined ? item.endingBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-
-          {/* Pagination */}
-          {pagination.total > 0 && (
-            <>
-              <Separator />
-              <div className="flex items-center justify-between px-6 py-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{' '}
-                  <span className="font-medium">{Math.min(page * limit, pagination.total)}</span> of{' '}
-                  <span className="font-medium">{pagination.total}</span> results
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                    disabled={pagination.page === 1}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(prev => Math.min(pagination.totalPages, prev + 1))}
-                    disabled={pagination.page === pagination.totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Period Closing Modal */}
-      <Dialog open={showClosingModal} onOpenChange={setShowClosingModal}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5 text-blue-600" />
-              Close Period
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to close this period? This will lock all transactions from{' '}
-              <strong>{startDate.toLocaleDateString()}</strong> to{' '}
-              <strong>{endDate.toLocaleDateString()}</strong> for the selected account.
-            </DialogDescription>
-          </DialogHeader>
-          
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Summary</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Credits</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Total Debits:</span>
-                <span className="font-medium text-green-600">
-                  {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Total Credits:</span>
-                <span className="font-medium text-red-600">
-                  {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-sm font-medium">
-                <span>Net Balance:</span>
-                <span className={netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                  {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
-                </span>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
               </div>
             </CardContent>
           </Card>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowClosingModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (balanceAccountId) {
-                  closePeriodMutation.mutate({
-                    balanceAccountId,
-                    startDate,
-                    endDate,
-                  });
-                }
-              }}
-              disabled={closePeriodMutation.isPending}
-            >
-              {closePeriodMutation.isPending ? 'Closing...' : 'Close Period'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Debits</CardTitle>
+              <TrendingDown className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+              <Scale className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  type="date"
+                  id="startDate"
+                  value={startDate.toISOString().split('T')[0]}
+                  onChange={(e) => setStartDate(startOfDay(new Date(e.target.value)))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  type="date"
+                  id="endDate"
+                  value={endDate.toISOString().split('T')[0]}
+                  onChange={(e) => setEndDate(endOfDay(new Date(e.target.value)))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="balanceAccount">Balance Account</Label>
+                <Select
+                  value={balanceAccountId?.toString() || undefined}
+                  onValueChange={(value) => setBalanceAccountId(value && value !== "all" ? Number(value) : undefined)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Accounts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Accounts</SelectItem>
+                    {balanceAccounts?.map((account: { id: number; name: string; account_number: string }) => (
+                      <SelectItem key={account.id} value={account.id.toString()}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Period Closing Section */}
+        {balanceAccountId && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Period Closing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  {periodClosedData?.isClosed ? (
+                    <>
+                      <Lock className="h-5 w-5 text-green-600" />
+                      <span className="font-medium text-green-600">Period is closed</span>
+                      <span className="text-sm text-muted-foreground">
+                        (Closed on {periodClosedData.closingData ? new Date(periodClosedData.closingData.closedAt).toLocaleDateString() : 'N/A'})
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="h-5 w-5 text-amber-600" />
+                      <span className="font-medium text-amber-600">Period is open</span>
+                    </>
+                  )}
+                </div>
+                {!periodClosedData?.isClosed && (
+                  <Button onClick={() => setShowClosingModal(true)} className="gap-2">
+                    <Lock className="h-4 w-4" />
+                    Close Period
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Data Table */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Reference ID</TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort('date')}
+                  >
+                    <div className="flex items-center">
+                      Date
+                      {getSortIcon('date')}
+                    </div>
+                  </TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort('debit')}
+                  >
+                    <div className="flex items-center">
+                      Debit OC
+                      {getSortIcon('debit')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort('credit')}
+                  >
+                    <div className="flex items-center">
+                      Credit OC
+                      {getSortIcon('credit')}
+                    </div>
+                  </TableHead>
+                  <TableHead>Balance Account</TableHead>
+                  {balanceAccountId && (
+                    <TableHead>Ending Balance</TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={balanceAccountId ? 8 : 7} className="text-center text-muted-foreground">
+                      No records found for the selected criteria.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  items.map((item: CashBankReportItem) => (
+                    <TableRow key={item.referenceId}>
+                      <TableCell className="font-medium">{item.referenceId}</TableCell>
+                      <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
+                      <TableCell>{item.type}</TableCell>
+                      <TableCell className="max-w-xs truncate">{item.description}</TableCell>
+                      <TableCell className="text-green-600 font-medium">
+                        {item.debit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                      </TableCell>
+                      <TableCell className="text-red-600 font-medium">
+                        {item.credit.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                      </TableCell>
+                      <TableCell>{item.balanceAccount || 'N/A'}</TableCell>
+                      {balanceAccountId && (
+                        <TableCell className="text-blue-600 font-medium">
+                          {item.endingBalance !== undefined ? item.endingBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' }) : '-'}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+
+            {/* Pagination */}
+            {pagination.total > 0 && (
+              <>
+                <Separator />
+                <div className="flex items-center justify-between px-6 py-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(page * limit, pagination.total)}</span> of{' '}
+                    <span className="font-medium">{pagination.total}</span> results
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      disabled={pagination.page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                      disabled={pagination.page === pagination.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Period Closing Modal */}
+        <Dialog open={showClosingModal} onOpenChange={setShowClosingModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-blue-600" />
+                Close Period
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to close this period? This will lock all transactions from{' '}
+                <strong>{startDate.toLocaleDateString()}</strong> to{' '}
+                <strong>{endDate.toLocaleDateString()}</strong> for the selected account.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Total Debits:</span>
+                  <span className="font-medium text-green-600">
+                    {totalDebits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Total Credits:</span>
+                  <span className="font-medium text-red-600">
+                    {totalCredits.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                  </span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Net Balance:</span>
+                  <span className={netBalance >= 0 ? 'text-blue-600' : 'text-red-600'}>
+                    {netBalance.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowClosingModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (balanceAccountId) {
+                    closePeriodMutation.mutate({
+                      balanceAccountId,
+                      startDate,
+                      endDate,
+                    });
+                  }
+                }}
+                disabled={closePeriodMutation.isPending}
+              >
+                {closePeriodMutation.isPending ? 'Closing...' : 'Close Period'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ProtectedRoute>
   );
 };
 

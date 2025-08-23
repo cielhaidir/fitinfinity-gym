@@ -10,6 +10,7 @@ import {
 import { Users, UserPlus, UserCheck, UserX } from "lucide-react";
 import Link from "next/link";
 import { type FC_MEMBER } from "@prisma/client";
+import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 export default function FCDashboard() {
   const { data: members } = api.fcMember.getAll.useQuery(undefined, {
     refetchInterval: false,
@@ -65,7 +66,7 @@ export default function FCDashboard() {
   const stats = getStatusCounts();
 
   return (
-    <>
+    <ProtectedRoute requiredPermissions={["menu:dashboard-fc"]}>
       <div className="container mx-auto py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Fitness Consultant Dashboard</h1>
@@ -137,6 +138,6 @@ export default function FCDashboard() {
           </Link>
         </div>
       </div>
-    </>
+    </ProtectedRoute>
   );
 }
