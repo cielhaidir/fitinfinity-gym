@@ -237,6 +237,6 @@ export default function TransactionPage() {
           isEditMode={isEditMode}
         />
       </Dialog>
-    </>
+    </ProtectedRoute>
   );
 }
