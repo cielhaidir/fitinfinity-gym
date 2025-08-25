@@ -51,6 +51,13 @@ export default function AttendanceReportPage() {
     endDate,
   });
 
+  const { data: summaryData } = api.attendance.getSummary.useQuery({
+    startDate,
+    endDate,
+    search,
+    searchType,
+  });
+
   const exportMutation = api.attendance.exportToExcel.useMutation({
     onSuccess: (data: { buffer: number[]; filename: string }) => {
       // Create blob and download
@@ -264,6 +271,50 @@ export default function AttendanceReportPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Employee Summary */}
+        {summaryData && summaryData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Employee Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>No</TableHead>
+                      <TableHead>Employee Name</TableHead>
+                      <TableHead>Total Attendance</TableHead>
+                      <TableHead>Total Hours</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {summaryData.map((employee) => (
+                      <TableRow key={employee.no}>
+                        <TableCell className="font-medium">
+                          {employee.no}
+                        </TableCell>
+                        <TableCell>
+                          {employee.employeeName}
+                        </TableCell>
+                        <TableCell>
+                          {employee.totalAttendance}
+                        </TableCell>
+                        <TableCell>
+                          {employee.totalHours}h
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Results */}
         <Card>
