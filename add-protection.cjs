@@ -104,7 +104,7 @@ Object.entries(urlPermissionMap).forEach(([url, permission]) => {
 console.log('\n📋 SUMMARY:');
 console.log(`✅ Already Protected: ${alreadyProtected.length}`);
 console.log(`⚠️  Need Protection: ${protectionNeeded.length}`);
-console.log(`❌ File Not Found: ${fileNotFound.length}`);
+// console.log(`❌ File Not Found: ${fileNotFound.length}`);
 
 console.log('\n🔒 PAGES THAT NEED PROTECTION:');
 console.log('-'.repeat(50));

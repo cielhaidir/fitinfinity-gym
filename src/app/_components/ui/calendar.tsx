@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, getDefaultClassNames } from "react-day-picker";
 import { cn } from "@/lib/utils";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
@@ -12,6 +12,7 @@ export function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+    const defaultClassNames = getDefaultClassNames();
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -23,10 +24,13 @@ export function Calendar({
         caption_label: "text-sm font-medium",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 "
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
+        // chevron: `text-black dark:text-white`,
+        root: `${defaultClassNames.root} shadow-lg p-5`, // Add a shadow to the root element
+        chevron: `${defaultClassNames.chevron} dark:fill-white fill-black`, // Cha
+        nav_button_previous: "absolute left-1 text-black dark:text-white",
+        nav_button_next: "absolute right-1 text-black dark:text-white",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
