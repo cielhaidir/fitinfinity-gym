@@ -3,6 +3,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
   permissionProtectedProcedure,
+  publicProcedure,
 } from "@/server/api/trpc";
 import { createClassSchema, createBulkClassSchema } from "@/app/(authenticated)/management/class/schema";
 
@@ -149,6 +150,116 @@ export const classRouter = createTRPCRouter({
         return deletedClass;
       } catch (error) {
         throw new Error("Failed to delete class");
+      }
+    }),
+  // Public procedure for landing page - no authentication required
+  forLandingPage: publicProcedure
+    .query(async ({ ctx }) => {
+      try {
+        console.log("🔍 Fetching classes for landing page...");
+        const now = new Date();
+        console.log("📅 Current time:", now);
+        
+        // Get date ranges - wider range to ensure we get classes
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekFromNow = new Date(now);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+        // Get all classes from the Class table only
+        const allClasses = await ctx.db.class.findMany({
+          where: {
+            schedule: {
+              gte: weekAgo,
+              lte: weekFromNow,
+            },
+          },
+          orderBy: { schedule: "asc" }, // Changed to ascending to get upcoming classes first
+          take: 20, // Get more classes to work with
+        });
+
+        console.log(`📊 Found ${allClasses.length} classes from Class table`);
+        allClasses.forEach(cls => {
+          console.log(`- ${cls.name} by ${cls.instructorName} at ${cls.schedule.toLocaleString()}`);
+        });
+
+        // Get today's date range
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(now);
+        todayEnd.setHours(23, 59, 59, 999);
+
+        console.log("🕐 Today range:", todayStart.toLocaleString(), "to", todayEnd.toLocaleString());
+
+        // Get today's classes
+        let todayClasses = allClasses.filter(cls => {
+          const scheduleDate = new Date(cls.schedule);
+          return scheduleDate >= todayStart && scheduleDate <= todayEnd;
+        });
+
+        console.log(`📅 Today's classes: ${todayClasses.length}`);
+
+        // Get upcoming classes (next few days)
+        const upcomingClasses = allClasses.filter(cls => {
+          const scheduleDate = new Date(cls.schedule);
+          return scheduleDate > todayEnd;
+        }).slice(0, 4); // Limit upcoming classes
+
+        console.log(`📅 Upcoming classes: ${upcomingClasses.length}`);
+
+        // Combine today's and upcoming classes
+        let classes = [...todayClasses, ...upcomingClasses];
+        let isFromYesterday = false;
+
+        // If no classes today or upcoming, get yesterday's classes as fallback
+        if (classes.length === 0) {
+          const yesterdayStart = new Date(now);
+          yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+          yesterdayStart.setHours(0, 0, 0, 0);
+          const yesterdayEnd = new Date(now);
+          yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+          yesterdayEnd.setHours(23, 59, 59, 999);
+
+          console.log("🕐 Yesterday range:", yesterdayStart.toLocaleString(), "to", yesterdayEnd.toLocaleString());
+
+          classes = allClasses.filter(cls => {
+            const scheduleDate = new Date(cls.schedule);
+            return scheduleDate >= yesterdayStart && scheduleDate <= yesterdayEnd;
+          });
+
+          console.log(`📅 Yesterday's classes: ${classes.length}`);
+          isFromYesterday = true;
+        }
+
+        // If still no classes, get any available classes
+        if (classes.length === 0) {
+          console.log("📅 No classes found, getting any available classes");
+          classes = allClasses.slice(0, 6);
+          isFromYesterday = true;
+        }
+
+        // Limit to 6 classes for display
+        classes = classes.slice(0, 6);
+
+        // Transform class data for landing page display
+        const transformedClasses = classes.map(cls => ({
+          id: cls.id,
+          name: cls.name,
+          instructorName: cls.instructorName,
+          schedule: cls.schedule,
+          duration: cls.duration,
+          price: cls.price,
+        }));
+
+        console.log(`✅ Returning ${transformedClasses.length} classes, isFromYesterday: ${isFromYesterday}`);
+
+        return {
+          classes: transformedClasses,
+          isFromYesterday,
+        };
+      } catch (error) {
+        console.error("❌ Failed to fetch classes for landing page:", error);
+        throw new Error("Failed to fetch classes for landing page");
       }
     }),
 });

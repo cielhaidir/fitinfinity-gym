@@ -105,19 +105,15 @@ export default function VoucherPage() {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    let processedValue = value;
-    if (name === "isActive" || name === "allowStack") {
-      processedValue = value === true || value === "true";
-    }
     if (isEditMode && selectedVoucher) {
       setSelectedVoucher((prev) => ({
         ...prev!,
-        [name]: processedValue,
+        [name]: name === "allowStack" ? value === "true" : value,
       }));
     } else {
       setNewVoucher((prev) => ({
         ...prev,
-        [name]: processedValue,
+        [name]: name === "allowStack" ? value === "true" : value,
       }));
     }
   };
