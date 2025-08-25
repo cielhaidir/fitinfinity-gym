@@ -183,7 +183,7 @@ export const attendanceRouter = createTRPCRouter({
         "Employee Name": record.employee.user.name,
         "Employee Email": record.employee.user.email,
         "Fingerprint ID": record.employee.fingerprintId || "-",
-        "Date": record.date.toLocaleDateString("id-ID"),
+        "Date": record.checkIn ? record.checkIn.toLocaleDateString("id-ID") : record.date.toLocaleDateString("id-ID"),
         "Check In": record.checkIn ? record.checkIn.toLocaleString("id-ID") : "-",
         "Check Out": record.checkOut ? record.checkOut.toLocaleString("id-ID") : "-",
         "Device ID": record.deviceId || "-",
