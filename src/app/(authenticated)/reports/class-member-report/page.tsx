@@ -196,7 +196,7 @@ export default function ClassMemberReportPage() {
   }
 
   return (
-    <ProtectedRoute requiredPermissions={["menu:report-class-member"]}>
+    <ProtectedRoute requiredPermissions={["report:class-member-report"]}>
       <div className="container mx-auto py-10 space-y-6">
         <div className="flex items-center justify-between">
           <div>

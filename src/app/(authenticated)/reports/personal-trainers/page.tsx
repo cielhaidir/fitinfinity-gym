@@ -242,7 +242,7 @@ export default function PersonalTrainerReportPage() {
   }
 
   return (
-    <ProtectedRoute requiredPermissions={["menu:report-personal-trainers"]}>
+    <ProtectedRoute requiredPermissions={["report:pt"]}>
       <div className="space-y-6 p-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Personal Trainer Conduct Report</h1>

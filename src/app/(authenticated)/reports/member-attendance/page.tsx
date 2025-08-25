@@ -147,7 +147,7 @@ export default function MemberAttendanceReportPage() {
   };
 
   return (
-    <ProtectedRoute requiredPermissions={["menu:report-member-attendance"]}>
+    <ProtectedRoute requiredPermissions={["report:member-attendance"]}>
       <div className="container mx-auto py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>

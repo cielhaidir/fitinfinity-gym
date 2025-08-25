@@ -210,7 +210,7 @@ const CashBankReportPage = () => {
   };
 
   return (
-    <ProtectedRoute requiredPermissions={["menu:finance-cash-bank-report"]}>
+    <ProtectedRoute requiredPermissions={["report:cash-bank"]}>
       <div className="container mx-auto py-6 max-w-7xl space-y-6">
         {/* Header and Export Button */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
