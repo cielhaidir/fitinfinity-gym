@@ -465,7 +465,7 @@ export default function SubscriptionHistoryPage() {
   ) ?? 0;
 
   return (
-    <ProtectedRoute requiredPermissions={["menu:finance-subscription-history"]}>
+    <ProtectedRoute requiredPermissions={["menu:transactions"]}>
       <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
         <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div className="space-y-1">
