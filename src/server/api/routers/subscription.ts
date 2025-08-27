@@ -494,6 +494,17 @@ export const subscriptionRouter = createTRPCRouter({
               point: true,
             },
           },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
           payments: {
             select: {
               id: true,
@@ -1507,5 +1518,108 @@ export const subscriptionRouter = createTRPCRouter({
           price: "asc",
         },
       });
+    }),
+
+  // Update personal trainer for a subscription
+  updateTrainer: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        subscriptionId: z.string(),
+        trainerId: z.string().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify the subscription exists
+      const subscription = await ctx.db.subscription.findUnique({
+        where: { id: input.subscriptionId },
+        include: {
+          package: true,
+          member: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription not found",
+        });
+      }
+
+      // Check if the package is a personal trainer package
+      if (subscription.package.type !== "PERSONAL_TRAINER") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only personal trainer packages can have their trainer updated",
+        });
+      }
+
+      // Validate that the trainer exists if trainerId is provided
+      if (input.trainerId) {
+        const trainer = await ctx.db.personalTrainer.findUnique({
+          where: { id: input.trainerId },
+          include: {
+            user: true,
+          },
+        });
+
+        if (!trainer) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Personal trainer not found",
+          });
+        }
+
+        if (!trainer.isActive) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Personal trainer is not active",
+          });
+        }
+      }
+
+      // Update the subscription with the new trainer
+      const updatedSubscription = await ctx.db.subscription.update({
+        where: { id: input.subscriptionId },
+        data: {
+          trainerId: input.trainerId,
+        },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          package: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return updatedSubscription;
     }),
 });

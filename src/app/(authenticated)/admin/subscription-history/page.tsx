@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp } from "lucide-react";
+import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +71,11 @@ export default function AdminSubscriptionHistoryPage() {
   const [upgradeNewEndDate, setUpgradeNewEndDate] = useState("");
   const [upgradePaymentProofPath, setUpgradePaymentProofPath] = useState("");
   
+  // Edit Personal Trainer functionality state
+  const [editTrainerDialogOpen, setEditTrainerDialogOpen] = useState(false);
+  const [selectedSubscriptionForTrainer, setSelectedSubscriptionForTrainer] = useState<any>(null);
+  const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
+  
   const { toast } = useToast();
 
   // Query for getting all subscriptions with required fields
@@ -109,6 +114,9 @@ export default function AdminSubscriptionHistoryPage() {
   const { data: gymPackages = [] } = api.subs.getGymPackages.useQuery(undefined, {
     enabled: !!session,
   });
+
+  // Query for getting personal trainers for edit trainer functionality
+  const { data: personalTrainers = [] } = api.personalTrainer.getActiveTrainers.useQuery();
   // Debounce user search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -203,6 +211,27 @@ export default function AdminSubscriptionHistoryPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to upgrade subscription",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for updating personal trainer
+  const updateTrainerMutation = api.subs.updateTrainer.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Personal trainer updated successfully",
+      });
+      setEditTrainerDialogOpen(false);
+      setSelectedSubscriptionForTrainer(null);
+      setSelectedTrainerId("");
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update personal trainer",
         variant: "destructive",
       });
     },
@@ -375,6 +404,32 @@ export default function AdminSubscriptionHistoryPage() {
     setUpgradeNewEndDate("");
     setUpgradePaymentProofPath("");
   };
+
+  // Edit Personal Trainer functionality handlers
+  const handleEditTrainer = (subscription: any) => {
+    setSelectedSubscriptionForTrainer(subscription);
+    setSelectedTrainerId(subscription.trainerId || "none");
+    setEditTrainerDialogOpen(true);
+  };
+
+  const handleConfirmTrainerUpdate = async () => {
+    if (!selectedSubscriptionForTrainer) return;
+
+    try {
+      await updateTrainerMutation.mutateAsync({
+        subscriptionId: selectedSubscriptionForTrainer.id,
+        trainerId: selectedTrainerId === "none" ? null : selectedTrainerId,
+      });
+    } catch (error) {
+      console.error("Failed to update personal trainer:", error);
+    }
+  };
+
+  const handleCancelTrainerEdit = () => {
+    setEditTrainerDialogOpen(false);
+    setSelectedSubscriptionForTrainer(null);
+    setSelectedTrainerId("none");
+  };
   const columns: ColumnDef<any>[] = [
     {
       accessorKey: "member.user.name",
@@ -504,9 +559,15 @@ export default function AdminSubscriptionHistoryPage() {
                   <DropdownMenuItem onClick={() => handleUpgradeSubscription(row.original)}>
                     <TrendingUp className="mr-2 h-4 w-4" />
                     Upgrade
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
+                   </DropdownMenuItem>
+                 )}
+                 {row.original.package?.type === "PERSONAL_TRAINER" && (
+                   <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
+                     <UserCheck className="mr-2 h-4 w-4" />
+                     Edit Personal Trainer
+                   </DropdownMenuItem>
+                 )}
+               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         );
@@ -870,6 +931,70 @@ export default function AdminSubscriptionHistoryPage() {
                 className="bg-orange-600 hover:bg-orange-700"
               >
                 {upgradeSubscriptionMutation.isPending ? "Upgrading..." : "Confirm Upgrade"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Personal Trainer Dialog */}
+        <Dialog open={editTrainerDialogOpen} onOpenChange={setEditTrainerDialogOpen}>
+          <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Edit Personal Trainer</DialogTitle>
+              <DialogDescription className="text-sm">
+                {selectedSubscriptionForTrainer && (
+                  <>
+                    Update the personal trainer for <strong>{selectedSubscriptionForTrainer.member?.user?.name}</strong>'s subscription.
+                    Current package: <strong>{selectedSubscriptionForTrainer.package?.name}</strong>
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="trainer" className="text-sm font-medium">
+                  Personal Trainer
+                </Label>
+                <Select
+                  value={selectedTrainerId}
+                  onValueChange={setSelectedTrainerId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select personal trainer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No trainer assigned</SelectItem>
+                    {personalTrainers
+                      ?.map((trainer) => (
+                        <SelectItem key={trainer.id} value={trainer.id}>
+                          {trainer.user?.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedSubscriptionForTrainer?.trainer && (
+                <div className="text-xs text-muted-foreground">
+                  Current trainer: {selectedSubscriptionForTrainer.trainer.user?.name || "N/A"}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelTrainerEdit}
+                disabled={updateTrainerMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmTrainerUpdate}
+                disabled={updateTrainerMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {updateTrainerMutation.isPending ? "Updating..." : "Update Trainer"}
               </Button>
             </DialogFooter>
           </DialogContent>
