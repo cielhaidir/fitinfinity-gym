@@ -468,30 +468,12 @@ export class DokuPaymentService {
     }>;
   }): Promise<DokuPaymentResponse> {
 
-    // Calculate fees
-    const serviceFeePct = params.amount * 0.05; // 5% service fee
-    const adminFee = 2000; // Fixed admin fee
-    const totalAmount = params.amount + serviceFeePct + adminFee;
+    // Use the total amount as provided (no additional fee calculation)
+    // The frontend already includes service fees and admin fees in the amount
+    const totalAmount = params.amount;
 
-    // Create line items including fees
+    // Create line items from the provided items
     const lineItems = [...(params.items || [])];
-    
-    // Add service fee as line item
-    lineItems.push({
-      name: this.sanitizeText('Service Fee 5%'),
-      price: serviceFeePct,
-      quantity: 1,
-      category: 'service',
-      sku: 'SRV-5PCT'
-    });
-
-    lineItems.push({
-      name: this.sanitizeText('Admin Fee'),
-      price: adminFee,
-      quantity: 1,
-      category: 'service',
-      sku: 'ADMIN-FEE'
-    });
 
     const paymentRequest: DokuPaymentRequest = {
       order: {

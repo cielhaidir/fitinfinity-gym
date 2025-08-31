@@ -257,9 +257,10 @@ export default function SubscriptionPage({
       setIsProcessingPayment(true);
       const createdSubscriptions: string[] = [];
       
+      // Create a unique order ID for all subscriptions (moved outside try block for scope)
+      const orderId = `FIT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
       try {
-        // Create a unique order ID for all subscriptions
-        const orderId = `FIT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         // Find selected sales person details
         const selectedSalesDetails = salesList?.find(s => s.id === selectedSales);
@@ -311,20 +312,58 @@ export default function SubscriptionPage({
         // Get primary subscription (first one) for payment gateway
         const primarySubscriptionId = createdSubscriptions[0];
 
-        // Format item details from cart
-        const itemDetails = cart.map(item => ({
+        // Calculate discount amounts
+        const originalSubtotal = calculateSubtotal();
+        const discountedCartSubtotal = calculateTotal(); // This is cart total with voucher discounts applied
+        const discountFactor = originalSubtotal > 0 ? discountedCartSubtotal / originalSubtotal : 1;
+        
+        // Apply discount to cart items: amount = amount - discount
+        const discountedCartItems = cart.map(item => ({
           id: item.packageId,
           name: `${item.name} (${item.type === "gym" ? "Gym" : item.type === "trainer" ? "PT" : "Group"})`,
-          price: item.price,
+          price: Math.round(item.price * discountFactor), // Original amount - discount
           quantity: 1,
           sku: generateSKU(item.name),
           category: "services"
         }));
 
+        // Calculate discounted subtotal
+        const discountedSubtotal = discountedCartItems.reduce((sum, item) => sum + item.price, 0);
+        
+        // Then add service fees on top of discounted amount
+        const itemDetails = [...discountedCartItems];
+        
+        if (originalSubtotal > 0) {
+          // Add 5% service fee on discounted amount
+          const serviceFee = Math.round(discountedSubtotal * 0.05);
+          itemDetails.push({
+            id: "service-fee",
+            name: "Service Fee 5%",
+            price: serviceFee,
+            quantity: 1,
+            sku: "SRV-5PCT",
+            category: "service"
+          });
+
+          // Add fixed admin fee
+          const adminFee = 2000;
+          itemDetails.push({
+            id: "admin-fee",
+            name: "Admin Fee",
+            price: adminFee,
+            quantity: 1,
+            sku: "ADMIN-FEE",
+            category: "service"
+          });
+        }
+
+        // Calculate total amount including fees (this should match line items sum)
+        const totalAmountWithFees = itemDetails.reduce((sum, item) => sum + item.price, 0);
+
         // Create the transaction with payment gateway
         const transactionResponse = await createPaymentMutation.mutateAsync({
           orderId,
-          amount: calculateTotal(), // Use discounted total for payment
+          amount: totalAmountWithFees, // Use total that includes all fees to match line items
           subscriptionId: primarySubscriptionId ?? "",
           customerName: Member?.user?.name || "Member",
           customerEmail: Member?.user?.email || undefined,
