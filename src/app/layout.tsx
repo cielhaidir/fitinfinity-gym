@@ -127,6 +127,7 @@ export default function RootLayout({
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
         ></meta>
+        <script async src="https://support-ackee.a1v3oe.easypanel.host/tracker.js" data-ackee-server="https://support-ackee.a1v3oe.easypanel.host" data-ackee-domain-id="aea435ea-c40d-4453-9a4c-0fe22fc9185b"></script>
         {/* <link rel="manifest" href="/manifest.json" /> */}
       </Head>
       <body>
