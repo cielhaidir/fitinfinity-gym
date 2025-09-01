@@ -8,6 +8,7 @@ import { PaymentStatus, EmailType } from "@prisma/client";
 import { emailService } from "@/lib/email/emailService"; // Add this import
 import { format } from "date-fns"; // Add this import
 import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
+import { subscriptionsCreatedTotal } from "@/server/metrics"; // Add metrics import
 
 // Fungsi untuk mengupdate subscription yang sudah expired
 async function updateExpiredSubscriptions(ctx: any) {
@@ -150,6 +151,16 @@ export const subscriptionRouter = createTRPCRouter({
           payments: true,
         },
       });
+
+      // Increment subscription creation metrics
+      const packageDetails = await ctx.db.package.findUnique({
+        where: { id: input.packageId },
+        select: { type: true },
+      });
+      subscriptionsCreatedTotal.labels({
+        package_type: packageDetails?.type || 'unknown',
+        user_type: 'member',
+      }).inc();
 
       await ctx.db.payment.create({
         data: {
@@ -971,6 +982,12 @@ export const subscriptionRouter = createTRPCRouter({
                 }),
           },
         });
+
+        // Increment subscription creation metrics for checkout
+        subscriptionsCreatedTotal.labels({
+          package_type: packageData.type || 'unknown',
+          user_type: 'self_checkout',
+        }).inc();
 
         const paymentStatus =
           input.paymentMethod === "CASH" ? "SUCCESS" : "PENDING";

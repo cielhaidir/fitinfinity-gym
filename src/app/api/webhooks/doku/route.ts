@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { dokuPaymentService } from "@/lib/payment/doku";
 import { mapDokuStatus } from "@/types/doku";
 import { PaymentStatus } from "@prisma/client";
+import { paymentsSuccessTotal, paymentAmountHistogram } from "@/server/metrics";
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,6 +90,17 @@ export async function POST(request: NextRequest) {
           },
         });
       }
+
+      // Record payment success metrics
+      paymentsSuccessTotal.labels({
+        payment_method: 'doku',
+        currency: 'IDR',
+      }).inc();
+
+      paymentAmountHistogram.labels({
+        payment_method: 'doku',
+        currency: 'IDR',
+      }).observe(updatedPayment.totalPayment);
 
       console.log(`Payment ${orderId} marked as successful, membership activated`);
     }

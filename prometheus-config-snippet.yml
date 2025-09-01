@@ -1,0 +1,18 @@
+# Add this to your existing Prometheus configuration file (prometheus.yml)
+# under the scrape_configs section
+
+scrape_configs:
+  # ... your existing scrape configs ...
+  
+  # FitInfinity Application Metrics
+  - job_name: 'fitinfinity_app'
+    metrics_path: '/api/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['host.docker.internal:3099']
+    metric_relabel_configs:
+      # Optional: Add instance label for clarity
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'fitinfinity-app'
