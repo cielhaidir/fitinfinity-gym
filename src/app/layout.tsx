@@ -76,12 +76,6 @@ export const metadata: Metadata = {
     creator: '@fitinfinity',
     site: '@fitinfinity',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
   robots: {
     index: true,
     follow: true,
@@ -108,6 +102,13 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.json',
   category: 'fitness',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
