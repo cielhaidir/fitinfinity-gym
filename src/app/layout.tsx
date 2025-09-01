@@ -3,10 +3,10 @@ import ClientThemeProvider from "@/components/ClientThemeProvider";
 
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
+import Script from "next/script";
 
 import { TRPCReactProvider } from "@/trpc/react";
 import { InstallPWA } from "@/components/pwa/install-prompt";
-import Head from "next/head";
 
 export const metadata: Metadata = {
   title: {
@@ -119,18 +119,23 @@ export default function RootLayout({
       className={`${GeistSans.variable}`}
       suppressHydrationWarning
     >
-      <Head>
+      <head>
         <meta name="apple-mobile-web-app-title" content="Fitinifnity" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
-        ></meta>
-        <script async src="https://support-ackee.a1v3oe.easypanel.host/tracker.js" data-ackee-server="https://support-ackee.a1v3oe.easypanel.host" data-ackee-domain-id="aea435ea-c40d-4453-9a4c-0fe22fc9185b"></script>
+        />
         {/* <link rel="manifest" href="/manifest.json" /> */}
-      </Head>
+      </head>
       <body>
+        <Script
+          src="https://support-ackee.a1v3oe.easypanel.host/tracker.js"
+          data-ackee-server="https://support-ackee.a1v3oe.easypanel.host"
+          data-ackee-domain-id="aea435ea-c40d-4453-9a4c-0fe22fc9185b"
+          strategy="afterInteractive"
+        />
         <TRPCReactProvider>
           <ClientThemeProvider>
             <InstallPWA />

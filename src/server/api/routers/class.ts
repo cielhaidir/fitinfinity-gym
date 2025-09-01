@@ -156,9 +156,9 @@ export const classRouter = createTRPCRouter({
   forLandingPage: publicProcedure
     .query(async ({ ctx }) => {
       try {
-        console.log("🔍 Fetching classes for landing page...");
+        // console.log("🔍 Fetching classes for landing page...");
         const now = new Date();
-        console.log("📅 Current time:", now);
+        // console.log("📅 Current time:", now);
         
         // Get date ranges - wider range to ensure we get classes
         const weekAgo = new Date(now);
@@ -178,10 +178,10 @@ export const classRouter = createTRPCRouter({
           take: 20, // Get more classes to work with
         });
 
-        console.log(`📊 Found ${allClasses.length} classes from Class table`);
-        allClasses.forEach(cls => {
-          console.log(`- ${cls.name} by ${cls.instructorName} at ${cls.schedule.toLocaleString()}`);
-        });
+        // console.log(`📊 Found ${allClasses.length} classes from Class table`);
+        // allClasses.forEach(cls => {
+        //   console.log(`- ${cls.name} by ${cls.instructorName} at ${cls.schedule.toLocaleString()}`);
+        // });
 
         // Get today's date range
         const todayStart = new Date(now);
@@ -189,7 +189,7 @@ export const classRouter = createTRPCRouter({
         const todayEnd = new Date(now);
         todayEnd.setHours(23, 59, 59, 999);
 
-        console.log("🕐 Today range:", todayStart.toLocaleString(), "to", todayEnd.toLocaleString());
+        // console.log("🕐 Today range:", todayStart.toLocaleString(), "to", todayEnd.toLocaleString());
 
         // Get today's classes
         let todayClasses = allClasses.filter(cls => {
@@ -197,7 +197,7 @@ export const classRouter = createTRPCRouter({
           return scheduleDate >= todayStart && scheduleDate <= todayEnd;
         });
 
-        console.log(`📅 Today's classes: ${todayClasses.length}`);
+        // console.log(`📅 Today's classes: ${todayClasses.length}`);
 
         // Get upcoming classes (next few days)
         const upcomingClasses = allClasses.filter(cls => {
@@ -205,7 +205,7 @@ export const classRouter = createTRPCRouter({
           return scheduleDate > todayEnd;
         }).slice(0, 4); // Limit upcoming classes
 
-        console.log(`📅 Upcoming classes: ${upcomingClasses.length}`);
+        // console.log(`📅 Upcoming classes: ${upcomingClasses.length}`);
 
         // Combine today's and upcoming classes
         let classes = [...todayClasses, ...upcomingClasses];
@@ -220,20 +220,20 @@ export const classRouter = createTRPCRouter({
           yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
           yesterdayEnd.setHours(23, 59, 59, 999);
 
-          console.log("🕐 Yesterday range:", yesterdayStart.toLocaleString(), "to", yesterdayEnd.toLocaleString());
+          // console.log("🕐 Yesterday range:", yesterdayStart.toLocaleString(), "to", yesterdayEnd.toLocaleString());
 
           classes = allClasses.filter(cls => {
             const scheduleDate = new Date(cls.schedule);
             return scheduleDate >= yesterdayStart && scheduleDate <= yesterdayEnd;
           });
 
-          console.log(`📅 Yesterday's classes: ${classes.length}`);
+          // console.log(`📅 Yesterday's classes: ${classes.length}`);
           isFromYesterday = true;
         }
 
         // If still no classes, get any available classes
         if (classes.length === 0) {
-          console.log("📅 No classes found, getting any available classes");
+          // console.log("📅 No classes found, getting any available classes");
           classes = allClasses.slice(0, 6);
           isFromYesterday = true;
         }
@@ -251,14 +251,14 @@ export const classRouter = createTRPCRouter({
           price: cls.price,
         }));
 
-        console.log(`✅ Returning ${transformedClasses.length} classes, isFromYesterday: ${isFromYesterday}`);
+        // console.log(`✅ Returning ${transformedClasses.length} classes, isFromYesterday: ${isFromYesterday}`);
 
         return {
           classes: transformedClasses,
           isFromYesterday,
         };
       } catch (error) {
-        console.error("❌ Failed to fetch classes for landing page:", error);
+        // console.error("❌ Failed to fetch classes for landing page:", error);
         throw new Error("Failed to fetch classes for landing page");
       }
     }),
