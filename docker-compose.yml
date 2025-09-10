@@ -8,7 +8,7 @@
         POSTGRES_PASSWORD: P@ssw0rd_db_f1n1t3
         POSTGRES_DB: fitinfinity
       ports:
-        - "5432:5432"
+        - "5444:5432"
       volumes:
         - postgres_data:/var/lib/postgresql/data
       healthcheck:

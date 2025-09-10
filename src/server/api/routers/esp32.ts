@@ -597,6 +597,7 @@ export const esp32Router = createTRPCRouter({
     .input(z.object({
       startDate: z.string().optional(),
       endDate: z.string().optional(),
+      memberName: z.string().optional(),
       page: z.number().min(1).default(1),
       limit: z.number().min(1).max(100).default(50),
     }).optional())
@@ -622,6 +623,17 @@ export const esp32Router = createTRPCRouter({
           endDate.setDate(endDate.getDate() + 1);
           whereClause.checkin.lt = endDate;
         }
+      }
+
+      if (input?.memberName) {
+        whereClause.member = {
+          user: {
+            name: {
+              contains: input.memberName,
+              mode: 'insensitive'
+            }
+          }
+        };
       }
 
       const page = input?.page ?? 1;

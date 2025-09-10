@@ -41,6 +41,7 @@ type MemberCheckinLog = {
 export default function CheckinLogsPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [memberName, setMemberName] = useState<string>("");
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(50);
@@ -48,6 +49,7 @@ export default function CheckinLogsPage() {
   const { data, isLoading, error, refetch } = api.esp32.getMemberCheckinLogs.useQuery({
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    memberName: memberName || undefined,
     page: currentPage,
     limit: itemsPerPage,
   });
@@ -137,6 +139,7 @@ export default function CheckinLogsPage() {
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
+    setMemberName("");
     setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
     setCurrentPage(1); // Reset to first page when clearing filters
   };
@@ -164,7 +167,7 @@ export default function CheckinLogsPage() {
             <CardTitle>Filters & Reports</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
               <div>
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
@@ -181,6 +184,16 @@ export default function CheckinLogsPage() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="memberName">Member Name</Label>
+                <Input
+                  id="memberName"
+                  type="text"
+                  placeholder="Enter member name"
+                  value={memberName}
+                  onChange={(e) => setMemberName(e.target.value)}
                 />
               </div>
               <div className="flex items-end gap-2">
