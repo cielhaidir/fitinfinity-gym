@@ -590,6 +590,176 @@ export const esp32Router = createTRPCRouter({
     }),
 
   /**
+   * Get member's own check-in statistics
+   * Returns: total check-ins, check-ins this month, check-ins this week
+   */
+  getMemberCheckinStats: protectedProcedure
+    .input(z.object({
+      memberId: z.string().optional(), // For admin viewing other members
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      // If no memberId provided, use current user's membership
+      let targetMemberId = input?.memberId;
+      
+      if (!targetMemberId) {
+        const membership = await ctx.db.membership.findFirst({
+          where: { userId: ctx.session.user.id },
+        });
+        
+        if (!membership) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Membership not found",
+          });
+        }
+        
+        targetMemberId = membership.id;
+      }
+
+      const now = new Date();
+      
+      // Start of current month
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      // Start of current week (Monday)
+      const startOfWeek = new Date(now);
+      const day = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      // Start of today
+      const startOfToday = new Date(now);
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const [totalCheckins, monthlyCheckins, weeklyCheckins, todayCheckins] = await Promise.all([
+        // Total check-ins
+        ctx.db.attendanceMember.count({
+          where: { memberId: targetMemberId }
+        }),
+        
+        // This month's check-ins
+        ctx.db.attendanceMember.count({
+          where: {
+            memberId: targetMemberId,
+            checkin: { gte: startOfMonth }
+          }
+        }),
+        
+        // This week's check-ins
+        ctx.db.attendanceMember.count({
+          where: {
+            memberId: targetMemberId,
+            checkin: { gte: startOfWeek }
+          }
+        }),
+        
+        // Today's check-ins
+        ctx.db.attendanceMember.count({
+          where: {
+            memberId: targetMemberId,
+            checkin: { gte: startOfToday }
+          }
+        }),
+      ]);
+
+      return {
+        totalCheckins,
+        monthlyCheckins,
+        weeklyCheckins,
+        todayCheckins
+      };
+    }),
+
+  /**
+   * Get member's own check-in history
+   * Returns: paginated check-in history for the current member
+   */
+  getMemberCheckinHistory: protectedProcedure
+    .input(z.object({
+      memberId: z.string().optional(), // For admin viewing other members
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      page: z.number().min(1).default(1),
+      limit: z.number().min(1).max(100).default(10),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      // If no memberId provided, use current user's membership
+      let targetMemberId = input?.memberId;
+      
+      if (!targetMemberId) {
+        const membership = await ctx.db.membership.findFirst({
+          where: { userId: ctx.session.user.id },
+        });
+        
+        if (!membership) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Membership not found",
+          });
+        }
+        
+        targetMemberId = membership.id;
+      }
+
+      const whereClause: any = {
+        memberId: targetMemberId
+      };
+
+      if (input?.startDate || input?.endDate) {
+        whereClause.checkin = {};
+        if (input.startDate) {
+          whereClause.checkin.gte = new Date(input.startDate);
+        }
+        if (input.endDate) {
+          const endDate = new Date(input.endDate);
+          endDate.setDate(endDate.getDate() + 1);
+          whereClause.checkin.lt = endDate;
+        }
+      }
+
+      const page = input?.page ?? 1;
+      const limit = input?.limit ?? 10;
+      const skip = (page - 1) * limit;
+
+      const [logs, totalCount] = await Promise.all([
+        ctx.db.attendanceMember.findMany({
+          where: whereClause,
+          orderBy: { checkin: "desc" },
+          skip,
+          take: limit,
+          include: {
+            member: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        }),
+        ctx.db.attendanceMember.count({
+          where: whereClause,
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      return {
+        data: logs.map((log) => ({
+          id: log.id,
+          checkin: log.checkin,
+          checkout: log.checkout ?? null,
+          facilityDescription: log.facilityDescription ?? null,
+          status: log.checkout ? "Checked Out" : "Checked In",
+        })),
+        totalCount,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      };
+    }),
+
+  /**
    * Admin: Get all member check-in logs
    * Returns: check-in time, checkout time, member ID, member name, user name, facility description (if any), status
    */

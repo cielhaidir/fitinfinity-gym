@@ -10,13 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { format } from "date-fns";
-import { Camera, Package2, UserCog, Users } from "lucide-react";
+import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from "date-fns";
+import { Camera, Package2, UserCog, Users, Calendar, Activity, TrendingUp, Clock } from "lucide-react";
 import { ChangePasswordDialog } from "./change-password-dialog";
 import { DataTable } from "@/components/datatable/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useRBAC } from "@/hooks/useRBAC";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
@@ -31,6 +39,12 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [transferEmail, setTransferEmail] = useState("");
+  
+  // Check-in related state
+  const [checkinStartDate, setCheckinStartDate] = useState<string>("");
+  const [checkinEndDate, setCheckinEndDate] = useState<string>("");
+  const [checkinPage, setCheckinPage] = useState<number>(1);
+  const checkinLimit = 10;
   
   // RBAC hooks
   const { hasPermission } = useRBAC();
@@ -64,6 +78,28 @@ export default function ProfilePage() {
     },
     {
       enabled: !!memberId,
+    }
+  );
+
+  // Get check-in statistics
+  const { data: checkinStats, isLoading: isLoadingCheckinStats } = api.esp32.getMemberCheckinStats.useQuery(
+    memberId ? { memberId } : undefined,
+    {
+      enabled: !!session?.user.id,
+    }
+  );
+
+  // Get check-in history
+  const { data: checkinHistory, isLoading: isLoadingCheckinHistory, refetch: refetchCheckinHistory } = api.esp32.getMemberCheckinHistory.useQuery(
+    {
+      memberId: memberId || undefined,
+      startDate: checkinStartDate || undefined,
+      endDate: checkinEndDate || undefined,
+      page: checkinPage,
+      limit: checkinLimit,
+    },
+    {
+      enabled: !!session?.user.id,
     }
   );
 
@@ -279,6 +315,19 @@ export default function ProfilePage() {
     }
 
     setFormData({ ...formData, phone: value });
+  };
+
+  // Check-in filter handlers
+  const handleApplyCheckinFilters = () => {
+    setCheckinPage(1);
+    refetchCheckinHistory();
+  };
+
+  const clearCheckinFilters = () => {
+    setCheckinStartDate("");
+    setCheckinEndDate("");
+    setCheckinPage(1);
+    refetchCheckinHistory();
   };
 
   // Mobile-friendly subscription history component
@@ -737,6 +786,294 @@ export default function ProfilePage() {
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">No subscription history</h3>
                 <p className="text-sm text-muted-foreground max-w-sm">
                   You haven't made any successful subscription purchases yet. Your subscription history will appear here once you complete a purchase.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Check-in Statistics Section */}
+        <Card className="mx-auto max-w-4xl mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg md:text-xl font-semibold text-[#BFFF00] flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Check-in Statistics
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Your gym attendance statistics
+            </p>
+          </CardHeader>
+          <CardContent className="p-3 md:p-6">
+            {isLoadingCheckinStats ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BFFF00] mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading check-in statistics...</p>
+                </div>
+              </div>
+            ) : checkinStats ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-500 rounded-full">
+                      <TrendingUp className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {checkinStats.totalCheckins}
+                      </p>
+                      <p className="text-sm text-blue-600 dark:text-blue-400">Total Check-ins</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-green-500 rounded-full">
+                      <Calendar className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {checkinStats.monthlyCheckins}
+                      </p>
+                      <p className="text-sm text-green-600 dark:text-green-400">This Month</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-purple-500 rounded-full">
+                      <Calendar className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                        {checkinStats.weeklyCheckins}
+                      </p>
+                      <p className="text-sm text-purple-600 dark:text-purple-400">This Week</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-orange-500 rounded-full">
+                      <Clock className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                        {checkinStats.todayCheckins}
+                      </p>
+                      <p className="text-sm text-orange-600 dark:text-orange-400">Today</p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Unable to load check-in statistics</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Check-in History Section */}
+        <Card className="mx-auto max-w-4xl mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg md:text-xl font-semibold text-[#BFFF00] flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Check-in History
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Your recent gym check-in records
+            </p>
+          </CardHeader>
+          <CardContent className="p-3 md:p-6">
+            {/* Date Filters */}
+            <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-sm font-medium mb-3">Filter by Date</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor="checkinStartDate" className="text-xs">Start Date</Label>
+                  <Input
+                    id="checkinStartDate"
+                    type="date"
+                    value={checkinStartDate}
+                    onChange={(e) => setCheckinStartDate(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="checkinEndDate" className="text-xs">End Date</Label>
+                  <Input
+                    id="checkinEndDate"
+                    type="date"
+                    value={checkinEndDate}
+                    onChange={(e) => setCheckinEndDate(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button
+                    onClick={handleApplyCheckinFilters}
+                    size="sm"
+                    className="flex-1 bg-[#C9D953] hover:bg-[#C9D953]/90"
+                  >
+                    Apply
+                  </Button>
+                  <Button
+                    onClick={clearCheckinFilters}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {isLoadingCheckinHistory ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BFFF00] mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading check-in history...</p>
+                </div>
+              </div>
+            ) : checkinHistory?.data && checkinHistory.data.length > 0 ? (
+              <>
+                {/* Mobile View */}
+                <div className="md:hidden space-y-3">
+                  {checkinHistory.data.map((checkin) => (
+                    <Card key={checkin.id} className="p-4 border-l-4 border-l-[#BFFF00]">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-[#BFFF00]">
+                              {format(new Date(checkin.checkin), "MMM dd, yyyy")}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(checkin.checkin), "hh:mm a")}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={checkin.status === "Checked Out" ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {checkin.status}
+                          </Badge>
+                        </div>
+                        {checkin.checkout && (
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Checkout: </span>
+                            <span className="font-medium">
+                              {format(new Date(checkin.checkout), "hh:mm a")}
+                            </span>
+                          </div>
+                        )}
+                        {checkin.facilityDescription && (
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Facility: </span>
+                            <span>{checkin.facilityDescription}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Desktop View */}
+                <div className="hidden md:block rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Check-in Time</TableHead>
+                        <TableHead>Checkout Time</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Facility</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {checkinHistory.data.map((checkin) => (
+                        <TableRow key={checkin.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {format(new Date(checkin.checkin), "MMM dd, yyyy")}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(checkin.checkin), "hh:mm a")}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {checkin.checkout ? (
+                              <div>
+                                <p className="font-medium">
+                                  {format(new Date(checkin.checkout), "MMM dd, yyyy")}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(new Date(checkin.checkout), "hh:mm a")}
+                                </p>
+                              </div>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={checkin.status === "Checked Out" ? "default" : "secondary"}>
+                              {checkin.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {checkin.facilityDescription || "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Pagination */}
+                {checkinHistory && checkinHistory.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((checkinPage - 1) * checkinLimit) + 1} to{" "}
+                      {Math.min(checkinPage * checkinLimit, checkinHistory.totalCount)} of{" "}
+                      {checkinHistory.totalCount} check-ins
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCheckinPage(checkinPage - 1)}
+                        disabled={!checkinHistory.hasPreviousPage}
+                      >
+                        Previous
+                      </Button>
+                      <span className="px-3 py-1 text-sm">
+                        Page {checkinHistory.currentPage} of {checkinHistory.totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCheckinPage(checkinPage + 1)}
+                        disabled={!checkinHistory.hasNextPage}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <Activity className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">No check-in history</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  You haven't checked in to the gym yet. Your check-in history will appear here once you start visiting.
                 </p>
               </div>
             )}
