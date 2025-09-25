@@ -188,6 +188,12 @@ export function InvoiceGenerator({ isOpen, onClose, invoiceData }: InvoiceGenera
       pdf.text(formatCurrency(finalTotal), pageWidth - 10, finalY + 7, { align: 'right' });
     }
 
+    // Add refund policy text
+    pdf.setFontSize(8);
+    pdf.setTextColor(102, 102, 102);
+    const refundPolicyY = finalDiscountAmount > 0 ? finalY + 25 : finalY + 18;
+    pdf.text('Semua jenis transaksi tidak dapat dikembalikan/refund', pageWidth / 2, refundPolicyY, { align: 'center' });
+
     // Add footer image (full width at bottom)
     try {
       const footerImg = new Image();
