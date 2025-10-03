@@ -13,19 +13,28 @@ export const classRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       console.log("Creating class with input:", input); // Debug log
       try {
+        // Find the classType by name
+        const classType = await ctx.db.classType.findUnique({
+          where: { name: input.name.toLowerCase() },
+        });
+
         const newClass = await ctx.db.class.create({
           data: {
             name: input.name,
+            classTypeId: classType?.id,
             limit: input.limit,
             instructorName: input.instructorName,
             schedule: input.schedule,
             duration: input.duration,
             price: input.price,
           },
-          // No trainer relation to include
+          include: {
+            classType: true,
+          },
         });
         return newClass;
       } catch (error) {
+        console.error("Failed to create class:", error);
         throw new Error("Failed to create class");
       }
     }),
@@ -37,17 +46,26 @@ export const classRouter = createTRPCRouter({
       try {
         const { schedules, ...classData } = input;
         
+        // Find the classType by name
+        const classType = await ctx.db.classType.findUnique({
+          where: { name: classData.name.toLowerCase() },
+        });
+        
         // Create multiple classes with different schedules
         const createdClasses = await Promise.all(
           schedules.map(schedule =>
             ctx.db.class.create({
               data: {
                 name: classData.name,
+                classTypeId: classType?.id,
                 limit: classData.limit,
                 instructorName: classData.instructorName,
                 schedule: schedule,
                 duration: classData.duration,
                 price: classData.price,
+              },
+              include: {
+                classType: true,
               },
             })
           )
@@ -96,7 +114,9 @@ export const classRouter = createTRPCRouter({
             skip,
             take: limit,
             where,
-            // No trainer relation to include
+            include: {
+              classType: true,
+            },
             orderBy: { createdAt: "desc" },
           }),
           ctx.db.class.count({ where }),
@@ -122,19 +142,32 @@ export const classRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       try {
+        // Find the classType by name if name is being updated
+        let classTypeId = undefined;
+        if (data.name) {
+          const classType = await ctx.db.classType.findUnique({
+            where: { name: data.name.toLowerCase() },
+          });
+          classTypeId = classType?.id;
+        }
+
         const updatedClass = await ctx.db.class.update({
           where: { id },
           data: {
             name: data.name,
+            classTypeId: classTypeId,
             limit: data.limit,
             instructorName: data.instructorName,
             schedule: data.schedule,
             duration: data.duration,
           },
-          // No trainer relation to include
+          include: {
+            classType: true,
+          },
         });
         return updatedClass;
       } catch (error) {
+        console.error("Failed to update class:", error);
         throw new Error("Failed to update class");
       }
     }),
@@ -145,10 +178,10 @@ export const classRouter = createTRPCRouter({
       try {
         const deletedClass = await ctx.db.class.delete({
           where: { id: input.id },
-          // No trainer relation to include
         });
         return deletedClass;
       } catch (error) {
+        console.error("Failed to delete class:", error);
         throw new Error("Failed to delete class");
       }
     }),
@@ -166,13 +199,16 @@ export const classRouter = createTRPCRouter({
         const weekFromNow = new Date(now);
         weekFromNow.setDate(weekFromNow.getDate() + 7);
 
-        // Get all classes from the Class table only
+        // Get all classes from the Class table with classType relation
         const allClasses = await ctx.db.class.findMany({
           where: {
             schedule: {
               gte: weekAgo,
               lte: weekFromNow,
             },
+          },
+          include: {
+            classType: true,
           },
           orderBy: { schedule: "asc" }, // Changed to ascending to get upcoming classes first
           take: 20, // Get more classes to work with
@@ -249,6 +285,7 @@ export const classRouter = createTRPCRouter({
           schedule: cls.schedule,
           duration: cls.duration,
           price: cls.price,
+          classType: cls.classType,
         }));
 
         // console.log(`✅ Returning ${transformedClasses.length} classes, isFromYesterday: ${isFromYesterday}`);

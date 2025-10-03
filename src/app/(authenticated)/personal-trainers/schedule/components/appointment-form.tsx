@@ -330,13 +330,18 @@ export default function AppointmentForm({
             });
             setSelectedMemberId(value);
           }}
+          key={`select-${combinedMembers.length}-${Date.now()}`}
         >
-          <SelectTrigger>
-            <SelectValue placeholder="Pilih member" />
+          <SelectTrigger className="notranslate" translate="no">
+            <SelectValue
+              placeholder="Pilih member"
+              className="notranslate"
+              translate="no"
+            />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="notranslate" translate="no">
             {isMembersLoading ? (
-              <SelectItem value="loading" disabled>
+              <SelectItem value="loading" disabled className="notranslate" translate="no">
                 Loading members...
               </SelectItem>
             ) : (
@@ -349,11 +354,14 @@ export default function AppointmentForm({
                     key={stableValue}
                     value={stableValue}
                     disabled={isDisabled}
-                    className={isDisabled ? "opacity-50 text-muted-foreground" : ""}
+                    className={`notranslate ${isDisabled ? "opacity-50 text-muted-foreground" : ""}`}
+                    translate="no"
                   >
-                    {member.type === "group" ? "🏃‍♂️ " : "👤 "}
-                    {member.name} ({member.remainingSessions} sesi tersisa)
-                    {isDisabled && " - Tidak tersedia"}
+                    <span className="notranslate" translate="no">
+                      {member.type === "group" ? "🏃‍♂️ " : "👤 "}
+                      {member.name} ({member.remainingSessions} sesi tersisa)
+                      {isDisabled && " - Tidak tersedia"}
+                    </span>
                   </SelectItem>
                 );
               })

@@ -70,6 +70,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:manage-classes",
         },
         {
+          title: "Class Types",
+          url: "/management/class-type",
+          icon: Settings,
+          requiredPermission: "menu:manage-classes",
+        },
+        {
           title: "Employee",
           url: "/management/employee",
           icon: ContactRound,

@@ -10,84 +10,35 @@ interface ClassCardProps {
   schedule: Date;
   duration: number;
   price: number;
+  classType?: {
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    level: string;
+  } | null;
 }
 
-const ClassCard: React.FC<ClassCardProps> = ({ name, instructorName, duration, price }) => {
-  // Map class names to appropriate icons and descriptions
-  const getClassInfo = (className: string) => {
-    const classMap: Record<string, { icon: string; description: string; level: string }> = {
-      yoga: {
-        icon: "fas fa-spa",
-        description: "Improve flexibility, strength and mental focus with our yoga sessions.",
-        level: "Easy"
-      },
-      zumba: {
-        icon: "fas fa-music",
-        description: "Latin-inspired dance fitness that combines high-energy cardio with fun choreography.",
-        level: "Medium"
-      },
-      poundfit: {
-        icon: "fas fa-drum",
-        description: "High-energy cardio workout combining drumming and fitness for maximum calorie burn.",
-        level: "Medium"
-      },
-      "kpop dance": {
-        icon: "fas fa-star",
-        description: "High-energy K-pop dance fitness combining Korean pop music with dynamic choreography.",
-        level: "Hard"
-      },
-      bootcamp: {
-        icon: "fas fa-dumbbell",
-        description: "Intense military-style training combining strength, cardio, and endurance exercises.",
-        level: "Hard"
-      },
-      bodycombat: {
-        icon: "fas fa-fist-raised",
-        description: "High-intensity martial arts training focusing on self-defense and combat techniques.",
-        level: "Hard"
-      },
-      muaythai: {
-        icon: "fas fa-fist-raised",
-        description: "Traditional Thai martial arts focusing on striking techniques and conditioning.",
-        level: "Hard"
-      },
-      thaiboxig: {
-        icon: "fas fa-fist-raised",
-        description: "Combat sport combining boxing with kicks and clinch work.",
-        level: "Hard"
-      },
-      "mat pilates": {
-        icon: "fas fa-leaf",
-        description: "Low-impact exercise focusing on core strength, flexibility, and body alignment.",
-        level: "Easy"
-      },
-      "vinyasa yoga": {
-        icon: "fas fa-spa",
-        description: "Dynamic yoga practice linking movement with breath.",
-        level: "Medium"
-      },
-      "hatha yoga": {
-        icon: "fas fa-spa",
-        description: "Gentle yoga focusing on basic postures and breathing techniques.",
-        level: "Easy"
-      },
-      "airin yoga": {
-        icon: "fas fa-spa",
-        description: "Unique aerial yoga combining traditional poses with silk hammocks.",
-        level: "Medium"
-      },
-    };
+const ClassCard: React.FC<ClassCardProps> = ({ name, instructorName, duration, price, classType }) => {
+  // Use dynamic class type information or fallback to default
+  const getClassInfo = () => {
+    if (classType) {
+      return {
+        icon: classType.icon,
+        description: classType.description,
+        level: classType.level
+      };
+    }
 
-    const defaultInfo = {
+    // Fallback default info if no classType is provided
+    return {
       icon: "fas fa-dumbbell",
       description: "Join our energizing fitness class for a full-body workout experience.",
       level: "Medium"
     };
-
-    return classMap[className.toLowerCase()] || defaultInfo;
   };
 
-  const classInfo = getClassInfo(name);
+  const classInfo = getClassInfo();
 
   return (
     <div className="relative flex min-h-[340px] flex-col items-stretch cursor-pointer hover:scale-105 transition-transform duration-300">
@@ -224,6 +175,7 @@ const ClassesDynamic = () => {
                   schedule={cls.schedule}
                   duration={cls.duration}
                   price={cls.price}
+                  classType={cls.classType}
                 />
               ))
             ) : (

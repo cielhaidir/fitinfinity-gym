@@ -20,40 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 
-const CLASS_OPTIONS = [
-  "yoga",
-  "zumba",
-  "strengh",
-  "core",
-  "booty shaping",
-  "cardio dance",
-  "bachata",
-  "muaythai",
-  "poundfit",
-  "freestyle dance",
-  "kpop dance",
-  "circuit",
-  "thaiboxig",
-  "Trx",
-  "Airin yoga",
-  "Hatha yoga",
-  "bodycombat",
-  "mat pilates",
-  "vinyasa yoga",
-  "bootcamp",
-  "bodypump",
-  "HIIT",
-  "summit",
-  "balance",
-  "cardio u",
-  'Upper Body',
-  'Kettle Bell',
-  'Mix Fight',
-  'Beast Mode',
-  'Lower Body',
-] as const;
-
-type ClassName = (typeof CLASS_OPTIONS)[number];
+type ClassName = string;
 
 type ClassFormProps = {
   name: ClassName;
@@ -161,7 +128,8 @@ export const ClassForm = ({
     handleSchedulesChange(newSchedules);
   };
 
-  // Removed trainer list query
+  // Fetch class types from the database
+  const { data: classTypes = [] } = api.classType.list.useQuery();
 
   return (
     <SheetContent side="right">
@@ -181,9 +149,9 @@ export const ClassForm = ({
               <SelectValue placeholder="Select a class" />
             </SelectTrigger>
             <SelectContent>
-              {CLASS_OPTIONS.map((className) => (
-                <SelectItem key={className} value={className}>
-                  {className.charAt(0).toUpperCase() + className.slice(1)}
+              {classTypes.map((classType) => (
+                <SelectItem key={classType.id} value={classType.name}>
+                  {classType.name.charAt(0).toUpperCase() + classType.name.slice(1)}
                 </SelectItem>
               ))}
             </SelectContent>

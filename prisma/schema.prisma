@@ -192,6 +192,7 @@ model User {
 model Class {
     id                String             @id @default(cuid())
     name              String
+    classTypeId       String?
     limit             Int?
     instructorName    String
     schedule          DateTime
@@ -199,8 +200,23 @@ model Class {
     price             Float              @default(0)
     createdAt         DateTime           @default(now())
     updatedAt         DateTime           @updatedAt
+    
+    classType         ClassType?         @relation(fields: [classTypeId], references: [id])
     registeredMembers ClassMember[]
     waitingList       ClassWaitingList[]
+}
+
+model ClassType {
+    id          String @id @default(cuid())
+    name        String @unique
+    icon        String
+    description String
+    level       String // "Easy", "Medium", "Hard"
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    
+    classes     Class[]
 }
 
 model ClassMember {

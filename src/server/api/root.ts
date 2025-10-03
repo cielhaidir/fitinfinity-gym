@@ -11,6 +11,7 @@ import { subscriptionRouter } from "./routers/subscription";
 import { roleRouter } from "./routers/role";
 import { rolePermissionRouter } from "./routers/role-permission";
 import { classRouter } from "./routers/class";
+import { classTypeRouter } from "./routers/classType";
 import { memberClassRouter } from "./routers/memberClass";
 import { memberUcRouter } from "./routers/member-uc";
 import { trainerSessionRouter } from "./routers/trainerSession";
@@ -59,6 +60,7 @@ export const appRouter = createTRPCRouter({
   role: roleRouter,
   rolePermission: rolePermissionRouter,
   class: classRouter,
+  classType: classTypeRouter,
   memberClass: memberClassRouter,
   memberUc: memberUcRouter,
   trainerSession: trainerSessionRouter,
