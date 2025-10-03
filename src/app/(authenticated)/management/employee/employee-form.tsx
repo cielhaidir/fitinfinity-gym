@@ -71,7 +71,7 @@ export const EmployeeForm = ({
   };
 
   return (
-    <SheetContent side="right">
+    <SheetContent side="right" className="w-full overflow-y-auto">
       <SheetHeader>
         <SheetTitle>
           {isEditMode ? "Edit Employee" : "Create New Employee"}

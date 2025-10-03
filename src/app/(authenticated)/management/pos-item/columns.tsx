@@ -14,6 +14,7 @@ import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "@/app/_components/datatable-local/data-table-column-header";
 import type { POSItem } from "./schema";
+import { formatIDR } from "@/lib/format";
 
 interface CreateColumnsProps {
   onEditModel: (item: POSItem & { category?: { name: string } }) => void;
@@ -48,7 +49,7 @@ export function createColumns({
       ),
       cell: ({ row }) => {
         const price = row.getValue("price") as number;
-        return `$${price.toFixed(2)}`;
+        return formatIDR(price);
       },
     },
     {
@@ -58,7 +59,7 @@ export function createColumns({
       ),
       cell: ({ row }) => {
         const cost = row.getValue("cost") as number;
-        return cost ? `$${cost.toFixed(2)}` : "—";
+        return cost ? formatIDR(cost) : "—";
       },
     },
     {

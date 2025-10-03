@@ -93,7 +93,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   };
 
   return (
-    <SheetContent side="right">
+    <SheetContent side="right" className="w-full overflow-y-auto">
       <SheetHeader>
         <SheetTitle>{isEditMode ? "Edit User" : "Create New User"}</SheetTitle>
       </SheetHeader>

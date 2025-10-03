@@ -132,7 +132,7 @@ export const ClassForm = ({
   const { data: classTypes = [] } = api.classType.list.useQuery();
 
   return (
-    <SheetContent side="right">
+     <SheetContent side="right" className="w-full overflow-y-auto">
       <SheetHeader>
         <SheetTitle>
           {isEditMode ? "Edit Class" : "Create New Class"}

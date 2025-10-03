@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Plus, Minus, ShoppingCart, Trash2, CreditCard, History, Edit, Eye, Download, Filter, Calendar, BarChart3 } from "lucide-react";
 import type { POSSaleItem } from "./schema";
 import * as XLSX from "xlsx";
+import { formatIDR } from "@/lib/format";
 
 export default function POSPage() {
   const [cartItems, setCartItems] = useState<POSSaleItem[]>([]);
@@ -471,7 +472,7 @@ export default function POSPage() {
                       <h3 className="font-medium truncate">{item.name}</h3>
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-green-600">
-                          Rp. {item.price.toFixed(2)}
+                          {formatIDR(item.price)}
                         </span>
                         <Badge variant={item.stock > 0 ? "secondary" : "destructive"}>
                           {item.stock} left
@@ -507,7 +508,7 @@ export default function POSPage() {
                           <div className="flex-1">
                             <p className="font-medium text-sm">{item.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              Rp. {item.price.toFixed(2)} each
+                              {formatIDR(item.price)} each
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -541,7 +542,7 @@ export default function POSPage() {
                     <div className="space-y-2 pt-4 border-t">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>Rp. {subtotal.toFixed(2)}</span>
+                        <span>{formatIDR(subtotal)}</span>
                       </div>
                       
                       <div className="flex justify-between items-center">
@@ -566,7 +567,7 @@ export default function POSPage() {
                       
                       <div className="flex justify-between font-bold">
                         <span>Total:</span>
-                        <span>Rp. {total.toFixed(2)}</span>
+                        <span>{formatIDR(total)}</span>
                       </div>
                     </div>
 
@@ -610,7 +611,7 @@ export default function POSPage() {
                       {parseFloat(amountPaid) >= total && (
                         <div className="text-center p-2 bg-green-50 rounded">
                           <span className="font-medium text-green-700">
-                            Change: RP{change.toFixed(2)}
+                            Change: {formatIDR(change)}
                           </span>
                         </div>
                       )}
@@ -775,7 +776,7 @@ export default function POSPage() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-lg">Rp. {sale.total.toFixed(2)}</p>
+                            <p className="font-bold text-lg">{formatIDR(sale.total)}</p>
                             <Badge variant="secondary">{sale.paymentMethod}</Badge>
                           </div>
                         </div>
@@ -784,18 +785,18 @@ export default function POSPage() {
                           {sale.items.map((item) => (
                             <div key={item.id} className="flex justify-between text-sm">
                               <span>{item.item.name} x{item.quantity}</span>
-                              <span>Rp. {item.subtotal.toFixed(2)}</span>
+                              <span>{formatIDR(item.subtotal)}</span>
                             </div>
                           ))}
                         </div>
 
                         <div className="flex justify-between text-sm text-muted-foreground mb-3">
                           <div>
-                            <p>Subtotal: Rp. {sale.subtotal.toFixed(2)}</p>
-                            {sale.tax > 0 && <p>Tax: Rp. {sale.tax.toFixed(2)}</p>}
-                            {sale.discount > 0 && <p>Discount: Rp. {sale.discount.toFixed(2)}</p>}
-                            <p>Amount Paid: Rp. {sale.amountPaid.toFixed(2)}</p>
-                            <p>Change: Rp. {sale.change.toFixed(2)}</p>
+                            <p>Subtotal: {formatIDR(sale.subtotal)}</p>
+                            {sale.tax > 0 && <p>Tax: {formatIDR(sale.tax)}</p>}
+                            {sale.discount > 0 && <p>Discount: {formatIDR(sale.discount)}</p>}
+                            <p>Amount Paid: {formatIDR(sale.amountPaid)}</p>
+                            <p>Change: {formatIDR(sale.change)}</p>
                           </div>
                         </div>
 
@@ -854,7 +855,7 @@ export default function POSPage() {
                                             <h3 className="font-medium truncate">{item.name}</h3>
                                             <div className="flex justify-between items-center">
                                               <span className="text-lg font-bold text-green-600">
-                                                Rp. {item.price.toFixed(2)}
+                                                {formatIDR(item.price)}
                                               </span>
                                               <Badge variant={item.stock > 0 ? "secondary" : "destructive"}>
                                                 {item.stock} left
@@ -890,7 +891,7 @@ export default function POSPage() {
                                                 <div className="flex-1">
                                                   <p className="font-medium text-sm">{item.name}</p>
                                                   <p className="text-xs text-muted-foreground">
-                                                    Rp. {item.price.toFixed(2)} each
+                                                    {formatIDR(item.price)} each
                                                   </p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -924,7 +925,7 @@ export default function POSPage() {
                                           <div className="space-y-2 pt-4 border-t">
                                             <div className="flex justify-between">
                                               <span>Subtotal:</span>
-                                              <span>Rp. {subtotal.toFixed(2)}</span>
+                                              <span>{formatIDR(subtotal)}</span>
                                             </div>
                                             
                                             <div className="flex justify-between items-center">
@@ -949,7 +950,7 @@ export default function POSPage() {
                                             
                                             <div className="flex justify-between font-bold">
                                               <span>Total:</span>
-                                              <span>Rp. {total.toFixed(2)}</span>
+                                              <span>{formatIDR(total)}</span>
                                             </div>
                                           </div>
 
@@ -993,7 +994,7 @@ export default function POSPage() {
                                             {parseFloat(amountPaid) >= total && (
                                               <div className="text-center p-2 bg-green-50 rounded">
                                                 <span className="font-medium text-green-700">
-                                                  Change: Rp. {change.toFixed(2)}
+                                                  Change: {formatIDR(change)}
                                                 </span>
                                               </div>
                                             )}
@@ -1125,7 +1126,7 @@ export default function POSPage() {
                       <div className="text-center">
                         <p className="text-sm text-muted-foreground">Total Sales</p>
                         <p className="text-2xl font-bold text-green-600">
-                          Rp. {filteredSummaryData?.summary?.totalSales?.toFixed(2) || "0.00"}
+                          {formatIDR(filteredSummaryData?.summary?.totalSales || 0)}
                         </p>
                       </div>
                     </CardContent>
@@ -1147,7 +1148,7 @@ export default function POSPage() {
                       <div className="text-center">
                         <p className="text-sm text-muted-foreground">Total Tax</p>
                         <p className="text-2xl font-bold text-orange-600">
-                          Rp. {filteredSummaryData?.summary?.totalTax?.toFixed(2) || "0.00"}
+                          {formatIDR(filteredSummaryData?.summary?.totalTax || 0)}
                         </p>
                       </div>
                     </CardContent>
@@ -1158,7 +1159,7 @@ export default function POSPage() {
                       <div className="text-center">
                         <p className="text-sm text-muted-foreground">Total Discount</p>
                         <p className="text-2xl font-bold text-red-600">
-                          Rp. {filteredSummaryData?.summary?.totalDiscount?.toFixed(2) || "0.00"}
+                          {formatIDR(filteredSummaryData?.summary?.totalDiscount || 0)}
                         </p>
                       </div>
                     </CardContent>
@@ -1179,19 +1180,19 @@ export default function POSPage() {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="text-center">
                                 <p className="text-sm text-muted-foreground">Cash</p>
-                                <p className="font-bold text-green-600">Rp. {account.cash.toFixed(2)}</p>
+                                <p className="font-bold text-green-600">{formatIDR(account.cash)}</p>
                               </div>
                               <div className="text-center">
                                 <p className="text-sm text-muted-foreground">Digital Wallet</p>
-                                <p className="font-bold text-blue-600">Rp. {account.digitalWallet.toFixed(2)}</p>
+                                <p className="font-bold text-blue-600">{formatIDR(account.digitalWallet)}</p>
                               </div>
                               <div className="text-center">
                                 <p className="text-sm text-muted-foreground">Card</p>
-                                <p className="font-bold text-purple-600">Rp. {account.card.toFixed(2)}</p>
+                                <p className="font-bold text-purple-600">{formatIDR(account.card)}</p>
                               </div>
                               <div className="text-center">
                                 <p className="text-sm text-muted-foreground">Total</p>
-                                <p className="font-bold text-gray-800">Rp. {account.total.toFixed(2)}</p>
+                                <p className="font-bold text-gray-800">{formatIDR(account.total)}</p>
                               </div>
                             </div>
                           </div>
@@ -1219,7 +1220,7 @@ export default function POSPage() {
                               </Badge>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold">Rp. {(amount as number).toFixed(2)}</p>
+                              <p className="font-bold">{formatIDR(amount as number)}</p>
                             </div>
                           </div>
                         ))
@@ -1246,7 +1247,7 @@ export default function POSPage() {
                             </div>
                             <div className="text-right">
                               <p className="font-bold">Qty: {item.quantity}</p>
-                              <p className="text-sm text-green-600">Rp. {item.revenue.toFixed(2)}</p>
+                              <p className="text-sm text-green-600">{formatIDR(item.revenue)}</p>
                             </div>
                           </div>
                         ))
