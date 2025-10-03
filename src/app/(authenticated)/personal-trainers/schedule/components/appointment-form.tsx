@@ -18,6 +18,19 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Calendar, Clock, X } from "lucide-react";
 
+// Add global error handler for PWA debugging
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    console.error('🚨 [PWA-ERROR]', event.error);
+    toast.error(`JS Error: ${event.error?.message || 'Unknown error'}`);
+  });
+  
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('🚨 [PWA-REJECTION]', event.reason);
+    toast.error(`Promise Error: ${event.reason || 'Unhandled rejection'}`);
+  });
+}
+
 interface AppointmentFormProps {
   selectedDate: Date | null;
   onClose: () => void;
@@ -56,28 +69,26 @@ export default function AppointmentForm({
   const combinedMembers = React.useMemo(() => {
     if (!members) return [];
 
-    const memberMap = new Map<string, Member>();
+    try {
+      const memberMap = new Map<string, Member>();
+      
+      // Debug: Log raw member data
+      console.log('🔍 [DEBUG] Raw members from API:', {
+        count: members.length,
+        members: members.map(m => ({
+          id: m.id,
+          name: m.name,
+          type: m.type,
+          membershipId: m.membershipId,
+          remainingSessions: m.remainingSessions
+        })),
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'SSR'
+      });
 
-    members.forEach((member) => {
-      // For groups, don't combine by name - each group is unique
-      if (member.type === "group") {
-        memberMap.set(member.id, {
-          id: member.id,
-          name: member.name,
-          membershipId: member.membershipId,
-          remainingSessions: member.remainingSessions,
-          type: member.type,
-          groupId: member.groupId,
-        });
-      } else {
-        // For individual members, combine by name as before
-        const existingMember = memberMap.get(member.name);
-        if (existingMember && existingMember.type === "individual") {
-          // If member already exists, add remaining sessions
-          existingMember.remainingSessions += member.remainingSessions;
-        } else {
-          // If member doesn't exist, add new entry
-          memberMap.set(member.name, {
+      members.forEach((member) => {
+        // For groups, don't combine by name - each group is unique
+        if (member.type === "group") {
+          memberMap.set(member.id, {
             id: member.id,
             name: member.name,
             membershipId: member.membershipId,
@@ -85,12 +96,78 @@ export default function AppointmentForm({
             type: member.type,
             groupId: member.groupId,
           });
+        } else {
+          // For individual members, combine by name as before
+          const existingMember = memberMap.get(member.name);
+          if (existingMember && existingMember.type === "individual") {
+            // If member already exists, add remaining sessions
+            console.warn('⚠️ [DEBUG] Combining duplicate member by name:', {
+              name: member.name,
+              existing: { id: existingMember.id, sessions: existingMember.remainingSessions },
+              new: { id: member.id, sessions: member.remainingSessions },
+              combined: existingMember.remainingSessions + member.remainingSessions
+            });
+            existingMember.remainingSessions += member.remainingSessions;
+          } else {
+            // If member doesn't exist, add new entry
+            memberMap.set(member.name, {
+              id: member.id,
+              name: member.name,
+              membershipId: member.membershipId,
+              remainingSessions: member.remainingSessions,
+              type: member.type,
+              groupId: member.groupId,
+            });
+          }
         }
-      }
-    });
+      });
 
-    return Array.from(memberMap.values());
+      const result = Array.from(memberMap.values());
+      console.log('✅ [DEBUG] Combined members result:', {
+        originalCount: members.length,
+        combinedCount: result.length,
+        combined: result.map(m => ({
+          id: m.id,
+          name: m.name,
+          type: m.type,
+          remainingSessions: m.remainingSessions
+        }))
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('❌ [DEBUG] Error in combinedMembers logic:', error);
+      toast.error(`Member loading error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return [];
+    }
   }, [members]);
+
+  // Create stable value map and lookup for Select component
+  const memberValueMap = React.useMemo(() => {
+    const map = new Map<string, { membershipId: string; type: string; remainingSessions: number; member: Member }>();
+    
+    combinedMembers.forEach((member) => {
+      // Use stable prefixed schema: "individual:USER_ID" or "group:GROUP_ID"
+      const stableValue = `${member.type}:${member.id}`;
+      map.set(stableValue, {
+        membershipId: member.membershipId,
+        type: member.type,
+        remainingSessions: member.remainingSessions,
+        member
+      });
+    });
+    
+    console.log('📋 [DEBUG] Member value map created:', {
+      entries: Array.from(map.entries()).map(([key, val]) => ({
+        key,
+        membershipId: val.membershipId,
+        type: val.type,
+        sessions: val.remainingSessions
+      }))
+    });
+    
+    return map;
+  }, [combinedMembers]);
 
   const utils = api.useUtils();
 
@@ -126,11 +203,21 @@ export default function AppointmentForm({
       return;
     }
 
-    // Check if member has remaining sessions
-    const selectedMember = combinedMembers.find(
-      (member) => member.id === selectedMemberId,
-    );
-    if (selectedMember && selectedMember.remainingSessions <= 0) {
+    // Get member data using stable value lookup
+    const selectedMemberData = memberValueMap.get(selectedMemberId);
+    
+    console.log('📝 [DEBUG] Form submit - member lookup:', {
+      selectedMemberId,
+      foundData: selectedMemberData,
+      mapSize: memberValueMap.size
+    });
+    
+    if (!selectedMemberData) {
+      toast.error("Data member tidak valid - silakan pilih member lagi");
+      return;
+    }
+
+    if (selectedMemberData.remainingSessions <= 0) {
       toast.error("Member tidak memiliki sisa sesi yang tersedia");
       return;
     }
@@ -142,15 +229,8 @@ export default function AppointmentForm({
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
 
-    // Get the membership ID from the selected member
-    const membershipId = selectedMember?.membershipId;
-    if (!membershipId) {
-      toast.error("Data member tidak valid");
-      return;
-    }
-
     // Validate attendance count for group sessions
-    const isGroupSession = selectedMember?.type === "group";
+    const isGroupSession = selectedMemberData.type === "group";
     const attendanceCountNum = parseInt(attendanceCount);
     
     if (isGroupSession && (!attendanceCount || attendanceCountNum < 1 || attendanceCountNum > 50)) {
@@ -159,7 +239,7 @@ export default function AppointmentForm({
     }
 
     createSession.mutate({
-      memberId: membershipId,
+      memberId: selectedMemberData.membershipId,
       date: selectedDate,
       startTime: startTime,
       endTime: endTime,
@@ -237,7 +317,20 @@ export default function AppointmentForm({
         <Label htmlFor="member" className="text-muted-foreground">
           Nama Member
         </Label>
-        <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+        <Select
+          value={selectedMemberId}
+          onValueChange={(value) => {
+            const memberData = memberValueMap.get(value);
+            console.log('🎯 [DEBUG] Select onValueChange fired:', {
+              selectedValue: value,
+              memberCount: combinedMembers.length,
+              matchedMemberData: memberData,
+              userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'SSR',
+              timestamp: new Date().toISOString()
+            });
+            setSelectedMemberId(value);
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Pilih member" />
           </SelectTrigger>
@@ -247,19 +340,30 @@ export default function AppointmentForm({
                 Loading members...
               </SelectItem>
             ) : (
-              combinedMembers.map((member) => (
-                <SelectItem key={member.id} value={member.id}>
-                  {member.type === "group" ? "🏃‍♂️ " : "👤 "}
-                  {member.name} ({member.remainingSessions} sesi tersisa)
-                </SelectItem>
-              ))
+              combinedMembers.map((member) => {
+                const stableValue = `${member.type}:${member.id}`;
+                const isDisabled = member.remainingSessions <= 0;
+                
+                return (
+                  <SelectItem
+                    key={stableValue}
+                    value={stableValue}
+                    disabled={isDisabled}
+                    className={isDisabled ? "opacity-50 text-muted-foreground" : ""}
+                  >
+                    {member.type === "group" ? "🏃‍♂️ " : "👤 "}
+                    {member.name} ({member.remainingSessions} sesi tersisa)
+                    {isDisabled && " - Tidak tersedia"}
+                  </SelectItem>
+                );
+              })
             )}
           </SelectContent>
         </Select>
       </div>
 
       {/* Attendance Count for Group Sessions */}
-      {combinedMembers.find(m => m.id === selectedMemberId)?.type === "group" && (
+      {memberValueMap.get(selectedMemberId)?.type === "group" && (
         <div className="space-y-2">
           <Label htmlFor="attendanceCount" className="text-muted-foreground">
             Jumlah Peserta Hadir

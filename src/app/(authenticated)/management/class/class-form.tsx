@@ -46,6 +46,11 @@ const CLASS_OPTIONS = [
   "summit",
   "balance",
   "cardio u",
+  'Upper Body',
+  'Kettle Bell',
+  'Mix Fight',
+  'Beast Mode',
+  'Lower Body',
 ] as const;
 
 type ClassName = (typeof CLASS_OPTIONS)[number];
