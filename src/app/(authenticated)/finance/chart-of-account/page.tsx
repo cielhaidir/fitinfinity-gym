@@ -70,7 +70,7 @@ export default function ChartAccountPage() {
   };
 
   return (
-    <ProtectedRoute requiredPermissions={["menu:finance-chart-of-account"]}>
+    <ProtectedRoute requiredPermissions={["menu:coa"]}>
       <div className="container mx-auto py-10">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Chart of Accounts</h1>
