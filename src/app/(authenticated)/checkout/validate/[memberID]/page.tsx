@@ -56,6 +56,7 @@ function CheckoutValidateContent() {
   const salesId = searchParams?.get("salesId");
   const salesType = searchParams?.get("salesType");
   const salesName = searchParams?.get("salesName");
+  const startDate = searchParams?.get("startDate");
 
   // Parse cart data for multi-item or fallback to single-item for backward compatibility
   let cartItems: Array<{
@@ -166,6 +167,7 @@ function CheckoutValidateContent() {
           voucherId: voucherId || undefined,
           salesId: salesId || undefined,
           salesType: salesType || undefined,
+          startDate: startDate ? new Date(startDate) : undefined,
         });
       }
 

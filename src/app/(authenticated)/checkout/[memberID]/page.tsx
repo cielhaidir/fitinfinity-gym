@@ -229,6 +229,7 @@ export default function SubscriptionPage({
       queryParams.set("cart", encodeURIComponent(JSON.stringify(cartData)));
       queryParams.set("totalPayment", calculateTotal().toString());
       queryParams.set("paymentMethod", paymentMethod);
+      queryParams.set("startDate", startDate); // Add startDate to query params
 
       // Add sales information
       if (selectedSales) {

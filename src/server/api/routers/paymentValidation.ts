@@ -93,6 +93,7 @@ export const paymentValidationRouter = createTRPCRouter({
         voucherId: z.string().optional(), // Add voucherId to input
         salesId: z.string().optional(), // Add salesId to input
         salesType: z.string().optional(), // Add salesType to input
+        startDate: z.date().optional(), // Add startDate to input
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -126,6 +127,7 @@ export const paymentValidationRouter = createTRPCRouter({
             paymentStatus: PaymentValidationStatus.WAITING,
             salesId: input.salesId,
             salesType: input.salesType,
+            startDate: input.startDate,
           },
         });
 
@@ -227,7 +229,8 @@ export const paymentValidationRouter = createTRPCRouter({
         throw new Error("Package details not found for this validation.");
       }
 
-      const startDate = new Date();
+      // Use the stored startDate from paymentValidation, or fallback to current date
+      const startDate = paymentValidation.startDate ? new Date(paymentValidation.startDate) : new Date();
       let endDate: Date | undefined = undefined;
       let remainingSessions: number | undefined = undefined;
 

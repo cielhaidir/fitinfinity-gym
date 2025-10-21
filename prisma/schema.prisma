@@ -477,6 +477,7 @@ model PaymentValidation {
     paymentMethod  String // e.g., "direct_payment"
     filePath       String? // Path to the uploaded proof of payment
     paymentStatus  PaymentValidationStatus @default(WAITING)
+    startDate      DateTime?               // Start date for the membership/subscription
     createdAt      DateTime                @default(now())
     updatedAt      DateTime                @updatedAt
     balanceId      Int?                    
