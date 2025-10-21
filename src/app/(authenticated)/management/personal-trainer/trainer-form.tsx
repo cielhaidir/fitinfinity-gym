@@ -9,12 +9,12 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { Scan } from "lucide-react";
+import { Scan, Eye, EyeOff } from "lucide-react";
 
 import { type UserPersonalTrainer } from "./schema";
 import { Button } from "@/components/ui/button";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type TrainerFormProps = {
   newTrainer: UserPersonalTrainer;
@@ -31,6 +31,8 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
   isEditMode,
   selectedUserId,
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
+
   useEffect(() => {
     console.log("New Trainer Data:", newTrainer); // Debug log
   }, [newTrainer]);
@@ -84,13 +86,22 @@ export const TrainerForm: React.FC<TrainerFormProps> = ({
               <label htmlFor="password" className="block text-sm font-medium">
                 Password
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={newTrainer.password}
-                onChange={onInputChange}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={newTrainer.password}
+                  onChange={onInputChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label htmlFor="address" className="block text-sm font-medium">

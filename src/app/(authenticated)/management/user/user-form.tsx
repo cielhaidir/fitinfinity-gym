@@ -12,7 +12,7 @@ import {
 import { api } from "@/trpc/react";
 
 import { Badge } from "@/components/ui/badge";
-import { X, Check } from "lucide-react";
+import { X, Check, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserFormProps {
@@ -26,6 +26,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   onSubmit,
   isEditMode,
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -131,14 +132,23 @@ export const UserForm: React.FC<UserFormProps> = ({
             <label htmlFor="password" className="block text-sm font-medium">
               Password
             </label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required={!isEditMode}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleInputChange}
+                required={!isEditMode}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         )}
 

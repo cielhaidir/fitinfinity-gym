@@ -15,6 +15,7 @@ import { api } from "@/trpc/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DeviceSelect } from "./device-select";
+import { Eye, EyeOff } from "lucide-react";
 
 type EmployeeFormProps = {
   newEmployee: UserEmployee & {
@@ -36,6 +37,7 @@ export const EmployeeForm = ({
   isLoading = false,
 }: EmployeeFormProps) => {
   const [selectedDevice, setSelectedDevice] = useState<{ id: string; accessKey: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   // Helper function to format date for input
   const formatDateForInput = (date: Date | string | null | undefined) => {
     if (!date) return "";
@@ -154,14 +156,23 @@ export const EmployeeForm = ({
               <label htmlFor="password" className="block text-sm font-medium">
                 Password
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={newEmployee.password}
-                onChange={onInputChange}
-                placeholder="Enter password"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={newEmployee.password}
+                  onChange={onInputChange}
+                  placeholder="Enter password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <div>
