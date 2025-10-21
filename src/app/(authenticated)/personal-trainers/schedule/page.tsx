@@ -135,19 +135,23 @@ export default function JadwalPTPage() {
       const hoursUntilSession =
         (startTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-      if (hoursUntilSession <= 12 && hoursUntilSession > 0) {
-        await updateSession.mutateAsync({
-          id: sessionId,
-          date: new Date(sessionToDelete.date),
-          startTime: new Date(sessionToDelete.startTime),
-          endTime: new Date(sessionToDelete.endTime),
-          status: "CANCELED",
-        });
-        // FIX: Manually trigger toast and invalidation
-        toast.success("Sesi dibatalkan kurang dari 12 jam, status diubah menjadi CANCELED");
-        utils.trainerSession.getAll.invalidate();
-      } else if (hoursUntilSession > 12) {
+      
+      // if (hoursUntilSession <= 12 && hoursUntilSession > 0) {
+      //   await updateSession.mutateAsync({
+      //     id: sessionId,
+      //     date: new Date(sessionToDelete.date),
+      //     startTime: new Date(sessionToDelete.startTime),
+      //     endTime: new Date(sessionToDelete.endTime),
+      //     status: "CANCELED",
+      //   });
+      //   // FIX: Manually trigger toast and invalidation
+      //   toast.success("Sesi dibatalkan kurang dari 12 jam, status diubah menjadi CANCELED");
+      //   utils.trainerSession.getAll.invalidate();
+      // } else 
+
+      if (hoursUntilSession > 0) {
         await deleteSession.mutateAsync({ id: sessionId });
+        utils.trainerSession.getAll.invalidate();
         // The deleteSession mutation handles its own success toast and invalidation
       } else {
         toast.error("Tidak dapat membatalkan jadwal yang sudah lewat");
