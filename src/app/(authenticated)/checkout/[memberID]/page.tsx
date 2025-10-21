@@ -215,19 +215,24 @@ export default function SubscriptionPage({
     if (paymentMethod === "qris") {
       const queryParams = new URLSearchParams();
       
-      // Send cart data for multi-item support
-      const cartData = cart.map(item => ({
+      // Calculate discount amounts
+      const originalSubtotal = calculateSubtotal();
+      const discountedTotal = calculateTotal();
+      const discountFactor = originalSubtotal > 0 ? discountedTotal / originalSubtotal : 1;
+      
+      // Apply discount proportionally to cart items
+      const discountedCartData = cart.map(item => ({
         type: item.type,
         packageId: item.packageId,
         name: item.name,
-        price: item.price,
+        price: Math.round(item.price * discountFactor), // Apply discount proportionally
         trainerId: item.trainerId,
         sessions: item.sessions,
         day: item.day
       }));
       
-      queryParams.set("cart", encodeURIComponent(JSON.stringify(cartData)));
-      queryParams.set("totalPayment", calculateTotal().toString());
+      queryParams.set("cart", encodeURIComponent(JSON.stringify(discountedCartData)));
+      queryParams.set("totalPayment", discountedTotal.toString());
       queryParams.set("paymentMethod", paymentMethod);
       queryParams.set("startDate", startDate); // Add startDate to query params
 
