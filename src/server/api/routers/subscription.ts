@@ -1042,28 +1042,34 @@ export const subscriptionRouter = createTRPCRouter({
         });
 
         if (!subscription) {
-          throw new Error("Subscription not found");
-        }
-
-        if (subscription.payments && subscription.payments.length > 0) {
-          await tx.payment.deleteMany({
-            where: { subscriptionId: input.id },
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Subscription not found",
           });
         }
 
+        // Soft delete all related payments
+        if (subscription.payments && subscription.payments.length > 0) {
+          await tx.payment.updateMany({
+            where: { subscriptionId: input.id },
+            data: { deletedAt: new Date() },
+          });
+        }
+
+        // Delete the subscription
         const deletedSubscription = await tx.subscription.delete({
           where: { id: input.id },
         });
 
+        // Check if member has any remaining active subscriptions
         const remainingSubscriptions = await tx.subscription.count({
           where: {
             memberId: subscription.memberId,
-            endDate: {
-              gt: new Date(),
-            },
+            isActive: true,
           },
         });
 
+        // If no active subscriptions remain, deactivate the membership
         if (remainingSubscriptions === 0) {
           await tx.membership.update({
             where: { id: subscription.memberId },

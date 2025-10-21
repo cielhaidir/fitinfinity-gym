@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Receipt, Package, ExternalLink, CreditCard, FileText, Edit3, MoreHorizontal, Files } from "lucide-react";
+import { Receipt, Package, ExternalLink, CreditCard, FileText, Edit3, MoreHorizontal, Files, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -39,11 +39,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
+import { useRBAC } from "@/hooks/useRBAC";
 
 export default function SubscriptionHistoryPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast();
+  const { hasPermission } = useRBAC();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -57,6 +59,8 @@ export default function SubscriptionHistoryPage() {
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [selectedSalesPerson, setSelectedSalesPerson] = useState<string>("");
   const [selectedSalesType, setSelectedSalesType] = useState<string>("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [subscriptionToDelete, setSubscriptionToDelete] = useState<any>(null);
   
   // Multi-select state
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -211,6 +215,26 @@ export default function SubscriptionHistoryPage() {
     },
   });
 
+  // Delete subscription mutation
+  const deleteMutation = api.subs.delete.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subscription deleted successfully",
+      });
+      setIsDeleteModalOpen(false);
+      setSubscriptionToDelete(null);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete subscription",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleUpdateSales = () => {
     if (!selectedSubscription) {
       toast({
@@ -231,6 +255,26 @@ export default function SubscriptionHistoryPage() {
       salesId: salesId,
       salesType: salesType,
     });
+  };
+
+  // Open delete confirmation modal
+  const openDeleteModal = (subscription: any) => {
+    setSubscriptionToDelete(subscription);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteSubscription = () => {
+    if (!subscriptionToDelete?.subscriptionId) {
+      toast({
+        title: "Error",
+        description: "No subscription selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    deleteMutation.mutate({ id: subscriptionToDelete.subscriptionId });
   };
 
   const columns: ColumnDef<any>[] = [
@@ -434,6 +478,15 @@ export default function SubscriptionHistoryPage() {
                 <DropdownMenuItem onClick={() => openImageModal(filePath)}>
                   <Receipt className="mr-2 h-4 w-4" />
                   View Proof
+                </DropdownMenuItem>
+              )}
+              {hasPermission("delete:subscription") && (
+                <DropdownMenuItem 
+                  onClick={() => openDeleteModal(row.original)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -663,6 +716,59 @@ export default function SubscriptionHistoryPage() {
                 disabled={updateSalesMutation.isPending}
               >
                 {updateSalesMutation.isPending ? "Updating..." : "Update"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Subscription</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this subscription? This action cannot be undone. 
+                The subscription will be permanently deleted and associated payments will be soft deleted.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {subscriptionToDelete && (
+              <div className="space-y-2 py-4">
+                <p className="text-sm">
+                  <span className="font-semibold">Member:</span>{" "}
+                  {subscriptionToDelete.member?.user?.name}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Package:</span>{" "}
+                  {subscriptionToDelete.package?.name}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Amount:</span>{" "}
+                  {new Intl.NumberFormat("id-ID", {
+                    style: "currency",
+                    currency: "IDR",
+                  }).format(parseFloat(subscriptionToDelete.totalPayment || "0"))}
+                </p>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSubscriptionToDelete(null);
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteSubscription}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
               </Button>
             </DialogFooter>
           </DialogContent>
