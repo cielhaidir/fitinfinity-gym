@@ -18,6 +18,7 @@ import * as path from "path";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 import { configService } from "@/lib/config/configService";
+import { createModelLogger } from "@/utils/logger";
 
 // Define device context type
 interface Context {
@@ -276,6 +277,38 @@ export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, inpu
   // For non-mutation operations, just continue without logging
   return next();
 });
+
+/**
+ * Model-specific logging middleware using Winston
+ * Creates a middleware that logs all operations to a model-specific log file
+ */
+export const createModelLoggingMiddleware = (modelName: string) => {
+  const logger = createModelLogger(modelName);
+  
+  return t.middleware(async ({ ctx, next, path, type, input }) => {
+    const timestamp = new Date().toISOString();
+    let user = 'Unknown';
+    
+    if (ctx.session?.user) {
+      user = ctx.session.user.email || ctx.session.user.name || ctx.session.user.id;
+    }
+    
+    logger.info(`[${type.toUpperCase()}] ${path} - User: ${user}`);
+    
+    if (type === 'mutation' && input) {
+      logger.info(`Input: ${JSON.stringify(input)}`);
+    }
+    
+    try {
+      const result = await next();
+      logger.info(`[${type.toUpperCase()}] ${path} - SUCCESS`);
+      return result;
+    } catch (error) {
+      logger.error(`[${type.toUpperCase()}] ${path} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
+    }
+  });
+};
 
 /**
  * Device authentication middleware

@@ -1,0 +1,6 @@
+1,Cash
+3,BNI
+4,MANDIRI
+5,BCA
+6,CIMB
+2,BRI

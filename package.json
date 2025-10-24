@@ -101,6 +101,7 @@
     "react-calendar": "^5.1.0",
     "react-day-picker": "^9.6.3",
     "react-dom": "^18.3.1",
+    "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.56.4",
     "react-hot-toast": "^2.5.2",
     "react-select": "^5.10.1",

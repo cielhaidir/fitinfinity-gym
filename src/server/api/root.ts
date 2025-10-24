@@ -2,12 +2,13 @@ import { postRouter } from "@/server/api/routers/post";
 import { emailRouter } from "@/server/api/routers/email";
 import { userRouter } from "@/server/api/routers/user";
 import { authRouter } from "@/server/api/routers/auth";
-import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
+import { createCallerFactory, createTRPCRouter, createModelLoggingMiddleware } from "@/server/api/trpc";
 import { memberRouter } from "./routers/member";
 import { personalTrainerRouter } from "./routers/personalTrainer";
 import { permissionRouter } from "./routers/permission";
 import { packageRouter } from "./routers/package";
 import { subscriptionRouter } from "./routers/subscription";
+import { subscriptionImportRouter } from "./routers/subscriptionImport";
 import { roleRouter } from "./routers/role";
 import { rolePermissionRouter } from "./routers/role-permission";
 import { classRouter } from "./routers/class";
@@ -45,55 +46,74 @@ import { aiRateLimitRouter } from "./routers/aiRateLimit";
 import { financeRouter } from "./routers/finance";
 
 /**
+ * Helper function to wrap a router with logging middleware
+ */
+const withLogging = <T extends Record<string, any>>(router: T, modelName: string): T => {
+  const middleware = createModelLoggingMiddleware(modelName);
+  const wrappedRouter: any = {};
+  
+  for (const [key, value] of Object.entries(router)) {
+    if (value && typeof value === 'object' && '_def' in value) {
+      wrappedRouter[key] = value.use(middleware);
+    } else {
+      wrappedRouter[key] = value;
+    }
+  }
+  
+  return wrappedRouter as T;
+};
+
+/**
  * This is the primary router for your server.
  *
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  post: postRouter,
-  user: userRouter,
-  member: memberRouter,
-  personalTrainer: personalTrainerRouter,
-  permission: permissionRouter,
-  package: packageRouter,
-  subs: subscriptionRouter,
-  role: roleRouter,
-  rolePermission: rolePermissionRouter,
-  class: classRouter,
-  classType: classTypeRouter,
-  memberClass: memberClassRouter,
-  memberUc: memberUcRouter,
-  trainerSession: trainerSessionRouter,
-  voucher: voucherRouter,
-  reward: rewardRouter,
-  memberReward: memberRewardRouter,
-  employee: employeeRouter,
-  attendance: attendanceRouter,
-  profile: profileRouter,
-  memberCalendar: memberCalendarRouter,
-  managerCalendar: managerCalendarRouter,
-  balanceAccount: balanceAccountRouter,
-  chartAccount: chartAccountRouter,
-  paymentValidation: paymentValidationRouter,
-  transaction: transactionRouter,
-  whatsapp: whatsappRouter,
-  fc: fcRouter,
-  payment: paymentRouter,
-  email: emailRouter,
-  auth: authRouter,
-  config: configRouter,
-  fcMember: fcMemberRouter,
-  esp32: esp32Router,
-  device: deviceRouter,
-  posCategory: posCategoryRouter,
-  posItem: posItemRouter,
-  posSale: posSaleRouter,
-  mqtt: mqttRouter,
-  tracking: trackingRouter,
-  salesReport: salesReportRouter,
-  cashBankReport: cashBankReportRouter,
-  aiRateLimit: aiRateLimitRouter,
-  finance: financeRouter,
+  post: withLogging(postRouter, 'post'),
+  user: withLogging(userRouter, 'user'),
+  member: withLogging(memberRouter, 'member'),
+  personalTrainer: withLogging(personalTrainerRouter, 'personalTrainer'),
+  permission: withLogging(permissionRouter, 'permission'),
+  package: withLogging(packageRouter, 'package'),
+  subs: withLogging(subscriptionRouter, 'subscription'),
+  subscriptionImport: withLogging(subscriptionImportRouter, 'subscriptionImport'),
+  role: withLogging(roleRouter, 'role'),
+  rolePermission: withLogging(rolePermissionRouter, 'rolePermission'),
+  class: withLogging(classRouter, 'class'),
+  classType: withLogging(classTypeRouter, 'classType'),
+  memberClass: withLogging(memberClassRouter, 'memberClass'),
+  memberUc: withLogging(memberUcRouter, 'memberUc'),
+  trainerSession: withLogging(trainerSessionRouter, 'trainerSession'),
+  voucher: withLogging(voucherRouter, 'voucher'),
+  reward: withLogging(rewardRouter, 'reward'),
+  memberReward: withLogging(memberRewardRouter, 'memberReward'),
+  employee: withLogging(employeeRouter, 'employee'),
+  attendance: withLogging(attendanceRouter, 'attendance'),
+  profile: withLogging(profileRouter, 'profile'),
+  memberCalendar: withLogging(memberCalendarRouter, 'memberCalendar'),
+  managerCalendar: withLogging(managerCalendarRouter, 'managerCalendar'),
+  balanceAccount: withLogging(balanceAccountRouter, 'balanceAccount'),
+  chartAccount: withLogging(chartAccountRouter, 'chartAccount'),
+  paymentValidation: withLogging(paymentValidationRouter, 'paymentValidation'),
+  transaction: withLogging(transactionRouter, 'transaction'),
+  whatsapp: withLogging(whatsappRouter, 'whatsapp'),
+  fc: withLogging(fcRouter, 'fc'),
+  payment: withLogging(paymentRouter, 'payment'),
+  email: withLogging(emailRouter, 'email'),
+  auth: withLogging(authRouter, 'auth'),
+  config: withLogging(configRouter, 'config'),
+  fcMember: withLogging(fcMemberRouter, 'fcMember'),
+  esp32: withLogging(esp32Router, 'esp32'),
+  device: withLogging(deviceRouter, 'device'),
+  posCategory: withLogging(posCategoryRouter, 'posCategory'),
+  posItem: withLogging(posItemRouter, 'posItem'),
+  posSale: withLogging(posSaleRouter, 'posSale'),
+  mqtt: withLogging(mqttRouter, 'mqtt'),
+  tracking: withLogging(trackingRouter, 'tracking'),
+  salesReport: withLogging(salesReportRouter, 'salesReport'),
+  cashBankReport: withLogging(cashBankReportRouter, 'cashBankReport'),
+  aiRateLimit: withLogging(aiRateLimitRouter, 'aiRateLimit'),
+  finance: withLogging(financeRouter, 'finance'),
 });
 
 // export type definition of API

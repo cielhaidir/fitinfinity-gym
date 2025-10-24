@@ -142,6 +142,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:subscription",
         },
         {
+          title: "Import Subscriptions",
+          url: "/management/subscription/import",
+          icon: Package,
+          requiredPermission: "create:subscription",
+        },
+        {
           title: "Rewards",
           url: "/management/reward",
           icon: Gift,
