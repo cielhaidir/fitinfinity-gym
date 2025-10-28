@@ -214,6 +214,7 @@ export const subscriptionImportRouter = createTRPCRouter({
         };
         
         // Hardcoded FC mappings (name -> fc.id)
+        // Note: PT trainers can also act as FCs, so we include them here
         const fcByName: FcMapping = {
           "EVI": "cmc2pijjq000qfciwqh69gz28",
           "EVE": "cmc2pijjq000qfciwqh69gz28", // Typo variation
@@ -222,6 +223,13 @@ export const subscriptionImportRouter = createTRPCRouter({
           "AYU": "cmh03tjq90003jbllttdy1d3h",
           "INDAR": "cmh03tsg00007jbll1jgsxrj8",
           "HARNI": "cmh4dbok102f0h0rbmu5rv8bk",
+          "LIA": "cmh9wwsds01mgjy8gxujwpiaz",
+          // PT trainers can also be FCs (using their personalTrainer.id as fcId)
+          "ADI": "cmc9v0x0y000klqj3gm6jquk2",
+          "MIAN": "cmc2pi2hf000mfciwv0654ypp",
+          "ARDI": "cmh4awpfu02cuh0rbqvv5dvgn",
+          "EGI": "cmewvlhq500d4fh6g9l6te6uk",
+          "SRI": "cmewvlyrb00d9fh6ghbreee7d",
         };
         
         // Hardcoded mappings from package.md and payment.md
