@@ -17,11 +17,11 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SessionDetailModal } from "./session-detail-modal";
 
-// Generate time slots from 6am to 9pm
-const timeSlots = Array.from({ length: 16 }, (_, i) => {
-  const hour = i + 6; // Start from 6am
+// Generate time slots from 12am (midnight) to 11pm (24 hours)
+const timeSlots = Array.from({ length: 24 }, (_, i) => {
+  const hour = i; // Start from 0 (midnight)
   return {
-    label: `${hour < 12 ? hour : hour === 12 ? 12 : hour - 12}${hour < 12 ? "am" : "pm"}`,
+    label: hour === 0 ? "12am" : hour < 12 ? `${hour}am` : hour === 12 ? "12pm" : `${hour - 12}pm`,
     hour,
   };
 });
@@ -35,6 +35,7 @@ interface CalendarProps {
   onViewModeChange: (mode: "monthly" | "weekly") => void;
   onToday: () => void;
   onRefreshData?: () => void;
+  onDateClick?: (date: Date) => void;
 }
 
 export default function ManagerCalendar({
@@ -46,18 +47,19 @@ export default function ManagerCalendar({
   onViewModeChange,
   onToday,
   onRefreshData,
+  onDateClick,
 }: CalendarProps) {
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
 
   // Calculate ranges
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Start from Monday
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 }); // Start from Monday
+  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const monthDays = eachDayOfInterval({ start: startDate, end: endDate });
 
   const handleSessionClick = (e: React.MouseEvent, session: any) => {
@@ -138,23 +140,47 @@ export default function ManagerCalendar({
                 <thead>
                   <tr>
                     <th className="min-w-[80px] w-20 border-r border-border p-2 sticky left-0 bg-background z-10"></th>
-                    {days.map((day) => (
-                      <th
-                        key={day.toString()}
-                        className={`min-w-[120px] border-r border-border p-2 text-center ${
-                          isToday(day) ? "bg-muted" : ""
-                        }`}
-                      >
-                        <div className="text-muted-foreground text-sm">
-                          {format(day, "EEE", { locale: id })}
-                        </div>
-                        <div
-                          className={`text-base sm:text-lg ${isToday(day) ? "font-bold text-primary" : "text-foreground"}`}
+                    {days.map((day) => {
+                      const dayStr = format(day, "yyyy-MM-dd");
+                      const daySessionCount = sessionsByDate[dayStr]?.length || 0;
+                      
+                      // Debug: Log all sessions for this day
+                      if (daySessionCount > 0 && sessionsByDate[dayStr]) {
+                        console.log(`All sessions for ${dayStr}:`, {
+                          count: daySessionCount,
+                          sessions: sessionsByDate[dayStr].map(s => ({
+                            id: s.id,
+                            _key: s._key,
+                            startTime: s.startTime,
+                            localHour: new Date(s.startTime).getHours(),
+                            localTime: format(new Date(s.startTime), "HH:mm"),
+                          }))
+                        });
+                      }
+                      
+                      return (
+                        <th
+                          key={day.toString()}
+                          className={`min-w-[120px] border-r border-border p-2 text-center ${
+                            isToday(day) ? "bg-muted" : ""
+                          }`}
                         >
-                          {format(day, "d/M")}
-                        </div>
-                      </th>
-                    ))}
+                          <div className="text-muted-foreground text-sm">
+                            {format(day, "EEE", { locale: id })}
+                          </div>
+                          <div
+                            className={`text-base sm:text-lg ${isToday(day) ? "font-bold text-primary" : "text-foreground"}`}
+                          >
+                            {format(day, "d/M")}
+                          </div>
+                          {daySessionCount > 0 && (
+                            <div className="text-xs text-muted-foreground">
+                              ({daySessionCount})
+                            </div>
+                          )}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
@@ -165,14 +191,40 @@ export default function ManagerCalendar({
                       </td>
                       {days.map((day) => {
                         const dateStr = format(day, "yyyy-MM-dd");
-                        const timeStr = `${hour.toString().padStart(2, "0")}:00`;
-                        const key = `${dateStr}-${timeStr}`;
-                        const sessions = sessionsByDateTime[key] || [];
+                        
+                        // Get all sessions for this day and filter by hour
+                        const daySessions = sessionsByDate[dateStr] || [];
+                        const sessions = daySessions.filter((session) => {
+                          if (!session?.startTime) return false;
+                          // Parse the startTime and get the hour in local timezone
+                          const startDate = new Date(session.startTime);
+                          const sessionHour = startDate.getHours();
+                          return sessionHour === hour;
+                        });
+
+                        // Debug log to see what's happening
+                        if (sessions.length > 0) {
+                          console.log(`Sessions for ${dateStr} at hour ${hour}:`, {
+                            count: sessions.length,
+                            sessions: sessions.map(s => ({
+                              id: s.id,
+                              _key: s._key,
+                              startTime: s.startTime,
+                              hour: new Date(s.startTime).getHours()
+                            }))
+                          });
+                        }
 
                         return (
                           <td
                             key={`${dateStr}-${hour}`}
-                            className={`min-w-[120px] h-[64px] border-r border-border p-1 align-top ${isToday(day) ? "bg-muted/50" : ""}`}
+                            className={`min-w-[120px] h-[64px] border-r border-border p-1 align-top ${isToday(day) ? "bg-muted/50" : ""} ${onDateClick && sessions.length === 0 ? "cursor-pointer hover:bg-muted/30" : ""}`}
+                            onClick={(e) => {
+                              // Only trigger onDateClick if clicking on empty space (not on a session)
+                              if (sessions.length === 0 && onDateClick) {
+                                onDateClick(day);
+                              }
+                            }}
                           >
                             {sessions.map((session) => (
                               <div
@@ -220,7 +272,7 @@ export default function ManagerCalendar({
         {viewMode === "monthly" && (
           <div className="p-2 sm:p-4">
             <div className="grid grid-cols-7 gap-1 sm:gap-2">
-              {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
+              {["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"].map(
                 (day) => (
                   <div
                     key={day}
@@ -239,7 +291,14 @@ export default function ManagerCalendar({
                 return (
                   <div
                     key={`month-${dateStr}`}
-                    className={`min-h-[80px] sm:min-h-[100px] rounded-md border border-border p-1 sm:p-2 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday(day) ? "border-primary bg-primary/5" : ""} cursor-pointer hover:bg-muted transition-colors`}
+                    className={`min-h-[80px] sm:min-h-[100px] rounded-md border border-border p-1 sm:p-2 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday(day) ? "border-primary bg-primary/5" : ""} ${onDateClick && sessions.length === 0 ? "cursor-pointer hover:bg-muted" : ""} transition-colors`}
+                    onClick={(e) => {
+                      // Only trigger onDateClick if clicking on empty space
+                      const target = e.target as HTMLElement;
+                      if (sessions.length === 0 || target.classList.contains('text-right') || target.closest('.text-right')) {
+                        onDateClick?.(day);
+                      }
+                    }}
                   >
                     <div
                       className={`text-right text-sm sm:text-base ${isToday(day) ? "font-bold text-primary" : ""}`}

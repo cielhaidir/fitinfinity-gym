@@ -258,6 +258,129 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     }),
 
+  // For management to get members by specific trainer ID
+  getMembersByTrainerId: permissionProtectedProcedure(["list:trainers"])
+    .input(z.object({ trainerId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      console.log("Getting members for trainer ID:", input.trainerId);
+
+      // Get all individual subscriptions for this personal trainer
+      // Exclude subscriptions that are lead subscriptions for groups
+      const subscriptions = await ctx.db.subscription.findMany({
+        where: {
+          trainerId: input.trainerId,
+          isActive: true,
+          remainingSessions: {
+            gt: 0,
+          },
+          leadGroupSubscriptions: {
+            none: {
+              status: "ACTIVE",
+            },
+          },
+        },
+        orderBy: {
+          remainingSessions: "desc",
+        },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                  height: true,
+                  weight: true,
+                  birthDate: true,
+                },
+              },
+            },
+          },
+          package: {
+            select: {
+              type: true,
+            },
+          },
+        },
+      });
+
+      // Get all group subscriptions for this personal trainer
+      const groupSubscriptions = await ctx.db.groupSubscription.findMany({
+        where: {
+          leadSubscription: {
+            trainerId: input.trainerId,
+            remainingSessions: {
+              gt: 0,
+            },
+          },
+          status: "ACTIVE",
+        },
+        include: {
+          leadSubscription: {
+            include: {
+              member: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      phone: true,
+                      height: true,
+                      weight: true,
+                      birthDate: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          package: {
+            select: {
+              type: true,
+              sessions: true,
+            },
+          },
+        },
+      });
+
+      // Transform individual subscriptions
+      const individualMembers = subscriptions.map((subscription) => ({
+        id: subscription.member.userId,
+        membershipId: subscription.memberId,
+        name: subscription.member.user.name || "",
+        email: subscription.member.user.email || "",
+        phone: subscription.member.user.phone || "",
+        height: subscription.member.user.height ?? null,
+        weight: subscription.member.user.weight ?? null,
+        birthDate: subscription.member.user.birthDate?.toISOString() ?? null,
+        remainingSessions: subscription.remainingSessions || 0,
+        subscriptionEndDate: subscription.endDate?.toISOString() || "",
+        type: "individual" as const,
+      }));
+
+      // Transform group subscriptions
+      const groupMembers = groupSubscriptions.map((groupSubscription) => ({
+        id: groupSubscription.id,
+        membershipId: groupSubscription.leadSubscription.memberId,
+        name: groupSubscription.groupName || `Group (${groupSubscription.leadSubscription.member.user.name})`,
+        email: groupSubscription.leadSubscription.member.user.email || "",
+        phone: groupSubscription.leadSubscription.member.user.phone || "",
+        height: null,
+        weight: null,
+        birthDate: null,
+        remainingSessions: groupSubscription.leadSubscription.remainingSessions || 0,
+        subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
+        type: "group" as const,
+        groupId: groupSubscription.id,
+      }));
+
+      // Combine both individual and group members
+      return [...individualMembers, ...groupMembers];
+    }),
+
   getMembers: permissionProtectedProcedure(["list:trainers"]).query(
     async ({ ctx }) => {
       console.log("Getting members for trainer");

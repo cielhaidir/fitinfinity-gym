@@ -7,11 +7,21 @@ import ManagerCalendar from "./components/calendar";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import ManagementAppointmentForm from "./components/management-appointment-form";
+import { Plus } from "lucide-react";
 
 export default function JadwalManagerPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"monthly" | "weekly">("weekly");
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Ambil daftar semua trainer untuk filter
   const { data: trainers, isLoading: isLoadingTrainers } = api.managerCalendar.getAllTrainers.useQuery();
@@ -66,14 +76,31 @@ export default function JadwalManagerPage() {
     }
   };
 
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    setShowAppointmentForm(true);
+  };
+
   return (
     <ProtectedRoute requiredPermissions={["menu:trainers"]}>
       <div className="relative p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Jadwal Semua Sesi Personal Trainer</h1>
-        <p className="text-muted-foreground">
-          Lihat seluruh jadwal sesi personal trainer di sini. Hanya dapat melihat jadwal, tidak dapat menambah atau mengubah.
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Jadwal Semua Sesi Personal Trainer</h1>
+          <p className="text-muted-foreground">
+            Lihat seluruh jadwal sesi personal trainer dan buat jadwal baru untuk trainer.
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            setSelectedDate(new Date());
+            setShowAppointmentForm(true);
+          }}
+          className="bg-[#C9D953] text-black hover:bg-[#b8c748]"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Tambah Jadwal
+        </Button>
       </div>
 
       {/* Filter Section */}
@@ -118,7 +145,21 @@ export default function JadwalManagerPage() {
         onViewModeChange={setViewMode}
         onToday={() => setCurrentDate(new Date())}
         onRefreshData={handleRefreshData}
+        onDateClick={handleDateClick}
       />
+
+      {/* Appointment Form Dialog */}
+      <Dialog open={showAppointmentForm} onOpenChange={setShowAppointmentForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Buat Jadwal Baru</DialogTitle>
+          </DialogHeader>
+          <ManagementAppointmentForm
+            selectedDate={selectedDate}
+            onClose={() => setShowAppointmentForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
       </div>
     </ProtectedRoute>
   );

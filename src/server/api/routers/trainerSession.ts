@@ -11,6 +11,113 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
 export const trainerSessionRouter = createTRPCRouter({
+  // For management to create schedule with trainer selection
+  createSchedule: permissionProtectedProcedure(["create:session"])
+    .input(
+      z.object({
+        trainerId: z.string(),
+        memberId: z.string(),
+        date: z.date(),
+        startTime: z.date(),
+        endTime: z.date(),
+        description: z.string().optional(),
+        isGroup: z.boolean().optional(),
+        attendanceCount: z.number().min(1).max(50).optional(),
+        status: z.enum(["ENDED", "NOT_YET", "CANCELED", "ONGOING"]).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      console.log("Creating schedule for trainer:", input.trainerId);
+
+      // Verify trainer exists and is active
+      const trainer = await ctx.db.personalTrainer.findFirst({
+        where: {
+          id: input.trainerId,
+          isActive: true,
+        },
+      });
+
+      if (!trainer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Trainer not found or not active",
+        });
+      }
+
+      // Get the member's subscription with this trainer
+      const subscription = await ctx.db.subscription.findFirst({
+        where: {
+          memberId: input.memberId,
+          trainerId: trainer.id,
+        },
+        orderBy: {
+          remainingSessions: "desc",
+        },
+        include: {
+          package: true,
+        },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Member does not have a subscription with this trainer",
+        });
+      }
+
+      if (
+        !subscription.remainingSessions ||
+        subscription.remainingSessions <= 0
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Member tidak memiliki sisa sesi yang tersedia",
+        });
+      }
+
+      // Validate attendance count against package maxUsers for group sessions
+      if (input.isGroup && input.attendanceCount && subscription.package?.maxUsers) {
+        if (input.attendanceCount > subscription.package.maxUsers) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+          });
+        }
+      }
+
+      // Create the training session and decrement remaining sessions in a transaction
+      return ctx.db.$transaction(async (tx) => {
+        // Create the session
+        const session = await tx.trainerSession.create({
+          data: {
+            trainerId: trainer.id,
+            memberId: input.memberId,
+            date: input.date,
+            startTime: input.startTime,
+            endTime: input.endTime,
+            description: input.description,
+            isGroup: input.isGroup || false,
+            attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
+            status: input.status || "NOT_YET",
+          },
+        });
+
+        // Decrement remaining sessions
+        await tx.subscription.update({
+          where: {
+            id: subscription.id,
+          },
+          data: {
+            remainingSessions: {
+              decrement: 1,
+            },
+          },
+        });
+
+        return session;
+      });
+    }),
+
   create: permissionProtectedProcedure(["create:session"])
     .input(
       z.object({
