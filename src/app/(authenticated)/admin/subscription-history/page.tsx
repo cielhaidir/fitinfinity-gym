@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck } from "lucide-react";
+import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck, UserPlus, User } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 export default function AdminSubscriptionHistoryPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
@@ -436,6 +438,16 @@ export default function AdminSubscriptionHistoryPage() {
     setSelectedSubscriptionForTrainer(null);
     setSelectedTrainerId("none");
   };
+
+  // Navigation functions - open in new tab
+  const directToSubs = (member: any) => {
+    window.open(`/checkout/${member.userId}`, '_blank');
+  };
+
+  const directToProfile = (member: any) => {
+    window.open(`/member/profile?memberId=${member.id}`, '_blank');
+  };
+
   const columns: ColumnDef<any>[] = [
     {
       accessorKey: "member.user.name",
@@ -529,8 +541,26 @@ export default function AdminSubscriptionHistoryPage() {
           </div>
         );
       },
-    },
-    {
+        },
+        {
+      id: "payment",
+      accessorKey: "payments",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Payment Total" />
+      ),
+      cell: ({ row }) => {
+        const payments = row.original.payments as Array<{ totalPayment: number }> | undefined;
+        const totalPayment = payments?.[0]?.totalPayment;
+        return (
+          <div className="min-w-[100px]">
+        <span className="text-sm font-medium">
+          {totalPayment != null ? `Rp ${totalPayment.toLocaleString('id-ID')}` : "N/A"}
+        </span>
+          </div>
+        );
+      },
+        },
+        {
       accessorKey: "isActive",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Status" />
@@ -561,6 +591,14 @@ export default function AdminSubscriptionHistoryPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => directToProfile(row.original.member)}>
+                  <User className="mr-2 h-4 w-4" />
+                  Member Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => directToSubs(row.original.member)}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  New Subscription
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleEditSales(row.original)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Sales
