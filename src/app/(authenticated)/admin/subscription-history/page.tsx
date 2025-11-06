@@ -44,6 +44,9 @@ export default function AdminSubscriptionHistoryPage() {
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState("member.user.name");
+  const [filterSalesId, setFilterSalesId] = useState<string>("all");
+  const [filterTrainerId, setFilterTrainerId] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [selectedSalesId, setSelectedSalesId] = useState<string>("");
@@ -80,11 +83,14 @@ export default function AdminSubscriptionHistoryPage() {
 
   // Query for getting all subscriptions with required fields
   const { data: subscriptions, isLoading, refetch } = api.subs.listActive.useQuery(
-    { 
-      page, 
-      limit, 
-      search: search || undefined, 
+    {
+      page,
+      limit,
+      search: search || undefined,
       searchColumn: searchColumn || undefined,
+      salesId: filterSalesId !== "all" ? filterSalesId : undefined,
+      trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
+      status: filterStatus,
     },
     {
       enabled: !!session,
@@ -494,6 +500,20 @@ export default function AdminSubscriptionHistoryPage() {
       },
     },
     {
+      accessorKey: "trainer",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Personal Trainer" />
+      ),
+      cell: ({ row }) => {
+        const trainerName = row.original.trainer?.user?.name;
+        return (
+          <div className="min-w-[100px]">
+            <span className="text-sm truncate block">{trainerName || "N/A"}</span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "salesPerson",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Sales" />
@@ -586,6 +606,21 @@ export default function AdminSubscriptionHistoryPage() {
     setPage(1);
   };
 
+  const handleSalesFilterChange = (salesId: string) => {
+    setFilterSalesId(salesId);
+    setPage(1);
+  };
+
+  const handleTrainerFilterChange = (trainerId: string) => {
+    setFilterTrainerId(trainerId);
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (status: "all" | "active" | "inactive") => {
+    setFilterStatus(status);
+    setPage(1);
+  };
+
   return (
     <ProtectedRoute requiredPermissions={["menu:transaction"]}>
       <div className="w-full min-h-screen bg-background p-2 sm:p-4 lg:p-8">
@@ -602,6 +637,69 @@ export default function AdminSubscriptionHistoryPage() {
           <Card className="w-full">
             <CardHeader className="pb-3 sm:pb-6">
               <CardTitle className="text-lg sm:text-xl">All Subscriptions</CardTitle>
+              {/* Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                <div>
+                  <Label htmlFor="salesFilter" className="text-sm font-medium mb-2 block">
+                    Filter by Sales
+                  </Label>
+                  <Select
+                    value={filterSalesId}
+                    onValueChange={handleSalesFilterChange}
+                  >
+                    <SelectTrigger id="salesFilter">
+                      <SelectValue placeholder="All Sales" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Sales</SelectItem>
+                      {salesList?.map((sales) => (
+                        <SelectItem key={sales.id} value={sales.id}>
+                          {sales.name} ({sales.typeName})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="trainerFilter" className="text-sm font-medium mb-2 block">
+                    Filter by Trainer
+                  </Label>
+                  <Select
+                    value={filterTrainerId}
+                    onValueChange={handleTrainerFilterChange}
+                  >
+                    <SelectTrigger id="trainerFilter">
+                      <SelectValue placeholder="All Trainers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Trainers</SelectItem>
+                      {personalTrainers?.map((trainer) => (
+                        <SelectItem key={trainer.id} value={trainer.id}>
+                          {trainer.user?.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="statusFilter" className="text-sm font-medium mb-2 block">
+                    Filter by Status
+                  </Label>
+                  <Select
+                    value={filterStatus}
+                    onValueChange={handleStatusFilterChange}
+                  >
+                    <SelectTrigger id="statusFilter">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-0 sm:p-6">
               <div className="w-full">

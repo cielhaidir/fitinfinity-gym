@@ -437,6 +437,9 @@ export const subscriptionRouter = createTRPCRouter({
         limit: z.number().min(1).max(100),
         search: z.string().optional(),
         searchColumn: z.string().optional(),
+        salesId: z.string().optional(),
+        trainerId: z.string().optional(),
+        status: z.enum(["all", "active", "inactive"]).optional().default("all"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -444,11 +447,22 @@ export const subscriptionRouter = createTRPCRouter({
       await updateExpiredSubscriptions(ctx);
 
      const whereClause: any = {
-  isActive: true,
+  // Filter by status if not "all"
+  ...(input.status !== "all" && {
+    isActive: input.status === "active",
+  }),
   OR: [
     { groupMembers: { none: {} } }, // bukan member group
     { leadGroupSubscriptions: { some: {} } }, // leader group
   ],
+  // Filter by salesId if provided
+  ...(input.salesId && {
+    salesId: input.salesId,
+  }),
+  // Filter by trainerId if provided
+  ...(input.trainerId && {
+    trainerId: input.trainerId,
+  }),
   ...(input.search
     ? input.searchColumn === "member.user.name"
       ? {
