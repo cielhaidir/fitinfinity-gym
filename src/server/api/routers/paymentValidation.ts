@@ -197,7 +197,11 @@ export const paymentValidationRouter = createTRPCRouter({
     }),
 
   accept: permissionProtectedProcedure(["accept:payment"])
-    .input(z.object({ id: z.string(), balanceId: z.number() }))
+    .input(z.object({
+      id: z.string(),
+      balanceId: z.number(),
+      paymentDate: z.date().optional()
+    }))
     .mutation(async ({ ctx, input }) => {
       
       const paymentValidation = await ctx.db.paymentValidation.findUnique({
@@ -324,7 +328,7 @@ export const paymentValidationRouter = createTRPCRouter({
             status: PaymentStatus.SUCCESS, // Since it's accepted
             method: paymentValidation.paymentMethod,
             totalPayment: paymentValidation.totalPayment,
-            createdAt: new Date(),
+            createdAt: input.paymentDate ?? new Date(),
           },
         });
 

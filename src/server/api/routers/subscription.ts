@@ -440,6 +440,8 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -462,6 +464,19 @@ export const subscriptionRouter = createTRPCRouter({
   // Filter by trainerId if provided
   ...(input.trainerId && {
     trainerId: input.trainerId,
+  }),
+  // Filter by payment creation date range if provided
+  ...((input.startDate || input.endDate) && {
+    payments: {
+      some: {
+        ...(input.startDate && {
+          createdAt: { gte: input.startDate },
+        }),
+        ...(input.endDate && {
+          createdAt: { lte: input.endDate },
+        }),
+      },
+    },
   }),
   ...(input.search
     ? input.searchColumn === "member.user.name"
@@ -1555,6 +1570,104 @@ export const subscriptionRouter = createTRPCRouter({
           price: "asc",
         },
       });
+    }),
+
+  // List all subscriptions for export (no pagination)
+  listAllForExport: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        salesId: z.string().optional(),
+        trainerId: z.string().optional(),
+        status: z.enum(["all", "active", "inactive"]).optional().default("all"),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Update expired subscriptions before query
+      await updateExpiredSubscriptions(ctx);
+
+      const whereClause: any = {
+        // Filter by status if not "all"
+        ...(input.status !== "all" && {
+          isActive: input.status === "active",
+        }),
+        OR: [
+          { groupMembers: { none: {} } }, // not a group member
+          { leadGroupSubscriptions: { some: {} } }, // group leader
+        ],
+        // Filter by salesId if provided
+        ...(input.salesId && {
+          salesId: input.salesId,
+        }),
+        // Filter by trainerId if provided
+        ...(input.trainerId && {
+          trainerId: input.trainerId,
+        }),
+        // Filter by payment creation date range if provided
+        ...((input.startDate || input.endDate) && {
+          payments: {
+            some: {
+              ...(input.startDate && {
+                createdAt: { gte: input.startDate },
+              }),
+              ...(input.endDate && {
+                createdAt: { lte: input.endDate },
+              }),
+            },
+          },
+        }),
+      };
+
+      const items = await ctx.db.subscription.findMany({
+        where: whereClause,
+        orderBy: { id: "desc" },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          package: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              type: true,
+              point: true,
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          payments: {
+            select: {
+              id: true,
+              status: true,
+              method: true,
+              totalPayment: true,
+              orderReference: true,
+              paidAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      });
+
+      return items;
     }),
 
   // Update personal trainer for a subscription

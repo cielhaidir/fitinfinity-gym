@@ -60,6 +60,7 @@ export default function AdminPaymentValidationPage() {
   const [selectedBalanceId, setSelectedBalanceId] = useState<number | null>(
     null,
   );
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
 
   // Query for payment validations
   const {
@@ -109,6 +110,7 @@ export default function AdminPaymentValidationPage() {
   const handleAccept = (id: string) => {
     setSelectedValidationId(id);
     setSelectedAction("accept");
+    setPaymentDate(new Date()); // Reset to current date
     setShowConfirmModal(true);
   };
 
@@ -127,6 +129,7 @@ export default function AdminPaymentValidationPage() {
       await acceptMutation.mutateAsync({
         id: selectedValidationId,
         balanceId: selectedBalanceId,
+        paymentDate: paymentDate,
       });
     } else if (selectedAction === "decline" && selectedValidationId) {
       await declineMutation.mutateAsync({ id: selectedValidationId });
@@ -264,35 +267,52 @@ export default function AdminPaymentValidationPage() {
               <DialogTitle>Are you sure?</DialogTitle>
             </DialogHeader>
             {selectedAction === "accept" && (
-              <div className="mb-4">
-                <label
-                  htmlFor="balance-account"
-                  className="mb-2 block font-medium"
-                >
-                  Select Balance Account
-                </label>
-                {accounts.length > 0 ? (
-                  <select
-                    id="balance-account"
-                    className="w-full rounded border px-3 py-2"
-                    value={selectedBalanceId ?? ""}
-                    onChange={(e) => setSelectedBalanceId(Number(e.target.value))}
+              <>
+                <div className="mb-4">
+                  <label
+                    htmlFor="balance-account"
+                    className="mb-2 block font-medium"
                   >
-                    <option value="" disabled>
-                      Select account
-                    </option>
-                    {accounts.map((acc: any) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.name}
+                    Select Balance Account
+                  </label>
+                  {accounts.length > 0 ? (
+                    <select
+                      id="balance-account"
+                      className="w-full rounded border px-3 py-2"
+                      value={selectedBalanceId ?? ""}
+                      onChange={(e) => setSelectedBalanceId(Number(e.target.value))}
+                    >
+                      <option value="" disabled>
+                        Select account
                       </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    No balance account available.
-                  </div>
-                )}
-              </div>
+                      {accounts.map((acc: any) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No balance account available.
+                    </div>
+                  )}
+                </div>
+                <div className="mb-4">
+                  <label
+                    htmlFor="payment-date"
+                    className="mb-2 block font-medium"
+                  >
+                    Payment Date
+                  </label>
+                  <input
+                    id="payment-date"
+                    type="date"
+                    className="w-full rounded border px-3 py-2"
+                    value={paymentDate.toISOString().split('T')[0]}
+                    onChange={(e) => setPaymentDate(new Date(e.target.value))}
+                  />
+                </div>
+              </>
             )}
             <DialogFooter>
               <Button

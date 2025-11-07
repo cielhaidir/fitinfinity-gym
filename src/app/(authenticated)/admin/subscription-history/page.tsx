@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck, UserPlus, User } from "lucide-react";
+import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck, UserPlus, User, Download } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,8 @@ export default function AdminSubscriptionHistoryPage() {
   const [filterSalesId, setFilterSalesId] = useState<string>("all");
   const [filterTrainerId, setFilterTrainerId] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [filterStartDate, setFilterStartDate] = useState<string>("");
+  const [filterEndDate, setFilterEndDate] = useState<string>("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [selectedSalesId, setSelectedSalesId] = useState<string>("");
@@ -93,6 +95,8 @@ export default function AdminSubscriptionHistoryPage() {
       salesId: filterSalesId !== "all" ? filterSalesId : undefined,
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
       status: filterStatus,
+      startDate: filterStartDate ? new Date(filterStartDate) : undefined,
+      endDate: filterEndDate ? new Date(filterEndDate) : undefined,
     },
     {
       enabled: !!session,
@@ -659,8 +663,133 @@ export default function AdminSubscriptionHistoryPage() {
     setPage(1);
   };
 
+  const handleStartDateChange = (date: string) => {
+    setFilterStartDate(date);
+    setPage(1);
+  };
+
+  const handleEndDateChange = (date: string) => {
+    setFilterEndDate(date);
+    setPage(1);
+  };
+
+  // Query for export - fetch all data without pagination
+  const [shouldExport, setShouldExport] = useState(false);
+  const { data: exportData, isLoading: isExporting } = api.subs.listAllForExport.useQuery(
+    {
+      salesId: filterSalesId !== "all" ? filterSalesId : undefined,
+      trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
+      status: filterStatus,
+      startDate: filterStartDate ? new Date(filterStartDate) : undefined,
+      endDate: filterEndDate ? new Date(filterEndDate) : undefined,
+    },
+    {
+      enabled: shouldExport,
+    }
+  );
+
+  // Effect to handle export when data is fetched
+  useEffect(() => {
+    if (shouldExport && exportData && !isExporting) {
+      performExport(exportData);
+      setShouldExport(false);
+    }
+  }, [shouldExport, exportData, isExporting]);
+
+
+  // Export function - trigger data fetch
+  const handleExportCSV = () => {
+    if (!subscriptions || subscriptions.items.length === 0) {
+      toast({
+        title: "No Data",
+        description: "There is no data to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Exporting...",
+      description: "Fetching all data, please wait...",
+    });
+    setShouldExport(true);
+  };
+
+  // Perform the actual export
+  const performExport = (allData: any[]) => {
+    try {
+      if (!allData || allData.length === 0) {
+        toast({
+          title: "No Data",
+          description: "There is no data to export",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prepare CSV headers
+      const headers = [
+        "Member Name",
+        "Member Email",
+        "Package Name",
+        "Package Points",
+        "Start Date",
+        "End Date",
+        "Remaining Sessions",
+        "Personal Trainer",
+        "Sales Person",
+        "Payment Total",
+        "Status"
+      ];
+
+      // Prepare CSV rows
+      const rows = allData.map(item => [
+        item.member?.user?.name || "N/A",
+        item.member?.user?.email || "N/A",
+        item.package?.name || "N/A",
+        item.package?.point || "N/A",
+        item.startDate ? format(new Date(item.startDate), "dd/MM/yyyy") : "N/A",
+        item.endDate ? format(new Date(item.endDate), "dd/MM/yyyy") : "N/A",
+        item.remainingSessions ?? "N/A",
+        item.trainer?.user?.name || "N/A",
+        getSalesPersonName(item.salesId, item.salesType),
+        item.payments?.[0]?.totalPayment || "N/A",
+        item.isActive ? "Active" : "Inactive"
+      ]);
+
+      // Create CSV content
+      const csvContent = [
+        headers.join(","),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+      ].join("\n");
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `subscription-history-${format(new Date(), "yyyy-MM-dd-HHmmss")}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Success",
+        description: `Exported ${allData.length} records to CSV`,
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to export data",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <ProtectedRoute requiredPermissions={["menu:transaction"]}>
+    <ProtectedRoute>
       <div className="w-full min-h-screen bg-background p-2 sm:p-4 lg:p-8">
         <div className="max-w-full mx-auto">
           <div className="mb-4 sm:mb-8 flex flex-col items-start justify-between gap-2 sm:gap-4 md:flex-row md:items-center">
@@ -670,13 +799,21 @@ export default function AdminSubscriptionHistoryPage() {
                 View all subscription history with detailed member and package information
               </p>
             </div>
+            <Button
+              onClick={handleExportCSV}
+              disabled={isLoading || !subscriptions || subscriptions.items.length === 0}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
           </div>
 
           <Card className="w-full">
             <CardHeader className="pb-3 sm:pb-6">
               <CardTitle className="text-lg sm:text-xl">All Subscriptions</CardTitle>
               {/* Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mt-4">
                 <div>
                   <Label htmlFor="salesFilter" className="text-sm font-medium mb-2 block">
                     Filter by Sales
@@ -737,6 +874,30 @@ export default function AdminSubscriptionHistoryPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="startDateFilter" className="text-sm font-medium mb-2 block">
+                    Start Date From
+                  </Label>
+                  <Input
+                    id="startDateFilter"
+                    type="date"
+                    value={filterStartDate}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endDateFilter" className="text-sm font-medium mb-2 block">
+                    End Date Until
+                  </Label>
+                  <Input
+                    id="endDateFilter"
+                    type="date"
+                    value={filterEndDate}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0 sm:p-6">
@@ -752,6 +913,22 @@ export default function AdminSubscriptionHistoryPage() {
                   onPaginationChange={handlePaginationChange}
                   onSearch={handleSearch}
                 />
+                {/* Subtotal Row */}
+                {subscriptions && subscriptions.items.length > 0 && (
+                  <div className="border-t mt-4 pt-4 px-4 sm:px-6">
+                    <div className="flex justify-end items-center gap-4">
+                      <span className="text-sm font-semibold text-muted-foreground">
+                        Page Subtotal:
+                      </span>
+                      <span className="text-lg font-bold">
+                        Rp {subscriptions.items.reduce((sum, item) => {
+                          const payment = item.payments?.[0]?.totalPayment || 0;
+                          return sum + payment;
+                        }, 0).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
