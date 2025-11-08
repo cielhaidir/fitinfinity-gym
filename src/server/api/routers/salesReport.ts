@@ -107,7 +107,6 @@ getRevenueBySales: protectedProcedure
     // Ambil semua subscription yang punya payment di rentang waktu
     const allAcceptedPayments = await ctx.db.subscription.findMany({
      where: {
-  isActive: true,
   salesId: salesId ? salesId : undefined,
   AND: [
     {
@@ -119,6 +118,7 @@ getRevenueBySales: protectedProcedure
     {
       payments: {
         some: {
+              status: 'SUCCESS',
           createdAt: {
             gte: startOfDay(startDate),
             lte: endOfDay(endDate),
