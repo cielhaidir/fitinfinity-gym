@@ -280,31 +280,49 @@ export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, inpu
 
 /**
  * Model-specific logging middleware using Winston
- * Creates a middleware that logs all operations to a model-specific log file
+ * Creates a middleware that logs ONLY mutations (Create, Update, Delete) to a model-specific log file
  */
 export const createModelLoggingMiddleware = (modelName: string) => {
   const logger = createModelLogger(modelName);
   
   return t.middleware(async ({ ctx, next, path, type, input }) => {
+    // Only log mutations (create, update, delete operations)
+    if (type !== 'mutation') {
+      return next();
+    }
+
     const timestamp = new Date().toISOString();
     let user = 'Unknown';
+    let userId = 'Unknown';
     
     if (ctx.session?.user) {
       user = ctx.session.user.email || ctx.session.user.name || ctx.session.user.id;
+      userId = ctx.session.user.id;
     }
     
-    logger.info(`[${type.toUpperCase()}] ${path} - User: ${user}`);
+    // Determine operation type from path
+    let operationType = 'MUTATION';
+    const pathLower = path.toLowerCase();
+    if (pathLower.includes('create') || pathLower.includes('add')) {
+      operationType = 'CREATE';
+    } else if (pathLower.includes('update') || pathLower.includes('edit') || pathLower.includes('modify')) {
+      operationType = 'UPDATE';
+    } else if (pathLower.includes('delete') || pathLower.includes('remove')) {
+      operationType = 'DELETE';
+    }
     
-    if (type === 'mutation' && input) {
+    logger.info(`[${operationType}] ${path} - User: ${user} (${userId})`);
+    
+    if (input) {
       logger.info(`Input: ${JSON.stringify(input)}`);
     }
     
     try {
       const result = await next();
-      logger.info(`[${type.toUpperCase()}] ${path} - SUCCESS`);
+      logger.info(`[${operationType}] ${path} - SUCCESS`);
       return result;
     } catch (error) {
-      logger.error(`[${type.toUpperCase()}] ${path} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`[${operationType}] ${path} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
     }
   });
@@ -356,6 +374,70 @@ export const deviceAuthMiddleware = t.middleware(async ({ ctx, next, input }) =>
 export const publicProcedure = t.procedure.use(timingMiddleware);
 
 /**
+ * Helper to extract model name from procedure path
+ */
+const getModelNameFromPath = (path: string): string => {
+  // Extract the first part of the path (e.g., "member.create" -> "member")
+  const parts = path.split('.');
+  return parts[0] || 'unknown';
+};
+
+/**
+ * Global logging middleware that automatically determines model name from path
+ * Only logs mutations (Create, Update, Delete operations)
+ */
+const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, input }) => {
+  // Only log mutations
+  if (type !== 'mutation') {
+    return next();
+  }
+
+  const modelName = getModelNameFromPath(path);
+  const logger = createModelLogger(modelName);
+  
+  let user = 'Unknown';
+  let userId = 'Unknown';
+  
+  if (ctx.session?.user) {
+    user = ctx.session.user.email || ctx.session.user.name || ctx.session.user.id;
+    userId = ctx.session.user.id;
+  }
+  
+  // Determine operation type from path
+  let operationType = 'MUTATION';
+  const pathLower = path.toLowerCase();
+  if (pathLower.includes('create') || pathLower.includes('add')) {
+    operationType = 'CREATE';
+  } else if (pathLower.includes('update') || pathLower.includes('edit') || pathLower.includes('modify')) {
+    operationType = 'UPDATE';
+  } else if (pathLower.includes('delete') || pathLower.includes('remove')) {
+    operationType = 'DELETE';
+  }
+  
+  logger.info(`[${operationType}] ${path} - User: ${user} (${userId})`);
+  
+  if (input) {
+    logger.info(`Input: ${JSON.stringify(input)}`);
+  }
+  
+  try {
+    const result = await next();
+    logger.info(`[${operationType}] ${path} - SUCCESS`);
+    return result;
+  } catch (error) {
+    logger.error(`[${operationType}] ${path} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw error;
+  }
+});
+
+/**
+ * Public procedure with automatic logging
+ */
+export const publicProcedureWithLogging = t.procedure
+  .use(timingMiddleware)
+  .use(globalLoggingMiddleware);
+
+/**
  * Device-protected procedure
  *
  * Use this for endpoints that require valid device authentication
@@ -378,6 +460,7 @@ export const deviceProcedure = t.procedure
  */
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
+  .use(globalLoggingMiddleware)
   .use(({ ctx, next }) => {
     if (!ctx.session || !ctx.session.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -397,6 +480,7 @@ export const protectedProcedure = t.procedure
 */
 export const auditedProcedure = t.procedure
  .use(timingMiddleware)
+ .use(globalLoggingMiddleware)
  .use(auditMiddleware);
 
 /**
@@ -404,6 +488,7 @@ export const auditedProcedure = t.procedure
 */
 export const protectedAuditedProcedure = t.procedure
  .use(timingMiddleware)
+ .use(globalLoggingMiddleware)
  .use(auditMiddleware)
  .use(({ ctx, next }) => {
    if (!ctx.session || !ctx.session.user) {
@@ -473,7 +558,22 @@ export const enforcePermissionMiddleware = t.middleware(
 
 // Create a procedure that requires specific permissions
 export const permissionProtectedProcedure = (requiredPermissions: string[]) =>
-  protectedProcedure.use(enforcePermissionMiddleware).use(({ ctx, next }) => {
+  t.procedure
+  .use(timingMiddleware)
+  .use(globalLoggingMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.session || !ctx.session.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    return next({
+      ctx: {
+        // infers the `session` as non-nullable
+        session: { ...ctx.session, user: ctx.session.user },
+      },
+    });
+  })
+  .use(enforcePermissionMiddleware)
+  .use(({ ctx, next }) => {
     if (process.env.ALLOW_RBAC === "false") {
       return next({
         ctx: {
