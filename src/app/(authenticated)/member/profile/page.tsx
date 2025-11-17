@@ -39,6 +39,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [transferEmail, setTransferEmail] = useState("");
+  const [isEditingPoints, setIsEditingPoints] = useState(false);
+  const [pointsValue, setPointsValue] = useState("");
   
   // Check-in related state
   const [checkinStartDate, setCheckinStartDate] = useState<string>("");
@@ -153,6 +155,25 @@ export default function ProfilePage() {
     },
   });
 
+  // TODO: Implement api.profile.updatePoints mutation in src/server/api/routers/profile.ts
+  // Expected signature:
+  // updatePoints: permissionProtectedProcedure(["update:member"])
+  //   .input(z.object({ memberId: z.string(), points: z.number().min(0) }))
+  //   .mutation(async ({ ctx, input }) => { ... })
+  
+  // Points update mutation (placeholder - needs backend implementation)
+  const updatePoints = api.profile.updatePoints?.useMutation({
+    onSuccess: async () => {
+      await utils.profile.get.invalidate();
+      toast.success("Points updated successfully");
+      setIsEditingPoints(false);
+      setPointsValue("");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update points");
+    },
+  });
+
   const { refetch: checkPhone } = api.profile.checkPhone.useQuery(
     { phone: formData.phone },
     { enabled: false }, // Disable automatic query
@@ -182,6 +203,7 @@ export default function ProfilePage() {
         weight: profile.weight?.toString() ?? "",
         gender: profile.gender ?? "",
       });
+      setPointsValue(profile.point?.toString() ?? "0");
     }
   }, [profile]);
 
@@ -250,6 +272,28 @@ export default function ProfilePage() {
     transferAccount.mutate({
       fromUserId: profile.id,
       toUserEmail: transferEmail,
+    });
+  };
+
+  const handleUpdatePoints = () => {
+    if (!memberId) return;
+    
+    const points = parseInt(pointsValue, 10);
+    if (isNaN(points) || points < 0) {
+      toast.error("Please enter a valid positive number");
+      return;
+    }
+
+    // TODO: Remove this check once the backend mutation is implemented
+    if (!updatePoints) {
+      toast.error("Points update feature is not yet implemented in the backend");
+      console.error("TODO: Implement api.profile.updatePoints mutation in src/server/api/routers/profile.ts");
+      return;
+    }
+
+    updatePoints.mutate({
+      memberId,
+      points,
     });
   };
 
@@ -535,7 +579,52 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Points</p>
-                  <p>{profile?.point || 0}</p>
+                  <div className="flex items-center gap-2">
+                    {isEditingPoints && isAdmin ? (
+                      <>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={pointsValue}
+                          onChange={(e) => setPointsValue(e.target.value)}
+                          className="w-32"
+                          placeholder="Enter points"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleUpdatePoints}
+                          disabled={updatePoints?.isPending}
+                          className="bg-[#BFFF00] text-black hover:bg-[#BFFF00]/90"
+                        >
+                          {updatePoints?.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditingPoints(false);
+                            setPointsValue(profile?.point?.toString() ?? "0");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p>{profile?.point || 0}</p>
+                        {isAdmin && isViewingOtherMember && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsEditingPoints(true)}
+                            className="h-6 px-2 text-xs text-[#BFFF00] hover:text-[#BFFF00]/80 hover:bg-[#BFFF00]/10"
+                          >
+                            Edit
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Age</p>

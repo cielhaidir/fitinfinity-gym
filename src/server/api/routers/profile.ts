@@ -247,6 +247,35 @@ export const profileRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Admin endpoint to update member points
+  updatePoints: permissionProtectedProcedure(["update:member"])
+    .input(
+      z.object({
+        memberId: z.string(),
+        points: z.number().min(0, "Points must be a non-negative number"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Find the membership to get the user ID
+      const membership = await ctx.db.membership.findUnique({
+        where: { id: input.memberId },
+        include: { user: true },
+      });
+
+      if (!membership) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Member not found",
+        });
+      }
+
+      // Update the user's points
+      return ctx.db.user.update({
+        where: { id: membership.userId },
+        data: { point: input.points },
+      });
+    }),
+
   // Admin endpoint to update member profiles
   updateMember: permissionProtectedProcedure(["update:member"])
     .input(
