@@ -283,7 +283,7 @@ export const managerCalendarRouter = createTRPCRouter({
       };
     }),
 
-  deleteSchedule: permissionProtectedProcedure(["delete:session"])
+  cancelSchedule: permissionProtectedProcedure(["edit:session"])
     .input(
       z.object({
         sessionId: z.string(),
@@ -304,11 +304,122 @@ export const managerCalendarRouter = createTRPCRouter({
         });
       }
 
-      // Delete the session
-      await db.trainerSession.delete({
+      // Update session status to CANCELED
+      const updatedSession = await db.trainerSession.update({
         where: { id: sessionId },
+        data: { status: "CANCELED" },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
       });
 
-      return { success: true, message: "Jadwal berhasil dihapus" };
+      return {
+        success: true,
+        message: "Sesi berhasil dibatalkan",
+        session: updatedSession,
+      };
+    }),
+
+  restoreSchedule: permissionProtectedProcedure(["edit:session"])
+    .input(
+      z.object({
+        sessionId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { sessionId } = input;
+
+      // Check if session exists
+      const session = await db.trainerSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          member: true,
+        },
+      });
+
+      if (!session) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session tidak ditemukan",
+        });
+      }
+
+      // Find active subscription for this member
+      const subscription = await db.subscription.findFirst({
+        where: {
+          memberId: session.memberId,
+          isActive: true,
+        },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription aktif tidak ditemukan untuk member ini",
+        });
+      }
+
+      // Increment remaining sessions
+      await db.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          remainingSessions: {
+            increment: 1,
+          },
+        },
+      });
+
+      // Update session status back to NOT_YET or delete it
+      const updatedSession = await db.trainerSession.update({
+        where: { id: sessionId },
+        data: { status: "NOT_YET" },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return {
+        success: true,
+        message: "Sesi berhasil dikembalikan dan quota bertambah +1",
+        session: updatedSession,
+      };
     }),
 });

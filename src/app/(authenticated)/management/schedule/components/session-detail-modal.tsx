@@ -57,14 +57,25 @@ export function SessionDetailModal({ session, isOpen, onClose, onUpdate }: Sessi
     },
   });
 
-  const deleteScheduleMutation = api.managerCalendar.deleteSchedule.useMutation({
+  const cancelScheduleMutation = api.managerCalendar.cancelSchedule.useMutation({
     onSuccess: () => {
-      toast.success("Jadwal berhasil dihapus");
+      toast.success("Sesi berhasil dibatalkan");
       onClose();
       onUpdate?.(); // Refresh data
     },
     onError: (error) => {
-      toast.error(error.message || "Gagal menghapus jadwal");
+      toast.error(error.message || "Gagal membatalkan sesi");
+    },
+  });
+
+  const restoreScheduleMutation = api.managerCalendar.restoreSchedule.useMutation({
+    onSuccess: () => {
+      toast.success("Sesi berhasil dikembalikan dan quota bertambah +1");
+      onClose();
+      onUpdate?.(); // Refresh data
+    },
+    onError: (error) => {
+      toast.error(error.message || "Gagal mengembalikan sesi");
     },
   });
 
@@ -242,8 +253,8 @@ export function SessionDetailModal({ session, isOpen, onClose, onUpdate }: Sessi
           )}
         </div>
 
-        <div className="mt-6 flex justify-between gap-2">
-          <div className="flex gap-2">
+        <div className="mt-6 flex flex-col sm:flex-row justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -259,31 +270,58 @@ export function SessionDetailModal({ session, isOpen, onClose, onUpdate }: Sessi
               <Pencil className="h-4 w-4 mr-2" />
               Edit
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                if (confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
-                  try {
-                    await deleteScheduleMutation.mutateAsync({
-                      sessionId: session.id,
-                    });
-                  } catch (error) {
-                    // Error is handled by onError callback
+            
+            {session.status !== "CANCELED" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (confirm('Apakah Anda yakin ingin membatalkan sesi ini?')) {
+                    try {
+                      await cancelScheduleMutation.mutateAsync({
+                        sessionId: session.id,
+                      });
+                    } catch (error) {
+                      // Error is handled by onError callback
+                    }
                   }
-                }
-              }}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              disabled={deleteScheduleMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {deleteScheduleMutation.isPending ? "Menghapus..." : "Hapus"}
-            </Button>
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                disabled={cancelScheduleMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {cancelScheduleMutation.isPending ? "Membatalkan..." : "Batalkan Sesi"}
+              </Button>
+            )}
+            
+            {(session.status === "CANCELED" || session.status === "ENDED") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (confirm('Apakah Anda yakin ingin mengembalikan sesi ini? Quota member akan bertambah +1.')) {
+                    try {
+                      await restoreScheduleMutation.mutateAsync({
+                        sessionId: session.id,
+                      });
+                    } catch (error) {
+                      // Error is handled by onError callback
+                    }
+                  }
+                }}
+                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                disabled={restoreScheduleMutation.isPending}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                {restoreScheduleMutation.isPending ? "Mengembalikan..." : "Kembalikan Sesi"}
+              </Button>
+            )}
           </div>
           <Button
             variant="secondary"
             size="sm"
             onClick={onClose}
+            className="w-full sm:w-auto"
           >
             Tutup
           </Button>
