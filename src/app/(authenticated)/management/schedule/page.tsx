@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ManagementAppointmentForm from "./components/management-appointment-form";
+import EditScheduleForm from "./components/edit-schedule-form";
 import { Plus } from "lucide-react";
 
 export default function JadwalManagerPage() {
@@ -22,6 +23,8 @@ export default function JadwalManagerPage() {
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingSession, setEditingSession] = useState<any | null>(null);
 
   // Ambil daftar semua trainer untuk filter
   const { data: trainers, isLoading: isLoadingTrainers } = api.managerCalendar.getAllTrainers.useQuery();
@@ -79,6 +82,11 @@ export default function JadwalManagerPage() {
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
     setShowAppointmentForm(true);
+  };
+
+  const handleEditSession = (session: any) => {
+    setEditingSession(session);
+    setShowEditForm(true);
   };
 
   return (
@@ -146,6 +154,7 @@ export default function JadwalManagerPage() {
         onToday={() => setCurrentDate(new Date())}
         onRefreshData={handleRefreshData}
         onDateClick={handleDateClick}
+        onEditSession={handleEditSession}
       />
 
       {/* Appointment Form Dialog */}
@@ -158,6 +167,29 @@ export default function JadwalManagerPage() {
             selectedDate={selectedDate}
             onClose={() => setShowAppointmentForm(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Schedule Dialog */}
+      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Jadwal</DialogTitle>
+          </DialogHeader>
+          {editingSession && (
+            <EditScheduleForm
+              session={editingSession}
+              onClose={() => {
+                setShowEditForm(false);
+                setEditingSession(null);
+              }}
+              onSuccess={() => {
+                setShowEditForm(false);
+                setEditingSession(null);
+                handleRefreshData();
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
       </div>

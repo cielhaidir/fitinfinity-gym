@@ -36,6 +36,7 @@ interface CalendarProps {
   onToday: () => void;
   onRefreshData?: () => void;
   onDateClick?: (date: Date) => void;
+  onEditSession?: (session: any) => void;
 }
 
 export default function ManagerCalendar({
@@ -48,6 +49,7 @@ export default function ManagerCalendar({
   onToday,
   onRefreshData,
   onDateClick,
+  onEditSession,
 }: CalendarProps) {
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
 
@@ -362,8 +364,12 @@ export default function ManagerCalendar({
           session={selectedSession}
           isOpen={!!selectedSession}
           onClose={() => setSelectedSession(null)}
-          onUpdate={() => {
-            onRefreshData?.();
+          onUpdate={(action?: string, session?: any) => {
+            if (action === 'edit' && session) {
+              onEditSession?.(session);
+            } else {
+              onRefreshData?.();
+            }
             setSelectedSession(null);
           }}
         />

@@ -2,6 +2,8 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
+import { Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SessionDetailModalProps {
   session: {
@@ -35,7 +37,7 @@ interface SessionDetailModalProps {
   } | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate?: () => void; // Callback to refresh data after update
+  onUpdate?: (action?: string, session?: any) => void; // Callback to refresh data after update
 }
 
 export function SessionDetailModal({ session, isOpen, onClose, onUpdate }: SessionDetailModalProps) {
@@ -52,6 +54,17 @@ export function SessionDetailModal({ session, isOpen, onClose, onUpdate }: Sessi
     },
     onError: (error) => {
       toast.error(error.message || "Gagal mengupdate jumlah peserta");
+    },
+  });
+
+  const deleteScheduleMutation = api.managerCalendar.deleteSchedule.useMutation({
+    onSuccess: () => {
+      toast.success("Jadwal berhasil dihapus");
+      onClose();
+      onUpdate?.(); // Refresh data
+    },
+    onError: (error) => {
+      toast.error(error.message || "Gagal menghapus jadwal");
     },
   });
 
@@ -229,13 +242,51 @@ export function SessionDetailModal({ session, isOpen, onClose, onUpdate }: Sessi
           )}
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
-          <button
+        <div className="mt-6 flex justify-between gap-2">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                onClose();
+                // Trigger edit mode - this will be handled by parent
+                if (onUpdate) {
+                  (onUpdate as any)('edit', session);
+                }
+              }}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
+                  try {
+                    await deleteScheduleMutation.mutateAsync({
+                      sessionId: session.id,
+                    });
+                  } catch (error) {
+                    // Error is handled by onError callback
+                  }
+                }
+              }}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              disabled={deleteScheduleMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteScheduleMutation.isPending ? "Menghapus..." : "Hapus"}
+            </Button>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={onClose}
-            className="rounded-md bg-muted px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/80"
           >
             Tutup
-          </button>
+          </Button>
         </div>
       </div>
     </div>

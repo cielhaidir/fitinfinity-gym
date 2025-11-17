@@ -200,4 +200,115 @@ export const managerCalendarRouter = createTRPCRouter({
         status: updatedSession.status,
       };
     }),
+
+  updateSchedule: permissionProtectedProcedure(["edit:session"])
+    .input(
+      z.object({
+        sessionId: z.string(),
+        trainerId: z.string().optional(),
+        memberId: z.string().optional(),
+        date: z.date().optional(),
+        startTime: z.date().optional(),
+        endTime: z.date().optional(),
+        description: z.string().optional(),
+        status: z.enum(["NOT_YET", "ONGOING", "ENDED", "CANCELED"]).optional(),
+        attendanceCount: z.number().min(1).max(50).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { sessionId, ...updateData } = input;
+
+      // Check if session exists
+      const session = await db.trainerSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          member: true,
+          trainer: true,
+        },
+      });
+
+      if (!session) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session tidak ditemukan",
+        });
+      }
+
+      // Build update object with only provided fields
+      const dataToUpdate: any = {};
+      
+      if (updateData.trainerId !== undefined) dataToUpdate.trainerId = updateData.trainerId;
+      if (updateData.memberId !== undefined) dataToUpdate.memberId = updateData.memberId;
+      if (updateData.date !== undefined) dataToUpdate.date = updateData.date;
+      if (updateData.startTime !== undefined) dataToUpdate.startTime = updateData.startTime;
+      if (updateData.endTime !== undefined) dataToUpdate.endTime = updateData.endTime;
+      if (updateData.description !== undefined) dataToUpdate.description = updateData.description;
+      if (updateData.status !== undefined) dataToUpdate.status = updateData.status;
+      if (updateData.attendanceCount !== undefined) dataToUpdate.attendanceCount = updateData.attendanceCount;
+
+      // Update the session
+      const updatedSession = await db.trainerSession.update({
+        where: { id: sessionId },
+        data: dataToUpdate,
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return {
+        ...updatedSession,
+        exerciseResult: updatedSession.exerciseResult,
+        attendanceCount: updatedSession.attendanceCount,
+        isGroup: updatedSession.isGroup,
+        status: updatedSession.status,
+      };
+    }),
+
+  deleteSchedule: permissionProtectedProcedure(["delete:session"])
+    .input(
+      z.object({
+        sessionId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { sessionId } = input;
+
+      // Check if session exists
+      const session = await db.trainerSession.findUnique({
+        where: { id: sessionId },
+      });
+
+      if (!session) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session tidak ditemukan",
+        });
+      }
+
+      // Delete the session
+      await db.trainerSession.delete({
+        where: { id: sessionId },
+      });
+
+      return { success: true, message: "Jadwal berhasil dihapus" };
+    }),
 });
