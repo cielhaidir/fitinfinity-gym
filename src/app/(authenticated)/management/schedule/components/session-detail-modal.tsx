@@ -294,28 +294,26 @@ export function SessionDetailModal({ session, isOpen, onClose, onUpdate }: Sessi
               </Button>
             )}
             
-            {(session.status === "CANCELED" || session.status === "ENDED") && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  if (confirm('Apakah Anda yakin ingin mengembalikan sesi ini? Quota member akan bertambah +1.')) {
-                    try {
-                      await restoreScheduleMutation.mutateAsync({
-                        sessionId: session.id,
-                      });
-                    } catch (error) {
-                      // Error is handled by onError callback
-                    }
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (confirm('Apakah Anda yakin ingin mengembalikan sesi ini? Quota member akan bertambah +1.')) {
+                  try {
+                    await restoreScheduleMutation.mutateAsync({
+                      sessionId: session.id,
+                    });
+                  } catch (error) {
+                    // Error is handled by onError callback
                   }
-                }}
-                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                disabled={restoreScheduleMutation.isPending}
-              >
-                <Pencil className="h-4 w-4 mr-2" />
-                {restoreScheduleMutation.isPending ? "Mengembalikan..." : "Kembalikan Sesi"}
-              </Button>
-            )}
+                }
+              }}
+              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+              disabled={restoreScheduleMutation.isPending}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              {restoreScheduleMutation.isPending ? "Mengembalikan..." : "Kembalikan Sesi"}
+            </Button>
           </div>
           <Button
             variant="secondary"
