@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from "date-fns";
-import { Camera, Package2, UserCog, Users, Calendar, Activity, TrendingUp, Clock } from "lucide-react";
+import { Camera, Package2, UserCog, Users, Calendar, Activity, TrendingUp, Clock, Download, QrCode } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import { ChangePasswordDialog } from "./change-password-dialog";
 import { DataTable } from "@/components/datatable/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -36,6 +37,7 @@ export default function ProfilePage() {
   const memberId = searchParams.get('memberId');
   const isViewingOtherMember = !!memberId;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const qrCodeRef = useRef<HTMLCanvasElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [transferEmail, setTransferEmail] = useState("");
@@ -344,6 +346,23 @@ export default function ProfilePage() {
       toast.error("Failed to process image");
     }
   };
+
+  // const handleDownloadQRCode = () => {
+  //   const canvas = qrCodeRef.current;
+  //   if (!canvas) return;
+
+  //   try {
+  //     const url = canvas.toDataURL("image/png");
+  //     const link = document.createElement("a");
+  //     link.download = `membership-qr-${profile?.membership?.id || "code"}.png`;
+  //     link.href = url;
+  //     link.click();
+  //     toast.success("QR code downloaded successfully");
+  //   } catch (error) {
+  //     console.error("Download error:", error);
+  //     toast.error("Failed to download QR code");
+  //   }
+  // };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ""); // Remove non-digits
@@ -827,6 +846,62 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Membership QR Code Section */}
+        {profile?.membership?.id && (
+          <Card className="mx-auto max-w-4xl mt-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg md:text-xl font-semibold text-[#BFFF00] flex items-center gap-2">
+                <QrCode className="h-5 w-5" />
+                Membership QR Code
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Use this QR code for gym check-in
+              </p>
+            </CardHeader>
+            <CardContent className="p-3 md:p-6">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                {/* QR Code Display */}
+                <div className="bg-white p-4 rounded-lg shadow-md">
+                  <QRCodeCanvas
+                    ref={qrCodeRef}
+                    value={profile.membership.id}
+                    size={200}
+                    level="H"
+                    includeMargin={true}
+                    bgColor="#FFFFFF"
+                    fgColor="#000000"
+                  />
+                </div>
+
+                {/* Membership ID Text */}
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">Membership ID</p>
+                  <p className="font-mono text-lg font-semibold text-[#BFFF00] break-all px-4">
+                    {profile.membership.id}
+                  </p>
+                </div>
+
+                {/* Download Button */}
+                {/* <Button
+                  onClick={handleDownloadQRCode}
+                  className="bg-[#BFFF00] text-black hover:bg-[#BFFF00]/90 w-full md:w-auto"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download QR Code
+                </Button> */}
+
+                {/* Mobile-friendly info */}
+                <div className="text-center text-xs text-muted-foreground max-w-md px-4">
+                  <p>
+                    Present this QR code at the gym entrance for quick check-in.
+                    You can also download it to your device for offline use.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Subscription History Section - Separate Card */}
         <Card className="mx-auto max-w-4xl mt-6">
