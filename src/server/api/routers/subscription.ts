@@ -951,12 +951,18 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+
+          const shouldBeActive = input.endDate 
+      ? input.endDate > new Date() 
+      : undefined;
+
       return ctx.db.subscription.update({
         where: { id: input.id },
         data: {
           memberId: input.memberId,
           startDate: input.startDate,
           endDate: input.endDate,
+           ...(shouldBeActive !== undefined && { isActive: shouldBeActive }),
         },
       });
     }),
