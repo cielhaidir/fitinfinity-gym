@@ -1,7 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+
 
 export default function UnauthorizedPage() {
   const router = useRouter();
@@ -18,8 +20,10 @@ export default function UnauthorizedPage() {
         });
       }
     }
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+      await signOut({ 
+      callbackUrl: "/login",
+      redirect: true 
+    });
   };
 
   return (
