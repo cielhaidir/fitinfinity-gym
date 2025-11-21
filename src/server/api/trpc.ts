@@ -19,6 +19,7 @@ import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 import { configService } from "@/lib/config/configService";
 import { createModelLogger } from "@/utils/logger";
+import { sanitizeForLogging } from "@/utils/sanitizer";
 
 // Define device context type
 interface Context {
@@ -385,6 +386,7 @@ const getModelNameFromPath = (path: string): string => {
 /**
  * Global logging middleware that automatically determines model name from path
  * Only logs mutations (Create, Update, Delete operations)
+ * Uses sanitizer to handle circular references, Date objects, and BigInt values
  */
 const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, input }) => {
   // Only log mutations
@@ -416,29 +418,27 @@ const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, inp
   
   logger.info(`[${operationType}] ${path} - User: ${user} (${userId})`);
   
+  // Sanitize and log input parameters
   if (input) {
-    logger.info(`Input: ${JSON.stringify(input)}`);
+    const sanitizedInput = sanitizeForLogging(input);
+    logger.info(`Input: ${JSON.stringify(sanitizedInput)}`);
   }
   
   try {
     const result = await next();
     logger.info(`[${operationType}] ${path} - SUCCESS`);
     
-    // Log response payload with safety measures
+    // Sanitize and log response payload with safety measures
     if (result) {
-      try {
-        const responseStr = JSON.stringify(result);
-        const MAX_RESPONSE_LENGTH = 5000; // Limit to 5000 characters
-        
-        // Check if response is too large
-        if (responseStr.length > MAX_RESPONSE_LENGTH) {
-          logger.info(`Response: [TRUNCATED - ${responseStr.length} chars] ${responseStr.substring(0, MAX_RESPONSE_LENGTH)}...`);
-        } else {
-          logger.info(`Response: ${responseStr}`);
-        }
-      } catch (stringifyError) {
-        // Handle circular references or other stringify errors
-        logger.info(`Response: [Unable to serialize - ${stringifyError instanceof Error ? stringifyError.message : 'Unknown error'}]`);
+      const sanitizedResult = sanitizeForLogging(result);
+      const responseStr = JSON.stringify(sanitizedResult);
+      const MAX_RESPONSE_LENGTH = 5000; // Limit to 5000 characters
+      
+      // Check if response is too large
+      if (responseStr.length > MAX_RESPONSE_LENGTH) {
+        logger.info(`Response: [TRUNCATED - ${responseStr.length} chars] ${responseStr.substring(0, MAX_RESPONSE_LENGTH)}...`);
+      } else {
+        logger.info(`Response: ${responseStr}`);
       }
     } else {
       logger.info(`Response: null`);

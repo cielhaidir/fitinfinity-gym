@@ -1,6 +1,7 @@
 import { createLogger, format, transports } from "winston";
 import fs from "fs";
 import path from "path";
+import { sanitizeForLogging } from "./sanitizer";
 
 // Pastikan direktori logs tersedia
 const logDirectory = path.resolve("logs");
@@ -20,7 +21,16 @@ export const createModelLogger = (modelName: string) => {
     level: "info", // Log level
     format: format.combine(
       format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-      format.printf(({ level, message, timestamp }) => {
+      format.printf(({ level, message, timestamp, ...metadata }) => {
+        // Check if there's any metadata beyond the standard fields
+        const hasMetadata = Object.keys(metadata).length > 0;
+        
+        if (hasMetadata) {
+          // Sanitize metadata for safe JSON serialization
+          const sanitized = sanitizeForLogging(metadata);
+          return `[${timestamp}] ${level.toUpperCase()}: ${message} | ${JSON.stringify(sanitized)}`;
+        }
+        
         return `[${timestamp}] ${level.toUpperCase()}: ${message}`;
       }),
     ),
