@@ -9,7 +9,12 @@ if (!fs.existsSync(logDirectory)) {
 }
 
 export const createModelLogger = (modelName: string) => {
-  const modelLogPath = path.join(logDirectory, `${modelName}.log`);
+  // Generate monthly log filename: modelName-YYYY-MM.log
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed, pad to 2 digits
+  const monthlyFilename = `${modelName}-${year}-${month}.log`;
+  const modelLogPath = path.join(logDirectory, monthlyFilename);
 
   return createLogger({
     level: "info", // Log level

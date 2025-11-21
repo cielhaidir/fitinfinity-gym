@@ -423,6 +423,27 @@ const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, inp
   try {
     const result = await next();
     logger.info(`[${operationType}] ${path} - SUCCESS`);
+    
+    // Log response payload with safety measures
+    if (result) {
+      try {
+        const responseStr = JSON.stringify(result);
+        const MAX_RESPONSE_LENGTH = 5000; // Limit to 5000 characters
+        
+        // Check if response is too large
+        if (responseStr.length > MAX_RESPONSE_LENGTH) {
+          logger.info(`Response: [TRUNCATED - ${responseStr.length} chars] ${responseStr.substring(0, MAX_RESPONSE_LENGTH)}...`);
+        } else {
+          logger.info(`Response: ${responseStr}`);
+        }
+      } catch (stringifyError) {
+        // Handle circular references or other stringify errors
+        logger.info(`Response: [Unable to serialize - ${stringifyError instanceof Error ? stringifyError.message : 'Unknown error'}]`);
+      }
+    } else {
+      logger.info(`Response: null`);
+    }
+    
     return result;
   } catch (error) {
     logger.error(`[${operationType}] ${path} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);

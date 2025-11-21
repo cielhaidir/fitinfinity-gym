@@ -42,9 +42,11 @@ export const logsRouter = createTRPCRouter({
       z.object({
         filename: z.string(),
         page: z.number().min(1).default(1),
-        limit: z.number().min(1).max(1000).default(100),
+        limit: z.number().min(1).max(1000).default(20),
         search: z.string().optional(),
         level: z.enum(['INFO', 'ERROR', 'WARN', 'ALL']).default('ALL'),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
       })
     )
     .query(async ({ input }) => {
@@ -72,9 +74,31 @@ export const logsRouter = createTRPCRouter({
         // Filter by search term
         if (input.search) {
           const searchLower = input.search.toLowerCase();
-          lines = lines.filter(line => 
+          lines = lines.filter(line =>
             line.toLowerCase().includes(searchLower)
           );
+        }
+
+        // Filter by date range
+        if (input.startDate || input.endDate) {
+          lines = lines.filter(line => {
+            // Extract timestamp from log line: [YYYY-MM-DD HH:mm:ss]
+            const timestampMatch = line.match(/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/);
+            if (!timestampMatch || !timestampMatch[1]) return false;
+
+            const logDate = new Date(timestampMatch[1]);
+            
+            // Check if date is within range
+            if (input.startDate && logDate < input.startDate) return false;
+            if (input.endDate) {
+              // Set end date to end of day (23:59:59)
+              const endOfDay = new Date(input.endDate);
+              endOfDay.setHours(23, 59, 59, 999);
+              if (logDate > endOfDay) return false;
+            }
+            
+            return true;
+          });
         }
 
         // Reverse to show newest first

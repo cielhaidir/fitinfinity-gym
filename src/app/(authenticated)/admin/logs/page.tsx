@@ -19,6 +19,8 @@ export default function LogsPage() {
   const [logLevel, setLogLevel] = useState<"ALL" | "INFO" | "ERROR" | "WARN">("ALL");
   const [page, setPage] = useState(1);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   // Queries
   const { data: files, refetch: refetchFiles } = api.logs.listFiles.useQuery();
@@ -27,9 +29,11 @@ export default function LogsPage() {
     {
       filename: selectedFile,
       page,
-      limit: 100,
+      limit: 20,
       search: searchTerm,
       level: logLevel,
+      startDate,
+      endDate,
     },
     {
       enabled: !!selectedFile,
@@ -99,6 +103,41 @@ export default function LogsPage() {
     if (line.includes('WARN')) return <Badge variant="outline" className="border-yellow-500 text-yellow-600">WARN</Badge>;
     if (line.includes('INFO')) return <Badge variant="outline" className="border-blue-500 text-blue-600">INFO</Badge>;
     return null;
+  };
+
+  const parseLogEntry = (line: string) => {
+    // Try to extract JSON payload from "Input: {...}" pattern
+    const inputMatch = line.match(/Input: (\{.*\})/);
+    if (inputMatch) {
+      try {
+        const jsonData = JSON.parse(inputMatch[1]);
+        return {
+          type: 'input',
+          timestamp: line.match(/\[(.*?)\]/)?.[1] || '',
+          data: jsonData,
+          rawLine: line
+        };
+      } catch (e) {
+        return { type: 'text', line };
+      }
+    }
+
+    // Parse regular log entries
+    const match = line.match(/\[(.*?)\]\s+(\w+):\s+\[(\w+)\]\s+([\w.]+)\s+-\s+User:\s+(.*?)\s+\((.*?)\)/);
+    if (match) {
+      return {
+        type: 'operation',
+        timestamp: match[1],
+        level: match[2],
+        operation: match[3],
+        path: match[4],
+        user: match[5],
+        userId: match[6],
+        rawLine: line
+      };
+    }
+
+    return { type: 'text', line };
   };
 
   return (
@@ -239,35 +278,73 @@ export default function LogsPage() {
                   )}
                 </div>
                 {selectedFile && (
-                  <div className="flex gap-2 mt-4">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Search in this file..."
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
+                  <div className="space-y-2 mt-4">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Search in this file..."
+                          value={searchTerm}
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setPage(1);
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                      <Select
+                        value={logLevel}
+                        onValueChange={(value: any) => {
+                          setLogLevel(value);
                           setPage(1);
                         }}
-                        className="w-full"
-                      />
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All Levels</SelectItem>
+                          <SelectItem value="INFO">Info</SelectItem>
+                          <SelectItem value="ERROR">Error</SelectItem>
+                          <SelectItem value="WARN">Warning</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Select
-                      value={logLevel}
-                      onValueChange={(value: any) => {
-                        setLogLevel(value);
-                        setPage(1);
-                      }}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">All Levels</SelectItem>
-                        <SelectItem value="INFO">Info</SelectItem>
-                        <SelectItem value="ERROR">Error</SelectItem>
-                        <SelectItem value="WARN">Warning</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="date"
+                        value={startDate ? startDate.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          setStartDate(e.target.value ? new Date(e.target.value) : undefined);
+                          setPage(1);
+                        }}
+                        placeholder="From Date"
+                        className="w-40"
+                      />
+                      <span className="text-muted-foreground">to</span>
+                      <Input
+                        type="date"
+                        value={endDate ? endDate.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          setEndDate(e.target.value ? new Date(e.target.value) : undefined);
+                          setPage(1);
+                        }}
+                        placeholder="To Date"
+                        className="w-40"
+                      />
+                      {(startDate || endDate) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setStartDate(undefined);
+                            setEndDate(undefined);
+                            setPage(1);
+                          }}
+                        >
+                          Clear Dates
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardHeader>
@@ -286,18 +363,69 @@ export default function LogsPage() {
                 ) : (
                   <>
                     <ScrollArea className="h-[600px]">
-                      <div className="space-y-1 font-mono text-sm">
-                        {logData?.lines.map((line, index) => (
-                          <div
-                            key={index}
-                            className={`p-2 rounded hover:bg-muted/50 ${getLogLevelColor(line)}`}
-                          >
-                            <div className="flex items-start gap-2">
-                              {getLogLevelBadge(line)}
-                              <span className="flex-1 whitespace-pre-wrap break-all">{line}</span>
+                      <div className="space-y-2">
+                        {logData?.lines.map((line, index) => {
+                          const parsed = parseLogEntry(line);
+                          
+                          if (parsed.type === 'operation') {
+                            return (
+                              <div
+                                key={index}
+                                className="p-3 rounded-lg border border-border bg-card hover:bg-muted/50"
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  {getLogLevelBadge(line)}
+                                  <Badge variant="secondary">{parsed.operation}</Badge>
+                                  <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                                </div>
+                                <div className="text-sm space-y-1">
+                                  <div className="flex gap-2">
+                                    <span className="font-semibold text-muted-foreground">Path:</span>
+                                    <span className="font-mono">{parsed.path}</span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <span className="font-semibold text-muted-foreground">User:</span>
+                                    <span>{parsed.user}</span>
+                                    <span className="text-muted-foreground text-xs">({parsed.userId})</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          
+                          if (parsed.type === 'input') {
+                            return (
+                              <div
+                                key={index}
+                                className="p-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20"
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="outline" className="border-blue-500 text-blue-600">
+                                    Payload
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                                </div>
+                                <div className="bg-background rounded p-3 overflow-x-auto">
+                                  <pre className="text-xs">
+                                    {JSON.stringify(parsed.data, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <div
+                              key={index}
+                              className={`p-2 rounded hover:bg-muted/50 ${getLogLevelColor(line)}`}
+                            >
+                              <div className="flex items-start gap-2">
+                                {getLogLevelBadge(line)}
+                                <span className="flex-1 whitespace-pre-wrap break-all font-mono text-sm">{line}</span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </ScrollArea>
                     {logData && logData.totalPages > 1 && (
@@ -375,18 +503,42 @@ export default function LogsPage() {
                     {searchResults?.length === 0 ? (
                       <p className="text-center text-muted-foreground py-8">No results found</p>
                     ) : (
-                      searchResults?.map((result, index) => (
-                        <div key={index} className="p-3 rounded-lg border border-border">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline">{result.file}</Badge>
-                            <span className="text-xs text-muted-foreground">Line {result.lineNumber}</span>
-                            {getLogLevelBadge(result.line)}
+                      searchResults?.map((result, index) => {
+                        const parsed = parseLogEntry(result.line);
+                        
+                        return (
+                          <div key={index} className="p-3 rounded-lg border border-border bg-card">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline">{result.file}</Badge>
+                              <span className="text-xs text-muted-foreground">Line {result.lineNumber}</span>
+                              {getLogLevelBadge(result.line)}
+                            </div>
+                            
+                            {parsed.type === 'operation' ? (
+                              <div className="text-sm space-y-1">
+                                <div className="flex gap-2">
+                                  <span className="font-semibold text-muted-foreground">Path:</span>
+                                  <span className="font-mono">{parsed.path}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="font-semibold text-muted-foreground">User:</span>
+                                  <span>{parsed.user}</span>
+                                </div>
+                              </div>
+                            ) : parsed.type === 'input' ? (
+                              <div className="bg-muted/50 rounded p-2 mt-2 overflow-x-auto">
+                                <pre className="text-xs">
+                                  {JSON.stringify(parsed.data, null, 2)}
+                                </pre>
+                              </div>
+                            ) : (
+                              <div className={`font-mono text-sm ${getLogLevelColor(result.line)}`}>
+                                {result.line}
+                              </div>
+                            )}
                           </div>
-                          <div className={`font-mono text-sm ${getLogLevelColor(result.line)}`}>
-                            {result.line}
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </ScrollArea>
