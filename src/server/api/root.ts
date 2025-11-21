@@ -44,6 +44,7 @@ import { salesReportRouter } from "./routers/salesReport";
 import { cashBankReportRouter } from "./routers/cashBankReport";
 import { aiRateLimitRouter } from "./routers/aiRateLimit";
 import { financeRouter } from "./routers/finance";
+import { logsRouter } from "./routers/logs";
 
 /**
  * This is the primary router for your server.
@@ -99,6 +100,7 @@ export const appRouter = createTRPCRouter({
   cashBankReport: cashBankReportRouter,
   aiRateLimit: aiRateLimitRouter,
   finance: financeRouter,
+  logs: logsRouter,
 });
 
 // export type definition of API

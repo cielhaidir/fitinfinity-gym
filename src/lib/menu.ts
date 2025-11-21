@@ -23,6 +23,7 @@ import {
   Store,
   Clock,
   BarChart3,
+  FileText,
 } from "lucide-react";
 import { type LucideIcon, HandCoins } from "lucide-react";
 
@@ -260,6 +261,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/admin/subscription-history",
           icon: CreditCard,
           requiredPermission: "menu:transaction",
+        },
+        {
+          title: "System Logs",
+          url: "/admin/logs",
+          icon: FileText,
+          requiredPermission: "list:logs",
         },
 
         // {

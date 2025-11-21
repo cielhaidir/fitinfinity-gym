@@ -177,6 +177,10 @@ const permissions = [
 
   // PT Reports
   "report:pt",
+
+  // Logs
+  "list:logs",
+  "delete:logs",
 ];
 
 export async function seedPermissions(prisma: PrismaClient) {
