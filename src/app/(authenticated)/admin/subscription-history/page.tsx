@@ -83,6 +83,11 @@ export default function AdminSubscriptionHistoryPage() {
   const [selectedSubscriptionForTrainer, setSelectedSubscriptionForTrainer] = useState<any>(null);
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
   
+  // Edit Remaining Sessions functionality state
+  const [editSessionsDialogOpen, setEditSessionsDialogOpen] = useState(false);
+  const [selectedSubscriptionForSessions, setSelectedSubscriptionForSessions] = useState<any>(null);
+  const [editRemainingSessions, setEditRemainingSessions] = useState<number>(0);
+  
   const { toast } = useToast();
 
   // Query for getting all subscriptions with required fields
@@ -244,6 +249,27 @@ export default function AdminSubscriptionHistoryPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update personal trainer",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for updating remaining sessions
+  const updateRemainingSessionsMutation = api.subs.updateRemainingSessions.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Remaining sessions updated successfully",
+      });
+      setEditSessionsDialogOpen(false);
+      setSelectedSubscriptionForSessions(null);
+      setEditRemainingSessions(0);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update remaining sessions",
         variant: "destructive",
       });
     },
@@ -443,6 +469,41 @@ export default function AdminSubscriptionHistoryPage() {
     setSelectedTrainerId("none");
   };
 
+  // Edit Remaining Sessions functionality handlers
+  const handleEditSessions = (subscription: any) => {
+    setSelectedSubscriptionForSessions(subscription);
+    setEditRemainingSessions(subscription.remainingSessions || 0);
+    setEditSessionsDialogOpen(true);
+  };
+
+  const handleConfirmSessionsUpdate = async () => {
+    if (!selectedSubscriptionForSessions) return;
+
+    if (editRemainingSessions < 0) {
+      toast({
+        title: "Error",
+        description: "Remaining sessions cannot be negative",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await updateRemainingSessionsMutation.mutateAsync({
+        subscriptionId: selectedSubscriptionForSessions.id,
+        remainingSessions: editRemainingSessions,
+      });
+    } catch (error) {
+      console.error("Failed to update remaining sessions:", error);
+    }
+  };
+
+  const handleCancelSessionsEdit = () => {
+    setEditSessionsDialogOpen(false);
+    setSelectedSubscriptionForSessions(null);
+    setEditRemainingSessions(0);
+  };
+
   // Navigation functions - open in new tab
   const directToSubs = (member: any) => {
     window.open(`/checkout/${member.userId}`, '_blank');
@@ -624,10 +685,16 @@ export default function AdminSubscriptionHistoryPage() {
                    </DropdownMenuItem>
                  )}
                  {row.original.package?.type === "PERSONAL_TRAINER" && (
-                   <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
-                     <UserCheck className="mr-2 h-4 w-4" />
-                     Edit Personal Trainer
-                   </DropdownMenuItem>
+                   <>
+                     <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
+                       <UserCheck className="mr-2 h-4 w-4" />
+                       Edit Personal Trainer
+                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
+                       <Clock className="mr-2 h-4 w-4" />
+                       Edit Remaining Sessions
+                     </DropdownMenuItem>
+                   </>
                  )}
                </DropdownMenuContent>
             </DropdownMenu>
@@ -1244,6 +1311,59 @@ export default function AdminSubscriptionHistoryPage() {
                 className="bg-orange-600 hover:bg-orange-700"
               >
                 {upgradeSubscriptionMutation.isPending ? "Upgrading..." : "Confirm Upgrade"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Remaining Sessions Dialog */}
+        <Dialog open={editSessionsDialogOpen} onOpenChange={setEditSessionsDialogOpen}>
+          <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Edit Remaining Sessions</DialogTitle>
+              <DialogDescription className="text-sm">
+                {selectedSubscriptionForSessions && (
+                  <>
+                    Update the remaining sessions for <strong>{selectedSubscriptionForSessions.member?.user?.name}</strong>'s subscription.
+                    Current package: <strong>{selectedSubscriptionForSessions.package?.name}</strong>
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="remainingSessions" className="text-sm font-medium">
+                  Remaining Sessions *
+                </Label>
+                <Input
+                  id="remainingSessions"
+                  type="number"
+                  min="0"
+                  value={editRemainingSessions}
+                  onChange={(e) => setEditRemainingSessions(parseInt(e.target.value) || 0)}
+                  className="w-full"
+                />
+                <div className="text-xs text-muted-foreground">
+                  Current remaining sessions: {selectedSubscriptionForSessions?.remainingSessions ?? "N/A"}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelSessionsEdit}
+                disabled={updateRemainingSessionsMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmSessionsUpdate}
+                disabled={updateRemainingSessionsMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {updateRemainingSessionsMutation.isPending ? "Updating..." : "Update Sessions"}
               </Button>
             </DialogFooter>
           </DialogContent>

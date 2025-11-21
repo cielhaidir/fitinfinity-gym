@@ -1670,6 +1670,85 @@ export const subscriptionRouter = createTRPCRouter({
       return items;
     }),
 
+  // Update remaining sessions for a subscription
+  updateRemainingSessions: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        subscriptionId: z.string(),
+        remainingSessions: z.number().min(0),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify the subscription exists
+      const subscription = await ctx.db.subscription.findUnique({
+        where: { id: input.subscriptionId },
+        include: {
+          package: true,
+          member: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription not found",
+        });
+      }
+
+      // Check if the package is a personal trainer package
+      if (subscription.package.type !== "PERSONAL_TRAINER") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only personal trainer packages have remaining sessions",
+        });
+      }
+
+      // Update the subscription with the new remaining sessions
+      const updatedSubscription = await ctx.db.subscription.update({
+        where: { id: input.subscriptionId },
+        data: {
+          remainingSessions: input.remainingSessions,
+        },
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          package: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return updatedSubscription;
+    }),
+
   // Update personal trainer for a subscription
   updateTrainer: permissionProtectedProcedure(["update:subscription"])
     .input(
