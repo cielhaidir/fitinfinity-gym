@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { toast } from "sonner";
 import { Calendar, Clock, X, User } from "lucide-react";
 
@@ -32,6 +32,9 @@ export default function EditScheduleForm({
   const [date, setDate] = useState(format(new Date(session.date), "yyyy-MM-dd"));
   const [time, setTime] = useState(format(new Date(session.startTime), "HH:mm"));
   const [description, setDescription] = useState(session.description || "");
+  
+  // Calculate minimum allowed date: first day of the original session's month
+  const minDate = format(startOfMonth(new Date(session.date)), "yyyy-MM-dd");
   const [duration, setDuration] = useState(() => {
     const start = new Date(session.startTime);
     const end = new Date(session.endTime);
@@ -62,8 +65,16 @@ export default function EditScheduleForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const [hours = 0, minutes = 0] = time.split(":").map(Number);
+    // Validate date selection
     const selectedDate = new Date(date);
+    const minDateObj = new Date(minDate);
+    
+    if (selectedDate < minDateObj) {
+      toast.error("Tanggal tidak valid. Hanya dapat memilih tanggal di bulan yang sama atau bulan berikutnya.");
+      return;
+    }
+
+    const [hours = 0, minutes = 0] = time.split(":").map(Number);
     const startTime = new Date(selectedDate);
     startTime.setHours(hours, minutes, 0, 0);
 
@@ -115,10 +126,14 @@ export default function EditScheduleForm({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            min={minDate}
             className="pl-10"
           />
           <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
         </div>
+        <p className="text-xs text-muted-foreground">
+          Hanya dapat memilih tanggal di bulan yang sama atau bulan berikutnya
+        </p>
       </div>
 
       <div className="space-y-2">

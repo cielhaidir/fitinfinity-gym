@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { X, Upload } from "lucide-react";
 import { useState } from "react";
@@ -31,6 +31,7 @@ interface SessionDetailModalProps {
   onClose: () => void;
   onDelete: (sessionId: string) => void;
   onCancel?: (sessionId: string) => void;
+  onReschedule?: (sessionId: string, newDate: Date, newStartTime: Date, newEndTime: Date) => void;
 }
 
 export function SessionDetailModal({
@@ -39,10 +40,15 @@ export function SessionDetailModal({
   onClose,
   onDelete,
   onCancel,
+  onReschedule,
 }: SessionDetailModalProps) {
   if (!session) return null;
 
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditingDateTime, setIsEditingDateTime] = useState(false);
+  const [editingDate, setEditingDate] = useState("");
+  const [editingStartTime, setEditingStartTime] = useState("");
+  const [editingEndTime, setEditingEndTime] = useState("");
   const utils = api.useUtils();
 
   const updateSession = api.trainerSession.update.useMutation({
@@ -134,6 +140,75 @@ export function SessionDetailModal({
     }
   };
 
+  const handleEditDateTime = () => {
+    if (!session) return;
+    
+    // Format dates for inputs
+    const date = new Date(session.date);
+    const startTime = new Date(session.startTime);
+    const endTime = new Date(session.endTime);
+    
+    setEditingDate(format(date, "yyyy-MM-dd"));
+    setEditingStartTime(format(startTime, "HH:mm"));
+    setEditingEndTime(format(endTime, "HH:mm"));
+    setIsEditingDateTime(true);
+  };
+
+  const handleUpdateDateTime = async () => {
+    if (!session?.id || !editingDate || !editingStartTime || !editingEndTime) {
+      toast.error("Semua field harus diisi");
+      return;
+    }
+
+    // Parse the date and times
+    const [year, month, day] = editingDate.split("-").map(Number);
+    const [startHour, startMinute] = editingStartTime.split(":").map(Number);
+    const [endHour, endMinute] = editingEndTime.split(":").map(Number);
+
+    // Create date objects
+    const newDate = new Date(year!, month! - 1, day);
+    const newStartTime = new Date(year!, month! - 1, day, startHour, startMinute);
+    const newEndTime = new Date(year!, month! - 1, day, endHour, endMinute);
+
+    // Validate end time is after start time
+    if (newEndTime <= newStartTime) {
+      toast.error("Waktu selesai harus setelah waktu mulai");
+      return;
+    }
+
+    try {
+      if (onReschedule) {
+        onReschedule(session.id, newDate, newStartTime, newEndTime);
+        setIsEditingDateTime(false);
+      } else {
+        // Fallback to using the update mutation directly
+        await updateSession.mutateAsync({
+          id: session.id,
+          date: newDate,
+          startTime: newStartTime,
+          endTime: newEndTime,
+        });
+        setIsEditingDateTime(false);
+      }
+    } catch (error) {
+      toast.error("Gagal mengupdate jadwal");
+    }
+  };
+
+  const handleCancelDateTimeEdit = () => {
+    setIsEditingDateTime(false);
+    setEditingDate("");
+    setEditingStartTime("");
+    setEditingEndTime("");
+  };
+
+  // Calculate minimum date (start of current session's month)
+  const getMinDate = () => {
+    if (!session?.date) return format(new Date(), "yyyy-MM-dd");
+    const minDate = startOfMonth(new Date(session.date));
+    return format(minDate, "yyyy-MM-dd");
+  };
+
   // Calculate hours until session
   const startTime = new Date(session.startTime);
   const now = new Date();
@@ -167,18 +242,72 @@ export function SessionDetailModal({
           </div>
 
           <div>
-            <label className="text-sm text-muted-foreground">Tanggal</label>
-            <p className="font-medium">
-              {new Date(session.date).toLocaleDateString()}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground">Waktu</label>
-            <p className="font-medium">
-              {new Date(session.startTime).toLocaleTimeString()} -{" "}
-              {new Date(session.endTime).toLocaleTimeString()}
-            </p>
+            <label className="text-sm text-muted-foreground">Tanggal & Waktu</label>
+            {isEditingDateTime ? (
+              <div className="space-y-2 mt-1">
+                <div>
+                  <input
+                    type="date"
+                    value={editingDate}
+                    min={getMinDate()}
+                    onChange={(e) => setEditingDate(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground">Mulai</label>
+                    <input
+                      type="time"
+                      value={editingStartTime}
+                      onChange={(e) => setEditingStartTime(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground">Selesai</label>
+                    <input
+                      type="time"
+                      value={editingEndTime}
+                      onChange={(e) => setEditingEndTime(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Hanya dapat memilih tanggal di bulan yang sama atau bulan berikutnya
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleUpdateDateTime}
+                    disabled={updateSession.isPending}
+                    className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {updateSession.isPending ? "Menyimpan..." : "✓ Simpan"}
+                  </button>
+                  <button
+                    onClick={handleCancelDateTimeEdit}
+                    className="px-3 py-1.5 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                  >
+                    ✗ Batal
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-1">
+                <p className="font-medium">
+                  {format(new Date(session.date), "dd/MM/yyyy")}
+                  {" • "}
+                  {format(new Date(session.startTime), "HH:mm")} - {format(new Date(session.endTime), "HH:mm")}
+                </p>
+                <button
+                  onClick={handleEditDateTime}
+                  className="mt-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                >
+                  Edit Jadwal
+                </button>
+              </div>
+            )}
           </div>
 
           <div>
