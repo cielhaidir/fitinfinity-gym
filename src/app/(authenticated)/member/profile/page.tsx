@@ -871,13 +871,6 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                {/* Membership ID Text */}
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-muted-foreground">Membership ID</p>
-                  <p className="font-mono text-lg font-semibold text-[#BFFF00] break-all px-4">
-                    {profile.membership.id}
-                  </p>
-                </div>
 
                 {/* Download Button */}
                 {/* <Button
