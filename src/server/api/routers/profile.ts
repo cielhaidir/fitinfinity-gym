@@ -67,6 +67,13 @@ export const profileRouter = createTRPCRouter({
           height: true,
           weight: true,
           gender: true,
+          memberships: {
+            select: {
+              id: true,
+              // isActive: true,
+            },
+            take: 1,
+          },
         },
       });
 
@@ -77,7 +84,15 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
-      return user;
+      // Transform memberships array to membership object for backward compatibility
+      const membership = user.memberships && user.memberships.length > 0
+        ? user.memberships[0]
+        : null;
+
+      return {
+        ...user,
+        membership,
+      };
     }),
 
   update: permissionProtectedProcedure(["update:profile"])

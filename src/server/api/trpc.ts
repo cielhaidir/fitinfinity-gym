@@ -213,14 +213,14 @@ export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, inpu
   // Only log mutations (create, update, delete operations)
   if (type === 'mutation') {
     const timestamp = new Date().toISOString();
-    let user = 'Unknown';
+    let userEmail = 'Unknown';
     let userId = null;
 
-    // Extract user information from session or device context
+    // Extract only user email and ID from session (NOT the entire session)
     if (ctx.session?.user) {
-      user = ctx.session.user.email || ctx.session.user.name || ctx.session.user.id;
+      userEmail = ctx.session.user.email || ctx.session.user.name || 'Unknown';
       userId = ctx.session.user.id;
-    } 
+    }
     // Determine operation type from path
     let operationType = 'UNKNOWN';
     const pathLower = path.toLowerCase();
@@ -232,12 +232,12 @@ export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, inpu
       operationType = 'DELETE';
     }
 
-    // Create audit log entry
+    // Create audit log entry with minimal data
     const auditEntry = {
       timestamp,
       operationType,
       path,
-      user,
+      user: userEmail,
       userId,
       status: 'STARTED'
     };
@@ -245,10 +245,11 @@ export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, inpu
     // Log the operation before execution
     writeAuditLog(`[AUDIT] ${JSON.stringify(auditEntry)}`);
     
-    // Log input data for audit trail in development (be careful with sensitive data)
-   
-    writeAuditLog(`[AUDIT] Input data for ${path}: ${JSON.stringify(input, null, 2)}`);
-    
+    // Sanitize and log input data for audit trail
+    if (input) {
+      const sanitizedInput = sanitizeForLogging(input);
+      writeAuditLog(`[AUDIT] Input data for ${path}: ${JSON.stringify(sanitizedInput)}`);
+    }
 
     try {
       const result = await next();
@@ -282,6 +283,7 @@ export const auditMiddleware = t.middleware(async ({ ctx, next, path, type, inpu
 /**
  * Model-specific logging middleware using Winston
  * Creates a middleware that logs ONLY mutations (Create, Update, Delete) to a model-specific log file
+ * Excludes ctx object and only logs input/response data with user info
  */
 export const createModelLoggingMiddleware = (modelName: string) => {
   const logger = createModelLogger(modelName);
@@ -292,12 +294,12 @@ export const createModelLoggingMiddleware = (modelName: string) => {
       return next();
     }
 
-    const timestamp = new Date().toISOString();
-    let user = 'Unknown';
+    // Extract only user email and ID from session (NOT the entire session/ctx)
+    let userEmail = 'Unknown';
     let userId = 'Unknown';
     
     if (ctx.session?.user) {
-      user = ctx.session.user.email || ctx.session.user.name || ctx.session.user.id;
+      userEmail = ctx.session.user.email || ctx.session.user.name || 'Unknown';
       userId = ctx.session.user.id;
     }
     
@@ -312,18 +314,24 @@ export const createModelLoggingMiddleware = (modelName: string) => {
       operationType = 'DELETE';
     }
     
-    logger.info(`[${operationType}] ${path} - User: ${user} (${userId})`);
-    
-    if (input) {
-      logger.info(`Input: ${JSON.stringify(input)}`);
-    }
+    // Log operation start with sanitized input
+    const sanitizedInput = input ? sanitizeForLogging(input) : null;
+    logger.info(`[${path}] ${operationType} operation initiated | {"user":"${userEmail}","userId":"${userId}","input":${JSON.stringify(sanitizedInput)}}`);
     
     try {
       const result = await next();
-      logger.info(`[${operationType}] ${path} - SUCCESS`);
+      
+      // Sanitize and log response data
+      if (result) {
+        const sanitizedResult = sanitizeForLogging(result);
+        logger.info(`Response: {"data":${JSON.stringify(sanitizedResult)}}`);
+      } else {
+        logger.info(`Response: {"data":null}`);
+      }
+      
       return result;
     } catch (error) {
-      logger.error(`[${operationType}] ${path} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`[${path}] ${operationType} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
     }
   });
@@ -386,7 +394,7 @@ const getModelNameFromPath = (path: string): string => {
 /**
  * Global logging middleware that automatically determines model name from path
  * Only logs mutations (Create, Update, Delete operations)
- * Uses sanitizer to handle circular references, Date objects, and BigInt values
+ * Excludes ctx object and only logs input/response data with user info
  */
 const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, input }) => {
   // Only log mutations
@@ -397,11 +405,12 @@ const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, inp
   const modelName = getModelNameFromPath(path);
   const logger = createModelLogger(modelName);
   
-  let user = 'Unknown';
+  // Extract only user email and ID from session (NOT the entire session/ctx)
+  let userEmail = 'Unknown';
   let userId = 'Unknown';
   
   if (ctx.session?.user) {
-    user = ctx.session.user.email || ctx.session.user.name || ctx.session.user.id;
+    userEmail = ctx.session.user.email || ctx.session.user.name || 'Unknown';
     userId = ctx.session.user.id;
   }
   
@@ -416,19 +425,14 @@ const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, inp
     operationType = 'DELETE';
   }
   
-  logger.info(`[${operationType}] ${path} - User: ${user} (${userId})`);
-  
-  // Sanitize and log input parameters
-  if (input) {
-    const sanitizedInput = sanitizeForLogging(input);
-    logger.info(`Input: ${JSON.stringify(sanitizedInput)}`);
-  }
+  // Log operation start with clean, minimal data
+  const sanitizedInput = input ? sanitizeForLogging(input) : null;
+  logger.info(`[${path}] ${operationType} operation initiated | {"user":"${userEmail}","userId":"${userId}","input":${JSON.stringify(sanitizedInput)}}`);
   
   try {
     const result = await next();
-    logger.info(`[${operationType}] ${path} - SUCCESS`);
     
-    // Sanitize and log response payload with safety measures
+    // Sanitize and log response data only (not the entire result object)
     if (result) {
       const sanitizedResult = sanitizeForLogging(result);
       const responseStr = JSON.stringify(sanitizedResult);
@@ -436,17 +440,17 @@ const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, inp
       
       // Check if response is too large
       if (responseStr.length > MAX_RESPONSE_LENGTH) {
-        logger.info(`Response: [TRUNCATED - ${responseStr.length} chars] ${responseStr.substring(0, MAX_RESPONSE_LENGTH)}...`);
+        logger.info(`Response: {"data":"[TRUNCATED - ${responseStr.length} chars] ${responseStr.substring(0, MAX_RESPONSE_LENGTH)}..."}`);
       } else {
-        logger.info(`Response: ${responseStr}`);
+        logger.info(`Response: {"data":${responseStr}}`);
       }
     } else {
-      logger.info(`Response: null`);
+      logger.info(`Response: {"data":null}`);
     }
     
     return result;
   } catch (error) {
-    logger.error(`[${operationType}] ${path} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    logger.error(`[${path}] ${operationType} - ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw error;
   }
 });

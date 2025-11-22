@@ -107,10 +107,7 @@ export default function ProfilePage() {
     }
   );
 
-  // Debug logging
-  console.log("Profile:", profile);
-  console.log("Subscription History:", subscriptionHistory);
-  console.log("Is Loading History:", isLoadingHistory);
+
 
   const updateProfile = api.profile.update.useMutation({
     onSuccess: async () => {
@@ -320,13 +317,13 @@ export default function ProfilePage() {
       reader.onloadend = async () => {
         try {
           const base64String = reader.result as string;
-          console.log(
-            "Uploading image...",
-            base64String.substring(0, 100) + "...",
-          ); // Log first 100 chars
+          // console.log(
+          //   "Uploading image...",
+          //   base64String.substring(0, 100) + "...",
+          // ); // Log first 100 chars
 
           const result = await uploadImage.mutateAsync({ file: base64String });
-          console.log("Upload result:", result);
+          // console.log("Upload result:", result);
 
           if (result.imageUrl) {
             setFormData((prev) => ({ ...prev, image: result.imageUrl }));
@@ -895,7 +892,6 @@ export default function ProfilePage() {
                 <div className="text-center text-xs text-muted-foreground max-w-md px-4">
                   <p>
                     Present this QR code at the gym entrance for quick check-in.
-                    You can also download it to your device for offline use.
                   </p>
                 </div>
               </div>
