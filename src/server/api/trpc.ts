@@ -432,20 +432,29 @@ const globalLoggingMiddleware = t.middleware(async ({ ctx, next, path, type, inp
   try {
     const result = await next();
     
-    // Sanitize and log response data only (not the entire result object)
-    if (result) {
-      const sanitizedResult = sanitizeForLogging(result);
-      const responseStr = JSON.stringify(sanitizedResult);
+    // Extract only the actual data from tRPC result (not ctx, ok, marker)
+    // tRPC wraps results in {ok, data, ctx, marker} structure
+    let actualData: unknown = result;
+    
+    // Check if result has the tRPC wrapper structure and extract data
+    if (result && typeof result === 'object' && 'data' in result) {
+      actualData = (result as unknown as Record<string, unknown>).data;
+    }
+    
+    // Sanitize and log only the business data (not framework internals)
+    if (actualData !== undefined && actualData !== null) {
+      const sanitizedData = sanitizeForLogging(actualData);
+      const responseStr = JSON.stringify(sanitizedData);
       const MAX_RESPONSE_LENGTH = 5000; // Limit to 5000 characters
       
       // Check if response is too large
       if (responseStr.length > MAX_RESPONSE_LENGTH) {
-        logger.info(`Response: {"data":"[TRUNCATED - ${responseStr.length} chars] ${responseStr.substring(0, MAX_RESPONSE_LENGTH)}..."}`);
+        logger.info(`Response: [TRUNCATED - ${responseStr.length} chars] ${responseStr.substring(0, MAX_RESPONSE_LENGTH)}...`);
       } else {
-        logger.info(`Response: {"data":${responseStr}}`);
+        logger.info(`Response: ${responseStr}`);
       }
     } else {
-      logger.info(`Response: {"data":null}`);
+      logger.info(`Response: null`);
     }
     
     return result;
