@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/app/_components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRFIDCheckIn } from "../hooks/useRFIDCheckIn";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
@@ -77,14 +78,30 @@ export function GlobalCheckInModal() {
     <Dialog open={isCheckInModalOpen} onOpenChange={closeCheckInModal}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>RFID Check-in</DialogTitle>
+          <DialogTitle>Member Check-in</DialogTitle>
+          {selectedMemberForCheckIn && (
+            <div className="flex items-center gap-4 py-4">
+              <Avatar className="h-20 w-20 border-2 border-[#BFFF00]">
+                <AvatarImage
+                  src={selectedMemberForCheckIn.user.image || ""}
+                  alt={selectedMemberForCheckIn.user.name || "Member"}
+                />
+                <AvatarFallback className="bg-[#BFFF00] text-black text-2xl font-semibold">
+                  {selectedMemberForCheckIn.user.name?.charAt(0) || "M"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="text-xl font-semibold">
+                  {selectedMemberForCheckIn.user.name}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {selectedMemberForCheckIn.user.email}
+                </p>
+              </div>
+            </div>
+          )}
           <DialogDescription>
-            {selectedMemberForCheckIn && (
-              <>
-                Check in <strong>{selectedMemberForCheckIn.user.name}</strong> via RFID scan.
-                Please specify which facility they are using (optional).
-              </>
-            )}
+            Please specify which facility they are using (optional).
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

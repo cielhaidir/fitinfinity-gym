@@ -553,7 +553,7 @@ export default function ProfilePage() {
                     {profile?.name?.charAt(0) || "U"}
                   </AvatarFallback>
                 </Avatar>
-                {isEditing && (
+                {isEditing && isAdmin && (
                   <>
                     <input
                       type="file"

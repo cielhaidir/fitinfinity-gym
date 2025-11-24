@@ -525,6 +525,28 @@ export const memberRouter = createTRPCRouter({
               id: true,
               name: true,
               email: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      return member;
+    }),
+
+  findByMembershipId: publicProcedure
+    .input(z.object({ membershipId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const member = await ctx.db.membership.findUnique({
+        where: {
+          id: input.membershipId,
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              image: true,
             },
           },
         },
