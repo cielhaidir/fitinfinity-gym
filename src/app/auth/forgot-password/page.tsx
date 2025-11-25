@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
             </button>
 
             {/* Whatsapp Verification Button */}
-            <button
+            {/* <button
               onClick={handleWhatsappVerification}
               className="flex w-full items-center justify-center space-x-2 rounded-md bg-[#BAD45E] px-4 py-2 text-center text-white hover:bg-[#95B640]"
             >
@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
                 className="h-5 w-5"
               />
               <span>Send verification in Whatsapp</span>
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
