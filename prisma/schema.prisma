@@ -652,20 +652,28 @@ enum EmailStatus {
 }
 
 model EmailConfig {
-    id          String   @id @default(cuid())
-    name        String   @unique // e.g., "primary", "backup"
-    host        String
-    port        Int
-    username    String
-    password    String   // encrypted
-    fromEmail   String
-    fromName    String
-    useTLS      Boolean  @default(true)
-    useSSL      Boolean  @default(false)
-    isActive    Boolean  @default(false)
-    isDefault   Boolean  @default(false)
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id              String   @id @default(cuid())
+    name            String   @unique // e.g., "primary", "backup"
+    host            String
+    port            Int
+    username        String
+    password        String   // encrypted
+    fromEmail       String
+    fromName        String
+    useTLS          Boolean  @default(true)
+    useSSL          Boolean  @default(false)
+    isActive        Boolean  @default(false)
+    isDefault       Boolean  @default(false)
+    
+    // Template branding fields
+    supportEmail    String?  // Contact email for email templates
+    supportPhone    String?  // Contact phone for email templates
+    logoUrl         String?  // Logo URL for email branding
+    businessAddress String?  // Business address for templates
+    currency        String?  @default("Rp") // Currency symbol for formatting
+    
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
 
     @@index([isActive])
     @@index([isDefault])

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -53,14 +53,22 @@ export default function ResetPasswordPage() {
   });
 
   // Verify token on mount
-  api.auth.verifyResetToken.useQuery(
+  const verifyTokenQuery = api.auth.verifyResetToken.useQuery(
     { token: token || "" },
     {
       enabled: !!token,
-      onSuccess: () => setIsTokenValid(true),
-      onError: () => setIsTokenValid(false),
+      retry: false,
     },
   );
+
+  // Handle token verification result with useEffect (React Query v5 removed onSuccess/onError callbacks)
+  useEffect(() => {
+    if (verifyTokenQuery.isSuccess) {
+      setIsTokenValid(true);
+    } else if (verifyTokenQuery.isError) {
+      setIsTokenValid(false);
+    }
+  }, [verifyTokenQuery.isSuccess, verifyTokenQuery.isError]);
 
   const onSubmit = async (data: ResetPasswordForm) => {
     if (!token) return;
