@@ -61,6 +61,7 @@ export default function AdminPaymentValidationPage() {
     null,
   );
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Query for payment validations
   const {
@@ -121,23 +122,31 @@ export default function AdminPaymentValidationPage() {
   };
 
   const handleConfirm = async () => {
-    if (
-      selectedAction === "accept" &&
-      selectedValidationId &&
-      selectedBalanceId
-    ) {
-      await acceptMutation.mutateAsync({
-        id: selectedValidationId,
-        balanceId: selectedBalanceId,
-        paymentDate: paymentDate,
-      });
-    } else if (selectedAction === "decline" && selectedValidationId) {
-      await declineMutation.mutateAsync({ id: selectedValidationId });
+    // Prevent double-click
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      if (
+        selectedAction === "accept" &&
+        selectedValidationId &&
+        selectedBalanceId
+      ) {
+        await acceptMutation.mutateAsync({
+          id: selectedValidationId,
+          balanceId: selectedBalanceId,
+          paymentDate: paymentDate,
+        });
+      } else if (selectedAction === "decline" && selectedValidationId) {
+        await declineMutation.mutateAsync({ id: selectedValidationId });
+      }
+    } finally {
+      setIsProcessing(false);
+      setShowConfirmModal(false);
+      setSelectedValidationId(null);
+      setSelectedBalanceId(null);
+      setSelectedAction(null);
     }
-    setShowConfirmModal(false);
-    setSelectedValidationId(null);
-    setSelectedBalanceId(null);
-    setSelectedAction(null);
   };
 
   const openImageModal = (imageUrl: string) => {
@@ -317,9 +326,9 @@ export default function AdminPaymentValidationPage() {
             <DialogFooter>
               <Button
                 onClick={handleConfirm}
-                disabled={selectedAction === "accept" && !selectedBalanceId}
+                disabled={(selectedAction === "accept" && !selectedBalanceId) || isProcessing}
               >
-                Confirm
+                {isProcessing ? "Processing..." : "Confirm"}
               </Button>
               <Button
                 variant="outline"

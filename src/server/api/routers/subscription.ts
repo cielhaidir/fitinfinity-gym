@@ -449,6 +449,8 @@ export const subscriptionRouter = createTRPCRouter({
       await updateExpiredSubscriptions(ctx);
 
      const whereClause: any = {
+  // Exclude soft deleted subscriptions
+  deletedAt: null,
   // Filter by status if not "all"
   ...(input.status !== "all" && {
     isActive: input.status === "active",
@@ -582,10 +584,13 @@ export const subscriptionRouter = createTRPCRouter({
       // Update expired subscriptions sebelum query
       await updateExpiredSubscriptions(ctx);
 
-      const whereClause: any = input.search
-        ? input.searchColumn === "member.user.name"
-          ? {
-              member: {
+      const whereClause: any = {
+        // Exclude soft deleted subscriptions
+        deletedAt: null,
+        ...(input.search
+          ? input.searchColumn === "member.user.name"
+            ? {
+                member: {
                 user: {
                   name: {
                     contains: input.search,
@@ -603,13 +608,14 @@ export const subscriptionRouter = createTRPCRouter({
                 },
               },
             }
-          : {
-              [input.searchColumn || "name"]: {
-                contains: input.search,
-                mode: "insensitive" as const,
-              },
-            }
-        : {};
+            : {
+                [input.searchColumn || "name"]: {
+                  contains: input.search,
+                  mode: "insensitive" as const,
+                },
+              }
+          : {}),
+      };
 
       const items = await ctx.db.subscription.findMany({
         skip: (input.page - 1) * input.limit,
@@ -637,6 +643,7 @@ export const subscriptionRouter = createTRPCRouter({
             },
           },
           payments: {
+            where: { deletedAt: null }, // Exclude soft deleted payments
             select: {
               id: true,
               status: true,
@@ -673,7 +680,10 @@ export const subscriptionRouter = createTRPCRouter({
       // await updateExpiredSubscriptions(ctx);
 
       const items = await ctx.db.subscription.findMany({
-        where: { memberId: input.memberId },
+        where: {
+          memberId: input.memberId,
+          deletedAt: null, // Exclude soft deleted subscriptions
+        },
         skip: (input.page - 1) * input.limit,
         take: input.limit,
         orderBy: { id: "desc" },
@@ -697,12 +707,17 @@ export const subscriptionRouter = createTRPCRouter({
               point: true,
             },
           },
-          payments: true,
+          payments: {
+            where: { deletedAt: null }, // Exclude soft deleted payments
+          },
         },
       });
 
       const total = await ctx.db.subscription.count({
-        where: { memberId: input.memberId },
+        where: {
+          memberId: input.memberId,
+          deletedAt: null, // Exclude soft deleted subscriptions
+        },
       });
 
       return {
@@ -729,9 +744,11 @@ export const subscriptionRouter = createTRPCRouter({
       const items = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
+          deletedAt: null, // Exclude soft deleted subscriptions
           payments: {
             some: {
-              status: "SUCCESS"
+              status: "SUCCESS",
+              deletedAt: null, // Exclude soft deleted payments
             }
           }
         },
@@ -751,6 +768,10 @@ export const subscriptionRouter = createTRPCRouter({
           payments: {
             where: {
               status: "SUCCESS"
+            },
+            where: {
+              status: "SUCCESS",
+              deletedAt: null, // Exclude soft deleted payments
             },
             select: {
               id: true,
@@ -835,9 +856,11 @@ export const subscriptionRouter = createTRPCRouter({
       const total = await ctx.db.subscription.count({
         where: {
           memberId: input.memberId,
+          deletedAt: null, // Exclude soft deleted subscriptions
           payments: {
             some: {
-              status: "SUCCESS"
+              status: "SUCCESS",
+              deletedAt: null, // Exclude soft deleted payments
             }
           }
         },
@@ -1083,24 +1106,39 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
 
+        // Check if already soft deleted
+        if (subscription.deletedAt) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Subscription has already been deleted",
+          });
+        }
+
+        const now = new Date();
+
         // Soft delete all related payments
         if (subscription.payments && subscription.payments.length > 0) {
           await tx.payment.updateMany({
             where: { subscriptionId: input.id },
-            data: { deletedAt: new Date() },
+            data: { deletedAt: now },
           });
         }
 
-        // Delete the subscription
-        const deletedSubscription = await tx.subscription.delete({
+        // Soft delete the subscription
+        const deletedSubscription = await tx.subscription.update({
           where: { id: input.id },
+          data: {
+            deletedAt: now,
+            isActive: false,
+          },
         });
 
-        // Check if member has any remaining active subscriptions
+        // Check if member has any remaining active subscriptions (not soft deleted)
         const remainingSubscriptions = await tx.subscription.count({
           where: {
             memberId: subscription.memberId,
             isActive: true,
+            deletedAt: null,
           },
         });
 
@@ -1594,6 +1632,8 @@ export const subscriptionRouter = createTRPCRouter({
       await updateExpiredSubscriptions(ctx);
 
       const whereClause: any = {
+        // Exclude soft deleted subscriptions
+        deletedAt: null,
         // Filter by status if not "all"
         ...(input.status !== "all" && {
           isActive: input.status === "active",

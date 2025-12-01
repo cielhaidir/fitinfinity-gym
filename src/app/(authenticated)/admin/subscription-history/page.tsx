@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck, UserPlus, User, Download } from "lucide-react";
+import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck, UserPlus, User, Download, Trash2 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
+import { useRBAC } from "@/hooks/useRBAC";
 
 export default function AdminSubscriptionHistoryPage() {
   const { data: session } = useSession();
@@ -88,7 +89,12 @@ export default function AdminSubscriptionHistoryPage() {
   const [selectedSubscriptionForSessions, setSelectedSubscriptionForSessions] = useState<any>(null);
   const [editRemainingSessions, setEditRemainingSessions] = useState<number>(0);
   
+  // Delete functionality state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedSubscriptionForDelete, setSelectedSubscriptionForDelete] = useState<any>(null);
+  
   const { toast } = useToast();
+  const { hasPermission } = useRBAC();
 
   // Query for getting all subscriptions with required fields
   const { data: subscriptions, isLoading, refetch } = api.subs.listActive.useQuery(
@@ -249,6 +255,26 @@ export default function AdminSubscriptionHistoryPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update personal trainer",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for deleting subscription
+  const deleteSubscriptionMutation = api.subs.delete.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Subscription deleted successfully",
+      });
+      setDeleteDialogOpen(false);
+      setSelectedSubscriptionForDelete(null);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete subscription",
         variant: "destructive",
       });
     },
@@ -504,6 +530,25 @@ export default function AdminSubscriptionHistoryPage() {
     setEditRemainingSessions(0);
   };
 
+  // Delete functionality handlers
+  const handleDeleteSubscription = (subscription: any) => {
+    setSelectedSubscriptionForDelete(subscription);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!selectedSubscriptionForDelete) return;
+
+    deleteSubscriptionMutation.mutate({
+      id: selectedSubscriptionForDelete.id,
+    });
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setSelectedSubscriptionForDelete(null);
+  };
+
   // Navigation functions - open in new tab
   const directToSubs = (member: any) => {
     window.open(`/checkout/${member.userId}`, '_blank');
@@ -695,6 +740,15 @@ export default function AdminSubscriptionHistoryPage() {
                        Edit Remaining Sessions
                      </DropdownMenuItem>
                    </>
+                 )}
+                 {hasPermission("delete:subscription") && (
+                   <DropdownMenuItem
+                     onClick={() => handleDeleteSubscription(row.original)}
+                     className="text-red-600 focus:text-red-600"
+                   >
+                     <Trash2 className="mr-2 h-4 w-4" />
+                     Delete
+                   </DropdownMenuItem>
                  )}
                </DropdownMenuContent>
             </DropdownMenu>
@@ -1364,6 +1418,69 @@ export default function AdminSubscriptionHistoryPage() {
                 className="bg-green-600 hover:bg-green-700"
               >
                 {updateRemainingSessionsMutation.isPending ? "Updating..." : "Update Sessions"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Subscription Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Delete Subscription</DialogTitle>
+              <DialogDescription className="text-sm">
+                Are you sure you want to delete this subscription? This action cannot be undone.
+                The subscription will be permanently deleted and associated payments will be soft deleted.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedSubscriptionForDelete && (
+              <div className="space-y-2 py-4">
+                <p className="text-sm">
+                  <span className="font-semibold">Member:</span>{" "}
+                  {selectedSubscriptionForDelete.member?.user?.name}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Package:</span>{" "}
+                  {selectedSubscriptionForDelete.package?.name}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Start Date:</span>{" "}
+                  {selectedSubscriptionForDelete.startDate
+                    ? format(new Date(selectedSubscriptionForDelete.startDate), "dd/MM/yyyy")
+                    : "N/A"}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">End Date:</span>{" "}
+                  {selectedSubscriptionForDelete.endDate
+                    ? format(new Date(selectedSubscriptionForDelete.endDate), "dd/MM/yyyy")
+                    : "N/A"}
+                </p>
+                {selectedSubscriptionForDelete.payments?.[0]?.totalPayment && (
+                  <p className="text-sm">
+                    <span className="font-semibold">Payment Amount:</span>{" "}
+                    Rp {selectedSubscriptionForDelete.payments[0].totalPayment.toLocaleString('id-ID')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelDelete}
+                disabled={deleteSubscriptionMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={deleteSubscriptionMutation.isPending}
+              >
+                {deleteSubscriptionMutation.isPending ? "Deleting..." : "Delete"}
               </Button>
             </DialogFooter>
           </DialogContent>

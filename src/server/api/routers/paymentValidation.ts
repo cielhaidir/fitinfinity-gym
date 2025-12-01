@@ -203,65 +203,56 @@ export const paymentValidationRouter = createTRPCRouter({
       paymentDate: z.date().optional()
     }))
     .mutation(async ({ ctx, input }) => {
-      
-      const paymentValidation = await ctx.db.paymentValidation.findUnique({
-        where: { id: input.id },
-        include: {
-          package: true,
-          member: {
-            include: {
-              user: true,
-            },
-          },
-          trainer: {
-            include: {
-              user: true,
-            },
-          },
-        },
-      });
-
-      // console.log("Payment Validation:", paymentValidation);
-
-      if (!paymentValidation) {
-        throw new Error("Payment validation record not found.");
-      }
-      if (paymentValidation.paymentStatus !== PaymentValidationStatus.WAITING) {
-        throw new Error("Payment validation is not in WAITING state.");
-      }
-      if (!paymentValidation.package) {
-        throw new Error("Package details not found for this validation.");
-      }
-
-      // Use the stored startDate from paymentValidation, or fallback to current date
-      const startDate = paymentValidation.startDate ? new Date(paymentValidation.startDate) : new Date();
-      let endDate: Date | undefined = undefined;
-      let remainingSessions: number | undefined = undefined;
-
-      // Get package details to access day field
-      const packageDetails = await ctx.db.package.findUnique({
-        where: { id: paymentValidation.packageId },
-      });
-
-      if (!packageDetails) {
-        throw new Error("Package details not found");
-      }
-
-      // Calculate end date based on day field for both package types
-      endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + (packageDetails.day ?? 0));
-
-      // Set remaining sessions for trainer and group packages
-      if (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") {
-        remainingSessions =
-          paymentValidation.sessions ?? paymentValidation.duration;
-      }
-
-      // Use a transaction to ensure atomicity
+      // Use a transaction to ensure atomicity and prevent race conditions
       return ctx.db.$transaction(async (prisma) => {
-        // 1. Update PaymentValidation status dan balanceId
-        await prisma.paymentValidation.update({
+        // 1. Fetch and lock the payment validation record inside the transaction
+        const paymentValidation = await prisma.paymentValidation.findUnique({
           where: { id: input.id },
+          include: {
+            package: true,
+            member: {
+              include: {
+                user: true,
+              },
+            },
+            trainer: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
+
+        if (!paymentValidation) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Payment validation record not found.",
+          });
+        }
+        
+        // Check status inside transaction to prevent race conditions
+        if (paymentValidation.paymentStatus !== PaymentValidationStatus.WAITING) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Payment validation is not in WAITING state. It may have already been processed.",
+          });
+        }
+        
+        if (!paymentValidation.package) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Package details not found for this validation.",
+          });
+        }
+
+        // 2. Immediately update status to ACCEPTED to prevent duplicate processing
+        // Use updateMany to avoid throwing error if no rows match (for idempotency)
+        const updateResult = await prisma.paymentValidation.updateMany({
+          where: {
+            id: input.id,
+            // Add optimistic locking - only update if still WAITING
+            paymentStatus: PaymentValidationStatus.WAITING,
+          },
           data: {
             paymentStatus: PaymentValidationStatus.ACCEPTED,
             updatedAt: new Date(),
@@ -269,7 +260,72 @@ export const paymentValidationRouter = createTRPCRouter({
           },
         });
 
-        // 2. Create Subscription
+        // If no rows were updated, it means another request already processed this payment
+        if (updateResult.count === 0) {
+          // Check if there's already a subscription created for this payment
+          const existingSubscription = await prisma.subscription.findFirst({
+            where: {
+              memberId: paymentValidation.memberId,
+              packageId: paymentValidation.packageId,
+              trainerId: paymentValidation.trainerId,
+              startDate: paymentValidation.startDate ? new Date(paymentValidation.startDate) : undefined,
+            },
+          });
+
+          if (existingSubscription) {
+            // Return the existing subscription (idempotent response)
+            return { success: true, subscriptionId: existingSubscription.id };
+          }
+
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Payment has already been processed by another request.",
+          });
+        }
+
+        // Use the stored startDate from paymentValidation, or fallback to current date
+        const startDate = paymentValidation.startDate ? new Date(paymentValidation.startDate) : new Date();
+        let endDate: Date | undefined = undefined;
+        let remainingSessions: number | undefined = undefined;
+
+        // Get package details to access day field
+        const packageDetails = await prisma.package.findUnique({
+          where: { id: paymentValidation.packageId },
+        });
+
+        if (!packageDetails) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Package details not found",
+          });
+        }
+
+        // Calculate end date based on day field for both package types
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + (packageDetails.day ?? 0));
+
+        // Set remaining sessions for trainer and group packages
+        if (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") {
+          remainingSessions =
+            paymentValidation.sessions ?? paymentValidation.duration;
+        }
+
+        // 3. Check if subscription already exists for this payment validation
+        const existingSubscription = await prisma.subscription.findFirst({
+          where: {
+            memberId: paymentValidation.memberId,
+            packageId: paymentValidation.packageId,
+            trainerId: paymentValidation.trainerId,
+            startDate: startDate,
+          },
+        });
+
+        if (existingSubscription) {
+          // Subscription already exists, return the existing one
+          return { success: true, subscriptionId: existingSubscription.id };
+        }
+
+        // 4. Create Subscription
         const subscription = await prisma.subscription.create({
           data: {
             memberId: paymentValidation.memberId,
@@ -321,7 +377,7 @@ export const paymentValidationRouter = createTRPCRouter({
           }
         }
 
-        // 3. Create Payment record for the subscription
+        // 5. Create Payment record for the subscription
         await prisma.payment.create({
           data: {
             subscriptionId: subscription.id,
@@ -332,51 +388,51 @@ export const paymentValidationRouter = createTRPCRouter({
           },
         });
 
-        // 4. Send payment receipt email
-        const paymentTemplate = await prisma.emailTemplate.findFirst({
-          where: { type: EmailType.PAYMENT_RECEIPT },
-        });
+        // // 6. Send payment receipt email
+        // const paymentTemplate = await prisma.emailTemplate.findFirst({
+        //   where: { type: EmailType.PAYMENT_RECEIPT },
+        // });
 
-        if (paymentTemplate && paymentValidation.member?.user?.email) {
-          await emailService.sendTemplateEmail({
-            to: paymentValidation.member.user.email,
-            templateId: paymentTemplate.id,
-            templateData: {
-              memberName: paymentValidation.member.user.name,
-              packageName: paymentValidation.package.name,
-              receiptNumber: subscription.id,
-              totalAmount: paymentValidation.totalPayment,
-              paymentStatus: PaymentStatus.SUCCESS,
-              statusClass: PaymentStatus.SUCCESS.toLowerCase(),
-              paymentDate: format(new Date(), "PPP"),
-              paymentMethod: paymentValidation.paymentMethod,
-              duration: `${paymentValidation.duration} ${paymentValidation.subsType === "gym" ? "days" : "sessions"}`,
-              currency: "Rp",
-              memberEmail: paymentValidation.member.user.email,
-              supportEmail: siteConfig.supportEmail,
-              supportPhone: siteConfig.supportPhone,
-              logoUrl: siteConfig.logoUrl,
-              portalUrl: siteConfig.portalUrl,
-              currentYear: new Date().getFullYear(),
-              address: siteConfig.address,
-              // Conditional trainer data
-              ...(paymentValidation.trainer && {
-                personalTrainer: true,
-                trainerName: paymentValidation.trainer.user.name,
-              }),
-              // Optional discount data if voucher was used
-              ...(paymentValidation.package.price >
-                paymentValidation.totalPayment && {
-                subtotal: paymentValidation.package.price,
-                discount:
-                  paymentValidation.package.price -
-                  paymentValidation.totalPayment,
-              }),
-            },
-          });
-        }
+        // if (paymentTemplate && paymentValidation.member?.user?.email) {
+        //   await emailService.sendTemplateEmail({
+        //     to: paymentValidation.member.user.email,
+        //     templateId: paymentTemplate.id,
+        //     templateData: {
+        //       memberName: paymentValidation.member.user.name,
+        //       packageName: paymentValidation.package.name,
+        //       receiptNumber: subscription.id,
+        //       totalAmount: paymentValidation.totalPayment,
+        //       paymentStatus: PaymentStatus.SUCCESS,
+        //       statusClass: PaymentStatus.SUCCESS.toLowerCase(),
+        //       paymentDate: format(new Date(), "PPP"),
+        //       paymentMethod: paymentValidation.paymentMethod,
+        //       duration: `${paymentValidation.duration} ${paymentValidation.subsType === "gym" ? "days" : "sessions"}`,
+        //       currency: "Rp",
+        //       memberEmail: paymentValidation.member.user.email,
+        //       supportEmail: siteConfig.supportEmail,
+        //       supportPhone: siteConfig.supportPhone,
+        //       logoUrl: siteConfig.logoUrl,
+        //       portalUrl: siteConfig.portalUrl,
+        //       currentYear: new Date().getFullYear(),
+        //       address: siteConfig.address,
+        //       // Conditional trainer data
+        //       ...(paymentValidation.trainer && {
+        //         personalTrainer: true,
+        //         trainerName: paymentValidation.trainer.user.name,
+        //       }),
+        //       // Optional discount data if voucher was used
+        //       ...(paymentValidation.package.price >
+        //         paymentValidation.totalPayment && {
+        //         subtotal: paymentValidation.package.price,
+        //         discount:
+        //           paymentValidation.package.price -
+        //           paymentValidation.totalPayment,
+        //       }),
+        //     },
+        //   });
+        // }
 
-        // 6. Optionally, give points to user if applicable by package
+        // 7. Optionally, give points to user if applicable by package
         if (
           paymentValidation.package.point &&
           paymentValidation.package.point > 0 &&

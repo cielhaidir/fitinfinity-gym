@@ -305,6 +305,7 @@ model Subscription {
     isActive          Boolean          @default(false)
     isFrozen          Boolean          @default(false)
     frozenAt          DateTime?
+    deletedAt         DateTime?        // Soft delete timestamp
     payments          Payment[]
     
       // Reminder tracking
