@@ -1190,96 +1190,141 @@ export const subscriptionRouter = createTRPCRouter({
       return { count: result.count };
     }),
 
+  // Freeze all active subscriptions for a member
   freeze: permissionProtectedProcedure(["update:subscription"])
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const subscription = await ctx.db.subscription.findUnique({
-        where: { id: input.id },
-        include: { member: { include: { user: true } } },
+      // Find member
+      const member = await ctx.db.membership.findUnique({
+        where: { id: input.memberId },
+        include: { user: true },
       });
 
-      if (!subscription) {
+      if (!member) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Subscription not found",
+          message: "Member not found",
         });
       }
 
-      if (subscription.isFrozen) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Subscription is already frozen",
-        });
-      }
-
-      if (!subscription.endDate) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Cannot freeze subscription without end date",
-        });
-      }
-
-      const updatedSubscription = await ctx.db.subscription.update({
-        where: { id: input.id },
-        data: { 
-          isFrozen: true,
-          frozenAt: new Date()
+      // Find all active, non-frozen subscriptions for this member
+      const activeSubscriptions = await ctx.db.subscription.findMany({
+        where: {
+          memberId: input.memberId,
+          isActive: true,
+          isFrozen: false,
+          deletedAt: null,
+          endDate: { gt: new Date() }, // Only subscriptions that haven't expired
         },
-        include: { member: { include: { user: true } } },
+        include: { package: true },
       });
 
-      return updatedSubscription;
+      if (activeSubscriptions.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No active subscriptions found to freeze",
+        });
+      }
+
+      const now = new Date();
+
+      // Freeze all active subscriptions
+      const updatedSubscriptions = await ctx.db.subscription.updateMany({
+        where: {
+          memberId: input.memberId,
+          isActive: true,
+          isFrozen: false,
+          deletedAt: null,
+          endDate: { gt: now },
+        },
+        data: {
+          isFrozen: true,
+          frozenAt: now,
+        },
+      });
+
+      return {
+        message: `Successfully frozen ${updatedSubscriptions.count} subscription(s)`,
+        count: updatedSubscriptions.count,
+        memberId: input.memberId,
+        memberName: member.user?.name || "Unknown",
+      };
     }),
 
+  // Unfreeze all frozen subscriptions for a member
   unfreeze: permissionProtectedProcedure(["update:subscription"])
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const subscription = await ctx.db.subscription.findUnique({
-        where: { id: input.id },
-        include: { member: { include: { user: true } } },
+      // Find member
+      const member = await ctx.db.membership.findUnique({
+        where: { id: input.memberId },
+        include: { user: true },
       });
 
-      if (!subscription) {
+      if (!member) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Subscription not found",
+          message: "Member not found",
         });
       }
 
-      if (!subscription.isFrozen) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Subscription is not frozen",
-        });
-      }
-
-      if (!subscription.frozenAt || !subscription.endDate) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Cannot unfreeze subscription: missing freeze date or end date",
-        });
-      }
-
-      // Calculate remaining days when it was frozen
-      const remainingDaysWhenFrozen = Math.ceil(
-        (subscription.endDate.getTime() - subscription.frozenAt.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      // Calculate new end date by adding remaining days to current date
-      const newEndDate = new Date();
-      newEndDate.setDate(newEndDate.getDate() + remainingDaysWhenFrozen);
-
-      const updatedSubscription = await ctx.db.subscription.update({
-        where: { id: input.id },
-        data: { 
-          isFrozen: false,
-          frozenAt: null,
-          endDate: newEndDate
+      // Find all frozen subscriptions for this member
+      const frozenSubscriptions = await ctx.db.subscription.findMany({
+        where: {
+          memberId: input.memberId,
+          isFrozen: true,
+          deletedAt: null,
         },
-        include: { member: { include: { user: true } } },
+        include: { package: true },
       });
 
-      return updatedSubscription;
+      if (frozenSubscriptions.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No frozen subscriptions found to unfreeze",
+        });
+      }
+
+      const now = new Date();
+      let unfrozenCount = 0;
+
+      // Unfreeze each subscription and calculate new end dates
+      for (const subscription of frozenSubscriptions) {
+        if (!subscription.frozenAt || !subscription.endDate) {
+          continue; // Skip subscriptions without freeze date or end date
+        }
+
+        // Calculate remaining days when it was frozen (days between frozenAt and endDate)
+        const remainingMillisWhenFrozen = subscription.endDate.getTime() - subscription.frozenAt.getTime();
+        
+        // Ensure remaining days is at least 0
+        const remainingDaysWhenFrozen = Math.max(0, Math.ceil(remainingMillisWhenFrozen / (1000 * 60 * 60 * 24)));
+
+        // Calculate new end date by adding remaining days to current date
+        const newEndDate = new Date(now);
+        newEndDate.setDate(newEndDate.getDate() + remainingDaysWhenFrozen);
+        // Set to end of day for consistency
+        newEndDate.setHours(23, 59, 59, 999);
+
+        await ctx.db.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            isFrozen: false,
+            frozenAt: null,
+            endDate: newEndDate,
+            isActive: true, // Reactivate the subscription
+          },
+        });
+
+        unfrozenCount++;
+      }
+
+      return {
+        message: `Successfully unfrozen ${unfrozenCount} subscription(s)`,
+        count: unfrozenCount,
+        memberId: input.memberId,
+        memberName: member.user?.name || "Unknown",
+      };
     }),
 
   // Update sales information for a subscription

@@ -359,28 +359,16 @@ export default function MemberPage() {
   };
 
   const handleFreezeSubscription = async (member: Member) => {
-    const activeSubscription = member.subscriptions?.find(sub => sub.isActive && !sub.isFrozen);
-    if (!activeSubscription) {
-      toast.error("No active subscription found to freeze");
-      return;
-    }
-    
     try {
-      await freezeSubscriptionMutation.mutateAsync({ id: activeSubscription.id });
+      await freezeSubscriptionMutation.mutateAsync({ memberId: member.id });
     } catch (error) {
       console.error("Error freezing subscription:", error);
     }
   };
 
   const handleUnfreezeSubscription = async (member: Member) => {
-    const frozenSubscription = member.subscriptions?.find(sub => sub.isActive && sub.isFrozen);
-    if (!frozenSubscription) {
-      toast.error("No frozen subscription found to unfreeze");
-      return;
-    }
-    
     try {
-      await unfreezeSubscriptionMutation.mutateAsync({ id: frozenSubscription.id });
+      await unfreezeSubscriptionMutation.mutateAsync({ memberId: member.id });
     } catch (error) {
       console.error("Error unfreezing subscription:", error);
     }
@@ -421,14 +409,18 @@ export default function MemberPage() {
       { label: "Transfer Subscriptions", action: () => router.push("/admin/subscription-history") },
     ];
 
-    // Check if member has an active subscription that can be frozen/unfrozen
-    const activeSubscription = member.subscriptions?.find(sub => sub.isActive);
-    if (activeSubscription) {
-      if (activeSubscription.isFrozen) {
-        baseActions.push({ label: "Unfreeze", action: handleUnfreezeSubscription });
-      } else {
-        baseActions.push({ label: "Freeze", action: handleFreezeSubscription });
-      }
+    // Check if member has any active subscriptions
+    const hasActiveSubscriptions = member.subscriptions?.some(sub => sub.isActive && !sub.isFrozen);
+    const hasFrozenSubscriptions = member.subscriptions?.some(sub => sub.isFrozen);
+
+    // Show Freeze option if there are active (non-frozen) subscriptions
+    if (hasActiveSubscriptions) {
+      baseActions.push({ label: "Freeze All", action: handleFreezeSubscription });
+    }
+
+    // Show Unfreeze option if there are frozen subscriptions
+    if (hasFrozenSubscriptions) {
+      baseActions.push({ label: "Unfreeze All", action: handleUnfreezeSubscription });
     }
 
     return baseActions;
