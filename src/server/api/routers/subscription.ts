@@ -767,9 +767,6 @@ export const subscriptionRouter = createTRPCRouter({
           },
           payments: {
             where: {
-              status: "SUCCESS"
-            },
-            where: {
               status: "SUCCESS",
               deletedAt: null, // Exclude soft deleted payments
             },
@@ -1094,8 +1091,18 @@ export const subscriptionRouter = createTRPCRouter({
         const subscription = await tx.subscription.findUnique({
           where: { id: input.id },
           include: {
-            member: true,
-            payments: true,
+            member: {
+              include: {
+                user: true,
+              },
+            },
+            payments: {
+              where: {
+                status: "SUCCESS",
+                deletedAt: null,
+              },
+            },
+            package: true,
           },
         });
 
@@ -1116,13 +1123,26 @@ export const subscriptionRouter = createTRPCRouter({
 
         const now = new Date();
 
-        // Soft delete all related payments
-        if (subscription.payments && subscription.payments.length > 0) {
-          await tx.payment.updateMany({
-            where: { subscriptionId: input.id },
-            data: { deletedAt: now },
+        // Decrement user points if the package awarded points and there was a successful payment
+        if (
+          subscription.package?.point &&
+          subscription.package.point > 0 &&
+          subscription.member?.user?.id &&
+          subscription.payments.length > 0
+        ) {
+          await tx.user.update({
+            where: { id: subscription.member.user.id },
+            data: {
+              point: { decrement: subscription.package.point },
+            },
           });
         }
+
+        // Soft delete all related payments
+        await tx.payment.updateMany({
+          where: { subscriptionId: input.id },
+          data: { deletedAt: now },
+        });
 
         // Soft delete the subscription
         const deletedSubscription = await tx.subscription.update({
