@@ -52,8 +52,26 @@ export function sanitizeForLogging(data: unknown): unknown {
 
     // Handle plain objects
     const sanitized: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value)) {
-      sanitized[key] = sanitize(val);
+    
+    // Try Object.entries first, then fall back to Object.keys
+    const entries = Object.entries(value);
+    
+    if (entries.length === 0) {
+      // If Object.entries returns nothing, try to get keys directly
+      const keys = Object.keys(value);
+      for (const key of keys) {
+        sanitized[key] = sanitize((value as Record<string, unknown>)[key]);
+      }
+    } else {
+      for (const [key, val] of entries) {
+        sanitized[key] = sanitize(val);
+      }
+    }
+    
+    // If still empty but value is not empty, return a representation
+    if (Object.keys(sanitized).length === 0 && Object.keys(value as object).length === 0) {
+      // Value is truly empty
+      return sanitized;
     }
 
     return sanitized;

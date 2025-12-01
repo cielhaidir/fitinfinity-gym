@@ -1109,7 +1109,7 @@ export const subscriptionRouter = createTRPCRouter({
         if (!subscription) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Subscription not found",
+            message: `Subscription with id ${input.id} not found`,
           });
         }
 
