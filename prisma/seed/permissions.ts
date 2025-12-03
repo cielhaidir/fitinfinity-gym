@@ -181,6 +181,27 @@ const permissions = [
   // Logs
   "list:logs",
   "delete:logs",
+
+  // Inventory
+  "menu:inventory",
+  "list:inventory",
+  "create:inventory",
+  "update:inventory",
+
+  // Supplier
+  "menu:supplier",
+  "list:supplier",
+  "create:supplier",
+  "update:supplier",
+  "delete:supplier",
+
+  // Purchase Order
+  "menu:purchase-order",
+  "list:purchase-order",
+  "create:purchase-order",
+  "update:purchase-order",
+  "delete:purchase-order",
+  "receive:purchase-order",
 ];
 
 export async function seedPermissions(prisma: PrismaClient) {

@@ -111,6 +111,35 @@ enum SessionStatus {
     ONGOING
 }
 
+// Purchase and Adjustment Enums
+enum InventoryTransactionType {
+    SALE              // Decrease from POS sale
+    SALE_VOID         // Restore from voided/deleted sale
+    PURCHASE_RECEIVE  // Increase from receiving purchase order
+    ADJUSTMENT_IN     // Manual increase adjustment
+    ADJUSTMENT_OUT    // Manual decrease adjustment
+    RETURN            // Return from customer
+    TRANSFER_IN       // Transfer from another location (future)
+    TRANSFER_OUT      // Transfer to another location (future)
+    INITIAL           // Initial stock count
+}
+
+enum PurchaseOrderStatus {
+    DRAFT             // Order is being prepared
+    PENDING           // Order submitted, awaiting supplier
+    ORDERED           // Order confirmed by supplier
+    PARTIALLY_RECEIVED // Some items received
+    RECEIVED          // All items received
+    CANCELLED         // Order cancelled
+}
+
+enum PurchaseOrderItemStatus {
+    PENDING           // Not yet received
+    PARTIALLY_RECEIVED // Some quantity received
+    RECEIVED          // Full quantity received
+    CANCELLED         // Item cancelled
+}
+
 model File {
     id           String   @id @default(uuid())
     bucket       String
@@ -187,6 +216,12 @@ model User {
     aiRateLimits       AIRateLimit[]     @relation("UserAIRateLimit")
     aiRequestLogs      AIRequestLog[]    @relation("UserAIRequestLog")
     // upgradePackages    UpgradePackage[]  @relation("UpgradeCreatedBy")
+    
+    // Purchase and Adjustment relations
+    inventoryTransactions   InventoryTransaction[] @relation("InventoryTransactionUser")
+    createdPurchaseOrders   PurchaseOrder[]        @relation("PurchaseOrderCreator")
+    updatedPurchaseOrders   PurchaseOrder[]        @relation("PurchaseOrderUpdater")
+    priceHistoryChanges     POSItemPriceHistory[]  @relation("POSItemPriceHistoryUser")
 }
 
 model Class {
@@ -817,6 +852,11 @@ model POSItem {
     category    POSCategory @relation(fields: [categoryId], references: [id])
     saleItems   POSSaleItem[]
     
+    // Purchase and Adjustment relations
+    inventoryTransactions   InventoryTransaction[]
+    purchaseOrderItems      PurchaseOrderItem[]
+    priceHistory            POSItemPriceHistory[]
+    
     @@index([categoryId])
     @@index([name])
 }
@@ -993,4 +1033,127 @@ model UpgradePackage {
     @@index([subscriptionId, createdAt])
     @@index([oldPackageId])
     @@index([newPackageId])
+}
+
+// ============================================
+// Purchase and Adjustment Models
+// ============================================
+
+// Audit trail for all stock movements
+model InventoryTransaction {
+    id              String                   @id @default(cuid())
+    itemId          String
+    type            InventoryTransactionType
+    quantity        Int                      // Positive for increase, negative for decrease
+    quantityBefore  Int                      // Stock before transaction
+    quantityAfter   Int                      // Stock after transaction
+    referenceType   String?                  // "POSSale", "PurchaseOrder", "Adjustment"
+    referenceId     String?                  // ID of the reference record
+    reason          String?                  // Reason for adjustment
+    note            String?
+    userId          String                   // Who performed the action
+    idempotencyKey  String?                  @unique // For preventing duplicate transactions
+    createdAt       DateTime                 @default(now())
+    
+    item            POSItem                  @relation(fields: [itemId], references: [id])
+    user            User                     @relation("InventoryTransactionUser", fields: [userId], references: [id])
+    
+    @@index([itemId])
+    @@index([type])
+    @@index([referenceType, referenceId])
+    @@index([createdAt])
+    @@index([userId])
+}
+
+// Vendor/Supplier information
+model Supplier {
+    id              String          @id @default(cuid())
+    name            String
+    code            String?         @unique // Supplier code
+    contactName     String?
+    email           String?
+    phone           String?
+    address         String?
+    notes           String?
+    isActive        Boolean         @default(true)
+    createdAt       DateTime        @default(now())
+    updatedAt       DateTime        @updatedAt
+    
+    purchaseOrders  PurchaseOrder[]
+    
+    @@index([name])
+    @@index([isActive])
+}
+
+// Purchase orders for restocking
+model PurchaseOrder {
+    id              String              @id @default(cuid())
+    orderNumber     String              @unique
+    supplierId      String?
+    status          PurchaseOrderStatus @default(DRAFT)
+    orderDate       DateTime?
+    expectedDate    DateTime?
+    receivedDate    DateTime?
+    subtotal        Float               @default(0)
+    tax             Float               @default(0)
+    discount        Float               @default(0)
+    total           Float               @default(0)
+    notes           String?
+    createdBy       String
+    updatedBy       String?
+    createdAt       DateTime            @default(now())
+    updatedAt       DateTime            @updatedAt
+    
+    supplier        Supplier?           @relation(fields: [supplierId], references: [id])
+    creator         User                @relation("PurchaseOrderCreator", fields: [createdBy], references: [id])
+    updater         User?               @relation("PurchaseOrderUpdater", fields: [updatedBy], references: [id])
+    items           PurchaseOrderItem[]
+    
+    @@index([status])
+    @@index([supplierId])
+    @@index([orderDate])
+    @@index([createdBy])
+}
+
+// Items in a purchase order
+model PurchaseOrderItem {
+    id                  String                  @id @default(cuid())
+    purchaseOrderId     String
+    itemId              String
+    quantity            Int                     // Ordered quantity
+    receivedQuantity    Int                     @default(0) // Received so far
+    unitCost            Float                   // Cost per unit
+    subtotal            Float                   // quantity * unitCost
+    status              PurchaseOrderItemStatus @default(PENDING)
+    notes               String?
+    createdAt           DateTime                @default(now())
+    updatedAt           DateTime                @updatedAt
+    
+    purchaseOrder       PurchaseOrder           @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+    item                POSItem                 @relation(fields: [itemId], references: [id])
+    
+    @@index([purchaseOrderId])
+    @@index([itemId])
+    @@index([status])
+}
+
+// Track price changes for POS items
+model POSItemPriceHistory {
+    id              String      @id @default(cuid())
+    itemId          String
+    oldPrice        Float
+    newPrice        Float
+    oldCost         Float?
+    newCost         Float?
+    reason          String?
+    changedBy       String
+    effectiveFrom   DateTime    @default(now())
+    createdAt       DateTime    @default(now())
+    
+    item            POSItem     @relation(fields: [itemId], references: [id])
+    user            User        @relation("POSItemPriceHistoryUser", fields: [changedBy], references: [id])
+    
+    @@index([itemId])
+    @@index([effectiveFrom])
+    @@index([changedBy])
 }

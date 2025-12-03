@@ -239,8 +239,33 @@ async function main() {
 
     { name: "show:membership" },
     { name: "show:attedance" },
-  
-
+    
+    // Inventory & Purchase Reports
+    { name: "report:inventory" },
+    { name: "report:stock-movement" },
+    { name: "report:purchase-order" },
+    
+    // Supplier Management
+    { name: "menu:supplier" },
+    { name: "list:supplier" },
+    { name: "show:supplier" },
+    { name: "create:supplier" },
+    { name: "update:supplier" },
+    { name: "delete:supplier" },
+    
+    // Inventory Management
+    { name: "menu:inventory" },
+    { name: "list:inventory" },
+    { name: "create:inventory-adjustment" },
+    
+    // Purchase Order Management
+    { name: "menu:purchase-order" },
+    { name: "list:purchase-order" },
+    { name: "show:purchase-order" },
+    { name: "create:purchase-order" },
+    { name: "update:purchase-order" },
+    { name: "delete:purchase-order" },
+    { name: "receive:purchase-order" },
   ];
 
   console.log("🌱 Seeding permissions...");
@@ -257,6 +282,47 @@ async function main() {
     {
       name: "Admin",
       permissions: permissions.map((p) => p.name), // Admin gets all permissions
+    },
+    {
+      name: "Inventory Manager",
+      permissions: [
+        "show:user",
+        "show:profile",
+        "update:profile",
+        
+        // Supplier permissions
+        "menu:supplier",
+        "list:supplier",
+        "show:supplier",
+        "create:supplier",
+        "update:supplier",
+        "delete:supplier",
+        
+        // Inventory permissions
+        "menu:inventory",
+        "list:inventory",
+        "create:inventory-adjustment",
+        
+        // Purchase order permissions
+        "menu:purchase-order",
+        "list:purchase-order",
+        "show:purchase-order",
+        "create:purchase-order",
+        "update:purchase-order",
+        "delete:purchase-order",
+        "receive:purchase-order",
+        
+        // POS item read permissions
+        "list:pos-item",
+        "show:pos-item",
+        "list:pos-category",
+        "show:pos-category",
+        
+        // Report permissions
+        "report:inventory",
+        "report:stock-movement",
+        "report:purchase-order",
+      ],
     },
     {
       name: "Member",

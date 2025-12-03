@@ -24,6 +24,10 @@ import {
   Clock,
   BarChart3,
   FileText,
+  Truck,
+  Boxes,
+  ArrowLeftRight,
+  ClipboardList,
 } from "lucide-react";
 import { type LucideIcon, HandCoins } from "lucide-react";
 
@@ -189,6 +193,31 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/management/pos-item",
           icon: ShoppingCart,
           requiredPermission: "menu:pos-item",
+        },
+        {
+          title: "Suppliers",
+          url: "/suppliers",
+          icon: Truck,
+          requiredPermission: "menu:supplier",
+        },
+        {
+          title: "Inventory and Stock",
+          url: "/inventory/stock",
+          icon: Package,
+          requiredPermission: "menu:inventory",
+        },
+
+        {
+          title: "Inventory Transactions",
+          url: "/inventory/transactions",
+          icon: ArrowLeftRight,
+          requiredPermission: "menu:inventory",
+        },
+        {
+          title: "Purchase Orders",
+          url: "/purchase-orders",
+          icon: ClipboardList,
+          requiredPermission: "menu:purchase-order",
         },
       ],
     },
@@ -479,6 +508,24 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/finance/cash-bank-report",
           icon: HandCoins,
           requiredPermission: "report:cash-bank",
+        },
+        {
+          title: "Inventory Report",
+          url: "/reports/inventory",
+          icon: Boxes,
+          requiredPermission: "report:inventory",
+        },
+        {
+          title: "Stock Movement Report",
+          url: "/reports/stock-movement",
+          icon: ArrowLeftRight,
+          requiredPermission: "report:stock-movement",
+        },
+        {
+          title: "Purchase Order Report",
+          url: "/reports/purchase-orders",
+          icon: ClipboardList,
+          requiredPermission: "report:purchase-order",
         },
       ],
     },

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 
 export const posSaleRouter = createTRPCRouter({
@@ -132,6 +133,44 @@ export const posSaleRouter = createTRPCRouter({
     while (attempt < maxAttempts) {
       try {
         return await ctx.db.$transaction(async (tx) => {
+          // Validate stock availability for all items first
+          const itemsWithStock: Array<{
+            itemId: string;
+            quantity: number;
+            price: number;
+            currentStock: number;
+            name: string;
+          }> = [];
+
+          for (const item of items) {
+            const posItem = await tx.pOSItem.findUnique({
+              where: { id: item.itemId },
+              select: { id: true, name: true, stock: true },
+            });
+
+            if (!posItem) {
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: `Item not found: ${item.itemId}`,
+              });
+            }
+
+            if (posItem.stock < item.quantity) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Insufficient stock for "${posItem.name}". Available: ${posItem.stock}, Requested: ${item.quantity}`,
+              });
+            }
+
+            itemsWithStock.push({
+              itemId: item.itemId,
+              quantity: item.quantity,
+              price: item.price,
+              currentStock: posItem.stock,
+              name: posItem.name,
+            });
+          }
+
           // Hitung jumlah sale hari ini
           const count = await tx.pOSSale.count({
             where: {
@@ -161,8 +200,8 @@ export const posSaleRouter = createTRPCRouter({
             },
           });
 
-          // Buat sale items & update stock
-          for (const item of items) {
+          // Buat sale items, update stock & create inventory transactions
+          for (const item of itemsWithStock) {
             await tx.pOSSaleItem.create({
               data: {
                 saleId: sale.id,
@@ -173,12 +212,27 @@ export const posSaleRouter = createTRPCRouter({
               },
             });
 
+            // Update stock
             await tx.pOSItem.update({
               where: { id: item.itemId },
               data: {
                 stock: {
                   decrement: item.quantity,
                 },
+              },
+            });
+
+            // Create inventory transaction record for audit trail
+            await tx.inventoryTransaction.create({
+              data: {
+                itemId: item.itemId,
+                type: "SALE",
+                quantity: -item.quantity, // Negative because stock decreases
+                quantityBefore: item.currentStock,
+                quantityAfter: item.currentStock - item.quantity,
+                referenceType: "POSSale",
+                referenceId: sale.id,
+                userId: ctx.session.user.id,
               },
             });
           }
@@ -307,11 +361,22 @@ export const posSaleRouter = createTRPCRouter({
         });
 
         if (!existingSale) {
-          throw new Error("Sale not found");
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Sale not found",
+          });
         }
 
-        // Restore stock for existing items
+        // Restore stock for existing items and create SALE_VOID inventory transactions
         for (const existingItem of existingSale.items) {
+          // Get current stock before restoration
+          const posItem = await tx.pOSItem.findUnique({
+            where: { id: existingItem.itemId },
+            select: { stock: true },
+          });
+
+          const currentStock = posItem?.stock ?? 0;
+
           await tx.pOSItem.update({
             where: { id: existingItem.itemId },
             data: {
@@ -319,6 +384,59 @@ export const posSaleRouter = createTRPCRouter({
                 increment: existingItem.quantity,
               },
             },
+          });
+
+          // Create inventory transaction for void/restoration
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId: existingItem.itemId,
+              type: "SALE_VOID",
+              quantity: existingItem.quantity, // Positive because stock increases
+              quantityBefore: currentStock,
+              quantityAfter: currentStock + existingItem.quantity,
+              referenceType: "POSSale",
+              referenceId: id,
+              reason: "Sale updated - restoring old quantities",
+              userId: ctx.session.user.id,
+            },
+          });
+        }
+
+        // Validate stock availability for new items (after restoration)
+        const itemsWithStock: Array<{
+          itemId: string;
+          quantity: number;
+          price: number;
+          currentStock: number;
+          name: string;
+        }> = [];
+
+        for (const item of items) {
+          const posItem = await tx.pOSItem.findUnique({
+            where: { id: item.itemId },
+            select: { id: true, name: true, stock: true },
+          });
+
+          if (!posItem) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Item not found: ${item.itemId}`,
+            });
+          }
+
+          if (posItem.stock < item.quantity) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Insufficient stock for "${posItem.name}". Available: ${posItem.stock}, Requested: ${item.quantity}`,
+            });
+          }
+
+          itemsWithStock.push({
+            itemId: item.itemId,
+            quantity: item.quantity,
+            price: item.price,
+            currentStock: posItem.stock,
+            name: posItem.name,
           });
         }
 
@@ -339,8 +457,8 @@ export const posSaleRouter = createTRPCRouter({
           },
         });
 
-        // Create new sale items and update stock
-        for (const item of items) {
+        // Create new sale items, update stock & create inventory transactions
+        for (const item of itemsWithStock) {
           await tx.pOSSaleItem.create({
             data: {
               saleId: id,
@@ -360,6 +478,20 @@ export const posSaleRouter = createTRPCRouter({
               },
             },
           });
+
+          // Create inventory transaction record for audit trail
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId: item.itemId,
+              type: "SALE",
+              quantity: -item.quantity, // Negative because stock decreases
+              quantityBefore: item.currentStock,
+              quantityAfter: item.currentStock - item.quantity,
+              referenceType: "POSSale",
+              referenceId: id,
+              userId: ctx.session.user.id,
+            },
+          });
         }
 
         return updatedSale;
@@ -377,17 +509,43 @@ export const posSaleRouter = createTRPCRouter({
         });
 
         if (!sale) {
-          throw new Error("Sale not found");
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Sale not found",
+          });
         }
 
-        // Restore stock for each item
+        // Restore stock for each item and create inventory transactions
         for (const item of sale.items) {
+          // Get current stock before restoration
+          const posItem = await tx.pOSItem.findUnique({
+            where: { id: item.itemId },
+            select: { stock: true },
+          });
+
+          const currentStock = posItem?.stock ?? 0;
+
           await tx.pOSItem.update({
             where: { id: item.itemId },
             data: {
               stock: {
                 increment: item.quantity,
               },
+            },
+          });
+
+          // Create inventory transaction for void/restoration
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId: item.itemId,
+              type: "SALE_VOID",
+              quantity: item.quantity, // Positive because stock increases
+              quantityBefore: currentStock,
+              quantityAfter: currentStock + item.quantity,
+              referenceType: "POSSale",
+              referenceId: input.id,
+              reason: "Sale deleted/voided",
+              userId: ctx.session.user.id,
             },
           });
         }
