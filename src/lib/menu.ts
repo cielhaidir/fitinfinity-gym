@@ -146,12 +146,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: CreditCard,
           requiredPermission: "menu:subscription",
         },
-        {
-          title: "Import Subscriptions",
-          url: "/management/subscription/import",
-          icon: Package,
-          requiredPermission: "create:subscription",
-        },
+        // {
+        //   title: "Import Subscriptions",
+        //   url: "/management/subscription/import",
+        //   icon: Package,
+        //   requiredPermission: "create:subscription",
+        // },
         {
           title: "Rewards",
           url: "/management/reward",
