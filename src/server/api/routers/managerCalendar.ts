@@ -369,7 +369,7 @@ export const managerCalendarRouter = createTRPCRouter({
       const subscription = await db.subscription.findFirst({
         where: {
           memberId: session.memberId,
-          trainerId: session.trainerId,
+          trainerId: session.trainerId, 
         },
         orderBy: {
           remainingSessions: "desc",

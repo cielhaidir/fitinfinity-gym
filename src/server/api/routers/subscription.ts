@@ -1811,7 +1811,7 @@ export const subscriptionRouter = createTRPCRouter({
       }
 
       // Check if the package is a personal trainer package
-      if (subscription.package.type !== "PERSONAL_TRAINER") {
+      if (subscription.package.type !== "PERSONAL_TRAINER" && subscription.package.type !== "GROUP_TRAINING") {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Only personal trainer packages have remaining sessions",
