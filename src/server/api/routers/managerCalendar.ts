@@ -388,38 +388,14 @@ export const managerCalendarRouter = createTRPCRouter({
         },
       });
 
-      // Update session status back to NOT_YET or delete it
-      const updatedSession = await db.trainerSession.update({
+      // Delete the trainer session
+      await db.trainerSession.delete({
         where: { id: sessionId },
-        data: { status: "NOT_YET" },
-        include: {
-          member: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-          },
-          trainer: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-          },
-        },
       });
 
       return {
         success: true,
         message: "Sesi berhasil dikembalikan dan quota bertambah +1",
-        session: updatedSession,
       };
     }),
 });

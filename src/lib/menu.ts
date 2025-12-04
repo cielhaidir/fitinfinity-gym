@@ -491,7 +491,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: Contact,
           requiredPermission: "report:pt",
         },
-        {
+         {
           title: "Trainer Sessions",
           url: "/reports/trainer-sessions",
           icon: Clock,
