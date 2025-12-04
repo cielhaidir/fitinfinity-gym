@@ -353,6 +353,7 @@ export const managerCalendarRouter = createTRPCRouter({
         where: { id: sessionId },
         include: {
           member: true,
+          trainer: true,
         },
       });
 
@@ -363,18 +364,22 @@ export const managerCalendarRouter = createTRPCRouter({
         });
       }
 
-      // Find active subscription for this member
+      // Find the subscription for this member with the same trainer
+      // This ensures we increment the correct PT subscription quota
       const subscription = await db.subscription.findFirst({
         where: {
           memberId: session.memberId,
-          isActive: true,
+          trainerId: session.trainerId,
+        },
+        orderBy: {
+          remainingSessions: "desc",
         },
       });
 
       if (!subscription) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Subscription aktif tidak ditemukan untuk member ini",
+          message: "Subscription PT tidak ditemukan untuk member dan trainer ini",
         });
       }
 
