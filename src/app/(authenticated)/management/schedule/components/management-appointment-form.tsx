@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox, type ComboboxOption } from "@/app/_components/ui/combobox";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Calendar, Clock, X, User } from "lucide-react";
@@ -76,7 +77,7 @@ export default function ManagementAppointmentForm({
             membershipId: member.membershipId,
             remainingSessions: member.remainingSessions,
             type: member.type,
-            groupId: member.groupId,
+            groupId: 'groupId' in member ? member.groupId : undefined,
           });
         } else {
           // For individual members, combine by name
@@ -90,7 +91,6 @@ export default function ManagementAppointmentForm({
               membershipId: member.membershipId,
               remainingSessions: member.remainingSessions,
               type: member.type,
-              groupId: member.groupId,
             });
           }
         }
@@ -119,6 +119,20 @@ export default function ManagementAppointmentForm({
     });
 
     return map;
+  }, [combinedMembers]);
+
+  // Convert members to combobox options
+  const memberOptions: ComboboxOption[] = useMemo(() => {
+    return combinedMembers
+      .filter((member) => member.remainingSessions > 0) // Only show members with available sessions
+      .map((member) => {
+        const stableValue = `${member.type}:${member.id}`;
+        const icon = member.type === "group" ? "🏃‍♂️ " : "👤 ";
+        return {
+          value: stableValue,
+          label: `${icon}${member.name} (${member.remainingSessions} sesi tersisa)`,
+        };
+      });
   }, [combinedMembers]);
 
   const utils = api.useUtils();
@@ -298,52 +312,25 @@ export default function ManagementAppointmentForm({
         <Label htmlFor="member" className="text-muted-foreground">
           Nama Member
         </Label>
-        <Select
-          value={selectedMemberId}
-          onValueChange={setSelectedMemberId}
-          disabled={!selectedTrainerId}
-          key={`select-${combinedMembers.length}-${selectedTrainerId}`}
-        >
-          <SelectTrigger className="notranslate" translate="no">
-            <SelectValue
-              placeholder={selectedTrainerId ? "Pilih member" : "Pilih trainer terlebih dahulu"}
-              className="notranslate"
-              translate="no"
-            />
-          </SelectTrigger>
-          <SelectContent className="notranslate" translate="no">
-            {isMembersLoading ? (
-              <SelectItem value="loading" disabled className="notranslate" translate="no">
-                Loading members...
-              </SelectItem>
-            ) : combinedMembers.length === 0 ? (
-              <SelectItem value="no-members" disabled className="notranslate" translate="no">
-                Tidak ada member untuk trainer ini
-              </SelectItem>
-            ) : (
-              combinedMembers.map((member) => {
-                const stableValue = `${member.type}:${member.id}`;
-                const isDisabled = member.remainingSessions <= 0;
-
-                return (
-                  <SelectItem
-                    key={stableValue}
-                    value={stableValue}
-                    disabled={isDisabled}
-                    className={`notranslate ${isDisabled ? "opacity-50 text-muted-foreground" : ""}`}
-                    translate="no"
-                  >
-                    <span className="notranslate" translate="no">
-                      {member.type === "group" ? "🏃‍♂️ " : "👤 "}
-                      {member.name} ({member.remainingSessions} sesi tersisa)
-                      {isDisabled && " - Tidak tersedia"}
-                    </span>
-                  </SelectItem>
-                );
-              })
-            )}
-          </SelectContent>
-        </Select>
+        {!selectedTrainerId ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start font-normal text-muted-foreground"
+            disabled
+          >
+            Pilih trainer terlebih dahulu
+          </Button>
+        ) : (
+          <Combobox
+            options={memberOptions}
+            value={selectedMemberId}
+            onValueChange={setSelectedMemberId}
+            placeholder={isMembersLoading ? "Loading members..." : "Pilih member"}
+            emptyText={combinedMembers.length === 0 ? "Tidak ada member untuk trainer ini" : "Member tidak ditemukan"}
+            disabled={isMembersLoading || combinedMembers.length === 0}
+          />
+        )}
       </div>
 
       {memberValueMap.get(selectedMemberId)?.type === "group" && (

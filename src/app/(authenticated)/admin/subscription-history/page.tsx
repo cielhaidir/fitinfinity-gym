@@ -730,16 +730,16 @@ export default function AdminSubscriptionHistoryPage() {
                    </DropdownMenuItem>
                  )}
                  {row.original.package?.type === "PERSONAL_TRAINER" && (
-                   <>
-                     <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
-                       <UserCheck className="mr-2 h-4 w-4" />
-                       Edit Personal Trainer
-                     </DropdownMenuItem>
-                     <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
-                       <Clock className="mr-2 h-4 w-4" />
-                       Edit Remaining Sessions
-                     </DropdownMenuItem>
-                   </>
+                   <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
+                     <UserCheck className="mr-2 h-4 w-4" />
+                     Edit Personal Trainer
+                   </DropdownMenuItem>
+                 )}
+                 {(row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
+                   <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
+                     <Clock className="mr-2 h-4 w-4" />
+                     Edit Remaining Sessions
+                   </DropdownMenuItem>
                  )}
                  {hasPermission("delete:subscription") && (
                    <DropdownMenuItem

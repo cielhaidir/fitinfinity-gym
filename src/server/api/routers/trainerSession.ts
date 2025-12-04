@@ -866,6 +866,146 @@ export const trainerSessionRouter = createTRPCRouter({
       });
     }),
 
+  // Admin endpoint to get all trainer sessions with filters
+  getTrainerSessionsReport: permissionProtectedProcedure(["report:pt"])
+    .input(
+      z.object({
+        startDate: z.date(),
+        endDate: z.date(),
+        trainerId: z.string().optional(),
+        memberId: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Build date filter
+      const dateFilter: { gte?: Date; lte?: Date } = {};
+      dateFilter.gte = input.startDate;
+      dateFilter.lte = input.endDate;
+
+      // Build where clause
+      const whereClause: {
+        date: { gte?: Date; lte?: Date };
+        trainerId?: string;
+        memberId?: string;
+      } = {
+        date: dateFilter,
+      };
+
+      if (input.trainerId) {
+        whereClause.trainerId = input.trainerId;
+      }
+
+      if (input.memberId) {
+        whereClause.memberId = input.memberId;
+      }
+
+      // Get all sessions with filters
+      const sessions = await ctx.db.trainerSession.findMany({
+        where: whereClause,
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          trainer: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      });
+
+      // Calculate totals
+      let totalHours = 0;
+      const sessionDetails = sessions.map(session => {
+        const startTime = new Date(session.startTime);
+        const endTime = new Date(session.endTime);
+        const durationMs = endTime.getTime() - startTime.getTime();
+        const durationHours = durationMs / 3600000; // Convert ms to hours
+
+        totalHours += durationHours;
+
+        return {
+          id: session.id,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          durationHours,
+          trainerName: session.trainer?.user?.name || 'Unknown',
+          trainerEmail: session.trainer?.user?.email || '',
+          trainerId: session.trainerId,
+          memberName: session.member.user.name,
+          memberEmail: session.member.user.email,
+          memberId: session.memberId,
+          isGroup: session.isGroup,
+          attendanceCount: session.attendanceCount || 1,
+          description: session.description,
+          status: session.status,
+        };
+      });
+
+      return {
+        sessions: sessionDetails,
+        totalSessions: sessions.length,
+        totalHours,
+      };
+    }),
+
+  // Get members who have sessions with a specific trainer
+  getMembersByTrainer: permissionProtectedProcedure(["report:pt"])
+    .input(
+      z.object({
+        trainerId: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Get all unique members who have had sessions with this trainer
+      const sessions = await ctx.db.trainerSession.findMany({
+        where: {
+          trainerId: input.trainerId,
+        },
+        select: {
+          memberId: true,
+          member: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        distinct: ['memberId'],
+      });
+
+      // Extract unique members
+      const members = sessions.map(session => ({
+        id: session.memberId,
+        name: session.member.user?.name || 'Unknown',
+        email: session.member.user?.email || '',
+      }));
+
+      // Sort by name
+      return members.sort((a, b) => a.name.localeCompare(b.name));
+    }),
+
   // Admin endpoint to get conduct report for any trainer
   getAdminConductReport: permissionProtectedProcedure(["report:pt"])
     .input(

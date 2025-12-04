@@ -492,6 +492,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "report:pt",
         },
         {
+          title: "Trainer Sessions",
+          url: "/reports/trainer-sessions",
+          icon: Clock,
+          requiredPermission: "report:pt",
+        },
+        {
           title: "Sales Report",
           url: "/reports/sales-report",
           icon: DollarSign,
