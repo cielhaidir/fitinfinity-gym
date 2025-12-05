@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -25,7 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,35 +40,57 @@ import { DataTableColumnHeader } from "@/components/datatable/data-table-column-
 
 export default function AdminGroupManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
-// Ensure only one dialog is open at a time
-const openInviteDialog = (groupId: string) => {
-  setIsInviteDialogOpen(true);
-  setIsManageMembersDialogOpen(false);
-  setSelectedGroupId(groupId);
-  setSearchTerm("");
-  setShouldLoadMembers(false);
-};
-const closeInviteDialog = () => {
-  setIsInviteDialogOpen(false);
-  setSelectedGroupId("");
-  setSearchTerm("");
-  setShouldLoadMembers(false);
-};
-const openManageMembersDialog = (groupId: string) => {
-  setIsManageMembersDialogOpen(true);
-  setIsInviteDialogOpen(false);
-  setSelectedGroupId(groupId);
-};
-const closeManageMembersDialog = () => {
-  setIsManageMembersDialogOpen(false);
-  setSelectedGroupId("");
-};
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isManageMembersDialogOpen, setIsManageMembersDialogOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [shouldLoadMembers, setShouldLoadMembers] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Ensure only one dialog is open at a time
+  const openInviteDialog = (group: any) => {
+    setIsInviteDialogOpen(true);
+    setIsManageMembersDialogOpen(false);
+    setSelectedGroupId(group.id);
+    setSelectedGroup(group);
+    setSearchTerm("");
+    setShouldLoadMembers(false);
+  };
+  
+  const closeInviteDialog = () => {
+    setIsInviteDialogOpen(false);
+    setSelectedGroupId("");
+    setSelectedGroup(null);
+    setSearchTerm("");
+    setShouldLoadMembers(false);
+  };
+  
+  const openManageMembersDialog = (group: any) => {
+    setIsManageMembersDialogOpen(true);
+    setIsInviteDialogOpen(false);
+    setSelectedGroupId(group.id);
+    setSelectedGroup(group);
+  };
+  
+  const closeManageMembersDialog = () => {
+    setIsManageMembersDialogOpen(false);
+    setSelectedGroupId("");
+    setSelectedGroup(null);
+  };
+
+  // Focus search input when invite dialog opens
+  useEffect(() => {
+    if (isInviteDialogOpen && searchInputRef.current) {
+      // Use a timeout to ensure the dialog is fully rendered
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isInviteDialogOpen]);
 
   // Get all groups (admin view) - would need to create this endpoint
   const { data: allGroups = [], refetch: refetchGroups } = api.package.getAllGroups.useQuery();
@@ -108,9 +128,7 @@ const closeManageMembersDialog = () => {
         toast.warning(`Failed to add ${failed} member(s)`);
       }
       
-      setIsInviteDialogOpen(false);
-      setSearchTerm("");
-      setShouldLoadMembers(false);
+      closeInviteDialog();
       refetchGroups();
     } catch (error) {
       toast.error("Failed to add members to group");
@@ -125,6 +143,7 @@ const closeManageMembersDialog = () => {
       });
       
       toast.success(`Successfully removed ${memberName} from group`);
+      setMemberToRemove(null);
       refetchGroups();
     } catch (error) {
       toast.error("Failed to remove member from group");
@@ -233,179 +252,24 @@ const closeManageMembersDialog = () => {
         return (
           <div className="flex gap-2">
             {canAddMembers && (
-              <Dialog
-                open={isInviteDialogOpen && selectedGroupId === group.id}
-onOpenChange={open => open ? openInviteDialog(group.id) : closeInviteDialog()}
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => openInviteDialog(group)}
               >
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <UserPlus className="mr-1 h-3 w-3" />
-                    Add Members
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Members to Group</DialogTitle>
-                    <DialogDescription>
-                      Search and add members to this training group (admin override)
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="space-y-4">
-                    <Input
-                      placeholder="Search members by name or email..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setShouldLoadMembers(true);
-                      }}
-                    />
-                    
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {availableMembers.map((member) => (
-                        <div
-                          key={member.id}
-                          className="flex items-center justify-between p-2 border rounded"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={member.user.image || undefined} />
-                              <AvatarFallback>
-                                {member.user.name?.[0] || "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{member.user.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {member.user.email}
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleInviteMembers([member.id])}
-                          >
-                            Add
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                <UserPlus className="mr-1 h-3 w-3" />
+                Add Members
+              </Button>
             )}
             
-            <Dialog
-              open={isManageMembersDialogOpen && selectedGroupId === group.id}
-onOpenChange={open => open ? openManageMembersDialog(group.id) : closeManageMembersDialog()}
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => openManageMembersDialog(group)}
             >
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <Settings className="mr-1 h-3 w-3" />
-                  Manage Members
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Manage Group Members</DialogTitle>
-                  <DialogDescription>
-                    View and manage all members in this training group
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <div className="space-y-4">
-                  {groupDetails && (
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Group Leader</h3>
-                      <div className="flex items-center gap-2 p-2 border rounded bg-muted/50">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={groupDetails.leadSubscription.member.user.image || undefined} />
-                          <AvatarFallback>
-                            {groupDetails.leadSubscription.member.user.name?.[0] || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="font-medium">{groupDetails.leadSubscription.member.user.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {groupDetails.leadSubscription.member.user.email}
-                          </div>
-                        </div>
-                        <Crown className="h-4 w-4 text-yellow-500" />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {groupDetails && groupDetails.groupMembers.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="font-medium">Members ({groupDetails.groupMembers.length})</h3>
-                      <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {groupDetails.groupMembers.map((groupMember) => {
-                          const member = groupMember.subscription.member;
-                          const isLeader = member.id === groupDetails.leadSubscription.memberId;
-                          
-                          return (
-                            <div
-                              key={groupMember.id}
-                              className="flex items-center justify-between p-2 border rounded"
-                            >
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={member.user.image || undefined} />
-                                  <AvatarFallback>
-                                    {member.user.name?.[0] || "U"}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <div className="font-medium">{member.user.name}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {member.user.email}
-                                  </div>
-                                </div>
-                                {isLeader && (
-                                  <Crown className="h-4 w-4 text-yellow-500" />
-                                )}
-                              </div>
-                              {!isLeader && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      disabled={kickMemberMutation.isPending}
-                                    >
-                                      <UserMinus className="mr-1 h-3 w-3" />
-                                      Remove
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Remove Member</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to remove {member.user.name} from this group?
-                                        This action cannot be undone and will deactivate their subscription.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleKickMember(member.id, member.user.name || "Unknown")}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Remove Member
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
+              <Settings className="mr-1 h-3 w-3" />
+              Manage Members
+            </Button>
           </div>
         );
       },
@@ -488,6 +352,172 @@ onOpenChange={open => open ? openManageMembersDialog(group.id) : closeManageMemb
           columns={columns}
           searchColumns={[{ id: "groupName", placeholder: "Search groups..." }]}
         />
+
+        {/* Add Members Dialog - Outside Table */}
+        <Dialog open={isInviteDialogOpen} onOpenChange={(open) => !open && closeInviteDialog()}>
+          <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Add Members to Group</DialogTitle>
+              <DialogDescription>
+                Search and add members to {selectedGroup?.groupName || "this training group"} (admin override)
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <Input
+                ref={searchInputRef}
+                placeholder="Search members by name or email..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setShouldLoadMembers(true);
+                }}
+                autoFocus
+              />
+              
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {availableMembers.length === 0 && searchTerm && shouldLoadMembers && (
+                  <div className="text-center text-muted-foreground py-4">
+                    No members found matching &ldquo;{searchTerm}&rdquo;
+                  </div>
+                )}
+                {availableMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-2 border rounded"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={member.user.image || undefined} />
+                        <AvatarFallback>
+                          {member.user.name?.[0] || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{member.user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {member.user.email}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleInviteMembers([member.id])}
+                      disabled={inviteMembersMutation.isPending}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Manage Members Dialog - Outside Table */}
+        <Dialog open={isManageMembersDialogOpen} onOpenChange={(open) => !open && closeManageMembersDialog()}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Manage Group Members</DialogTitle>
+              <DialogDescription>
+                View and manage all members in {selectedGroup?.groupName || "this training group"}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {groupDetails && (
+                <div className="space-y-2">
+                  <h3 className="font-medium">Group Leader</h3>
+                  <div className="flex items-center gap-2 p-2 border rounded bg-muted/50">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={groupDetails.leadSubscription.member.user.image || undefined} />
+                      <AvatarFallback>
+                        {groupDetails.leadSubscription.member.user.name?.[0] || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="font-medium">{groupDetails.leadSubscription.member.user.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {groupDetails.leadSubscription.member.user.email}
+                      </div>
+                    </div>
+                    <Crown className="h-4 w-4 text-yellow-500" />
+                  </div>
+                </div>
+              )}
+              
+              {groupDetails && groupDetails.groupMembers.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-medium">Members ({groupDetails.groupMembers.length})</h3>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {groupDetails.groupMembers.map((groupMember) => {
+                      const member = groupMember.subscription.member;
+                      const isLeader = member.id === groupDetails.leadSubscription.memberId;
+                      
+                      return (
+                        <div
+                          key={groupMember.id}
+                          className="flex items-center justify-between p-2 border rounded"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={member.user.image || undefined} />
+                              <AvatarFallback>
+                                {member.user.name?.[0] || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{member.user.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {member.user.email}
+                              </div>
+                            </div>
+                            {isLeader && (
+                              <Crown className="h-4 w-4 text-yellow-500" />
+                            )}
+                          </div>
+                          {!isLeader && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={kickMemberMutation.isPending}
+                              onClick={() => setMemberToRemove({ id: member.id, name: member.user.name || "Unknown" })}
+                            >
+                              <UserMinus className="mr-1 h-3 w-3" />
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Remove Member Confirmation Dialog - Outside Table */}
+        <AlertDialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Member</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove {memberToRemove?.name} from this group?
+                This action cannot be undone and will deactivate their subscription.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => memberToRemove && handleKickMember(memberToRemove.id, memberToRemove.name)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Remove Member
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </ProtectedRoute>
   );
