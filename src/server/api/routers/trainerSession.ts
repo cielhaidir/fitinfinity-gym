@@ -1006,6 +1006,74 @@ export const trainerSessionRouter = createTRPCRouter({
       return members.sort((a, b) => a.name.localeCompare(b.name));
     }),
 
+  // Search members with optional search query (for async search)
+  // Only returns members who have PERSONAL_TRAINER or GROUP_TRAINING subscriptions
+  searchMembers: permissionProtectedProcedure(["report:pt"])
+    .input(
+      z.object({
+        search: z.string().min(3), // Require at least 3 characters
+        limit: z.number().min(1).max(50).optional().default(20),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      // Search members by name or email who have PT or Group Training subscriptions
+      const members = await ctx.db.membership.findMany({
+        where: {
+          // Filter to only members with PERSONAL_TRAINER or GROUP_TRAINING subscriptions
+          subscriptions: {
+            some: {
+              package: {
+                type: {
+                  in: ['PERSONAL_TRAINER', 'GROUP_TRAINING'],
+                },
+              },
+            },
+          },
+          // Search by name or email
+          OR: [
+            {
+              user: {
+                name: {
+                  contains: input.search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+            {
+              user: {
+                email: {
+                  contains: input.search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          ],
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        take: input.limit,
+        orderBy: {
+          user: {
+            name: 'asc',
+          },
+        },
+      });
+
+      // Transform to simple format
+      return members.map(member => ({
+        id: member.id,
+        name: member.user?.name || 'Unknown',
+        email: member.user?.email || '',
+      }));
+    }),
+
   // Admin endpoint to get conduct report for any trainer
   getAdminConductReport: permissionProtectedProcedure(["report:pt"])
     .input(

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Combobox, type ComboboxOption } from "@/app/_components/ui/combobox";
+import { AsyncCombobox, type ComboboxOption } from "@/app/_components/ui/combobox";
 import { api } from "@/trpc/react";
 import { format, subDays } from "date-fns";
 import { Clock, Calendar, FileSpreadsheet, Filter, Users } from "lucide-react";
@@ -38,6 +38,7 @@ export default function TrainerSessionsReportPage() {
   const [tempEndDate, setTempEndDate] = useState<Date>(new Date());
   const [tempSelectedTrainer, setTempSelectedTrainer] = useState<string>("all");
   const [tempSelectedMember, setTempSelectedMember] = useState<string>("all");
+  const [selectedMemberLabel, setSelectedMemberLabel] = useState<string>("All Members");
   
   // Applied filter states
   const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 30));
@@ -56,27 +57,36 @@ export default function TrainerSessionsReportPage() {
   // Fetch trainers for dropdown
   const { data: trainers } = api.personalTrainer.listWithUsers.useQuery();
 
-  // Fetch members by trainer for dropdown (only when trainer is selected)
-  const { data: membersByTrainer, isLoading: isLoadingMembers } = api.trainerSession.getMembersByTrainer.useQuery(
-    { trainerId: tempSelectedTrainer },
-    { enabled: tempSelectedTrainer !== "all" && tempSelectedTrainer !== "" }
-  );
+  // Get tRPC context for search mutation
+  const utils = api.useUtils();
 
-  // Convert members to combobox options
-  const memberOptions: ComboboxOption[] = membersByTrainer?.map((member) => ({
-    value: member.id,
-    label: member.name || member.email || "Unknown",
-  })) ?? [];
-
-  // Clear member selection when trainer changes
-  useEffect(() => {
-    if (tempSelectedTrainer === "all" || tempSelectedTrainer === "") {
-      setTempSelectedMember("all");
-    } else {
-      // Reset member selection when trainer changes
-      setTempSelectedMember("all");
+  // Load members async - only when search query has 3+ characters
+  const loadMemberOptions = useCallback(async (inputValue: string): Promise<ComboboxOption[]> => {
+    if (inputValue.length < 3) {
+      return [];
     }
-  }, [tempSelectedTrainer]);
+
+    try {
+      const members = await utils.trainerSession.searchMembers.fetch({
+        search: inputValue,
+        limit: 20,
+      });
+
+      return members.map((member) => ({
+        value: member.id,
+        label: member.name || member.email || "Unknown",
+      }));
+    } catch (error) {
+      console.error("Error searching members:", error);
+      return [];
+    }
+  }, [utils.trainerSession.searchMembers]);
+
+  // Handle member selection
+  const handleMemberChange = (value: string, label?: string) => {
+    setTempSelectedMember(value);
+    setSelectedMemberLabel(label || "All Members");
+  };
 
   // Apply filters handler
   const handleApplyFilters = () => {
@@ -96,6 +106,7 @@ export default function TrainerSessionsReportPage() {
     setTempEndDate(defaultEndDate);
     setTempSelectedTrainer("all");
     setTempSelectedMember("all");
+    setSelectedMemberLabel("All Members");
     
     setStartDate(defaultStartDate);
     setEndDate(defaultEndDate);
@@ -136,7 +147,7 @@ export default function TrainerSessionsReportPage() {
       { "Metric": "Report Period", "Value": `${format(startDate, "PPP")} - ${format(endDate, "PPP")}` },
       { "Metric": "Generated At", "Value": format(new Date(), "PPP p") },
       { "Metric": "Selected Trainer", "Value": selectedTrainer === "all" ? "All Trainers" : trainers?.find(t => t.id === selectedTrainer)?.user.name || "Unknown" },
-      { "Metric": "Selected Member", "Value": selectedMember === "all" ? "All Members" : membersByTrainer?.find(m => m.id === selectedMember)?.name || "Unknown" },
+      { "Metric": "Selected Member", "Value": selectedMemberLabel },
       { "Metric": "Total Sessions", "Value": reportData.totalSessions.toString() },
       { "Metric": "Total Hours", "Value": reportData.totalHours.toFixed(2) },
     ];
@@ -235,27 +246,14 @@ export default function TrainerSessionsReportPage() {
                 </div>
                 <div>
                   <Label>Member</Label>
-                  {tempSelectedTrainer === "all" || tempSelectedTrainer === "" ? (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start font-normal text-muted-foreground"
-                      disabled
-                    >
-                      Select trainer first
-                    </Button>
-                  ) : (
-                    <Combobox
-                      options={[
-                        { value: "all", label: "All Members" },
-                        ...memberOptions,
-                      ]}
-                      value={tempSelectedMember}
-                      onValueChange={setTempSelectedMember}
-                      placeholder={isLoadingMembers ? "Loading..." : "Select member"}
-                      emptyText="No members found for this trainer."
-                      disabled={isLoadingMembers}
-                    />
-                  )}
+                  <AsyncCombobox
+                    loadOptions={loadMemberOptions}
+                    value={tempSelectedMember}
+                    onValueChange={handleMemberChange}
+                    placeholder="Type 3+ chars to search..."
+                    emptyText="Type at least 3 characters to search members"
+                    defaultOptions={[{ value: "all", label: "All Members" }]}
+                  />
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
