@@ -36,7 +36,7 @@ export default function ClassPage() {
   const utils = api.useUtils();
 
   // Query with stable configuration
-  const { data: classes } = api.class.list.useQuery(
+  const { data: classes, isLoading } = api.class.list.useQuery(
     {
       page,
       limit: pageSize,
@@ -272,6 +272,7 @@ export default function ClassPage() {
               limit: number;
             }) ?? { items: [], total: 0, page: 1, limit: 10 }
           }
+          isLoading={isLoading}
           onPaginationChange={(newPage, newLimit) => {
             setPage(newPage);
             setPageSize(newLimit);

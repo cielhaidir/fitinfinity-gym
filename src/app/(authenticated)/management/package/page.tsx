@@ -40,7 +40,7 @@ export default function PackagePage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: packageData = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: packageData = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.package.list.useQuery({
       page,
       limit,
@@ -237,6 +237,7 @@ export default function PackagePage() {
           <DataTable
             data={packageData}
             columns={columns}
+            isLoading={isLoading}
             onPaginationChange={handlePaginationChange}
             searchColumns={[{ id: "name", placeholder: "Search by name..." }]}
             onSearch={(value, column) => {

@@ -212,7 +212,29 @@ export default function ProfilePage() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <Card className="mx-auto max-w-4xl">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="h-16 w-16 rounded-full bg-muted animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-6 w-32 bg-muted rounded animate-pulse" />
+                <div className="h-4 w-48 bg-muted rounded animate-pulse" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BFFF00] mx-auto mb-2"></div>
+                <p className="text-sm text-muted-foreground">Loading profile...</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

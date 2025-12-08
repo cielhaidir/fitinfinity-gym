@@ -24,7 +24,7 @@ export default function RolePage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: roles = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: roles = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.role.list.useQuery({
       page,
       limit,
@@ -144,6 +144,7 @@ export default function RolePage() {
             <DataTable
               columns={columns}
               data={roles}
+              isLoading={isLoading}
               onPaginationChange={handlePaginationChange}
               searchColumns={[
                 { id: "name", placeholder: "Search by role name..." },

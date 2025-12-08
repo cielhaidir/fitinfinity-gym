@@ -25,7 +25,7 @@ export default function PermissionPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: permissions = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: permissions = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.permission.list.useQuery({
       page,
       limit,
@@ -168,6 +168,7 @@ export default function PermissionPage() {
           <DataTable
             columns={columns}
             data={permissions}
+            isLoading={isLoading}
             onPaginationChange={handlePaginationChange}
             searchColumns={[
               { id: "name", placeholder: "Search by permission name..." },

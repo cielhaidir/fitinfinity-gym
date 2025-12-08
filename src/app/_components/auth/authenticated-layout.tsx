@@ -95,11 +95,7 @@ if (
   }, [status, router, pathname, hasPermission, isLoading, session]);
 
   if (isLoading || status === "loading") {
-    return (
-      <div className="p-4">
-        <LoadingSkeleton />
-      </div>
-    );
+    return <FullPageLoadingSkeleton />;
   }
 
   return (
@@ -119,16 +115,49 @@ if (
   );
 }
 
-function LoadingSkeleton() {
+function FullPageLoadingSkeleton() {
   return (
-    <>
-      <Skeleton className="h-8 w-full" />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, i) => (
-          <Skeleton key={i} className="h-40" />
-        ))}
+    <div className="flex h-screen w-full">
+      {/* Sidebar Skeleton */}
+      <div className="hidden md:flex w-64 flex-col border-r bg-background p-4 gap-4">
+        {/* Logo area */}
+        <Skeleton className="h-10 w-32" />
+        
+        {/* Nav items */}
+        <div className="flex flex-col gap-2 mt-4">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+        
+        {/* Bottom section */}
+        <div className="mt-auto">
+          <Skeleton className="h-12 w-full" />
+        </div>
       </div>
-      <Skeleton className="h-64 w-full" />
-    </>
+      
+      {/* Main content area */}
+      <div className="flex flex-1 flex-col">
+        {/* Navbar Skeleton */}
+        <div className="flex h-14 items-center justify-between border-b px-4">
+          <Skeleton className="h-8 w-32" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+        </div>
+        
+        {/* Content Skeleton */}
+        <div className="flex-1 p-4 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-40" />
+            ))}
+          </div>
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    </div>
   );
 }

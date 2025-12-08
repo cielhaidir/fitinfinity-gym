@@ -82,7 +82,7 @@ export default function MemberPage() {
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
 
-  const { data: member = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: member = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.member.list.useQuery({
       page,
       limit,
@@ -504,6 +504,7 @@ export default function MemberPage() {
           <DataTable
             data={member}
             columns={columns}
+            isLoading={isLoading}
             onPaginationChange={handlePaginationChange}
             searchColumns={[
               { id: "rfidNumber", placeholder: "Search by RFID..." },

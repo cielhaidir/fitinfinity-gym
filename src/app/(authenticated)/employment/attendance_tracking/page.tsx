@@ -12,7 +12,7 @@ export default function AttendanceTrackingPage() {
   const [search, setSearch] = useState("");
   const [searchColumn, setSearchColumn] = useState<string>("");
 
-  const { data: attendances = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: attendances = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.attendance.list.useQuery({
       page: 1,
       limit: 10,
@@ -54,6 +54,7 @@ export default function AttendanceTrackingPage() {
             limit: attendances.limit,
           }}
           columns={columns}
+          isLoading={isLoading}
           onPaginationChange={handlePaginationChange}
           searchColumns={[
             { id: "employee.user.name", placeholder: "Search by name..." },

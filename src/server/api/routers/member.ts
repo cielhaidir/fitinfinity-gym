@@ -517,7 +517,13 @@ export const memberRouter = createTRPCRouter({
       const member = await ctx.db.membership.findFirst({
         where: {
           rfidNumber: input.rfidNumber,
-          isActive: true,
+          // Member must have at least one active, non-frozen subscription
+          subscriptions: {
+            some: {
+              isActive: true,
+              isFrozen: false,
+            },
+          },
         },
         include: {
           user: {
@@ -540,7 +546,13 @@ export const memberRouter = createTRPCRouter({
       const member = await ctx.db.membership.findFirst({
         where: {
           id: input.membershipId,
-          isActive: true,
+          // Member must have at least one active, non-frozen subscription
+          subscriptions: {
+            some: {
+              isActive: true,
+              isFrozen: false,
+            },
+          },
         },
         include: {
           user: {

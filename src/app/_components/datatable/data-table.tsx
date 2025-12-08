@@ -137,7 +137,10 @@ export function DataTable<TData, TValue>({
       {isLoading ? (
         <TableRow>
           <TableCell colSpan={columns.length} className="h-24 text-center">
-            Loading...
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#BFFF00] mr-3"></div>
+              <span className="text-muted-foreground">Loading data...</span>
+            </div>
           </TableCell>
         </TableRow>
       ) : table.getRowModel().rows?.length ? (
@@ -171,7 +174,10 @@ export function DataTable<TData, TValue>({
 {/* Mobile card view */}
 <div className="sm:hidden p-2">
   {isLoading ? (
-    <div className="text-center py-8 text-muted-foreground">Loading...</div>
+    <div className="flex items-center justify-center py-8">
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#BFFF00] mr-3"></div>
+      <span className="text-muted-foreground">Loading data...</span>
+    </div>
   ) : table.getRowModel().rows?.length ? (
     <div className="space-y-3">
       {table.getRowModel().rows.map((row) => (

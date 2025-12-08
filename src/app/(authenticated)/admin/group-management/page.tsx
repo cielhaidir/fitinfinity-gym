@@ -93,7 +93,7 @@ export default function AdminGroupManagementPage() {
   }, [isInviteDialogOpen]);
 
   // Get all groups (admin view) - would need to create this endpoint
-  const { data: allGroups = [], refetch: refetchGroups } = api.package.getAllGroups.useQuery();
+  const { data: allGroups = [], isLoading, refetch: refetchGroups } = api.package.getAllGroups.useQuery();
   
   const { data: availableMembers = [] } = api.package.getAvailableMembers.useQuery({
     groupSubscriptionId: selectedGroupId,
@@ -350,6 +350,7 @@ export default function AdminGroupManagementPage() {
         <DataTable
           data={tableData}
           columns={columns}
+          isLoading={isLoading}
           searchColumns={[{ id: "groupName", placeholder: "Search groups..." }]}
         />
 

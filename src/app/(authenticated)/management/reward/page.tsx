@@ -208,6 +208,7 @@ export default function RewardPage() {
       <DataTable
         columns={columns}
         data={data || { items: [], total: 0, page: 1, limit: 10 }}
+        isLoading={isLoading}
         onPaginationChange={handlePaginationChange}
       />
 

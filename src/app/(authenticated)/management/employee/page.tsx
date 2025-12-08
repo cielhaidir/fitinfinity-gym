@@ -52,7 +52,7 @@ export default function EmployeePage() {
     idNumber: "",
   });
 
-  const { data: employees = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: employees = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.employee.list.useQuery({
       page,
       limit,
@@ -285,6 +285,7 @@ export default function EmployeePage() {
           limit: employees.limit,
         }}
         columns={columns}
+        isLoading={isLoading}
         onPaginationChange={handlePaginationChange}
         searchColumns={[
           { id: "user.name", placeholder: "Search by name..." },

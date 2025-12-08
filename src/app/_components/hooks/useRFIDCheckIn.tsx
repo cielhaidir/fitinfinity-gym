@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface Member {
   id: string;
@@ -203,9 +204,21 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
     closeCheckInModal,
   };
 
+  // Show loading state when searching
+  const isSearching = isSearchingRFID || isSearchingMembershipId;
+
   return (
     <RFIDContext.Provider value={value}>
       {children}
+      {/* Loading overlay when searching for member */}
+      {isSearching && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 rounded-lg bg-background p-8 shadow-lg">
+            <Loader2 className="h-12 w-12 animate-spin text-[#BFFF00]" />
+            <p className="text-lg font-medium">Searching for member...</p>
+          </div>
+        </div>
+      )}
     </RFIDContext.Provider>
   );
 }

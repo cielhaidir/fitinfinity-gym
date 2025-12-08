@@ -30,7 +30,7 @@ export default function POSCategoryPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: categoryData = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: categoryData = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.posCategory.list.useQuery({
       page,
       limit,
@@ -198,6 +198,7 @@ export default function POSCategoryPage() {
           <DataTable
             data={categoryData}
             columns={columns}
+            isLoading={isLoading}
             onPaginationChange={handlePaginationChange}
             searchColumns={[{ id: "name", placeholder: "Search by name..." }]}
             onSearch={(value) => {

@@ -729,7 +729,7 @@ export default function AdminSubscriptionHistoryPage() {
                     Upgrade
                    </DropdownMenuItem>
                  )}
-                 {row.original.package?.type === "PERSONAL_TRAINER" && (
+                 {(row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
                    <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
                      <UserCheck className="mr-2 h-4 w-4" />
                      Edit Personal Trainer

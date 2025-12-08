@@ -23,7 +23,7 @@ export default function BalanceAccountPage() {
   const [limit, setLimit] = useState(10);
 
   const utils = api.useUtils();
-  const { data: accounts = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: accounts = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.balanceAccount.getAll.useQuery({
       page,
       limit,
@@ -125,6 +125,7 @@ export default function BalanceAccountPage() {
         <DataTable
           data={accounts}
           columns={columns}
+          isLoading={isLoading}
           onPaginationChange={handlePaginationChange}
           searchColumns={[
             { id: "name", placeholder: "Search by name..." },

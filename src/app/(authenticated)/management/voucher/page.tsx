@@ -32,7 +32,7 @@ export default function VoucherPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.voucher.list.useQuery({
       type: undefined,
       isActive: undefined,
@@ -224,6 +224,7 @@ export default function VoucherPage() {
             <DataTable
               data={transformedData}
               columns={columns}
+              isLoading={isLoading}
               onPaginationChange={handlePaginationChange}
               searchColumns={[
                 { id: "name", placeholder: "Search by name..." },

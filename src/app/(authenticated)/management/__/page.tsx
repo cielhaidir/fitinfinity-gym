@@ -53,6 +53,7 @@ export default function SubscriptionPage() {
   // Query for subscriptions
   const {
     data: subscriptionData = { items: [], total: 0, page: 1, limit: 10 },
+    isLoading,
   } = api.subs.list.useQuery({
     page,
     limit,
@@ -162,6 +163,7 @@ export default function SubscriptionPage() {
         <DataTable
           data={subscriptionData}
           columns={columns}
+          isLoading={isLoading}
           onPaginationChange={handlePaginationChange}
           searchColumns={[
             { id: "member.user.name", placeholder: "Search by member name..." },

@@ -41,7 +41,7 @@ export default function PersonalTrainerPage() {
   const [isSelectUserModalOpen, setIsSelectUserModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const { data: trainers = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: trainers = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.personalTrainer.list.useQuery({
       page,
       limit,
@@ -330,6 +330,7 @@ export default function PersonalTrainerPage() {
                 limit: trainers.limit,
               }}
               columns={columns}
+              isLoading={isLoading}
               onPaginationChange={handlePaginationChange}
               searchColumns={[
                 { id: "user.name", placeholder: "Search by name..." },

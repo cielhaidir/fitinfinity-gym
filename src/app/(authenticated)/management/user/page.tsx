@@ -22,7 +22,7 @@ export default function UserPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: users = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: users = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.user.list.useQuery({
       page,
       limit,
@@ -159,6 +159,7 @@ export default function UserPage() {
           limit: users.limit,
         }}
         columns={columns}
+        isLoading={isLoading}
         onPaginationChange={handlePaginationChange}
         searchColumns={[
           { id: "name", placeholder: "Search by name..." },

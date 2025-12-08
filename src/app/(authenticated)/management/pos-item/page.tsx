@@ -35,7 +35,7 @@ export default function POSItemPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: itemData = { items: [], total: 0, page: 1, limit: 10 } } =
+  const { data: itemData = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
     api.posItem.list.useQuery({
       page,
       limit,
@@ -247,6 +247,7 @@ export default function POSItemPage() {
           <DataTable
             data={itemData}
             columns={columns}
+            isLoading={isLoading}
             onPaginationChange={handlePaginationChange}
             searchColumns={[{ id: "name", placeholder: "Search by name..." }]}
             onSearch={(value) => {

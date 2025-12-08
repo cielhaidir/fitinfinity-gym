@@ -18,7 +18,7 @@ export default function ChartAccountPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: chartAccounts, refetch } = api.chartAccount.getAll.useQuery();
+  const { data: chartAccounts, isLoading, refetch } = api.chartAccount.getAll.useQuery();
 
   // Implement client-side pagination
   const paginatedData = useMemo(() => {
@@ -83,6 +83,7 @@ export default function ChartAccountPage() {
         <DataTable
           columns={columns}
           data={tableData}
+          isLoading={isLoading}
           onPaginationChange={handlePaginationChange}
         />
 

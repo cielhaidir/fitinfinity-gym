@@ -27,6 +27,7 @@ export default function RolePermissionPage() {
 
   const {
     data: rolePermissions = { items: [], total: 0, page: 1, limit: 10 },
+    isLoading,
   } = api.rolePermission.list.useQuery({
     page,
     limit,
@@ -154,6 +155,7 @@ export default function RolePermissionPage() {
             <DataTable
               columns={columns}
               data={rolePermissions}
+              isLoading={isLoading}
               onPaginationChange={handlePaginationChange}
               searchColumns={[
                 { id: "name", placeholder: "Search by role name..." },
