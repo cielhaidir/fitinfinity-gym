@@ -517,7 +517,7 @@ export const memberRouter = createTRPCRouter({
       const member = await ctx.db.membership.findFirst({
         where: {
           rfidNumber: input.rfidNumber,
-
+          isActive: true,
         },
         include: {
           user: {
@@ -537,9 +537,10 @@ export const memberRouter = createTRPCRouter({
   findByMembershipId: publicProcedure
     .input(z.object({ membershipId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const member = await ctx.db.membership.findUnique({
+      const member = await ctx.db.membership.findFirst({
         where: {
           id: input.membershipId,
+          isActive: true,
         },
         include: {
           user: {

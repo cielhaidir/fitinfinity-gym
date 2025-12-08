@@ -70,8 +70,10 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
   }, []);
 
   const findMemberByMembershipId = useCallback((membershipId: string) => {
-    console.log("Searching for membership ID:", membershipId);
-    setCurrentMembershipId(membershipId);
+    // Convert to lowercase to handle CapsLock/uppercase input from scanners
+    const normalizedId = membershipId.toLowerCase();
+    console.log("Searching for membership ID:", normalizedId);
+    setCurrentMembershipId(normalizedId);
   }, []);
 
   // Handle the RFID API response

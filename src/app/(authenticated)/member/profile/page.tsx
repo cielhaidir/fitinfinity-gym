@@ -845,7 +845,8 @@ export default function ProfilePage() {
         </Card>
 
         {/* Membership QR Code Section */}
-        {profile?.membership?.id && (
+        {/* Show QR code if we have membership.id from profile OR if viewing another member (memberId from URL is the membership ID) */}
+        {(profile?.membership?.id ?? memberId) && (
           <Card className="mx-auto max-w-4xl mt-6">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg md:text-xl font-semibold text-[#BFFF00] flex items-center gap-2">
@@ -862,7 +863,7 @@ export default function ProfilePage() {
                 <div className="bg-white p-4 rounded-lg shadow-md">
                   <QRCodeCanvas
                     ref={qrCodeRef}
-                    value={profile.membership.id}
+                    value={profile?.membership?.id || memberId || ""}
                     size={200}
                     level="H"
                     includeMargin={true}

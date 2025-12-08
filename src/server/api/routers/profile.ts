@@ -30,24 +30,27 @@ export const profileRouter = createTRPCRouter({
         }
 
         // Fetch the requested member's profile
-        const user = await ctx.db.membership.findUnique({
+        const membershipData = await ctx.db.membership.findUnique({
           where: { id: input.memberId },
           include: {
             user: true,
           }
         });
 
-        // console.
-
-
-        if (!user) {
+        if (!membershipData) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Member not found",
           });
         }
 
-        return user?.user;
+        // Return user data with membership info for QR code display
+        return {
+          ...membershipData.user,
+          membership: {
+            id: membershipData.id,
+          },
+        };
       }
 
       // Default behavior: fetch current user's profile
