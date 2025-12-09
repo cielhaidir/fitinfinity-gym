@@ -48,6 +48,7 @@ import { logsRouter } from "./routers/logs";
 import { supplierRouter } from "./routers/supplier";
 import { inventoryRouter } from "./routers/inventory";
 import { purchaseOrderRouter } from "./routers/purchaseOrder";
+import { reportsRouter } from "./routers/reports";
 
 /**
  * This is the primary router for your server.
@@ -107,6 +108,7 @@ export const appRouter = createTRPCRouter({
   supplier: supplierRouter,
   inventory: inventoryRouter,
   purchaseOrder: purchaseOrderRouter,
+  reports: reportsRouter,
 });
 
 // export type definition of API
