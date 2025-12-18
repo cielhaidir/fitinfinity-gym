@@ -642,6 +642,7 @@ model Transaction {
     // Relations
     bank    BalanceAccount @relation("BankTransactions", fields: [bank_id], references: [id])
     account ChartAccount   @relation("AccountTransactions", fields: [account_id], references: [id])
+    purchaseOrders PurchaseOrder[]  // Purchase orders linked to this transaction
 }
 
 model AttendanceMember {
@@ -842,7 +843,9 @@ model POSItem {
     description String?
     price       Float
     cost        Float?      @default(0)
-    stock       Int         @default(0)
+    stock       Int         @default(0)  // Keep for backward compatibility
+    warehouseStock Int      @default(0)  // New: Stock in warehouse (gudang)
+    showcaseStock  Int      @default(0)  // New: Stock in showcase (for sales)
     minStock    Int?        @default(0)
     categoryId  String
     isActive    Boolean     @default(true)
@@ -1051,6 +1054,7 @@ model InventoryTransaction {
     referenceId     String?                  // ID of the reference record
     reason          String?                  // Reason for adjustment
     note            String?
+    stockType       String?                  // "warehouse" or "showcase" - which stock was affected
     userId          String                   // Who performed the action
     idempotencyKey  String?                  @unique // For preventing duplicate transactions
     createdAt       DateTime                 @default(now())
@@ -1099,12 +1103,14 @@ model PurchaseOrder {
     discount        Float               @default(0)
     total           Float               @default(0)
     notes           String?
+    transactionId   Int?                // Link to accounting Transaction
     createdBy       String
     updatedBy       String?
     createdAt       DateTime            @default(now())
     updatedAt       DateTime            @updatedAt
     
     supplier        Supplier?           @relation(fields: [supplierId], references: [id])
+    transaction     Transaction?        @relation(fields: [transactionId], references: [id])
     creator         User                @relation("PurchaseOrderCreator", fields: [createdBy], references: [id])
     updater         User?               @relation("PurchaseOrderUpdater", fields: [updatedBy], references: [id])
     items           PurchaseOrderItem[]

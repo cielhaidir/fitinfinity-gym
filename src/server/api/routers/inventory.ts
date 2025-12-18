@@ -58,6 +58,8 @@ export const inventoryRouter = createTRPCRouter({
                 id: true,
                 name: true,
                 stock: true,
+                warehouseStock: true,
+                showcaseStock: true,
                 category: {
                   select: {
                     id: true,
@@ -92,6 +94,7 @@ export const inventoryRouter = createTRPCRouter({
       z.object({
         itemId: z.string(),
         type: z.enum(["ADJUSTMENT_IN", "ADJUSTMENT_OUT"]),
+        stockType: z.enum(["warehouse", "showcase"]),
         quantity: z.number().positive(),
         reason: z.string().min(1),
         note: z.string().optional(),
@@ -99,7 +102,7 @@ export const inventoryRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { itemId, type, quantity, reason, note, idempotencyKey } = input;
+      const { itemId, type, stockType, quantity, reason, note, idempotencyKey } = input;
       const userId = ctx.session.user.id;
 
       return ctx.db.$transaction(async (tx) => {
@@ -120,6 +123,13 @@ export const inventoryRouter = createTRPCRouter({
         // Get current stock
         const item = await tx.pOSItem.findUnique({
           where: { id: itemId },
+          select: {
+            id: true,
+            name: true,
+            stock: true,
+            warehouseStock: true,
+            showcaseStock: true,
+          },
         });
 
         if (!item) {
@@ -129,30 +139,37 @@ export const inventoryRouter = createTRPCRouter({
           });
         }
 
-        const quantityBefore = item.stock;
+        // Determine which stock field to use
+        const stockField = stockType === "warehouse" ? "warehouseStock" : "showcaseStock";
+        const currentStock = item[stockField];
         let quantityAfter: number;
         let adjustedQuantity: number;
 
         if (type === "ADJUSTMENT_OUT") {
           // For ADJUSTMENT_OUT, verify sufficient stock
-          if (item.stock < quantity) {
+          if (currentStock < quantity) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: `Insufficient stock. Available: ${item.stock}, Requested: ${quantity}`,
+              message: `Insufficient ${stockType} stock. Available: ${currentStock}, Requested: ${quantity}`,
             });
           }
-          quantityAfter = quantityBefore - quantity;
+          quantityAfter = currentStock - quantity;
           adjustedQuantity = -quantity; // Negative for decrease
         } else {
           // ADJUSTMENT_IN
-          quantityAfter = quantityBefore + quantity;
+          quantityAfter = currentStock + quantity;
           adjustedQuantity = quantity; // Positive for increase
         }
 
-        // Update POSItem.stock
+        // Update the specific stock field (and legacy stock field)
         await tx.pOSItem.update({
           where: { id: itemId },
-          data: { stock: quantityAfter },
+          data: {
+            [stockField]: quantityAfter,
+            stock: type === "ADJUSTMENT_IN"
+              ? { increment: quantity }
+              : { decrement: quantity },
+          },
         });
 
         // Create InventoryTransaction record
@@ -161,9 +178,10 @@ export const inventoryRouter = createTRPCRouter({
             itemId,
             type,
             quantity: adjustedQuantity,
-            quantityBefore,
+            quantityBefore: currentStock,
             quantityAfter,
             referenceType: "Adjustment",
+            stockType,
             reason,
             note,
             userId,
@@ -175,6 +193,8 @@ export const inventoryRouter = createTRPCRouter({
                 id: true,
                 name: true,
                 stock: true,
+                warehouseStock: true,
+                showcaseStock: true,
               },
             },
             user: {
@@ -187,6 +207,80 @@ export const inventoryRouter = createTRPCRouter({
         });
 
         return transaction;
+      });
+    }),
+
+  // Transfer stock from warehouse to showcase
+  transferStock: protectedProcedure
+    .input(
+      z.object({
+        itemId: z.string(),
+        quantity: z.number().positive(),
+        note: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.$transaction(async (tx) => {
+        const item = await tx.pOSItem.findUnique({
+          where: { id: input.itemId },
+          select: { 
+            id: true, 
+            name: true, 
+            warehouseStock: true, 
+            showcaseStock: true 
+          },
+        });
+
+        if (!item) {
+          throw new TRPCError({ 
+            code: "NOT_FOUND", 
+            message: "Item not found" 
+          });
+        }
+
+        if (item.warehouseStock < input.quantity) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Insufficient warehouse stock. Available: ${item.warehouseStock}`,
+          });
+        }
+
+        // Decrease warehouse, increase showcase
+        await tx.pOSItem.update({
+          where: { id: input.itemId },
+          data: {
+            warehouseStock: { decrement: input.quantity },
+            showcaseStock: { increment: input.quantity },
+          },
+        });
+
+        // Create two inventory transactions
+        await tx.inventoryTransaction.createMany({
+          data: [
+            {
+              itemId: input.itemId,
+              type: "TRANSFER_OUT",
+              quantity: -input.quantity,
+              quantityBefore: item.warehouseStock,
+              quantityAfter: item.warehouseStock - input.quantity,
+              stockType: "warehouse",
+              note: input.note ?? "Transfer to showcase",
+              userId: ctx.session.user.id,
+            },
+            {
+              itemId: input.itemId,
+              type: "TRANSFER_IN",
+              quantity: input.quantity,
+              quantityBefore: item.showcaseStock,
+              quantityAfter: item.showcaseStock + input.quantity,
+              stockType: "showcase",
+              note: input.note ?? "Transfer from warehouse",
+              userId: ctx.session.user.id,
+            },
+          ],
+        });
+
+        return { success: true };
       });
     }),
 

@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import { ArrowDownIcon, ArrowUpIcon, Package, AlertTriangle, Eye } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, Package, AlertTriangle, Eye, ArrowRightLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -37,6 +37,8 @@ interface StockItem {
   id: string;
   name: string;
   stock: number;
+  warehouseStock: number;
+  showcaseStock: number;
   minStock: number | null;
   price: number;
   cost: number | null;
@@ -61,6 +63,7 @@ function StockAdjustmentModal({
   onSuccess: () => void;
 }) {
   const [adjustmentType, setAdjustmentType] = useState<"ADJUSTMENT_IN" | "ADJUSTMENT_OUT">("ADJUSTMENT_IN");
+  const [stockType, setStockType] = useState<"warehouse" | "showcase">("warehouse");
   const [quantity, setQuantity] = useState<string>("");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -79,6 +82,7 @@ function StockAdjustmentModal({
 
   const resetForm = () => {
     setAdjustmentType("ADJUSTMENT_IN");
+    setStockType("warehouse");
     setQuantity("");
     setReason("");
     setNote("");
@@ -101,11 +105,15 @@ function StockAdjustmentModal({
     adjustMutation.mutate({
       itemId: selectedItem.id,
       type: adjustmentType,
+      stockType: stockType,
       quantity: qty,
       reason: reason.trim(),
       note: note.trim() || undefined,
     });
   };
+
+  const currentStock = selectedItem ? 
+    (stockType === "warehouse" ? selectedItem.warehouseStock : selectedItem.showcaseStock) : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -114,12 +122,32 @@ function StockAdjustmentModal({
           <DialogTitle>Stock Adjustment</DialogTitle>
           <DialogDescription>
             {selectedItem
-              ? `Adjust stock for: ${selectedItem.name} (Current: ${selectedItem.stock})`
+              ? `Adjust stock for: ${selectedItem.name}`
               : "Select an item to adjust"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="stockType">Stock Type</Label>
+            <Select
+              value={stockType}
+              onValueChange={(value: "warehouse" | "showcase") => setStockType(value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select stock type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="warehouse">
+                  Warehouse (Current: {selectedItem?.warehouseStock ?? 0})
+                </SelectItem>
+                <SelectItem value="showcase">
+                  Showcase (Current: {selectedItem?.showcaseStock ?? 0})
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid gap-2">
             <Label htmlFor="adjustmentType">Adjustment Type</Label>
             <Select
@@ -156,9 +184,9 @@ function StockAdjustmentModal({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
-            {adjustmentType === "ADJUSTMENT_OUT" && selectedItem && parseInt(quantity) > selectedItem.stock && (
+            {adjustmentType === "ADJUSTMENT_OUT" && parseInt(quantity) > currentStock && (
               <p className="text-sm text-destructive">
-                Warning: Quantity exceeds available stock ({selectedItem.stock})
+                Warning: Quantity exceeds available stock ({currentStock})
               </p>
             )}
           </div>
@@ -200,6 +228,128 @@ function StockAdjustmentModal({
   );
 }
 
+// Stock Transfer Modal Component
+function StockTransferModal({
+  open,
+  onOpenChange,
+  selectedItem,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedItem: StockItem | null;
+  onSuccess: () => void;
+}) {
+  const [transferQuantity, setTransferQuantity] = useState<string>("");
+  const [transferNote, setTransferNote] = useState("");
+
+  const transferMutation = api.inventory.transferStock.useMutation({
+    onSuccess: () => {
+      toast.success("Stock transferred successfully");
+      onOpenChange(false);
+      resetForm();
+      onSuccess();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to transfer stock");
+    },
+  });
+
+  const resetForm = () => {
+    setTransferQuantity("");
+    setTransferNote("");
+  };
+
+  const handleTransferStock = () => {
+    if (!selectedItem) return;
+
+    const qty = parseInt(transferQuantity, 10);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid quantity");
+      return;
+    }
+
+    if (qty > selectedItem.warehouseStock) {
+      toast.error("Quantity exceeds available warehouse stock");
+      return;
+    }
+
+    transferMutation.mutate({
+      itemId: selectedItem.id,
+      quantity: qty,
+      note: transferNote.trim() || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Transfer Stock: {selectedItem?.name}</DialogTitle>
+          <DialogDescription>
+            Move stock from warehouse to showcase
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Warehouse Stock</Label>
+              <Input 
+                value={selectedItem?.warehouseStock ?? 0} 
+                disabled 
+              />
+            </div>
+            <div>
+              <Label>Showcase Stock</Label>
+              <Input 
+                value={selectedItem?.showcaseStock ?? 0} 
+                disabled 
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Quantity to Transfer</Label>
+            <Input
+              type="number"
+              min="1"
+              max={selectedItem?.warehouseStock ?? 0}
+              placeholder="Enter quantity"
+              value={transferQuantity}
+              onChange={(e) => setTransferQuantity(e.target.value)}
+            />
+            {parseInt(transferQuantity) > (selectedItem?.warehouseStock ?? 0) && (
+              <p className="mt-1 text-sm text-destructive">
+                Quantity exceeds available warehouse stock
+              </p>
+            )}
+          </div>
+          <div>
+            <Label>Note (optional)</Label>
+            <Textarea 
+              placeholder="Add a note about this transfer..."
+              value={transferNote}
+              onChange={(e) => setTransferNote(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleTransferStock}
+            disabled={transferMutation.isPending || !transferQuantity}
+          >
+            {transferMutation.isPending ? "Transferring..." : "Transfer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Item Detail Modal Component
 function ItemDetailModal({
   open,
@@ -232,11 +382,31 @@ function ItemDetailModal({
           </div>
         ) : itemSummary ? (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Current Stock
+                    Warehouse
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{itemSummary.item.warehouseStock}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Showcase
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{itemSummary.item.showcaseStock}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Stock
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -248,28 +418,29 @@ function ItemDetailModal({
                   )}
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Monthly Movement
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-green-600">
-                      +{itemSummary.monthlyMovement.totalIn}
-                    </span>
-                    <span className="text-red-600">
-                      -{itemSummary.monthlyMovement.totalOut}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Net: {itemSummary.monthlyMovement.netChange > 0 ? "+" : ""}
-                    {itemSummary.monthlyMovement.netChange}
-                  </p>
-                </CardContent>
-              </Card>
             </div>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Monthly Movement
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-green-600">
+                    +{itemSummary.monthlyMovement.totalIn}
+                  </span>
+                  <span className="text-red-600">
+                    -{itemSummary.monthlyMovement.totalOut}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Net: {itemSummary.monthlyMovement.netChange > 0 ? "+" : ""}
+                  {itemSummary.monthlyMovement.netChange}
+                </p>
+              </CardContent>
+            </Card>
 
             <div>
               <h4 className="mb-2 font-medium">Recent Transactions</h4>
@@ -329,6 +500,7 @@ export default function StockLevelsPage() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
@@ -355,6 +527,11 @@ export default function StockLevelsPage() {
   const handleAdjustStock = (item: StockItem) => {
     setSelectedItem(item);
     setAdjustModalOpen(true);
+  };
+
+  const handleTransferStock = (item: StockItem) => {
+    setSelectedItem(item);
+    setTransferDialogOpen(true);
   };
 
   const handleViewDetails = (item: StockItem) => {
@@ -394,8 +571,22 @@ export default function StockLevelsPage() {
       ),
     },
     {
+      accessorKey: "warehouseStock",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Warehouse" />,
+      cell: ({ row }) => (
+        <div className="font-medium">{row.original.warehouseStock}</div>
+      ),
+    },
+    {
+      accessorKey: "showcaseStock",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Showcase" />,
+      cell: ({ row }) => (
+        <div className="font-medium">{row.original.showcaseStock}</div>
+      ),
+    },
+    {
       accessorKey: "stock",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Stock" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Total" />,
       cell: ({ row }) => {
         const stock = row.original.stock;
         const minStock = row.original.minStock;
@@ -446,6 +637,14 @@ export default function StockLevelsPage() {
             onClick={() => handleViewDetails(row.original)}
           >
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleTransferStock(row.original)}
+          >
+            <ArrowRightLeft className="h-4 w-4 mr-1" />
+            Transfer
           </Button>
           <Button
             variant="outline"
@@ -563,6 +762,13 @@ export default function StockLevelsPage() {
         <StockAdjustmentModal
           open={adjustModalOpen}
           onOpenChange={setAdjustModalOpen}
+          selectedItem={selectedItem}
+          onSuccess={handleAdjustmentSuccess}
+        />
+
+        <StockTransferModal
+          open={transferDialogOpen}
+          onOpenChange={setTransferDialogOpen}
           selectedItem={selectedItem}
           onSuccess={handleAdjustmentSuccess}
         />

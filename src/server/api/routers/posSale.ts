@@ -138,14 +138,14 @@ export const posSaleRouter = createTRPCRouter({
             itemId: string;
             quantity: number;
             price: number;
-            currentStock: number;
+            currentShowcaseStock: number;
             name: string;
           }> = [];
 
           for (const item of items) {
             const posItem = await tx.pOSItem.findUnique({
               where: { id: item.itemId },
-              select: { id: true, name: true, stock: true },
+              select: { id: true, name: true, showcaseStock: true },
             });
 
             if (!posItem) {
@@ -155,10 +155,10 @@ export const posSaleRouter = createTRPCRouter({
               });
             }
 
-            if (posItem.stock < item.quantity) {
+            if (posItem.showcaseStock < item.quantity) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: `Insufficient stock for "${posItem.name}". Available: ${posItem.stock}, Requested: ${item.quantity}`,
+                message: `Insufficient showcase stock for "${posItem.name}". Available: ${posItem.showcaseStock}, Requested: ${item.quantity}`,
               });
             }
 
@@ -166,7 +166,7 @@ export const posSaleRouter = createTRPCRouter({
               itemId: item.itemId,
               quantity: item.quantity,
               price: item.price,
-              currentStock: posItem.stock,
+              currentShowcaseStock: posItem.showcaseStock,
               name: posItem.name,
             });
           }
@@ -212,10 +212,13 @@ export const posSaleRouter = createTRPCRouter({
               },
             });
 
-            // Update stock
+            // Update showcase stock (and legacy stock field)
             await tx.pOSItem.update({
               where: { id: item.itemId },
               data: {
+                showcaseStock: {
+                  decrement: item.quantity,
+                },
                 stock: {
                   decrement: item.quantity,
                 },
@@ -228,10 +231,11 @@ export const posSaleRouter = createTRPCRouter({
                 itemId: item.itemId,
                 type: "SALE",
                 quantity: -item.quantity, // Negative because stock decreases
-                quantityBefore: item.currentStock,
-                quantityAfter: item.currentStock - item.quantity,
+                quantityBefore: item.currentShowcaseStock,
+                quantityAfter: item.currentShowcaseStock - item.quantity,
                 referenceType: "POSSale",
                 referenceId: sale.id,
+                stockType: "showcase",
                 userId: ctx.session.user.id,
               },
             });
@@ -372,14 +376,17 @@ export const posSaleRouter = createTRPCRouter({
           // Get current stock before restoration
           const posItem = await tx.pOSItem.findUnique({
             where: { id: existingItem.itemId },
-            select: { stock: true },
+            select: { showcaseStock: true },
           });
 
-          const currentStock = posItem?.stock ?? 0;
+          const currentShowcaseStock = posItem?.showcaseStock ?? 0;
 
           await tx.pOSItem.update({
             where: { id: existingItem.itemId },
             data: {
+              showcaseStock: {
+                increment: existingItem.quantity,
+              },
               stock: {
                 increment: existingItem.quantity,
               },
@@ -392,10 +399,11 @@ export const posSaleRouter = createTRPCRouter({
               itemId: existingItem.itemId,
               type: "SALE_VOID",
               quantity: existingItem.quantity, // Positive because stock increases
-              quantityBefore: currentStock,
-              quantityAfter: currentStock + existingItem.quantity,
+              quantityBefore: currentShowcaseStock,
+              quantityAfter: currentShowcaseStock + existingItem.quantity,
               referenceType: "POSSale",
               referenceId: id,
+              stockType: "showcase",
               reason: "Sale updated - restoring old quantities",
               userId: ctx.session.user.id,
             },
@@ -407,14 +415,14 @@ export const posSaleRouter = createTRPCRouter({
           itemId: string;
           quantity: number;
           price: number;
-          currentStock: number;
+          currentShowcaseStock: number;
           name: string;
         }> = [];
 
         for (const item of items) {
           const posItem = await tx.pOSItem.findUnique({
             where: { id: item.itemId },
-            select: { id: true, name: true, stock: true },
+            select: { id: true, name: true, showcaseStock: true },
           });
 
           if (!posItem) {
@@ -424,10 +432,10 @@ export const posSaleRouter = createTRPCRouter({
             });
           }
 
-          if (posItem.stock < item.quantity) {
+          if (posItem.showcaseStock < item.quantity) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: `Insufficient stock for "${posItem.name}". Available: ${posItem.stock}, Requested: ${item.quantity}`,
+              message: `Insufficient showcase stock for "${posItem.name}". Available: ${posItem.showcaseStock}, Requested: ${item.quantity}`,
             });
           }
 
@@ -435,7 +443,7 @@ export const posSaleRouter = createTRPCRouter({
             itemId: item.itemId,
             quantity: item.quantity,
             price: item.price,
-            currentStock: posItem.stock,
+            currentShowcaseStock: posItem.showcaseStock,
             name: posItem.name,
           });
         }
@@ -469,10 +477,13 @@ export const posSaleRouter = createTRPCRouter({
             },
           });
 
-          // Update item stock
+          // Update item showcase stock (and legacy stock field)
           await tx.pOSItem.update({
             where: { id: item.itemId },
             data: {
+              showcaseStock: {
+                decrement: item.quantity,
+              },
               stock: {
                 decrement: item.quantity,
               },
@@ -485,10 +496,11 @@ export const posSaleRouter = createTRPCRouter({
               itemId: item.itemId,
               type: "SALE",
               quantity: -item.quantity, // Negative because stock decreases
-              quantityBefore: item.currentStock,
-              quantityAfter: item.currentStock - item.quantity,
+              quantityBefore: item.currentShowcaseStock,
+              quantityAfter: item.currentShowcaseStock - item.quantity,
               referenceType: "POSSale",
               referenceId: id,
+              stockType: "showcase",
               userId: ctx.session.user.id,
             },
           });
@@ -520,14 +532,17 @@ export const posSaleRouter = createTRPCRouter({
           // Get current stock before restoration
           const posItem = await tx.pOSItem.findUnique({
             where: { id: item.itemId },
-            select: { stock: true },
+            select: { showcaseStock: true },
           });
 
-          const currentStock = posItem?.stock ?? 0;
+          const currentShowcaseStock = posItem?.showcaseStock ?? 0;
 
           await tx.pOSItem.update({
             where: { id: item.itemId },
             data: {
+              showcaseStock: {
+                increment: item.quantity,
+              },
               stock: {
                 increment: item.quantity,
               },
@@ -540,10 +555,11 @@ export const posSaleRouter = createTRPCRouter({
               itemId: item.itemId,
               type: "SALE_VOID",
               quantity: item.quantity, // Positive because stock increases
-              quantityBefore: currentStock,
-              quantityAfter: currentStock + item.quantity,
+              quantityBefore: currentShowcaseStock,
+              quantityAfter: currentShowcaseStock + item.quantity,
               referenceType: "POSSale",
               referenceId: input.id,
+              stockType: "showcase",
               reason: "Sale deleted/voided",
               userId: ctx.session.user.id,
             },

@@ -159,6 +159,8 @@ export const purchaseOrderRouter = createTRPCRouter({
                   price: true,
                   cost: true,
                   stock: true,
+                  warehouseStock: true,
+                  showcaseStock: true,
                   category: {
                     select: {
                       id: true,
@@ -169,6 +171,7 @@ export const purchaseOrderRouter = createTRPCRouter({
               },
             },
           },
+          transaction: true, // Include transaction data
         },
       });
 
@@ -444,17 +447,23 @@ export const purchaseOrderRouter = createTRPCRouter({
             notes: z.string().optional(),
           })
         ),
+        // NEW: Optional finance parameters
+        createTransaction: z.boolean().optional().default(false),
+        balanceAccountId: z.number().optional(), // bank_id
+        chartAccountId: z.number().optional(),   // account_id
+        transactionFile: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { id, items } = input;
+      const { id, items, createTransaction, balanceAccountId, chartAccountId, transactionFile } = input;
 
       return ctx.db.$transaction(async (tx) => {
         // 1. Verify PO status is ORDERED or PARTIALLY_RECEIVED
         const purchaseOrder = await tx.purchaseOrder.findUnique({
           where: { id },
           include: {
+            supplier: true,
             items: {
               include: {
                 item: true,
@@ -537,9 +546,14 @@ export const purchaseOrderRouter = createTRPCRouter({
             },
           });
 
-          // b. Get current POSItem stock
+          // b. Get current POSItem warehouse stock
           const posItem = await tx.pOSItem.findUnique({
             where: { id: poItem.itemId },
+            select: {
+              id: true,
+              name: true,
+              warehouseStock: true,
+            },
           });
 
           if (!posItem) {
@@ -549,14 +563,16 @@ export const purchaseOrderRouter = createTRPCRouter({
             });
           }
 
-          const quantityBefore = posItem.stock;
-          const quantityAfter = quantityBefore + receiveItem.receivedQuantity;
+          const actualReceived = receiveItem.receivedQuantity;
+          const currentWarehouseStock = posItem.warehouseStock;
+          const quantityAfter = currentWarehouseStock + actualReceived;
 
-          // c. Update POSItem.stock (increment)
+          // c. Update POSItem warehouse stock (and legacy stock field)
           await tx.pOSItem.update({
             where: { id: poItem.itemId },
             data: {
-              stock: quantityAfter,
+              warehouseStock: { increment: actualReceived },
+              stock: { increment: actualReceived },
             },
           });
 
@@ -565,11 +581,12 @@ export const purchaseOrderRouter = createTRPCRouter({
             data: {
               itemId: poItem.itemId,
               type: "PURCHASE_RECEIVE",
-              quantity: receiveItem.receivedQuantity,
-              quantityBefore,
+              quantity: actualReceived,
+              quantityBefore: currentWarehouseStock,
               quantityAfter,
               referenceType: "PurchaseOrder",
               referenceId: id,
+              stockType: "warehouse",
               reason: `Received from PO ${purchaseOrder.orderNumber}`,
               note: receiveItem.notes,
               userId,
@@ -613,39 +630,302 @@ export const purchaseOrderRouter = createTRPCRouter({
           },
         });
 
+        // 5. Create Transaction if requested and PO is fully received
+        if (createTransaction && newStatus === "RECEIVED") {
+          // Only create transaction when fully received
+          
+          if (!balanceAccountId || !chartAccountId) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Balance Account and Chart Account are required to create transaction"
+            });
+          }
+
+          // Generate transaction number (format: TRX-PO-YYYYMMDD-XXXX)
+          const today = new Date();
+          const dateStr = today.toISOString().split('T')[0]!.replace(/-/g, '');
+          
+          const todayTransactions = await tx.transaction.count({
+            where: {
+              transaction_number: {
+                startsWith: `TRX-PO-${dateStr}`
+              }
+            }
+          });
+          
+          const transactionNumber = `TRX-PO-${dateStr}-${String(todayTransactions + 1).padStart(4, '0')}`;
+
+          // Create the transaction
+          const transaction = await tx.transaction.create({
+            data: {
+              bank_id: balanceAccountId,
+              account_id: chartAccountId,
+              type: "outcome", // Purchase is an expense/outcome
+              file: transactionFile || "",
+              description: `Purchase Order: ${purchaseOrder.orderNumber} - ${purchaseOrder.supplier?.name || 'No Supplier'}`,
+              transaction_date: new Date(),
+              transaction_number: transactionNumber,
+              amount: purchaseOrder.total,
+            }
+          });
+
+          // Link the transaction to the purchase order
+          await tx.purchaseOrder.update({
+            where: { id: input.id },
+            data: {
+              transactionId: transaction.id
+            }
+          });
+        }
+
         return updatedPO;
       });
     }),
 
-  // Delete purchase order (only DRAFT status)
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
+  // Create transaction for an already received purchase order
+  createTransactionForPO: protectedProcedure
+    .input(z.object({
+      purchaseOrderId: z.string(),
+      balanceAccountId: z.number(),
+      chartAccountId: z.number(),
+      transactionFile: z.string().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
-      const { id } = input;
+      return await ctx.db.$transaction(async (tx) => {
+        const po = await tx.purchaseOrder.findUnique({
+          where: { id: input.purchaseOrderId },
+          include: { supplier: true, transaction: true }
+        });
 
-      // Check if purchase order exists and status allows deletion
-      const existingPO = await ctx.db.purchaseOrder.findUnique({
-        where: { id },
+        if (!po) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Purchase order not found" });
+        }
+
+        if (po.status !== "RECEIVED") {
+          throw new TRPCError({ 
+            code: "BAD_REQUEST", 
+            message: "Can only create transaction for fully received purchase orders" 
+          });
+        }
+
+        if (po.transactionId) {
+          throw new TRPCError({ 
+            code: "BAD_REQUEST", 
+            message: "Transaction already exists for this purchase order" 
+          });
+        }
+
+        // Generate transaction number
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0]!.replace(/-/g, '');
+        
+        const todayTransactions = await tx.transaction.count({
+          where: {
+            transaction_number: {
+              startsWith: `TRX-PO-${dateStr}`
+            }
+          }
+        });
+        
+        const transactionNumber = `TRX-PO-${dateStr}-${String(todayTransactions + 1).padStart(4, '0')}`;
+
+        // Create transaction
+        const transaction = await tx.transaction.create({
+          data: {
+            bank_id: input.balanceAccountId,
+            account_id: input.chartAccountId,
+            type: "outcome",
+            file: input.transactionFile || "",
+            description: `Purchase Order: ${po.orderNumber} - ${po.supplier?.name || 'No Supplier'}`,
+            transaction_date: new Date(),
+            transaction_number: transactionNumber,
+            amount: po.total,
+          }
+        });
+
+        // Link to PO
+        await tx.purchaseOrder.update({
+          where: { id: input.purchaseOrderId },
+          data: { transactionId: transaction.id }
+        });
+
+        return transaction;
+      });
+    }),
+
+  // Enhanced delete purchase order with force and soft delete options
+  delete: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        force: z.boolean().optional().default(false), // Allow deleting non-DRAFT POs
+        soft: z.boolean().optional().default(false),  // Soft delete vs hard delete
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.$transaction(async (tx) => {
+        const po = await tx.purchaseOrder.findUnique({
+          where: { id: input.id },
+          include: {
+            items: {
+              include: { item: true },
+            },
+            transaction: true,
+          },
+        });
+
+        if (!po) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Purchase order not found",
+          });
+        }
+
+        // Check if PO can be deleted
+        if (!input.force && po.status !== "DRAFT") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot delete ${po.status} purchase order. Use force=true to override.`,
+          });
+        }
+
+        // If PO has been received (PARTIALLY_RECEIVED or RECEIVED), reverse warehouse stock
+        if (po.status === "PARTIALLY_RECEIVED" || po.status === "RECEIVED") {
+          for (const poItem of po.items) {
+            if (poItem.receivedQuantity > 0) {
+              // Get current warehouse stock
+              const currentWarehouseStock = poItem.item.warehouseStock;
+
+              // Reverse the warehouse stock
+              await tx.pOSItem.update({
+                where: { id: poItem.itemId },
+                data: {
+                  warehouseStock: { decrement: poItem.receivedQuantity },
+                  stock: { decrement: poItem.receivedQuantity },
+                },
+              });
+
+              // Create inventory transaction to record the reversal
+              await tx.inventoryTransaction.create({
+                data: {
+                  itemId: poItem.itemId,
+                  type: "ADJUSTMENT_OUT",
+                  quantity: -poItem.receivedQuantity,
+                  quantityBefore: currentWarehouseStock,
+                  quantityAfter: currentWarehouseStock - poItem.receivedQuantity,
+                  referenceType: "PurchaseOrder",
+                  referenceId: input.id,
+                  stockType: "warehouse",
+                  reason: `Purchase order ${po.orderNumber} deleted - stock reversal`,
+                  userId: ctx.session.user.id,
+                },
+              });
+            }
+          }
+        }
+
+        // Handle linked transaction
+        if (po.transactionId) {
+          if (input.soft) {
+            // Soft delete the transaction (set deleted_at)
+            await tx.transaction.update({
+              where: { id: po.transactionId },
+              data: { deleted_at: new Date() },
+            });
+          } else {
+            // Warn that transaction exists
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Cannot hard delete purchase order with linked transaction. Use soft=true or delete transaction first.",
+            });
+          }
+        }
+
+        // Perform the delete
+        if (input.soft) {
+          // Soft delete - update status to CANCELLED
+          await tx.purchaseOrder.update({
+            where: { id: input.id },
+            data: {
+              status: "CANCELLED",
+              notes: `${po.notes || ""}\n[Deleted on ${new Date().toISOString()}]`,
+            },
+          });
+
+          return {
+            success: true,
+            message: "Purchase order cancelled",
+            type: "soft" as const,
+          };
+        } else {
+          // Hard delete
+          await tx.purchaseOrder.delete({
+            where: { id: input.id },
+          });
+
+          return {
+            success: true,
+            message: "Purchase order deleted permanently",
+            type: "hard" as const,
+          };
+        }
+      });
+    }),
+
+  // Cancel purchase order (safer alternative to delete)
+  cancel: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        reason: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const po = await ctx.db.purchaseOrder.findUnique({
+        where: { id: input.id },
+        select: { status: true, notes: true },
       });
 
-      if (!existingPO) {
+      if (!po) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Purchase order not found",
         });
       }
 
-      if (existingPO.status !== "DRAFT") {
+      if (po.status === "RECEIVED") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Cannot delete purchase order with status: ${existingPO.status}. Only DRAFT orders can be deleted.`,
+          message:
+            "Cannot cancel fully received purchase order. Use delete with force=true instead.",
         });
       }
 
-      // Delete PO (cascade will delete items due to onDelete: Cascade)
-      return ctx.db.purchaseOrder.delete({
-        where: { id },
+      if (po.status === "CANCELLED") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Purchase order is already cancelled",
+        });
+      }
+
+      const cancelNote = input.reason
+        ? `Cancelled: ${input.reason}`
+        : "Cancelled";
+      const updatedNotes = po.notes
+        ? `${po.notes}\n[${new Date().toISOString()}] ${cancelNote}`
+        : `[${new Date().toISOString()}] ${cancelNote}`;
+
+      await ctx.db.purchaseOrder.update({
+        where: { id: input.id },
+        data: {
+          status: "CANCELLED",
+          notes: updatedNotes,
+          updatedBy: ctx.session.user.id,
+        },
       });
+
+      return { success: true, message: "Purchase order cancelled successfully" };
     }),
 
   // Get dashboard stats

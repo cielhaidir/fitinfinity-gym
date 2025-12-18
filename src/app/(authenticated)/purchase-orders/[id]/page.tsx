@@ -31,6 +31,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -41,6 +48,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import {
@@ -166,7 +175,7 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-// Receive Items Dialog
+// Receive Items Dialog with Finance Integration
 function ReceiveItemsDialog({
   open,
   onOpenChange,
@@ -193,6 +202,18 @@ function ReceiveItemsDialog({
         notes: "",
       }))
   );
+
+  const [createTransaction, setCreateTransaction] = useState(false);
+  const [balanceAccountId, setBalanceAccountId] = useState<number | undefined>(undefined);
+  const [chartAccountId, setChartAccountId] = useState<number | undefined>(undefined);
+
+  // Fetch accounts for finance integration
+  const { data: balanceAccounts } = api.balanceAccount.list.useQuery(undefined, {
+    enabled: createTransaction,
+  });
+  const { data: chartAccounts } = api.chartAccount.list.useQuery(undefined, {
+    enabled: createTransaction,
+  });
 
   const receiveItemsMutation = api.purchaseOrder.receiveItems.useMutation({
     onSuccess: () => {
@@ -244,15 +265,23 @@ function ReceiveItemsDialog({
       return;
     }
 
+    if (createTransaction && (!balanceAccountId || !chartAccountId)) {
+      toast.error("Please select both balance and chart accounts for the transaction");
+      return;
+    }
+
     receiveItemsMutation.mutate({
       id: purchaseOrderId,
       items: itemsToReceive,
+      createTransaction,
+      balanceAccountId,
+      chartAccountId,
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Receive Items</DialogTitle>
           <DialogDescription>
@@ -260,52 +289,117 @@ function ReceiveItemsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[400px] overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-center">Ordered</TableHead>
-                <TableHead className="text-center">Received</TableHead>
-                <TableHead className="text-center">Pending</TableHead>
-                <TableHead className="w-[120px]">Receive Qty</TableHead>
-                <TableHead className="w-[200px]">Notes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {receiveItems.map((item) => (
-                <TableRow key={item.itemId}>
-                  <TableCell className="font-medium">{item.itemName}</TableCell>
-                  <TableCell className="text-center">{item.orderedQuantity}</TableCell>
-                  <TableCell className="text-center">{item.receivedQuantity}</TableCell>
-                  <TableCell className="text-center">{item.pendingQuantity}</TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      max={item.pendingQuantity}
-                      value={item.receiveQuantity}
-                      onChange={(e) =>
-                        handleUpdateReceiveQuantity(
-                          item.itemId,
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                      className="h-8"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      placeholder="Notes..."
-                      value={item.notes}
-                      onChange={(e) => handleUpdateNotes(item.itemId, e.target.value)}
-                      className="h-8"
-                    />
-                  </TableCell>
+        <div className="space-y-4">
+          {/* Items Table */}
+          <div className="max-h-[300px] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead className="text-center">Ordered</TableHead>
+                  <TableHead className="text-center">Received</TableHead>
+                  <TableHead className="text-center">Pending</TableHead>
+                  <TableHead className="w-[120px]">Receive Qty</TableHead>
+                  <TableHead className="w-[200px]">Notes</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {receiveItems.map((item) => (
+                  <TableRow key={item.itemId}>
+                    <TableCell className="font-medium">{item.itemName}</TableCell>
+                    <TableCell className="text-center">{item.orderedQuantity}</TableCell>
+                    <TableCell className="text-center">{item.receivedQuantity}</TableCell>
+                    <TableCell className="text-center">{item.pendingQuantity}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        max={item.pendingQuantity}
+                        value={item.receiveQuantity}
+                        onChange={(e) =>
+                          handleUpdateReceiveQuantity(
+                            item.itemId,
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                        className="h-8"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        placeholder="Notes..."
+                        value={item.notes}
+                        onChange={(e) => handleUpdateNotes(item.itemId, e.target.value)}
+                        className="h-8"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Finance Integration Section */}
+          <Separator />
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="createTransaction"
+                checked={createTransaction}
+                onCheckedChange={(checked) => setCreateTransaction(checked as boolean)}
+              />
+              <Label htmlFor="createTransaction" className="cursor-pointer">
+                Create accounting transaction
+              </Label>
+            </div>
+
+            {createTransaction && (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>Balance Account *</Label>
+                    <Select
+                      value={balanceAccountId?.toString()}
+                      onValueChange={(value) => setBalanceAccountId(Number(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {balanceAccounts?.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id.toString()}>
+                            {acc.name} - {acc.account_number}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Chart Account *</Label>
+                    <Select
+                      value={chartAccountId?.toString()}
+                      onValueChange={(value) => setChartAccountId(Number(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {chartAccounts?.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id.toString()}>
+                            {acc.name} ({acc.reff})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A transaction will be automatically created when items are received.
+                </p>
+              </>
+            )}
+          </div>
         </div>
 
         <DialogFooter>
@@ -403,25 +497,34 @@ function StatusUpdateDialog({
   );
 }
 
-// Delete Confirmation Dialog
+// Enhanced Delete Confirmation Dialog
 function DeleteConfirmDialog({
   open,
   onOpenChange,
   purchaseOrderId,
   orderNumber,
+  status,
+  hasTransaction,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   purchaseOrderId: string;
   orderNumber: string;
+  status: string;
+  hasTransaction: boolean;
   onSuccess: () => void;
 }) {
   const router = useRouter();
+  const [softDelete, setSoftDelete] = useState(hasTransaction);
 
   const deleteMutation = api.purchaseOrder.delete.useMutation({
     onSuccess: () => {
-      toast.success("Purchase order deleted successfully");
+      toast.success(
+        softDelete 
+          ? "Purchase order soft deleted successfully" 
+          : "Purchase order deleted successfully"
+      );
       onOpenChange(false);
       router.push("/purchase-orders");
       onSuccess();
@@ -432,7 +535,10 @@ function DeleteConfirmDialog({
   });
 
   const handleDelete = () => {
-    deleteMutation.mutate({ id: purchaseOrderId });
+    deleteMutation.mutate({ 
+      id: purchaseOrderId,
+      soft: softDelete,
+    });
   };
 
   return (
@@ -442,9 +548,29 @@ function DeleteConfirmDialog({
           <AlertDialogTitle>Delete Purchase Order?</AlertDialogTitle>
           <AlertDialogDescription>
             You are about to delete purchase order{" "}
-            <strong>{orderNumber}</strong>. This action cannot be undone.
+            <strong>{orderNumber}</strong>.
+            {hasTransaction && (
+              <>
+                <br />
+                <br />
+                <strong className="text-destructive">Warning:</strong> This order has an associated transaction. 
+                {softDelete ? " It will be soft deleted (marked as deleted but kept for records)." : " Hard delete will permanently remove it and its transaction."}
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {hasTransaction && (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="softDelete"
+              checked={softDelete}
+              onCheckedChange={(checked) => setSoftDelete(checked as boolean)}
+            />
+            <Label htmlFor="softDelete" className="cursor-pointer text-sm">
+              Soft delete (recommended for orders with transactions)
+            </Label>
+          </div>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
@@ -510,10 +636,10 @@ export default function PurchaseOrderDetailPage() {
   }
 
   const canEdit = order && ["DRAFT", "PENDING"].includes(order.status);
-  const canDelete = order && order.status === "DRAFT";
+  const canDelete = order && (order.status === "DRAFT" || (order.status === "RECEIVED" && order.transactionId));
   const canSubmit = order && order.status === "DRAFT";
   const canMarkOrdered = order && order.status === "PENDING";
-  const canCancel = order && ["DRAFT", "PENDING"].includes(order.status);
+  const canCancel = order && ["PENDING", "ORDERED"].includes(order.status);
   const canReceive =
     order && ["ORDERED", "PARTIALLY_RECEIVED"].includes(order.status);
 
@@ -583,7 +709,7 @@ export default function PurchaseOrderDetailPage() {
                   onClick={() => handleStatusChange("CANCELLED")}
                 >
                   <X className="mr-2 h-4 w-4" />
-                  Cancel
+                  Cancel Order
                 </Button>
               )}
               {canDelete && (
@@ -678,6 +804,52 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Accounting Transaction Info */}
+              {order.transaction && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Accounting Transaction</CardTitle>
+                    <CardDescription>
+                      Transaction created when items were received
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <dl className="grid grid-cols-2 gap-4">
+                      <div>
+                        <dt className="text-sm font-medium text-muted-foreground">
+                          Transaction Number
+                        </dt>
+                        <dd className="text-sm font-medium">{order.transaction.transaction_number}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-muted-foreground">
+                          Amount
+                        </dt>
+                        <dd className="text-sm font-medium">
+                          {formatCurrency(order.transaction.amount)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-muted-foreground">
+                          Transaction Date
+                        </dt>
+                        <dd className="text-sm">
+                          {format(new Date(order.transaction.transaction_date), "MMMM d, yyyy")}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-muted-foreground">
+                          Type
+                        </dt>
+                        <dd className="text-sm">
+                          <Badge variant="outline">{order.transaction.type}</Badge>
+                        </dd>
+                      </div>
+                    </dl>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Order Items */}
               <Card>
@@ -867,6 +1039,8 @@ export default function PurchaseOrderDetailPage() {
               onOpenChange={setDeleteDialogOpen}
               purchaseOrderId={orderId}
               orderNumber={order.orderNumber}
+              status={order.status}
+              hasTransaction={!!order.transactionId}
               onSuccess={handleRefresh}
             />
           </>

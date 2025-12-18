@@ -474,9 +474,10 @@ export default function POSPage() {
                         <span className="text-lg font-bold text-green-600">
                           {formatIDR(item.price)}
                         </span>
-                        <Badge variant={item.stock > 0 ? "secondary" : "destructive"}>
-                          {item.stock} left
-                        </Badge>
+                        <div className="text-xs text-right">
+                          <div className="font-medium">Showcase: {item.showcaseStock}</div>
+                          <div className="text-muted-foreground">Warehouse: {item.warehouseStock}</div>
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground">{item.category.name}</p>
                     </div>
@@ -658,14 +659,6 @@ export default function POSPage() {
                     Recent Sales
                   </div>
                   <div className="flex items-center gap-2">
-                    {/* <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowFilters(!showFilters)}
-                    >
-                      <Filter className="h-4 w-4 mr-2" />
-                      Filters
-                    </Button> */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -677,84 +670,6 @@ export default function POSPage() {
                     </Button>
                   </div>
                 </CardTitle>
-                
-                {showFilters && (
-                  <div className="mt-4 space-y-4 p-4  rounded-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Search</label>
-                        <Input
-                          type="text"
-                          placeholder="Search by sale number or notes..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1">From Date</label>
-                        <Input
-                          type="date"
-                          value={dateFrom}
-                          onChange={(e) => setDateFrom(e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1">To Date</label>
-                        <Input
-                          type="date"
-                          value={dateTo}
-                          onChange={(e) => setDateTo(e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Payment Method</label>
-                        <Select value={filterPaymentMethod} onValueChange={setFilterPaymentMethod}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All payment methods" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">All payment methods</SelectItem>
-                            <SelectItem value="cash">Cash</SelectItem>
-                            <SelectItem value="card">Card</SelectItem>
-                            <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      {/* <div>
-                        <label className="block text-sm font-medium mb-1">Cashier</label>
-                        <Select value={filterCashier} onValueChange={setFilterCashier}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All cashiers" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">All cashiers</SelectItem>
-                            {filteredCashiers.map((cashier) => (
-                              <SelectItem key={cashier.id} value={cashier.id}>
-                                {cashier.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div> */}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button onClick={handleSearch} variant="default">
-                        Apply Filters
-                      </Button>
-                      <Button onClick={handleClearFilters} variant="outline">
-                        Clear Filters
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </CardHeader>
               <CardContent>
                 {recentSales?.items.length === 0 ? (
@@ -807,231 +722,14 @@ export default function POSPage() {
                         )}
 
                         <div className="flex gap-2">
-                          <Dialog open={isEditDialogOpen && editingSale?.id === sale.id} onOpenChange={(open) => {
-                            if (!open) cancelEdit();
-                          }}>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditSale(sale)}
-                              >
-                                <Edit className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle>Edit Sale - {sale.saleNumber}</DialogTitle>
-                              </DialogHeader>
-                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-                                {/* Products Section for Edit */}
-                                <div className="lg:col-span-2">
-                                  <div className="mb-4">
-                                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Filter by category" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="all">All Categories</SelectItem>
-                                        {categories?.map((category) => (
-                                          <SelectItem key={category.id} value={category.id}>
-                                            {category.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                                    {filteredItems?.map((item) => (
-                                      <Card
-                                        key={item.id}
-                                        className="cursor-pointer hover:shadow-md transition-shadow"
-                                        onClick={() => addToCart(item)}
-                                      >
-                                        <CardContent className="p-4">
-                                          <div className="space-y-2">
-                                            <h3 className="font-medium truncate">{item.name}</h3>
-                                            <div className="flex justify-between items-center">
-                                              <span className="text-lg font-bold text-green-600">
-                                                {formatIDR(item.price)}
-                                              </span>
-                                              <Badge variant={item.stock > 0 ? "secondary" : "destructive"}>
-                                                {item.stock} left
-                                              </Badge>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">{item.category.name}</p>
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Cart Section for Edit - Same as main POS */}
-                                <div>
-                                  <Card>
-                                    <CardHeader>
-                                      <CardTitle className="flex items-center gap-2">
-                                        <ShoppingCart className="h-5 w-5" />
-                                        Cart ({cartItems.length})
-                                      </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                      {cartItems.length === 0 ? (
-                                        <p className="text-muted-foreground text-center py-8">
-                                          Cart is empty
-                                        </p>
-                                      ) : (
-                                        <>
-                                          <div className="space-y-2 max-h-64 overflow-y-auto">
-                                            {cartItems.map((item) => (
-                                              <div key={item.itemId} className="flex items-center justify-between p-2 border rounded">
-                                                <div className="flex-1">
-                                                  <p className="font-medium text-sm">{item.name}</p>
-                                                  <p className="text-xs text-muted-foreground">
-                                                    {formatIDR(item.price)} each
-                                                  </p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => updateQuantity(item.itemId, item.quantity - 1)}
-                                                  >
-                                                    <Minus className="h-3 w-3" />
-                                                  </Button>
-                                                  <span className="w-8 text-center">{item.quantity}</span>
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => updateQuantity(item.itemId, item.quantity + 1)}
-                                                  >
-                                                    <Plus className="h-3 w-3" />
-                                                  </Button>
-                                                  <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => removeFromCart(item.itemId)}
-                                                  >
-                                                    <Trash2 className="h-3 w-3" />
-                                                  </Button>
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-
-                                          <div className="space-y-2 pt-4 border-t">
-                                            <div className="flex justify-between">
-                                              <span>Subtotal:</span>
-                                              <span>{formatIDR(subtotal)}</span>
-                                            </div>
-                                            
-                                            <div className="flex justify-between items-center">
-                                              <span>Tax:</span>
-                                              <Input
-                                                type="number"
-                                                value={tax}
-                                                onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
-                                                className="w-20 h-8"
-                                              />
-                                            </div>
-                                            
-                                            <div className="flex justify-between items-center">
-                                              <span>Discount:</span>
-                                              <Input
-                                                type="number"
-                                                value={discount}
-                                                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                                                className="w-20 h-8"
-                                              />
-                                            </div>
-                                            
-                                            <div className="flex justify-between font-bold">
-                                              <span>Total:</span>
-                                              <span>{formatIDR(total)}</span>
-                                            </div>
-                                          </div>
-
-                                          <div className="space-y-3">
-                                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                                              <SelectTrigger>
-                                                <SelectValue placeholder="Payment method" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="cash">Cash</SelectItem>
-                                                <SelectItem value="card">Card</SelectItem>
-                                                <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
-                                              </SelectContent>
-                                            </Select>
-
-                                            {balanceAccounts && (
-                                              <Select
-                                                value={balanceAccountId?.toString()}
-                                                onValueChange={(value) => setBalanceAccountId(parseInt(value))}
-                                              >
-                                                <SelectTrigger>
-                                                  <SelectValue placeholder="Select balance account" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  {balanceAccounts.items.map((account) => (
-                                                    <SelectItem key={account.id} value={account.id.toString()}>
-                                                      {account.name}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            )}
-
-                                            <Input
-                                              type="number"
-                                              placeholder="Amount paid"
-                                              value={amountPaid}
-                                              onChange={(e) => setAmountPaid(e.target.value)}
-                                            />
-
-                                            {parseFloat(amountPaid) >= total && (
-                                              <div className="text-center p-2 bg-green-50 rounded">
-                                                <span className="font-medium text-green-700">
-                                                  Change: {formatIDR(change)}
-                                                </span>
-                                              </div>
-                                            )}
-
-                                            <Textarea
-                                              placeholder="Notes (optional)"
-                                              value={notes}
-                                              onChange={(e) => setNotes(e.target.value)}
-                                              rows={2}
-                                            />
-
-                                            <div className="flex gap-2">
-                                              <Button
-                                                variant="outline"
-                                                onClick={cancelEdit}
-                                                className="flex-1"
-                                              >
-                                                Cancel
-                                              </Button>
-                                              <Button
-                                                onClick={handleUpdateSale}
-                                                className="flex-1 bg-infinity hover:bg-infinity/90"
-                                                disabled={cartItems.length === 0 || parseFloat(amountPaid) < total}
-                                              >
-                                                <CreditCard className="mr-2 h-4 w-4" />
-                                                Update Sale
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        </>
-                                      )}
-                                    </CardContent>
-                                  </Card>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditSale(sale)}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
                           
                           <Button
                             size="sm"
