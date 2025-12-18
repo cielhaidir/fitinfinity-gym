@@ -9,9 +9,114 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertCircle, CheckCircle2, FileText, Search, Trash2, Download, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Search, Trash2, Download, RefreshCw, Code2, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+
+// Component to render JSON in a normalized, readable format
+function NormalizedJsonView({ data, entryId }: { data: any; entryId: string }) {
+  const [showRaw, setShowRaw] = useState(false);
+
+  const renderValue = (value: any, key?: string): React.ReactNode => {
+    if (value === null) return <span className="text-muted-foreground italic">null</span>;
+    if (value === undefined) return <span className="text-muted-foreground italic">undefined</span>;
+    if (typeof value === 'boolean') return <Badge variant="outline" className="text-xs">{value.toString()}</Badge>;
+    if (typeof value === 'number') return <span className="text-blue-600 dark:text-blue-400 font-mono">{value}</span>;
+    if (typeof value === 'string') {
+      // Check if it's a date string
+      if (key && (key.toLowerCase().includes('date') || key.toLowerCase().includes('time') || key.toLowerCase().includes('at'))) {
+        try {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            return (
+              <span className="text-purple-600 dark:text-purple-400">
+                {date.toLocaleString()}
+              </span>
+            );
+          }
+        } catch (e) {
+          // Not a valid date, just render as string
+        }
+      }
+      return <span className="text-green-600 dark:text-green-400">&quot;{value}&quot;</span>;
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) return <span className="text-muted-foreground italic">[]</span>;
+      return (
+        <div className="ml-4 space-y-1">
+          {value.map((item, idx) => (
+            <div key={idx} className="flex gap-2">
+              <span className="text-muted-foreground">[{idx}]:</span>
+              {typeof item === 'object' ? renderObject(item) : renderValue(item)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (typeof value === 'object') {
+      return renderObject(value);
+    }
+    return <span>{String(value)}</span>;
+  };
+
+  const renderObject = (obj: Record<string, any>) => {
+    const entries = Object.entries(obj);
+    if (entries.length === 0) return <span className="text-muted-foreground italic">{'{}'}</span>;
+    
+    return (
+      <div className="ml-4 space-y-1.5 border-l-2 border-muted pl-3">
+        {entries.map(([key, value]) => (
+          <div key={key} className="flex gap-2 items-start">
+            <span className="font-semibold text-sm min-w-fit text-muted-foreground">
+              {key}:
+            </span>
+            <div className="flex-1">{renderValue(value, key)}</div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">Payload Data</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowRaw(!showRaw)}
+          className="h-7 text-xs"
+        >
+          {showRaw ? (
+            <>
+              <Eye className="h-3 w-3 mr-1" />
+              Show Formatted
+            </>
+          ) : (
+            <>
+              <Code2 className="h-3 w-3 mr-1" />
+              Show Raw JSON
+            </>
+          )}
+        </Button>
+      </div>
+      
+      {showRaw ? (
+        <div className="bg-background rounded p-3 overflow-x-auto border">
+          <pre className="text-xs font-mono">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </div>
+      ) : (
+        <div className="bg-background rounded p-3 border">
+          <div className="text-sm">
+            {renderObject(data)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LogsPage() {
   const [selectedFile, setSelectedFile] = useState<string>("");
@@ -106,27 +211,113 @@ export default function LogsPage() {
   };
 
   const parseLogEntry = (line: string) => {
-    // Try to extract JSON payload from "Input: {...}" pattern
-    const inputMatch = line.match(/Input: (\{.*\})/);
-    if (inputMatch) {
+    // Try to extract JSON payload from various patterns
+    
+    // Pattern 1: Truncated JSON - "[TRUNCATED - X chars] [JSON...]"
+    const truncatedMatch = line.match(/\[TRUNCATED\s*-\s*(\d+)\s*chars\]\s*(\[?\{.*)/);
+    if (truncatedMatch?.[1] && truncatedMatch?.[2]) {
       try {
-        const jsonData = JSON.parse(inputMatch[1]);
+        const truncatedChars = parseInt(truncatedMatch[1], 10);
+        const jsonData = JSON.parse(truncatedMatch[2]);
         return {
-          type: 'input',
+          type: 'truncated' as const,
+          timestamp: line.match(/\[(.*?)\]/)?.[1] || '',
+          data: jsonData,
+          truncatedChars,
+          rawLine: line
+        };
+      } catch (e) {
+        // If JSON parsing fails, treat as text
+        return { type: 'text' as const, line };
+      }
+    }
+
+    // Pattern 2: Pipe-delimited JSON - "message | {JSON}"
+    const pipeMatch = line.match(/^(.*?)\s*\|\s*(\{.*\})\s*$/);
+    if (pipeMatch?.[1] && pipeMatch?.[2]) {
+      try {
+        const jsonData = JSON.parse(pipeMatch[2]);
+        return {
+          type: 'piped' as const,
+          timestamp: line.match(/\[(.*?)\]/)?.[1] || '',
+          message: pipeMatch[1].trim(),
+          data: jsonData,
+          rawLine: line
+        };
+      } catch (e) {
+        // Not valid JSON, continue to other patterns
+      }
+    }
+    
+    // Pattern 3: "Response: {...}"
+    const responseMatch = line.match(/Response:\s*(\{.*\})/);
+    if (responseMatch?.[1]) {
+      try {
+        const jsonData = JSON.parse(responseMatch[1]);
+        return {
+          type: 'response' as const,
           timestamp: line.match(/\[(.*?)\]/)?.[1] || '',
           data: jsonData,
           rawLine: line
         };
       } catch (e) {
-        return { type: 'text', line };
+        return { type: 'text' as const, line };
+      }
+    }
+
+    // Pattern 4: "Input: {...}" (existing)
+    const inputMatch = line.match(/Input:\s*(\{.*\})/);
+    if (inputMatch?.[1]) {
+      try {
+        const jsonData = JSON.parse(inputMatch[1]);
+        return {
+          type: 'input' as const,
+          timestamp: line.match(/\[(.*?)\]/)?.[1] || '',
+          data: jsonData,
+          rawLine: line
+        };
+      } catch (e) {
+        return { type: 'text' as const, line };
+      }
+    }
+
+    // Pattern 5: "Data: {...}"
+    const dataMatch = line.match(/Data:\s*(\{.*\})/);
+    if (dataMatch?.[1]) {
+      try {
+        const jsonData = JSON.parse(dataMatch[1]);
+        return {
+          type: 'data' as const,
+          timestamp: line.match(/\[(.*?)\]/)?.[1] || '',
+          data: jsonData,
+          rawLine: line
+        };
+      } catch (e) {
+        return { type: 'text' as const, line };
+      }
+    }
+
+    // Pattern 6: Generic pattern with any word followed by colon and JSON
+    const genericJsonMatch = line.match(/:\s*(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/);
+    if (genericJsonMatch?.[1]) {
+      try {
+        const jsonData = JSON.parse(genericJsonMatch[1]);
+        return {
+          type: 'payload' as const,
+          timestamp: line.match(/\[(.*?)\]/)?.[1] || '',
+          data: jsonData,
+          rawLine: line
+        };
+      } catch (e) {
+        // Not valid JSON, continue to other patterns
       }
     }
 
     // Parse regular log entries
     const match = line.match(/\[(.*?)\]\s+(\w+):\s+\[(\w+)\]\s+([\w.]+)\s+-\s+User:\s+(.*?)\s+\((.*?)\)/);
-    if (match) {
+    if (match?.[1] && match[2] && match[3] && match[4] && match[5] && match[6]) {
       return {
-        type: 'operation',
+        type: 'operation' as const,
         timestamp: match[1],
         level: match[2],
         operation: match[3],
@@ -137,7 +328,7 @@ export default function LogsPage() {
       };
     }
 
-    return { type: 'text', line };
+    return { type: 'text' as const, line };
   };
 
   return (
@@ -227,12 +418,12 @@ export default function LogsPage() {
                               <div className="flex gap-2 mt-2">
                                 <Badge variant="outline" className="text-xs">
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  {stats.logCounts[file.name].info}
+                                  {stats.logCounts[file.name]?.info}
                                 </Badge>
-                                {stats.logCounts[file.name].error > 0 && (
+                                {(stats.logCounts[file.name]?.error ?? 0) > 0 && (
                                   <Badge variant="destructive" className="text-xs">
                                     <AlertCircle className="h-3 w-3 mr-1" />
-                                    {stats.logCounts[file.name].error}
+                                    {stats.logCounts[file.name]?.error}
                                   </Badge>
                                 )}
                               </div>
@@ -393,26 +584,116 @@ export default function LogsPage() {
                             );
                           }
                           
+                          if (parsed.type === 'response') {
+                           return (
+                             <div
+                               key={index}
+                               className="p-3 rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/20"
+                             >
+                               <div className="flex items-center gap-2 mb-3">
+                                 <Badge variant="outline" className="border-green-500 text-green-600">
+                                   Response
+                                 </Badge>
+                                 <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                               </div>
+                               <NormalizedJsonView data={parsed.data} entryId={`log-${index}`} />
+                             </div>
+                           );
+                         }
+                          
                           if (parsed.type === 'input') {
-                            return (
-                              <div
-                                key={index}
-                                className="p-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20"
-                              >
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Badge variant="outline" className="border-blue-500 text-blue-600">
-                                    Payload
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
-                                </div>
-                                <div className="bg-background rounded p-3 overflow-x-auto">
-                                  <pre className="text-xs">
-                                    {JSON.stringify(parsed.data, null, 2)}
-                                  </pre>
-                                </div>
-                              </div>
-                            );
-                          }
+                           return (
+                             <div
+                               key={index}
+                               className="p-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20"
+                             >
+                               <div className="flex items-center gap-2 mb-3">
+                                 <Badge variant="outline" className="border-blue-500 text-blue-600">
+                                   Payload
+                                 </Badge>
+                                 <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                               </div>
+                               <NormalizedJsonView data={parsed.data} entryId={`log-${index}`} />
+                             </div>
+                           );
+                         }
+                          
+                          if (parsed.type === 'data') {
+                           return (
+                             <div
+                               key={index}
+                               className="p-3 rounded-lg border border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-950/20"
+                             >
+                               <div className="flex items-center gap-2 mb-3">
+                                 <Badge variant="outline" className="border-purple-500 text-purple-600">
+                                   Data
+                                 </Badge>
+                                 <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                               </div>
+                               <NormalizedJsonView data={parsed.data} entryId={`log-${index}`} />
+                             </div>
+                           );
+                         }
+                          
+                          if (parsed.type === 'payload') {
+                           return (
+                             <div
+                               key={index}
+                               className="p-3 rounded-lg border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/20"
+                             >
+                               <div className="flex items-center gap-2 mb-3">
+                                 <Badge variant="outline" className="border-orange-500 text-orange-600">
+                                   JSON
+                                 </Badge>
+                                 <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                               </div>
+                               <NormalizedJsonView data={parsed.data} entryId={`log-${index}`} />
+                             </div>
+                           );
+                         }
+                          
+                          if (parsed.type === 'truncated') {
+                           return (
+                             <div
+                               key={index}
+                               className="p-3 rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20"
+                             >
+                               <div className="flex items-center gap-2 mb-3">
+                                 <Badge variant="destructive" className="font-semibold">
+                                   TRUNCATED
+                                 </Badge>
+                                 <Badge variant="outline" className="border-red-500 text-red-600">
+                                   {parsed.truncatedChars.toLocaleString()} chars omitted
+                                 </Badge>
+                                 <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                               </div>
+                               <div className="mb-2 p-2 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-800 dark:text-red-200">
+                                 ⚠️ Warning: This log entry was truncated in the original log file. Only partial data is available below.
+                               </div>
+                               <NormalizedJsonView data={parsed.data} entryId={`log-${index}`} />
+                             </div>
+                           );
+                         }
+                          
+                          if (parsed.type === 'piped') {
+                           return (
+                             <div
+                               key={index}
+                               className="p-3 rounded-lg border border-teal-200 dark:border-teal-900 bg-teal-50 dark:bg-teal-950/20"
+                             >
+                               <div className="flex items-center gap-2 mb-3">
+                                 <Badge variant="outline" className="border-teal-500 text-teal-600">
+                                   Operation Data
+                                 </Badge>
+                                 <span className="text-xs text-muted-foreground">{parsed.timestamp}</span>
+                               </div>
+                               <div className="mb-3 text-sm text-muted-foreground">
+                                 {parsed.message}
+                               </div>
+                               <NormalizedJsonView data={parsed.data} entryId={`log-${index}`} />
+                             </div>
+                           );
+                         }
                           
                           return (
                             <div
@@ -525,11 +806,58 @@ export default function LogsPage() {
                                   <span>{parsed.user}</span>
                                 </div>
                               </div>
+                            ) : parsed.type === 'response' ? (
+                              <div className="mt-2">
+                                <Badge variant="outline" className="border-green-500 text-green-600 mb-2">
+                                  Response
+                                </Badge>
+                                <NormalizedJsonView data={parsed.data} entryId={`search-${index}`} />
+                              </div>
                             ) : parsed.type === 'input' ? (
-                              <div className="bg-muted/50 rounded p-2 mt-2 overflow-x-auto">
-                                <pre className="text-xs">
-                                  {JSON.stringify(parsed.data, null, 2)}
-                                </pre>
+                              <div className="mt-2">
+                                <Badge variant="outline" className="border-blue-500 text-blue-600 mb-2">
+                                  Payload
+                                </Badge>
+                                <NormalizedJsonView data={parsed.data} entryId={`search-${index}`} />
+                              </div>
+                            ) : parsed.type === 'data' ? (
+                              <div className="mt-2">
+                                <Badge variant="outline" className="border-purple-500 text-purple-600 mb-2">
+                                  Data
+                                </Badge>
+                                <NormalizedJsonView data={parsed.data} entryId={`search-${index}`} />
+                              </div>
+                            ) : parsed.type === 'payload' ? (
+                              <div className="mt-2">
+                                <Badge variant="outline" className="border-orange-500 text-orange-600 mb-2">
+                                  JSON
+                                </Badge>
+                                <NormalizedJsonView data={parsed.data} entryId={`search-${index}`} />
+                              </div>
+                            ) : parsed.type === 'truncated' ? (
+                              <div className="mt-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="destructive" className="font-semibold">
+                                    TRUNCATED
+                                  </Badge>
+                                  <Badge variant="outline" className="border-red-500 text-red-600">
+                                    {parsed.truncatedChars.toLocaleString()} chars omitted
+                                  </Badge>
+                                </div>
+                                <div className="mb-2 p-2 bg-red-100 dark:bg-red-900/30 rounded text-xs text-red-800 dark:text-red-200">
+                                  ⚠️ Warning: This log entry was truncated. Only partial data is available.
+                                </div>
+                                <NormalizedJsonView data={parsed.data} entryId={`search-${index}`} />
+                              </div>
+                            ) : parsed.type === 'piped' ? (
+                              <div className="mt-2">
+                                <Badge variant="outline" className="border-teal-500 text-teal-600 mb-2">
+                                  Operation Data
+                                </Badge>
+                                <div className="mb-2 text-sm text-muted-foreground">
+                                  {parsed.message}
+                                </div>
+                                <NormalizedJsonView data={parsed.data} entryId={`search-${index}`} />
                               </div>
                             ) : (
                               <div className={`font-mono text-sm ${getLogLevelColor(result.line)}`}>
