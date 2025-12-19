@@ -391,95 +391,95 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
 
-        // Send email notifications if this is a new successful payment
-        if (updatedPayment.subscription.member?.user?.email) {
-          // Send payment receipt email
-          const paymentTemplate = await ctx.db.emailTemplate.findFirst({
-            where: { type: EmailType.PAYMENT_RECEIPT },
-          });
+        // // Send email notifications if this is a new successful payment
+        // if (updatedPayment.subscription.member?.user?.email) {
+        //   // Send payment receipt email
+        //   const paymentTemplate = await ctx.db.emailTemplate.findFirst({
+        //     where: { type: EmailType.PAYMENT_RECEIPT },
+        //   });
 
-          if (paymentTemplate) {
-            await emailService.sendTemplateEmail({
-              to: updatedPayment.subscription.member.user.email,
-              templateId: paymentTemplate.id,
-              templateData: {
-                memberName: updatedPayment.subscription.member.user.name,
-                packageName: updatedPayment.subscription.package.name,
-                receiptNumber:
-                  updatedPayment.orderReference || updatedPayment.id,
-                totalAmount: updatedPayment.totalPayment,
-                paymentStatus: PaymentStatus.SUCCESS,
-                statusClass: PaymentStatus.SUCCESS.toLowerCase(),
-                paymentDate: format(new Date(), "PPP"),
-                paymentMethod: updatedPayment.method,
-                duration: updatedPayment.subscription.remainingSessions
-                  ? `${updatedPayment.subscription.remainingSessions} sessions`
-                  : `${
-                      updatedPayment.subscription.endDate
-                        ? Math.ceil(
-                            (updatedPayment.subscription.endDate.getTime() -
-                              updatedPayment.subscription.startDate.getTime()) /
-                              (1000 * 60 * 60 * 24),
-                          )
-                        : 0
-                    } days`,
-                currency: "Rp",
-                memberEmail: updatedPayment.subscription.member.user.email,
-                supportEmail: siteConfig.supportEmail,
-                supportPhone: siteConfig.supportPhone,
-                logoUrl: siteConfig.logoUrl,
-                portalUrl: siteConfig.portalUrl,
-                currentYear: new Date().getFullYear(),
-                address: siteConfig.address,
-                // Conditional trainer data
-                ...(updatedPayment.subscription.trainer && {
-                  personalTrainer: true,
-                  trainerName: updatedPayment.subscription.trainer.user.name,
-                }),
-              },
-            });
-          }
+        //   if (paymentTemplate) {
+        //     await emailService.sendTemplateEmail({
+        //       to: updatedPayment.subscription.member.user.email,
+        //       templateId: paymentTemplate.id,
+        //       templateData: {
+        //         memberName: updatedPayment.subscription.member.user.name,
+        //         packageName: updatedPayment.subscription.package.name,
+        //         receiptNumber:
+        //           updatedPayment.orderReference || updatedPayment.id,
+        //         totalAmount: updatedPayment.totalPayment,
+        //         paymentStatus: PaymentStatus.SUCCESS,
+        //         statusClass: PaymentStatus.SUCCESS.toLowerCase(),
+        //         paymentDate: format(new Date(), "PPP"),
+        //         paymentMethod: updatedPayment.method,
+        //         duration: updatedPayment.subscription.remainingSessions
+        //           ? `${updatedPayment.subscription.remainingSessions} sessions`
+        //           : `${
+        //               updatedPayment.subscription.endDate
+        //                 ? Math.ceil(
+        //                     (updatedPayment.subscription.endDate.getTime() -
+        //                       updatedPayment.subscription.startDate.getTime()) /
+        //                       (1000 * 60 * 60 * 24),
+        //                   )
+        //                 : 0
+        //             } days`,
+        //         currency: "Rp",
+        //         memberEmail: updatedPayment.subscription.member.user.email,
+        //         supportEmail: siteConfig.supportEmail,
+        //         supportPhone: siteConfig.supportPhone,
+        //         logoUrl: siteConfig.logoUrl,
+        //         portalUrl: siteConfig.portalUrl,
+        //         currentYear: new Date().getFullYear(),
+        //         address: siteConfig.address,
+        //         // Conditional trainer data
+        //         ...(updatedPayment.subscription.trainer && {
+        //           personalTrainer: true,
+        //           trainerName: updatedPayment.subscription.trainer.user.name,
+        //         }),
+        //       },
+        //     });
+        //   }
 
-          // Send membership confirmation email
-          const membershipTemplate = await ctx.db.emailTemplate.findFirst({
-            where: { type: EmailType.MEMBERSHIP_CONFIRMATION },
-          });
+        //   // Send membership confirmation email
+        //   const membershipTemplate = await ctx.db.emailTemplate.findFirst({
+        //     where: { type: EmailType.MEMBERSHIP_CONFIRMATION },
+        //   });
 
-          if (membershipTemplate) {
-            await emailService.sendTemplateEmail({
-              to: updatedPayment.subscription.member.user.email,
-              templateId: membershipTemplate.id,
-              templateData: {
-                memberName: updatedPayment.subscription.member.user.name,
-                membershipId: updatedPayment.subscription.member.id,
-                packageName: updatedPayment.subscription.package.name,
-                startDate: format(updatedPayment.subscription.startDate, "PPP"),
-                endDate: updatedPayment.subscription.endDate
-                  ? format(updatedPayment.subscription.endDate, "PPP")
-                  : "N/A",
-                personalTrainer: updatedPayment.subscription.trainer
-                  ? true
-                  : false,
-                trainerName: updatedPayment.subscription.trainer?.user.name,
-                memberEmail: updatedPayment.subscription.member.user.email,
-                portalUrl: siteConfig.portalUrl,
-                supportEmail: siteConfig.supportEmail,
-                supportPhone: siteConfig.supportPhone,
-                logoUrl: siteConfig.logoUrl,
-                currentYear: new Date().getFullYear(),
-                address: siteConfig.address,
-                currency: "Rp",
-                paymentMethod: updatedPayment.method,
-                totalAmount: updatedPayment.totalPayment,
-                receiptNumber:
-                  updatedPayment.orderReference || updatedPayment.id,
-                paymentStatus: PaymentStatus.SUCCESS,
-                statusClass: PaymentStatus.SUCCESS.toLowerCase(),
-                paymentDate: format(new Date(), "PPP"),
-              },
-            });
-          }
-        }
+        //   if (membershipTemplate) {
+        //     await emailService.sendTemplateEmail({
+        //       to: updatedPayment.subscription.member.user.email,
+        //       templateId: membershipTemplate.id,
+        //       templateData: {
+        //         memberName: updatedPayment.subscription.member.user.name,
+        //         membershipId: updatedPayment.subscription.member.id,
+        //         packageName: updatedPayment.subscription.package.name,
+        //         startDate: format(updatedPayment.subscription.startDate, "PPP"),
+        //         endDate: updatedPayment.subscription.endDate
+        //           ? format(updatedPayment.subscription.endDate, "PPP")
+        //           : "N/A",
+        //         personalTrainer: updatedPayment.subscription.trainer
+        //           ? true
+        //           : false,
+        //         trainerName: updatedPayment.subscription.trainer?.user.name,
+        //         memberEmail: updatedPayment.subscription.member.user.email,
+        //         portalUrl: siteConfig.portalUrl,
+        //         supportEmail: siteConfig.supportEmail,
+        //         supportPhone: siteConfig.supportPhone,
+        //         logoUrl: siteConfig.logoUrl,
+        //         currentYear: new Date().getFullYear(),
+        //         address: siteConfig.address,
+        //         currency: "Rp",
+        //         paymentMethod: updatedPayment.method,
+        //         totalAmount: updatedPayment.totalPayment,
+        //         receiptNumber:
+        //           updatedPayment.orderReference || updatedPayment.id,
+        //         paymentStatus: PaymentStatus.SUCCESS,
+        //         statusClass: PaymentStatus.SUCCESS.toLowerCase(),
+        //         paymentDate: format(new Date(), "PPP"),
+        //       },
+        //     });
+        //   }
+        // }
       }
 
       return updatedPayment;

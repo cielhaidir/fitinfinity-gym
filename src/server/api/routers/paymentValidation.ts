@@ -391,7 +391,7 @@ export const paymentValidationRouter = createTRPCRouter({
             console.log("Subscription already active");
           }
           
-          // Create the payment record
+          // Create the payment record with the original payment date from validation
           console.log("Creating payment record for existing subscription...");
           const payment = await prisma.payment.create({
             data: {
@@ -399,10 +399,12 @@ export const paymentValidationRouter = createTRPCRouter({
               status: PaymentStatus.SUCCESS,
               method: paymentValidation.paymentMethod,
               totalPayment: paymentValidation.totalPayment,
-              createdAt: input.paymentDate ?? new Date(),
+              // Use paymentDate if provided, otherwise use the paymentValidation createdAt
+              createdAt: input.paymentDate ?? paymentValidation.createdAt,
+              paidAt: new Date(), // Set paidAt to now
             },
           });
-          console.log("Payment record created:", { id: payment.id, status: payment.status });
+          console.log("Payment record created:", { id: payment.id, status: payment.status, createdAt: payment.createdAt });
           
           // Award points if applicable
           if (
@@ -498,11 +500,13 @@ export const paymentValidationRouter = createTRPCRouter({
             status: PaymentStatus.SUCCESS, // Since it's accepted
             method: paymentValidation.paymentMethod,
             totalPayment: paymentValidation.totalPayment,
-            createdAt: input.paymentDate ?? new Date(),
+            // Use paymentDate if provided, otherwise use the paymentValidation createdAt
+            createdAt: input.paymentDate ?? paymentValidation.createdAt,
+            paidAt: new Date(), // Set paidAt to now (when admin accepted it)
           },
         });
 
-        console.log("Payment created:", { id: payment.id, status: payment.status });
+        console.log("Payment created:", { id: payment.id, status: payment.status, createdAt: payment.createdAt });
 
         // // 6. Send payment receipt email
         // const paymentTemplate = await prisma.emailTemplate.findFirst({
