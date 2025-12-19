@@ -97,126 +97,189 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const member = await ctx.db.membership.findUnique({
-        where: { userId: input.memberId },
-      });
-
-      if (!member) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Member with ID ${input.memberId} does not exist.`,
+      try {
+        const member = await ctx.db.membership.findUnique({
+          where: { userId: input.memberId },
         });
-      }
 
-      const data = {
-        memberId: member.id,
-        packageId: input.packageId,
-        startDate: input.startDate,
-        salesId: input.salesId || null,
-        salesType: input.salesType || null,
-        ...(input.subsType === "gym"
-          ? {
-              endDate: new Date(
-                new Date(input.startDate).setDate(
-                  new Date(input.startDate).getDate() + input.duration,
-                ),
-              ),
-            }
-          : {
-              trainerId: input.trainerId || null, // Ensure null is used if trainerId is undefined
-              remainingSessions: input.duration,
-              endDate: new Date(
-                new Date(input.startDate).setDate(
-                  new Date(input.startDate).getDate() + 30,
-                ),
-              ),
-            }),
-      };
+        if (!member) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Member with ID ${input.memberId} does not exist.`,
+          });
+        }
 
-      const subscription = await ctx.db.subscription.create({
-        data: data,
-        include: {
-          member: {
-            select: {
-              id: true,
-              userId: true,
-              user: {
-                select: {
-                  name: true,
+        // Validate package exists
+        const packageDetails = await ctx.db.package.findUnique({
+          where: { id: input.packageId },
+        });
+
+        if (!packageDetails) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Package with ID ${input.packageId} not found.`,
+          });
+        }
+
+        // Validate trainer if provided
+        if (input.trainerId) {
+          const trainer = await ctx.db.personalTrainer.findUnique({
+            where: { id: input.trainerId },
+          });
+
+          if (!trainer) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Trainer with ID ${input.trainerId} not found.`,
+            });
+          }
+        }
+
+        const data = {
+          memberId: member.id,
+          packageId: input.packageId,
+          startDate: input.startDate,
+          salesId: input.salesId || null,
+          salesType: input.salesType || null,
+          ...(input.subsType === "gym"
+            ? {
+                endDate: new Date(
+                  new Date(input.startDate).setDate(
+                    new Date(input.startDate).getDate() + input.duration,
+                  ),
+                ),
+              }
+            : {
+                trainerId: input.trainerId || null, // Ensure null is used if trainerId is undefined
+                remainingSessions: input.duration,
+                endDate: new Date(
+                  new Date(input.startDate).setDate(
+                    new Date(input.startDate).getDate() + 30,
+                  ),
+                ),
+              }),
+        };
+
+        const subscription = await ctx.db.subscription.create({
+          data: data,
+          include: {
+            member: {
+              select: {
+                id: true,
+                userId: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
                 },
               },
             },
+            package: true,
+            payments: true,
           },
-          package: true,
-          payments: true,
-        },
-      });
-
-      // Increment subscription creation metrics
-      const packageDetails = await ctx.db.package.findUnique({
-        where: { id: input.packageId },
-        select: { type: true },
-      });
-      subscriptionsCreatedTotal.labels({
-        package_type: packageDetails?.type || 'unknown',
-        user_type: 'member',
-      }).inc();
-
-      await ctx.db.payment.create({
-        data: {
-          subscriptionId: subscription.id,
-          status: input.status || "SUCCESS",
-          method: input.paymentMethod,
-          totalPayment: input.totalPayment,
-          orderReference: input.orderReference,
-        },
-      });
-
-      if (input.status === "SUCCESS") {
-        await ctx.db.membership.update({
-          where: { id: input.memberId },
-          data: { isActive: true },
         });
 
-        // If it's a group training package, create GroupSubscription and GroupMember
-        if (input.subsType === "group") {
-          const packageDetails = await ctx.db.package.findUnique({
-            where: { id: input.packageId },
+        // Increment subscription creation metrics
+        subscriptionsCreatedTotal.labels({
+          package_type: packageDetails?.type || 'unknown',
+          user_type: 'member',
+        }).inc();
+
+        await ctx.db.payment.create({
+          data: {
+            subscriptionId: subscription.id,
+            status: input.status || "SUCCESS",
+            method: input.paymentMethod,
+            totalPayment: input.totalPayment,
+            orderReference: input.orderReference,
+          },
+        });
+
+        if (input.status === "SUCCESS") {
+          await ctx.db.membership.update({
+            where: { id: member.id },
+            data: { isActive: true },
           });
 
-          if (packageDetails?.isGroupPackage) {
-            // Check if group subscription already exists for this subscription
-            const existingGroupMember = await ctx.db.groupMember.findFirst({
-              where: { subscriptionId: subscription.id }
-            });
-
-            if (!existingGroupMember) {
-              // Create group subscription
-              const groupSubscription = await ctx.db.groupSubscription.create({
-                data: {
-                  groupName: `${subscription.member?.user?.name || 'Member'}'s Group`,
-                  leadSubscriptionId: subscription.id,
-                  packageId: input.packageId,
-                  totalMembers: 1,
-                  maxMembers: packageDetails.maxUsers ?? 4,
-                  status: "ACTIVE"
-                }
+          // If it's a group training package, create GroupSubscription and GroupMember
+          if (input.subsType === "group") {
+            if (packageDetails?.isGroupPackage) {
+              // Check if group subscription already exists for this subscription
+              const existingGroupMember = await ctx.db.groupMember.findFirst({
+                where: { subscriptionId: subscription.id }
               });
 
-              // Add lead as first member
-              await ctx.db.groupMember.create({
-                data: {
-                  groupSubscriptionId: groupSubscription.id,
-                  subscriptionId: subscription.id,
-                  status: "ACTIVE"
-                }
-              });
+              if (!existingGroupMember) {
+                // Create group subscription
+                const groupSubscription = await ctx.db.groupSubscription.create({
+                  data: {
+                    groupName: `${subscription.member?.user?.name || 'Member'}'s Group`,
+                    leadSubscriptionId: subscription.id,
+                    packageId: input.packageId,
+                    totalMembers: 1,
+                    maxMembers: packageDetails.maxUsers ?? 4,
+                    status: "ACTIVE"
+                  }
+                });
+
+                // Add lead as first member
+                await ctx.db.groupMember.create({
+                  data: {
+                    groupSubscriptionId: groupSubscription.id,
+                    subscriptionId: subscription.id,
+                    status: "ACTIVE"
+                  }
+                });
+              }
             }
           }
         }
-      }
 
-      return subscription;
+        return subscription;
+      } catch (error) {
+        // Log detailed error for debugging
+        console.error("Subscription creation error:", {
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          input: {
+            memberId: input.memberId,
+            packageId: input.packageId,
+            trainerId: input.trainerId,
+            subsType: input.subsType,
+            orderReference: input.orderReference,
+          }
+        });
+
+        // Re-throw TRPC errors as-is
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+
+        // Handle Prisma errors
+        if (error && typeof error === 'object' && 'code' in error) {
+          const prismaError = error as { code: string; meta?: any };
+          
+          if (prismaError.code === 'P2002') {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "A subscription with this information already exists.",
+            });
+          }
+          
+          if (prismaError.code === 'P2003') {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invalid reference: One or more IDs do not exist.",
+            });
+          }
+        }
+
+        // Generic error
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Failed to create subscription. Please try again.",
+        });
+      }
     }),
 
   updatePaymentStatus: permissionProtectedProcedure(["update:subscription"])

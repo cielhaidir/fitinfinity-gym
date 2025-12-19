@@ -292,7 +292,15 @@ export default function SubscriptionPage({
             
             return { success: true as const, id: subscription.id, item };
           } catch (error) {
+            // Log detailed error information
             console.error(`Failed to create subscription for ${item.name}:`, error);
+            console.error('Error details:', {
+              message: error instanceof Error ? error.message : 'Unknown error',
+              stack: error instanceof Error ? error.stack : undefined,
+              item: item.name,
+              packageId: item.packageId,
+              trainerId: item.trainerId
+            });
             return { success: false as const, error, item };
           }
         });
@@ -493,6 +501,18 @@ export default function SubscriptionPage({
         // If subscription creation failed, clean up any partially created subscriptions
         console.error("Subscription creation failed:", error);
         
+        // Capture detailed error information
+        const errorDetails = {
+          error: "Subscription creation failed",
+          message: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          timestamp: new Date().toISOString(),
+          orderId: orderId,
+          cartItems: cart.map(item => ({ name: item.name, packageId: item.packageId }))
+        };
+        
+        console.error("Detailed error information:", errorDetails);
+        
         // If we have any created subscriptions, we should mark them as failed
         if (createdSubscriptions.length > 0) {
           try {
@@ -502,7 +522,7 @@ export default function SubscriptionPage({
                 updatePaymentStatusMutation.mutateAsync({
                   orderReference: orderId,
                   status: "FAILED",
-                  gatewayResponse: { error: "Subscription creation failed" },
+                  gatewayResponse: errorDetails, // Store detailed error information
                 })
               )
             );

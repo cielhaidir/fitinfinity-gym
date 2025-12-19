@@ -203,8 +203,14 @@ export const paymentValidationRouter = createTRPCRouter({
       paymentDate: z.date().optional()
     }))
     .mutation(async ({ ctx, input }) => {
-      // Use a transaction to ensure atomicity and prevent race conditions
-      return ctx.db.$transaction(async (prisma) => {
+      console.log("=== ACCEPT PAYMENT VALIDATION START ===");
+      console.log("Input:", { id: input.id, balanceId: input.balanceId, paymentDate: input.paymentDate });
+      
+      try {
+        // Use a transaction to ensure atomicity and prevent race conditions
+        return await ctx.db.$transaction(async (prisma) => {
+        console.log("Transaction started");
+        
         // 1. Fetch and lock the payment validation record inside the transaction
         const paymentValidation = await prisma.paymentValidation.findUnique({
           where: { id: input.id },
@@ -223,7 +229,18 @@ export const paymentValidationRouter = createTRPCRouter({
           },
         });
 
+        console.log("Payment validation fetched:", {
+          id: paymentValidation?.id,
+          status: paymentValidation?.paymentStatus,
+          memberId: paymentValidation?.memberId,
+          packageId: paymentValidation?.packageId,
+          trainerId: paymentValidation?.trainerId,
+          subsType: paymentValidation?.subsType,
+          startDate: paymentValidation?.startDate,
+        });
+
         if (!paymentValidation) {
+          console.error("Payment validation not found");
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Payment validation record not found.",
@@ -232,6 +249,7 @@ export const paymentValidationRouter = createTRPCRouter({
         
         // Check status inside transaction to prevent race conditions
         if (paymentValidation.paymentStatus !== PaymentValidationStatus.WAITING) {
+          console.error("Payment validation not in WAITING state:", paymentValidation.paymentStatus);
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Payment validation is not in WAITING state. It may have already been processed.",
@@ -245,23 +263,38 @@ export const paymentValidationRouter = createTRPCRouter({
           });
         }
 
+        console.log("Validation checks passed, updating payment status...");
+        
         // 2. Immediately update status to ACCEPTED to prevent duplicate processing
         // Use updateMany to avoid throwing error if no rows match (for idempotency)
-        const updateResult = await prisma.paymentValidation.updateMany({
-          where: {
-            id: input.id,
-            // Add optimistic locking - only update if still WAITING
-            paymentStatus: PaymentValidationStatus.WAITING,
-          },
-          data: {
-            paymentStatus: PaymentValidationStatus.ACCEPTED,
-            updatedAt: new Date(),
-            balanceId: input.balanceId,
-          },
-        });
+        let updateResult;
+        try {
+          console.log("About to update payment validation status...");
+          updateResult = await prisma.paymentValidation.updateMany({
+            where: {
+              id: input.id,
+              // Add optimistic locking - only update if still WAITING
+              paymentStatus: PaymentValidationStatus.WAITING,
+            },
+            data: {
+              paymentStatus: PaymentValidationStatus.ACCEPTED,
+              updatedAt: new Date(),
+              balanceId: input.balanceId,
+            },
+          });
+          console.log("Payment validation update result:", { count: updateResult.count });
+        } catch (updateError) {
+          console.error("Error updating payment validation:", {
+            error: updateError instanceof Error ? updateError.message : "Unknown error",
+            stack: updateError instanceof Error ? updateError.stack : undefined,
+            code: updateError && typeof updateError === 'object' && 'code' in updateError ? updateError.code : undefined,
+          });
+          throw updateError;
+        }
 
         // If no rows were updated, it means another request already processed this payment
         if (updateResult.count === 0) {
+          console.log("No rows updated, checking for existing subscription...");
           // Check if there's already a subscription created for this payment
           const existingSubscription = await prisma.subscription.findFirst({
             where: {
@@ -311,6 +344,7 @@ export const paymentValidationRouter = createTRPCRouter({
         }
 
         // 3. Check if subscription already exists for this payment validation
+        console.log("Checking for existing subscription...");
         const existingSubscription = await prisma.subscription.findFirst({
           where: {
             memberId: paymentValidation.memberId,
@@ -318,12 +352,88 @@ export const paymentValidationRouter = createTRPCRouter({
             trainerId: paymentValidation.trainerId,
             startDate: startDate,
           },
+          include: {
+            payments: true,
+          },
+        });
+
+        console.log("Existing subscription check result:", {
+          found: !!existingSubscription,
+          id: existingSubscription?.id,
+          hasPayments: existingSubscription?.payments?.length ?? 0,
+          isActive: existingSubscription?.isActive,
         });
 
         if (existingSubscription) {
-          // Subscription already exists, return the existing one
+          // Check if subscription already has a successful payment
+          const hasSuccessfulPayment = existingSubscription.payments?.some(
+            p => p.status === PaymentStatus.SUCCESS
+          );
+          
+          if (hasSuccessfulPayment) {
+            // Subscription is already complete, return it
+            console.log("=== RETURNING EXISTING SUBSCRIPTION (ALREADY PAID) ===");
+            return { success: true, subscriptionId: existingSubscription.id };
+          }
+          
+          // Subscription exists but no successful payment yet - complete the activation
+          console.log("=== COMPLETING EXISTING SUBSCRIPTION ACTIVATION ===");
+          
+          // Activate the subscription if not already active
+          if (!existingSubscription.isActive) {
+            console.log("Activating subscription...");
+            await prisma.subscription.update({
+              where: { id: existingSubscription.id },
+              data: { isActive: true },
+            });
+            console.log("Subscription activated");
+          } else {
+            console.log("Subscription already active");
+          }
+          
+          // Create the payment record
+          console.log("Creating payment record for existing subscription...");
+          const payment = await prisma.payment.create({
+            data: {
+              subscriptionId: existingSubscription.id,
+              status: PaymentStatus.SUCCESS,
+              method: paymentValidation.paymentMethod,
+              totalPayment: paymentValidation.totalPayment,
+              createdAt: input.paymentDate ?? new Date(),
+            },
+          });
+          console.log("Payment record created:", { id: payment.id, status: payment.status });
+          
+          // Award points if applicable
+          if (
+            paymentValidation.package.point &&
+            paymentValidation.package.point > 0 &&
+            paymentValidation.member?.user?.id
+          ) {
+            console.log("Awarding points to user...");
+            await prisma.user.update({
+              where: { id: paymentValidation.member.user.id },
+              data: {
+                point: { increment: paymentValidation.package.point },
+              },
+            });
+            console.log("Points awarded");
+          }
+          
+          console.log("=== EXISTING SUBSCRIPTION ACTIVATED ===");
           return { success: true, subscriptionId: existingSubscription.id };
         }
+
+        console.log("Creating subscription with data:", {
+          memberId: paymentValidation.memberId,
+          packageId: paymentValidation.packageId,
+          trainerId: paymentValidation.trainerId,
+          startDate: startDate,
+          endDate: endDate,
+          remainingSessions: remainingSessions,
+          salesId: paymentValidation.salesId,
+          salesType: paymentValidation.salesType,
+        });
 
         // 4. Create Subscription
         const subscription = await prisma.subscription.create({
@@ -339,6 +449,8 @@ export const paymentValidationRouter = createTRPCRouter({
             salesType: paymentValidation.salesType,
           },
         });
+
+        console.log("Subscription created:", { id: subscription.id });
 
         // 2.1. If it's a group training package, create GroupSubscription and GroupMember
         if (paymentValidation.subsType === "group" && packageDetails.isGroupPackage) {
@@ -377,8 +489,10 @@ export const paymentValidationRouter = createTRPCRouter({
           }
         }
 
+        console.log("Creating payment record...");
+        
         // 5. Create Payment record for the subscription
-        await prisma.payment.create({
+        const payment = await prisma.payment.create({
           data: {
             subscriptionId: subscription.id,
             status: PaymentStatus.SUCCESS, // Since it's accepted
@@ -387,6 +501,8 @@ export const paymentValidationRouter = createTRPCRouter({
             createdAt: input.paymentDate ?? new Date(),
           },
         });
+
+        console.log("Payment created:", { id: payment.id, status: payment.status });
 
         // // 6. Send payment receipt email
         // const paymentTemplate = await prisma.emailTemplate.findFirst({
@@ -438,6 +554,11 @@ export const paymentValidationRouter = createTRPCRouter({
           paymentValidation.package.point > 0 &&
           paymentValidation.member?.user?.id
         ) {
+          console.log("Updating user points:", {
+            userId: paymentValidation.member.user.id,
+            points: paymentValidation.package.point,
+          });
+          
           await prisma.user.update({
             where: {
               id: paymentValidation.member.user.id,
@@ -448,8 +569,32 @@ export const paymentValidationRouter = createTRPCRouter({
           });
         }
 
-        return { success: true, subscriptionId: subscription.id };
-      });
+          console.log("=== ACCEPT PAYMENT VALIDATION SUCCESS ===");
+          console.log("Result:", { success: true, subscriptionId: subscription.id });
+          
+          return { success: true, subscriptionId: subscription.id };
+        });
+      } catch (error) {
+        console.error("=== ACCEPT PAYMENT VALIDATION ERROR ===");
+        console.error("Error details:", {
+          message: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          code: error && typeof error === 'object' && 'code' in error ? error.code : undefined,
+        });
+        
+        // The transaction will automatically rollback on error
+        // This means the payment validation status will remain WAITING
+        // Re-throw TRPCError as-is, wrap other errors
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Failed to process payment acceptance. The payment validation status has been reverted to WAITING.",
+          cause: error,
+        });
+      }
     }),
 
   decline: permissionProtectedProcedure(["decline:payment"])
