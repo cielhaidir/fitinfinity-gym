@@ -351,9 +351,14 @@ export const paymentValidationRouter = createTRPCRouter({
             packageId: paymentValidation.packageId,
             trainerId: paymentValidation.trainerId,
             startDate: startDate,
+            deletedAt: null, // Only consider non-deleted subscriptions
           },
           include: {
-            payments: true,
+            payments: {
+              where: {
+                deletedAt: null, // Only check non-deleted payments
+              },
+            },
           },
         });
 
@@ -365,14 +370,15 @@ export const paymentValidationRouter = createTRPCRouter({
         });
 
         if (existingSubscription) {
-          // Check if subscription already has a successful payment
-          const hasSuccessfulPayment = existingSubscription.payments?.some(
-            p => p.status === PaymentStatus.SUCCESS
+          // Check if subscription already has a successful payment from offline validation
+          // We check for payments WITHOUT orderReference (offline payments) and not soft-deleted
+          const hasOfflineSuccessfulPayment = existingSubscription.payments?.some(
+            p => p.status === PaymentStatus.SUCCESS && !p.orderReference && !p.deletedAt
           );
           
-          if (hasSuccessfulPayment) {
-            // Subscription is already complete, return it
-            console.log("=== RETURNING EXISTING SUBSCRIPTION (ALREADY PAID) ===");
+          if (hasOfflineSuccessfulPayment) {
+            // Subscription already has offline payment, return it
+            console.log("=== RETURNING EXISTING SUBSCRIPTION (ALREADY PAID OFFLINE) ===");
             return { success: true, subscriptionId: existingSubscription.id };
           }
           
