@@ -614,11 +614,17 @@ export const packageRouter = createTRPCRouter({
 
       const existingMemberIds = existingMembers.map(gm => gm.subscription.memberId);
 
-      // Find available members (not already in the group)
+      // Find available members (not already in the group and have active subscription)
       const availableMembers = await ctx.db.membership.findMany({
         where: {
           id: { notIn: existingMemberIds },
-          isActive: true,
+          // Check for active subscriptions instead of membership.isActive
+          subscriptions: {
+            some: {
+              isActive: true,
+              deletedAt: null,
+            },
+          },
           ...(input.search && {
             user: {
               OR: [

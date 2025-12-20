@@ -397,6 +397,14 @@ export const paymentValidationRouter = createTRPCRouter({
             console.log("Subscription already active");
           }
           
+          // Activate the membership as well
+          console.log("Activating membership...");
+          await prisma.membership.update({
+            where: { id: paymentValidation.memberId },
+            data: { isActive: true },
+          });
+          console.log("Membership activated");
+          
           // Create the payment record with the original payment date from validation
           console.log("Creating payment record for existing subscription...");
           const payment = await prisma.payment.create({
@@ -459,6 +467,14 @@ export const paymentValidationRouter = createTRPCRouter({
         });
 
         console.log("Subscription created:", { id: subscription.id });
+        
+        // Activate the membership
+        console.log("Activating membership...");
+        await prisma.membership.update({
+          where: { id: paymentValidation.memberId },
+          data: { isActive: true },
+        });
+        console.log("Membership activated");
 
         // 2.1. If it's a group training package, create GroupSubscription and GroupMember
         if (paymentValidation.subsType === "group" && packageDetails.isGroupPackage) {
