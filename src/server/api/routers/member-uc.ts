@@ -61,6 +61,7 @@ export const memberUcRouter = createTRPCRouter({
           endDate: {
             gte: now,
           },
+          deletedAt: null,
           isActive: true,
         },
         include: {

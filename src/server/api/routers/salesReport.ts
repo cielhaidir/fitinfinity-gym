@@ -58,6 +58,7 @@ export const salesReportRouter = createTRPCRouter({
         AND: [
           { salesId: { not: null } },
           { salesType: { not: null } },
+               { deletedAt: null },
         ],
       },
       select: {

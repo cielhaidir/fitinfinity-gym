@@ -75,6 +75,7 @@ export const managerCalendarRouter = createTRPCRouter({
       where: {
         memberId: { in: memberIds },
         isActive: true,
+        deletedAt: null,
       },
       select: {
         id: true,
