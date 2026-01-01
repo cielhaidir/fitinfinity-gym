@@ -4,6 +4,7 @@ import {
   createTRPCRouter,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 /**
  * Reports Router
@@ -72,14 +73,14 @@ export const reportsRouter = createTRPCRouter({
           };
         }
 
-        // Add date filter if provided
+        // Add date filter if provided (convert to GMT+8)
         if (input.startDate || input.endDate) {
           membershipWhere.registerDate = {};
           if (input.startDate) {
-            membershipWhere.registerDate.gte = input.startDate;
+            membershipWhere.registerDate.gte = toGMT8StartOfDay(input.startDate);
           }
           if (input.endDate) {
-            membershipWhere.registerDate.lte = input.endDate;
+            membershipWhere.registerDate.lte = toGMT8EndOfDay(input.endDate);
           }
         }
 
@@ -307,14 +308,14 @@ export const reportsRouter = createTRPCRouter({
           ];
         }
 
-        // Date range filter
+        // Date range filter (convert to GMT+8)
         if (input.enrollmentFrom || input.enrollmentTo) {
           where.registerDate = {};
           if (input.enrollmentFrom) {
-            where.registerDate.gte = input.enrollmentFrom;
+            where.registerDate.gte = toGMT8StartOfDay(input.enrollmentFrom);
           }
           if (input.enrollmentTo) {
-            where.registerDate.lte = input.enrollmentTo;
+            where.registerDate.lte = toGMT8EndOfDay(input.enrollmentTo);
           }
         }
 
@@ -437,14 +438,14 @@ export const reportsRouter = createTRPCRouter({
           ];
         }
 
-        // Date range filter
+        // Date range filter (convert to GMT+8)
         if (input.enrollmentFrom || input.enrollmentTo) {
           where.registerDate = {};
           if (input.enrollmentFrom) {
-            where.registerDate.gte = input.enrollmentFrom;
+            where.registerDate.gte = toGMT8StartOfDay(input.enrollmentFrom);
           }
           if (input.enrollmentTo) {
-            where.registerDate.lte = input.enrollmentTo;
+            where.registerDate.lte = toGMT8EndOfDay(input.enrollmentTo);
           }
         }
 

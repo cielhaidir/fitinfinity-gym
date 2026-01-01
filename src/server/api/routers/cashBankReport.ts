@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { startOfDay, endOfDay } from "date-fns";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 // Cash bank report input schema
 const cashBankReportInputSchema = z.object({
@@ -75,10 +75,14 @@ getCashBankReport: protectedProcedure
     const { startDate, endDate, balanceAccountId, page, limit, sortBy, sortOrder } = input;
     const skip = (page - 1) * limit;
 
+    // Convert dates to GMT+8
+    const start = toGMT8StartOfDay(startDate);
+    const end = toGMT8EndOfDay(endDate);
+
     // --- Fetch Payment Records (Credits)
     const paymentRecords = await ctx.db.payment.findMany({
       where: {
-        createdAt: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+        createdAt: { gte: start, lte: end },
         status: 'SUCCESS',
         ...(balanceAccountId && {
           subscription: {
@@ -110,7 +114,7 @@ getCashBankReport: protectedProcedure
     // --- Fetch POS Sale Records (Credits)
     const posSaleRecords = await ctx.db.pOSSale.findMany({
       where: {
-        saleDate: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+        saleDate: { gte: start, lte: end },
         ...(balanceAccountId && { balanceId: balanceAccountId }),
       },
       include: {
@@ -123,7 +127,7 @@ getCashBankReport: protectedProcedure
     // --- Fetch Transaction Records (Debits)
     const transactionRecords = await ctx.db.transaction.findMany({
       where: {
-        transaction_date: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+        transaction_date: { gte: start, lte: end },
         ...(balanceAccountId && { bank_id: balanceAccountId }),
       },
       include: { bank: { select: { name: true } } },
@@ -241,12 +245,16 @@ getCashBankReport: protectedProcedure
     .query(async ({ ctx, input }) => {
       const { startDate, endDate, balanceAccountId } = input;
 
+      // Convert dates to GMT+8
+      const start = toGMT8StartOfDay(startDate);
+      const end = toGMT8EndOfDay(endDate);
+
       // Get successful payments total
       const paymentsTotal = await ctx.db.payment.aggregate({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           status: 'SUCCESS',
           ...(balanceAccountId && {
@@ -271,8 +279,8 @@ getCashBankReport: protectedProcedure
       const posSalesTotal = await ctx.db.pOSSale.aggregate({
         where: {
           saleDate: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           ...(balanceAccountId && {
             balanceId: balanceAccountId,
@@ -288,8 +296,8 @@ getCashBankReport: protectedProcedure
       const transactionsTotal = await ctx.db.transaction.aggregate({
         where: {
           transaction_date: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           ...(balanceAccountId && {
             bank_id: balanceAccountId,
@@ -439,12 +447,16 @@ getCashBankReport: protectedProcedure
 
       const initialBalance = previousClosing?.closingBalance || balanceAccount.initialBalance;
 
+      // Convert dates to GMT+8 for calculations
+      const start = toGMT8StartOfDay(startDate);
+      const end = toGMT8EndOfDay(endDate);
+
       // Calculate period totals
       const paymentsTotal = await ctx.db.payment.aggregate({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           status: 'SUCCESS',
           subscription: {
@@ -465,8 +477,8 @@ getCashBankReport: protectedProcedure
       const posSalesTotal = await ctx.db.pOSSale.aggregate({
         where: {
           saleDate: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           balanceId: balanceAccountId,
         },
@@ -478,8 +490,8 @@ getCashBankReport: protectedProcedure
       const transactionsTotal = await ctx.db.transaction.aggregate({
         where: {
           transaction_date: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           bank_id: balanceAccountId,
         },
@@ -587,12 +599,16 @@ getCashBankReport: protectedProcedure
     .query(async ({ ctx, input }): Promise<CashBankReportResponse> => {
       const { startDate, endDate, balanceAccountId, sortBy, sortOrder } = input;
 
+      // Convert dates to GMT+8
+      const start = toGMT8StartOfDay(startDate);
+      const end = toGMT8EndOfDay(endDate);
+
       // Get Payment records (Credits - successful payments only)
       const paymentRecords = await ctx.db.payment.findMany({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           status: 'SUCCESS',
           ...(balanceAccountId && {
@@ -645,8 +661,8 @@ getCashBankReport: protectedProcedure
       const posSaleRecords = await ctx.db.pOSSale.findMany({
         where: {
           saleDate: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           ...(balanceAccountId && {
             balanceId: balanceAccountId,
@@ -677,8 +693,8 @@ getCashBankReport: protectedProcedure
       const transactionRecords = await ctx.db.transaction.findMany({
         where: {
           transaction_date: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: start,
+            lte: end,
           },
           ...(balanceAccountId && {
             bank_id: balanceAccountId,

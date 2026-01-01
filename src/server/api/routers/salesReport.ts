@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { Prisma } from "@prisma/client";
-import { subDays, startOfDay, endOfDay } from "date-fns";
+import { subDays } from "date-fns";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 // Sales report input schema
 const salesReportInputSchema = z.object({
@@ -105,7 +106,7 @@ getRevenueBySales: protectedProcedure
   .query(async ({ ctx, input }) => {
     const { startDate, endDate, salesId } = input;
 
-    // Ambil semua subscription yang punya payment di rentang waktu
+    // Ambil semua subscription yang punya payment di rentang waktu (convert to GMT+8)
     const allAcceptedPayments = await ctx.db.subscription.findMany({
      where: {
   salesId: salesId ? salesId : undefined,
@@ -121,8 +122,8 @@ getRevenueBySales: protectedProcedure
         some: {
               status: 'SUCCESS',
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
           },
         },
       },
@@ -148,8 +149,8 @@ getRevenueBySales: protectedProcedure
         payments: {
           where: {
             createdAt: {
-              gte: startOfDay(startDate),
-              lte: endOfDay(endDate),
+              gte: toGMT8StartOfDay(startDate),
+              lte: toGMT8EndOfDay(endDate),
             },
           },
           select: {
@@ -250,12 +251,12 @@ getRevenueBySales: protectedProcedure
 
       const skip = (page - 1) * limit;
 
-      // Get POS sales with filtering
+      // Get POS sales with filtering (convert to GMT+8)
       const posSales = await ctx.db.pOSSale.findMany({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
           },
           ...(paymentMethod && { paymentMethod }),
           ...(category && {
@@ -292,12 +293,12 @@ getRevenueBySales: protectedProcedure
         take: limit,
       });
 
-      // Get subscription payments with filtering
+      // Get subscription payments with filtering (convert to GMT+8)
       const subscriptionPayments = await ctx.db.payment.findMany({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
           },
           status: 'SUCCESS',
           ...(paymentMethod && { method: paymentMethod }),
@@ -321,12 +322,12 @@ getRevenueBySales: protectedProcedure
         take: limit,
       });
 
-      // Get total counts for pagination
+      // Get total counts for pagination (convert to GMT+8)
       const posTotal = await ctx.db.pOSSale.count({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
           },
           ...(paymentMethod && { paymentMethod }),
           ...(category && {
@@ -349,8 +350,8 @@ getRevenueBySales: protectedProcedure
       const subscriptionTotal = await ctx.db.payment.count({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
           },
           status: 'SUCCESS',
           ...(paymentMethod && { method: paymentMethod }),
@@ -469,12 +470,12 @@ getRevenueBySales: protectedProcedure
     .query(async ({ ctx, input }) => {
       const { startDate, endDate } = input;
 
-      // Get POS sales by category
+      // Get POS sales by category (convert to GMT+8)
       const categorySales = await ctx.db.pOSSale.findMany({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
           },
         },
         include: {
@@ -500,12 +501,12 @@ getRevenueBySales: protectedProcedure
         });
       });
 
-      // Get subscription revenue by package
+      // Get subscription revenue by package (convert to GMT+8)
       const subscriptionData = await ctx.db.payment.findMany({
         where: {
           createdAt: {
-            gte: startOfDay(startDate),
-            lte: endOfDay(endDate),
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
           },
           status: 'SUCCESS',
         },
@@ -542,9 +543,9 @@ getRevenueBySales: protectedProcedure
     .query(async ({ ctx, input }) => {
       const { startDate, endDate, paymentMethod, includePos, includeSubscriptions } = input;
 
-      // Default to last 30 days if no dates provided
-      const start = startDate ? startOfDay(startDate) : startOfDay(subDays(new Date(), 30));
-      const end = endDate ? endOfDay(endDate) : endOfDay(new Date());
+      // Default to last 30 days if no dates provided (convert to GMT+8)
+      const start = startDate ? toGMT8StartOfDay(startDate) : toGMT8StartOfDay(subDays(new Date(), 30));
+      const end = endDate ? toGMT8EndOfDay(endDate) : toGMT8EndOfDay(new Date());
 
       let posSales: any[] = [];
       let subscriptionPayments: any[] = [];
