@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
@@ -9,6 +10,7 @@ import { db } from "@/server/db";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 export const trainerSessionRouter = createTRPCRouter({
   // For management to create schedule with trainer selection
@@ -735,13 +737,13 @@ export const trainerSessionRouter = createTRPCRouter({
         });
       }
 
-      // Build date filter
+      // Build date filter (convert to GMT+8)
       const dateFilter: any = {};
       if (input?.startDate) {
-        dateFilter.gte = input.startDate;
+        dateFilter.gte = toGMT8StartOfDay(input.startDate);
       }
       if (input?.endDate) {
-        dateFilter.lte = input.endDate;
+        dateFilter.lte = toGMT8EndOfDay(input.endDate);
       }
 
       // Get all sessions for the trainer with date filter
@@ -879,10 +881,10 @@ export const trainerSessionRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Build date filter
+      // Build date filter (convert to GMT+8)
       const dateFilter: { gte?: Date; lte?: Date } = {};
-      dateFilter.gte = input.startDate;
-      dateFilter.lte = input.endDate;
+      dateFilter.gte = toGMT8StartOfDay(input.startDate);
+      dateFilter.lte = toGMT8EndOfDay(input.endDate);
 
       // Build where clause
       const whereClause: {
@@ -1020,7 +1022,7 @@ export const trainerSessionRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       // Search members by name or email who have PT or Group Training subscriptions
       const members = await ctx.db.membership.findMany({
-        where: {
+            where: {
           // Filter to only members with PERSONAL_TRAINER or GROUP_TRAINING subscriptions
           subscriptions: {
             some: {
@@ -1092,13 +1094,13 @@ export const trainerSessionRouter = createTRPCRouter({
         trainerFilter.id = input.trainerId;
       }
 
-      // Build date filter
+      // Build date filter (convert to GMT+8)
       const dateFilter: any = {};
       if (input.startDate) {
-        dateFilter.gte = input.startDate;
+        dateFilter.gte = toGMT8StartOfDay(input.startDate);
       }
       if (input.endDate) {
-        dateFilter.lte = input.endDate;
+        dateFilter.lte = toGMT8EndOfDay(input.endDate);
       }
 
       // Get all sessions with filters
