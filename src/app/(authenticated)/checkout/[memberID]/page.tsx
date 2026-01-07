@@ -6,6 +6,7 @@ import { useState, use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, CreditCard, QrCode, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -115,6 +116,8 @@ export default function SubscriptionPage({
     allowStack?: boolean;
   }[]>([]);
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0] || "");
+  const [freezeAtStart, setFreezeAtStart] = useState(false);
+  const [freezeDays, setFreezeDays] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   
   // Cart state for multi-item checkout
@@ -235,6 +238,11 @@ export default function SubscriptionPage({
       queryParams.set("totalPayment", discountedTotal.toString());
       queryParams.set("paymentMethod", paymentMethod);
       queryParams.set("startDate", startDate); // Add startDate to query params
+      
+      if (freezeAtStart && freezeDays > 0) {
+        queryParams.set("freezeAtStart", "true");
+        queryParams.set("freezeDays", freezeDays.toString());
+      }
 
       // Add sales information
       if (selectedSales) {
@@ -288,6 +296,8 @@ export default function SubscriptionPage({
               totalPayment: item.price, // Keep full package price
               status: "PENDING",
               orderReference: orderId,
+              freezeAtStart: item.type === "gym" ? freezeAtStart : undefined,
+              freezeDays: item.type === "gym" && freezeAtStart ? freezeDays : undefined,
             });
             
             return { success: true as const, id: subscription.id, item };
@@ -1015,6 +1025,48 @@ export default function SubscriptionPage({
                     </p>
                   </div>
                 </div>
+
+                {cart.some(item => item.type === "gym") && (
+                  <div>
+                    <h3 className="mb-3 text-lg font-medium">Freeze Settings</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="freezeAtStart"
+                          checked={freezeAtStart}
+                          onCheckedChange={(checked) => {
+                            setFreezeAtStart(checked as boolean);
+                            if (!checked) {
+                              setFreezeDays(0);
+                            }
+                          }}
+                        />
+                        <Label htmlFor="freezeAtStart" className="text-sm font-medium cursor-pointer">
+                          Freeze at Start?
+                        </Label>
+                      </div>
+                      
+                      {freezeAtStart && (
+                        <div className="space-y-2 pl-6">
+                          <Label htmlFor="freezeDays">How many days will be frozen?</Label>
+                          <Input
+                            id="freezeDays"
+                            type="number"
+                            min="1"
+                            max="365"
+                            value={freezeDays}
+                            onChange={(e) => setFreezeDays(parseInt(e.target.value) || 0)}
+                            className="w-full"
+                            placeholder="Enter number of freeze days"
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            The membership will be frozen for {freezeDays} days starting from the start date. The end date will be automatically adjusted.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="mb-3 text-lg font-medium">Cart Summary</h3>

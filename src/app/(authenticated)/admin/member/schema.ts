@@ -35,6 +35,7 @@ export const memberSchema = z.object({
       isFrozen: z.boolean().default(false),
       remainingSessions: z.number().nullable(),
       trainerId: z.string().nullable(),
+      deletedAt: z.date().nullable(),
       trainer: z
         .object({
           id: z.string(),

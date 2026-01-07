@@ -89,6 +89,10 @@ export default function AdminSubscriptionHistoryPage() {
   const [selectedSubscriptionForSessions, setSelectedSubscriptionForSessions] = useState<any>(null);
   const [editRemainingSessions, setEditRemainingSessions] = useState<number>(0);
   
+  // Freeze Info functionality state
+  const [freezeInfoDialogOpen, setFreezeInfoDialogOpen] = useState(false);
+  const [selectedSubscriptionForFreezeInfo, setSelectedSubscriptionForFreezeInfo] = useState<any>(null);
+  
   // Delete functionality state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedSubscriptionForDelete, setSelectedSubscriptionForDelete] = useState<any>(null);
@@ -530,6 +534,17 @@ export default function AdminSubscriptionHistoryPage() {
     setEditRemainingSessions(0);
   };
 
+  // Freeze Info functionality handlers
+  const handleViewFreezeInfo = (subscription: any) => {
+    setSelectedSubscriptionForFreezeInfo(subscription);
+    setFreezeInfoDialogOpen(true);
+  };
+
+  const handleCloseFreezeInfo = () => {
+    setFreezeInfoDialogOpen(false);
+    setSelectedSubscriptionForFreezeInfo(null);
+  };
+
   // Delete functionality handlers
   const handleDeleteSubscription = (subscription: any) => {
     setSelectedSubscriptionForDelete(subscription);
@@ -617,6 +632,27 @@ export default function AdminSubscriptionHistoryPage() {
         return (
           <div className="text-center min-w-[70px]">
             <span className="font-medium">{remaining ?? "N/A"}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "freezeInfo",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Freeze" />
+      ),
+      cell: ({ row }) => {
+        const freezeDays = row.original.freezeDays;
+        const freezeAtStart = row.original.freezeAtStart;
+        return (
+          <div className="text-center min-w-[70px]">
+            {freezeAtStart && freezeDays ? (
+              <Badge variant="secondary" className="text-xs">
+                {freezeDays} days
+              </Badge>
+            ) : (
+              <span className="text-muted-foreground text-xs">-</span>
+            )}
           </div>
         );
       },
@@ -739,6 +775,12 @@ export default function AdminSubscriptionHistoryPage() {
                    <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
                      <Clock className="mr-2 h-4 w-4" />
                      Edit Remaining Sessions
+                   </DropdownMenuItem>
+                 )}
+                 {row.original.freezeAtStart && (
+                   <DropdownMenuItem onClick={() => handleViewFreezeInfo(row.original)}>
+                     <Clock className="mr-2 h-4 w-4" />
+                     View Freeze Info
                    </DropdownMenuItem>
                  )}
                  {hasPermission("delete:subscription") && (
@@ -1481,6 +1523,81 @@ export default function AdminSubscriptionHistoryPage() {
                 disabled={deleteSubscriptionMutation.isPending}
               >
                 {deleteSubscriptionMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Freeze Info Dialog */}
+        <Dialog open={freezeInfoDialogOpen} onOpenChange={setFreezeInfoDialogOpen}>
+          <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Freeze Information</DialogTitle>
+              <DialogDescription className="text-sm">
+                {selectedSubscriptionForFreezeInfo && (
+                  <>
+                    Freeze details for <strong>{selectedSubscriptionForFreezeInfo.member?.user?.name}</strong>'s subscription.
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedSubscriptionForFreezeInfo && (
+              <div className="space-y-3 py-4">
+                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                  <span className="text-sm font-medium">Package:</span>
+                  <span className="text-sm">{selectedSubscriptionForFreezeInfo.package?.name}</span>
+                </div>
+                
+                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                  <span className="text-sm font-medium">Freeze at Start:</span>
+                  <Badge variant={selectedSubscriptionForFreezeInfo.freezeAtStart ? "default" : "secondary"}>
+                    {selectedSubscriptionForFreezeInfo.freezeAtStart ? "Yes" : "No"}
+                  </Badge>
+                </div>
+                
+                {selectedSubscriptionForFreezeInfo.freezeAtStart && (
+                  <>
+                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                      <span className="text-sm font-medium">Freeze Days:</span>
+                      <span className="text-sm font-semibold">{selectedSubscriptionForFreezeInfo.freezeDays} days</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                      <span className="text-sm font-medium">Original Start Date:</span>
+                      <span className="text-sm">
+                        {selectedSubscriptionForFreezeInfo.startDate
+                          ? format(new Date(selectedSubscriptionForFreezeInfo.startDate), "dd/MM/yyyy")
+                          : "N/A"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                      <span className="text-sm font-medium">Adjusted End Date:</span>
+                      <span className="text-sm">
+                        {selectedSubscriptionForFreezeInfo.endDate
+                          ? format(new Date(selectedSubscriptionForFreezeInfo.endDate), "dd/MM/yyyy")
+                          : "N/A"}
+                      </span>
+                    </div>
+                    
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+                      <p className="text-xs text-blue-800 dark:text-blue-200">
+                        ℹ️ The membership was frozen for {selectedSubscriptionForFreezeInfo.freezeDays} days from the start date. 
+                        The end date has been extended accordingly to ensure the full membership duration.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={handleCloseFreezeInfo}
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -94,7 +94,7 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="PT" />
       ),
       cell: ({ row }) => {
-        const subscription = row.original.subscriptions.find(sub => sub.trainerId != null);
+        const subscription = row.original.subscriptions.find(sub => sub.trainerId != null && !sub.deletedAt);
         const pt = subscription?.trainer?.user.name;
         return (
           <div className="flex items-center justify-center">
@@ -121,7 +121,7 @@ export const createColumns = ({
       ),
       cell: ({ row }) => {
 
-        const subscription = row.original.subscriptions.find(sub => sub.trainerId == null);
+        const subscription = row.original.subscriptions.find(sub => sub.trainerId == null && !sub.deletedAt);
         const endDate = subscription?.endDate;
         const now = new Date();
         let durationLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : "N/A";
@@ -138,7 +138,7 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="Sessions Left" />
       ),
       cell: ({ row }) => {
-            const subscription = row.original.subscriptions.find(sub => sub.trainerId != null);
+            const subscription = row.original.subscriptions.find(sub => sub.trainerId != null && !sub.deletedAt);
         const sessionLeft = subscription?.remainingSessions;
         return (
           <div className="w-[150px]">{sessionLeft ?? 0}</div>
@@ -165,7 +165,7 @@ export const createColumns = ({
         const activeSubscription = Array.isArray(row.original.subscriptions) && row.original.subscriptions.find((sub) => {
           const now = new Date();
           const isNotExpired = sub.endDate ? new Date(sub.endDate) > now : true;
-          return sub.isActive && isNotExpired;
+          return sub.isActive && isNotExpired && !sub.deletedAt;
         });
 
         let status = "Inactive";

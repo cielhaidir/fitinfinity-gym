@@ -94,6 +94,8 @@ export const subscriptionRouter = createTRPCRouter({
           .optional()
           .default("SUCCESS"),
         orderReference: z.string().optional(),
+        freezeAtStart: z.boolean().optional(),
+        freezeDays: z.number().min(0).max(365).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -145,9 +147,13 @@ export const subscriptionRouter = createTRPCRouter({
             ? {
                 endDate: new Date(
                   new Date(input.startDate).setDate(
-                    new Date(input.startDate).getDate() + input.duration,
+                    new Date(input.startDate).getDate() + input.duration + (input.freezeDays || 0),
                   ),
                 ),
+                freezeAtStart: input.freezeAtStart || false,
+                freezeDays: input.freezeDays || null,
+                isFrozen: input.freezeAtStart || false,
+                frozenAt: input.freezeAtStart ? input.startDate : null,
               }
             : {
                 trainerId: input.trainerId || null, // Ensure null is used if trainerId is undefined
@@ -1193,12 +1199,26 @@ export const subscriptionRouter = createTRPCRouter({
           subscription.member?.user?.id &&
           subscription.payments.length > 0
         ) {
-          await tx.user.update({
+          // Get current user points to ensure we don't go below 0
+          const user = await tx.user.findUnique({
             where: { id: subscription.member.user.id },
-            data: {
-              point: { decrement: subscription.package.point },
-            },
+            select: { point: true },
           });
+
+          if (user) {
+            // Calculate how many points to deduct (don't go below 0)
+            const pointsToDeduct = Math.min(
+              subscription.package.point,
+              user.point
+            );
+
+            await tx.user.update({
+              where: { id: subscription.member.user.id },
+              data: {
+                point: { decrement: pointsToDeduct },
+              },
+            });
+          }
         }
 
         // Soft delete all related payments
@@ -1255,7 +1275,10 @@ export const subscriptionRouter = createTRPCRouter({
 
   // Freeze all active subscriptions for a member
   freeze: permissionProtectedProcedure(["update:subscription"])
-    .input(z.object({ memberId: z.string() }))
+    .input(z.object({
+      memberId: z.string(),
+      freezeDays: z.number().min(0).max(365).optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       // Find member
       const member = await ctx.db.membership.findUnique({
@@ -1303,6 +1326,7 @@ export const subscriptionRouter = createTRPCRouter({
         data: {
           isFrozen: true,
           frozenAt: now,
+          ...(input.freezeDays && { freezeDays: input.freezeDays }),
         },
       });
 

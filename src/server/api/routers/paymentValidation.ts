@@ -94,6 +94,8 @@ export const paymentValidationRouter = createTRPCRouter({
         salesId: z.string().optional(), // Add salesId to input
         salesType: z.string().optional(), // Add salesType to input
         startDate: z.date().optional(), // Add startDate to input
+        freezeAtStart: z.boolean().optional(),
+        freezeDays: z.number().min(0).max(365).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -128,6 +130,8 @@ export const paymentValidationRouter = createTRPCRouter({
             salesId: input.salesId,
             salesType: input.salesType,
             startDate: input.startDate,
+            freezeAtStart: input.freezeAtStart,
+            freezeDays: input.freezeDays,
           },
         });
 
@@ -334,8 +338,12 @@ export const paymentValidationRouter = createTRPCRouter({
         }
 
         // Calculate end date based on day field for both package types
+        // Add freeze days if applicable (only for gym memberships)
+        const freezeDays = (paymentValidation.subsType === "gym" && paymentValidation.freezeDays)
+          ? paymentValidation.freezeDays
+          : 0;
         endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + (packageDetails.day ?? 0));
+        endDate.setDate(startDate.getDate() + (packageDetails.day ?? 0) + freezeDays);
 
         // Set remaining sessions for trainer and group packages
         if (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") {
@@ -463,6 +471,12 @@ export const paymentValidationRouter = createTRPCRouter({
             isActive: true,
             salesId: paymentValidation.salesId,
             salesType: paymentValidation.salesType,
+            ...(paymentValidation.subsType === "gym" && {
+              freezeAtStart: paymentValidation.freezeAtStart || false,
+              freezeDays: paymentValidation.freezeDays || null,
+              isFrozen: paymentValidation.freezeAtStart || false,
+              frozenAt: paymentValidation.freezeAtStart ? startDate : null,
+            }),
           },
         });
 

@@ -57,6 +57,8 @@ function CheckoutValidateContent() {
   const salesType = searchParams?.get("salesType");
   const salesName = searchParams?.get("salesName");
   const startDate = searchParams?.get("startDate");
+  const freezeAtStart = searchParams?.get("freezeAtStart") === "true";
+  const freezeDays = searchParams?.get("freezeDays");
 
   // Parse cart data for multi-item or fallback to single-item for backward compatibility
   let cartItems: Array<{
@@ -168,6 +170,8 @@ function CheckoutValidateContent() {
           salesId: salesId || undefined,
           salesType: salesType || undefined,
           startDate: startDate ? new Date(startDate) : undefined,
+          freezeAtStart: item.type === "gym" ? freezeAtStart : undefined,
+          freezeDays: item.type === "gym" && freezeDays ? parseInt(freezeDays) : undefined,
         });
       }
 
@@ -243,6 +247,12 @@ function CheckoutValidateContent() {
                       {item.type === "gym" ? item.day : item.sessions} {item.type === "gym" ? "Days" : "Sessions"}
                     </span>
                   </div>
+                  {item.type === "gym" && freezeAtStart && freezeDays && parseInt(freezeDays) > 0 && (
+                    <div className="flex justify-between text-blue-600">
+                      <span>Freeze Days:</span>
+                      <span>{freezeDays} Days</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Price:</span>
                     <span>{formatCurrency(item.price)}</span>

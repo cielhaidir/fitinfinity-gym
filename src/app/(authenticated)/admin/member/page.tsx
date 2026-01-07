@@ -78,6 +78,9 @@ export default function MemberPage() {
   const [lokerNumber, setLokerNumber] = useState<string>("");
   const [handukSelection, setHandukSelection] = useState<string>("None");
   const [selectedMemberForCheckIn, setSelectedMemberForCheckIn] = useState<Member | null>(null);
+  const [freezeModalOpen, setFreezeModalOpen] = useState(false);
+  const [selectedMemberForFreeze, setSelectedMemberForFreeze] = useState<Member | null>(null);
+  const [freezeDaysInput, setFreezeDaysInput] = useState<string>("");
 
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
@@ -145,6 +148,9 @@ export default function MemberPage() {
   const freezeSubscriptionMutation = api.subs.freeze.useMutation({
     onSuccess: () => {
       utils.member.list.invalidate();
+      setFreezeModalOpen(false);
+      setSelectedMemberForFreeze(null);
+      setFreezeDaysInput("");
       toast.success("Subscription frozen successfully");
     },
     onError: (error) => {
@@ -359,11 +365,28 @@ export default function MemberPage() {
   };
 
   const handleFreezeSubscription = async (member: Member) => {
+    setSelectedMemberForFreeze(member);
+    setFreezeModalOpen(true);
+  };
+  
+  const handleConfirmFreeze = async () => {
+    if (!selectedMemberForFreeze) return;
+
     try {
-      await freezeSubscriptionMutation.mutateAsync({ memberId: member.id });
+      const freezeDays = freezeDaysInput.trim() === "" ? undefined : parseInt(freezeDaysInput);
+      await freezeSubscriptionMutation.mutateAsync({
+        memberId: selectedMemberForFreeze.id,
+        freezeDays,
+      });
     } catch (error) {
       console.error("Error freezing subscription:", error);
     }
+  };
+
+  const handleCancelFreeze = () => {
+    setFreezeModalOpen(false);
+    setSelectedMemberForFreeze(null);
+    setFreezeDaysInput("");
   };
 
   const handleUnfreezeSubscription = async (member: Member) => {
@@ -519,6 +542,60 @@ export default function MemberPage() {
           />
         </div>
       </Sheet>
+
+      {/* Freeze Modal */}
+      <Dialog open={freezeModalOpen} onOpenChange={setFreezeModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Freeze Member Subscriptions</DialogTitle>
+            <DialogDescription>
+              {selectedMemberForFreeze && (
+                <>
+                  Freeze all active subscriptions for <strong>{selectedMemberForFreeze.user.name}</strong>.
+                  Specify the number of freeze days or leave empty for indefinite freeze.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="freezeDays" className="text-sm font-medium">
+                Freeze Days (leave empty for indefinite)
+              </label>
+              <Input
+                id="freezeDays"
+                type="number"
+                placeholder="Enter number of days (optional)"
+                value={freezeDaysInput}
+                onChange={(e) => setFreezeDaysInput(e.target.value)}
+                min="0"
+                max="365"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to freeze indefinitely, or enter days (0-365)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelFreeze}
+              disabled={freezeSubscriptionMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmFreeze}
+              disabled={freezeSubscriptionMutation.isPending}
+              className="bg-infinity"
+            >
+              {freezeSubscriptionMutation.isPending ? "Freezing..." : "Confirm Freeze"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Check-in Modal */}
       <Dialog open={isCheckInModalOpen} onOpenChange={setIsCheckInModalOpen}>
