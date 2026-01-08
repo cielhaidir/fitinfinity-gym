@@ -18,20 +18,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import * as XLSX from "xlsx-js-style";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { useToast } from "@/hooks/use-toast";
-import type { DateRange } from "react-day-picker";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export default function MemberProfileReportPage() {
   const { toast } = useToast();
 
   // Filter form states (temp)
   const [tempSearch, setTempSearch] = useState<string>("");
-  const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>();
+  const [tempStartDate, setTempStartDate] = useState<Date | undefined>();
+  const [tempEndDate, setTempEndDate] = useState<Date | undefined>();
   const [tempStatus, setTempStatus] = useState<string>("all");
 
   // Applied filter states
   const [search, setSearch] = useState<string>("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
   const [status, setStatus] = useState<string>("all");
 
   // Pagination states
@@ -49,8 +49,8 @@ export default function MemberProfileReportPage() {
     refetch,
   } = api.reports.memberProfile.search.useQuery({
     search: search || undefined,
-    enrollmentFrom: dateRange?.from,
-    enrollmentTo: dateRange?.to,
+    enrollmentFrom: startDate,
+    enrollmentTo: endDate,
     status:
       status === "all"
         ? undefined
@@ -76,8 +76,8 @@ export default function MemberProfileReportPage() {
   } = api.reports.memberProfile.exportAll.useQuery(
     {
       search: search || undefined,
-      enrollmentFrom: dateRange?.from,
-      enrollmentTo: dateRange?.to,
+      enrollmentFrom: startDate,
+      enrollmentTo: endDate,
       status:
         status === "all"
           ? undefined
@@ -89,7 +89,8 @@ export default function MemberProfileReportPage() {
   // Apply filters handler
   const handleApplyFilters = () => {
     setSearch(tempSearch);
-    setDateRange(tempDateRange);
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
     setStatus(tempStatus);
     setPage(1);
     refetch();
@@ -98,10 +99,12 @@ export default function MemberProfileReportPage() {
   // Reset filters handler
   const handleResetFilters = () => {
     setTempSearch("");
-    setTempDateRange(undefined);
+    setTempStartDate(undefined);
+    setTempEndDate(undefined);
     setTempStatus("all");
     setSearch("");
-    setDateRange(undefined);
+    setStartDate(undefined);
+    setEndDate(undefined);
     setStatus("all");
     setPage(1);
     refetch();
@@ -164,8 +167,8 @@ export default function MemberProfileReportPage() {
       {
         Metric: "Date Range",
         Value:
-          dateRange?.from && dateRange?.to
-            ? `${format(dateRange.from, "PPP")} - ${format(dateRange.to, "PPP")}`
+          startDate && endDate
+            ? `${format(startDate, "PPP")} - ${format(endDate, "PPP")}`
             : "All Time",
       },
       {
@@ -385,10 +388,19 @@ export default function MemberProfileReportPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>Enrollment Date Range</Label>
-                  <DateRangePicker
-                    date={tempDateRange}
-                    onDateChange={setTempDateRange}
+                  <Label>Start Date</Label>
+                  <Input
+                    type="date"
+                    value={tempStartDate ? format(tempStartDate, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setTempStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                  />
+                </div>
+                <div>
+                  <Label>End Date</Label>
+                  <Input
+                    type="date"
+                    value={tempEndDate ? format(tempEndDate, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setTempEndDate(e.target.value ? new Date(e.target.value) : undefined)}
                   />
                 </div>
                 <div>

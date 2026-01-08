@@ -17,11 +17,33 @@ export default function AdminClassRegisterPage() {
     data: classes,
     isLoading: classesLoading,
     error: classesError,
+    refetch: refetchClasses,
   } = api.memberClass.list.useQuery({ page: 1, limit: 100 });
 
   const handleClassClick = (class_: Class) => {
     setSelectedClass(class_);
     setIsDialogOpen(true);
+  };
+
+  const handleDialogClose = async (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      // Refetch classes when dialog closes to get updated data
+      await refetchClasses();
+      setSelectedClass(null);
+    }
+  };
+
+  const handleDataUpdate = async () => {
+    // Refetch classes to get the latest data
+    const result = await refetchClasses();
+    // Update the selected class with the refreshed data
+    if (selectedClass && result.data?.items) {
+      const updatedClass = result.data.items.find(c => c.id === selectedClass.id);
+      if (updatedClass) {
+        setSelectedClass(updatedClass);
+      }
+    }
   };
 
   if (classesLoading) {
@@ -77,7 +99,8 @@ export default function AdminClassRegisterPage() {
         <AdminClassRegisterDialog
           class_={selectedClass}
           open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
+          onOpenChange={handleDialogClose}
+          onDataUpdate={handleDataUpdate}
         />
       </div>
     </ProtectedRoute>

@@ -8,12 +8,7 @@ import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 
 const DashboardPage: React.FC = () => {
   const { data: memberData, isLoading: memberLoading } =
-    api.member.list.useQuery({
-      page: 1,
-      limit: 100,
-      search: "",
-      searchColumn: "isActive",
-    });
+    api.member.getAllActive.useQuery();
 
   const { data: employeeData, isLoading: employeeLoading } =
     api.employee.list.useQuery({
@@ -30,7 +25,9 @@ const DashboardPage: React.FC = () => {
     });
 
   const activeMembers =
-    memberData?.items.filter((member) => member.isActive).length ?? 0;
+    memberData?.filter((member) =>
+      member.subscriptions.some((sub) => sub.isActive)
+    ).length ?? 0;
   const totalEmployees = employeeData?.total ?? 0;
   const latestTransactions = transactionData?.items ?? [];
 

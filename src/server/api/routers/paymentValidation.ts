@@ -1051,6 +1051,10 @@ export const paymentValidationRouter = createTRPCRouter({
             gte: startDate || defaultStart,
             lte: endDate || now,
           },
+                  deletedAt: null,
+        subscription: {
+          deletedAt: null
+        },
         },
         include: {
           subscription: {

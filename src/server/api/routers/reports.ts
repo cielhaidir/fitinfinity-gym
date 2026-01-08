@@ -321,8 +321,12 @@ export const reportsRouter = createTRPCRouter({
 
         // Status filter
         if (input.status === "ACTIVE") {
-          where.isActive = true;
-          where.revokedAt = null;
+          where.subscriptions = {
+            some: {
+              isActive: true,
+              deletedAt: null,
+            },
+          };
         } else if (input.status === "EXPIRED") {
           where.isActive = false;
           where.revokedAt = null;

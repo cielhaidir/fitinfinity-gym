@@ -300,8 +300,12 @@ getRevenueBySales: protectedProcedure
             gte: toGMT8StartOfDay(startDate),
             lte: toGMT8EndOfDay(endDate),
           },
+          deletedAt: null,
           status: 'SUCCESS',
           ...(paymentMethod && { method: paymentMethod }),
+                  subscription: {
+              deletedAt: null
+            }
         },
         include: {
           subscription: {
@@ -401,8 +405,8 @@ getRevenueBySales: protectedProcedure
     }))
     .query(async ({ ctx, input }) => {
       const { year, includePos, includeSubscriptions } = input;
-      const startDate = new Date(year, 0, 1);
-      const endDate = new Date(year, 11, 31);
+      const startDate = toGMT8StartOfDay(new Date(year, 0, 1));
+      const endDate = toGMT8EndOfDay(new Date(year, 11, 31));
 
       const monthlyData = Array.from({ length: 12 }, (_, i) => ({
         month: i + 1,
@@ -441,7 +445,11 @@ getRevenueBySales: protectedProcedure
               gte: startDate,
               lte: endDate,
             },
+            deletedAt: null,
             status: 'SUCCESS',
+                    subscription: {
+              deletedAt: null
+            }
           },
           select: {
             totalPayment: true,
@@ -508,7 +516,11 @@ getRevenueBySales: protectedProcedure
             gte: toGMT8StartOfDay(startDate),
             lte: toGMT8EndOfDay(endDate),
           },
+          deletedAt: null,
           status: 'SUCCESS',
+                  subscription: {
+              deletedAt: null
+            }
         },
         include: {
           subscription: {
@@ -593,12 +605,16 @@ getRevenueBySales: protectedProcedure
       if (includeSubscriptions) {
         subscriptionPayments = await ctx.db.payment.findMany({
           where: {
+            deletedAt: null,
             createdAt: {
               gte: start,
               lte: end,
             },
             status: 'SUCCESS',
             ...(paymentMethod && { method: paymentMethod }),
+            subscription: {
+              deletedAt: null
+            }
           },
           select: {
             id: true,

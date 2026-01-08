@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,20 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/app/_components/ui/input";
 import { Label } from "@/app/_components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
-import Select, { StylesConfig } from "react-select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/app/_components/ui/avatar";
+import { Checkbox } from "@/app/_components/ui/checkbox";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import type { Class } from "@/app/(authenticated)/member/classes/types";
-
-type MemberOption = {
-  value: string;
-  label: string;
-};
 
 interface MemberUser {
   name: string | null;
   email: string | null;
   phone: string | null;
+  image?: string | null;
 }
 
 interface ApiMember {
@@ -57,112 +54,44 @@ interface AdminClassRegisterDialogProps {
   class_: Class | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDataUpdate?: () => Promise<void>;
 }
-
-const selectStyles: StylesConfig<MemberOption, false> = {
-  control: (baseStyles) => ({
-    ...baseStyles,
-    backgroundColor: "hsl(222.2 84% 4.9%)",
-    borderColor: "hsl(217.2 32.6% 17.5%)",
-    borderRadius: "var(--radius)",
-    minHeight: "2.25rem",
-    boxShadow: "none",
-    "&:hover": {
-      borderColor: "hsl(217.2 32.6% 17.5%)"
-    }
-  }),
-  menu: (baseStyles) => ({
-    ...baseStyles,
-    backgroundColor: "hsl(222.2 84% 4.9%)",
-    border: "1px solid hsl(217.2 32.6% 17.5%)",
-    borderRadius: "var(--radius)",
-    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-    color: "hsl(210 40% 98%)"
-  }),
-  menuPortal: (baseStyles) => ({
-    ...baseStyles,
-    zIndex: 9999
-  }),
-  option: (baseStyles, { isSelected, isFocused }) => ({
-    ...baseStyles,
-    backgroundColor: isSelected 
-      ? "hsl(217.2 32.6% 17.5%)"
-      : isFocused
-        ? "hsl(217.2 32.6% 12.5%)"
-        : "transparent",
-    color: "hsl(210 40% 98%)",
-    cursor: "pointer",
-    "&:active": {
-      backgroundColor: "hsl(217.2 32.6% 17.5%)"
-    }
-  }),
-  input: (baseStyles) => ({
-    ...baseStyles,
-    color: "hsl(210 40% 98%)"
-  }),
-  singleValue: (baseStyles) => ({
-    ...baseStyles,
-    color: "hsl(210 40% 98%)"
-  }),
-  placeholder: (baseStyles) => ({
-    ...baseStyles,
-    color: "hsl(215 20.2% 65.1%)"
-  }),
-  menuList: (baseStyles) => ({
-    ...baseStyles,
-    padding: "4px",
-    "::-webkit-scrollbar": {
-      width: "8px",
-      height: "8px",
-    },
-    "::-webkit-scrollbar-track": {
-      background: "transparent",
-    },
-    "::-webkit-scrollbar-thumb": {
-      background: "hsl(217.2 32.6% 17.5%)",
-      borderRadius: "9999px",
-    },
-    "::-webkit-scrollbar-thumb:hover": {
-      background: "hsl(217.2 32.6% 25%)",
-    }
-  }),
-  dropdownIndicator: (baseStyles, { isFocused }) => ({
-    ...baseStyles,
-    color: isFocused ? "hsl(210 40% 98%)" : "hsl(215 20.2% 65.1%)",
-    "&:hover": {
-      color: "hsl(210 40% 98%)"
-    }
-  }),
-  clearIndicator: (baseStyles) => ({
-    ...baseStyles,
-    color: "hsl(215 20.2% 65.1%)",
-    "&:hover": {
-      color: "hsl(210 40% 98%)"
-    }
-  })
-};
 
 export function AdminClassRegisterDialog({
   class_,
   open,
   onOpenChange,
+  onDataUpdate,
 }: AdminClassRegisterDialogProps) {
   const utils = api.useUtils();
   const { data: members, isLoading: membersLoading } = api.member.getAllActive.useQuery();
   const removeMutation = api.memberClass.adminRemoveMember.useMutation();
-  const addMutation = api.memberClass.adminAddMember.useMutation();
+  const addMultipleMutation = api.memberClass.adminAddMultipleMembers.useMutation();
   const addTrialMutation = api.memberClass.adminAddTrialMember.useMutation();
-  const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [trialMemberName, setTrialMemberName] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("existing");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
-      setSelectedMemberId("");
+      setSearchTerm("");
       setTrialMemberName("");
       setActiveTab("existing");
+      setSelectedMemberIds([]);
     }
   }, [open]);
+
+  // Focus search input when dialog opens and on existing tab
+  useEffect(() => {
+    if (open && activeTab === "existing" && searchInputRef.current) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open, activeTab]);
 
   if (!class_) return null;
 
@@ -173,49 +102,94 @@ export function AdminClassRegisterDialog({
       await removeMutation.mutateAsync({ classId, memberId });
       toast.success("Member removed from class");
       await utils.memberClass.list.invalidate();
+      // Update parent component data
+      if (onDataUpdate) {
+        await onDataUpdate();
+      }
     } catch (err: any) {
       toast.error(err?.message || "Failed to remove member");
     }
   };
 
-  const handleRegister = async () => {
-    if (!class_?.id) return;
+  const handleRegisterMembers = async () => {
+    if (!class_?.id || selectedMemberIds.length === 0) return;
 
-    if (activeTab === "existing") {
-      if (!selectedMemberId) return;
-
-      try {
-        await addMutation.mutateAsync({ classId: class_.id, memberId: selectedMemberId });
-        toast.success("Member registered to class successfully");
-        await utils.memberClass.list.invalidate();
-        setSelectedMemberId("");
-        onOpenChange(false);
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to register member");
+    try {
+      const result = await addMultipleMutation.mutateAsync({
+        classId: class_.id,
+        memberIds: selectedMemberIds
+      });
+      
+      if (result.successful > 0) {
+        toast.success(`Successfully registered ${result.successful} member(s) to class`);
       }
-    } else {
-      if (!trialMemberName.trim()) return;
-
-      try {
-        await addTrialMutation.mutateAsync({ classId: class_.id, memberName: trialMemberName.trim() });
-        toast.success("Trial member registered to class successfully");
-        await utils.memberClass.list.invalidate();
-        setTrialMemberName("");
-        onOpenChange(false);
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to register trial member");
+      if (result.failed > 0) {
+        toast.warning(`Failed to register ${result.failed} member(s) (may already be registered)`);
       }
+      
+      await utils.memberClass.list.invalidate();
+      setSearchTerm("");
+      setSelectedMemberIds([]);
+      // Update parent component data
+      if (onDataUpdate) {
+        await onDataUpdate();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to register members");
     }
   };
 
-  const memberOptions: MemberOption[] = members?.map((member: ApiMember) => ({
-    value: member.id,
-    label: member.user.name || member.user.email || member.user.phone || member.id
-  })) || [];
+  const handleRegisterTrialMember = async () => {
+    if (!class_?.id || !trialMemberName.trim()) return;
+
+    try {
+      await addTrialMutation.mutateAsync({ classId: class_.id, memberName: trialMemberName.trim() });
+      toast.success("Trial member registered to class successfully");
+      await utils.memberClass.list.invalidate();
+      setTrialMemberName("");
+      // Update parent component data before closing
+      if (onDataUpdate) {
+        await onDataUpdate();
+      }
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to register trial member");
+    }
+  };
+
+  const toggleMemberSelection = (memberId: string) => {
+    setSelectedMemberIds(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedMemberIds.length === filteredMembers.length && filteredMembers.length > 0) {
+      setSelectedMemberIds([]);
+    } else {
+      setSelectedMemberIds(filteredMembers.map(m => m.id));
+    }
+  };
+
+  // Filter members based on search term
+  const filteredMembers = members?.filter((member: ApiMember) => {
+    if (!searchTerm) return false; // Only show results when searching
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      member.user.name?.toLowerCase().includes(searchLower) ||
+      member.user.email?.toLowerCase().includes(searchLower) ||
+      member.user.phone?.toLowerCase().includes(searchLower)
+    );
+  }) || [];
+
+  const isAllSelected = filteredMembers.length > 0 && selectedMemberIds.length === filteredMembers.length;
+  const isSomeSelected = selectedMemberIds.length > 0 && selectedMemberIds.length < filteredMembers.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{class_.name}</DialogTitle>
           <DialogDescription>with {class_.instructorName}</DialogDescription>
@@ -289,25 +263,96 @@ export function AdminClassRegisterDialog({
           </TabsList>
           
           <TabsContent value="existing" className="space-y-4">
-            <div>
-              <Label htmlFor="member-select" className="block mb-1 font-medium">
-                Select Member
+            <div className="space-y-2">
+              <Label htmlFor="member-search" className="block font-medium">
+                Search Member
               </Label>
-              <Select<MemberOption>
-                menuPortalTarget={document.body}
-                styles={selectStyles}
-                options={memberOptions}
-                value={memberOptions.find(option => option.value === selectedMemberId)}
-                onChange={(newValue) => setSelectedMemberId(newValue?.value || "")}
-                isLoading={membersLoading}
-                isDisabled={membersLoading}
-                placeholder="Select a member"
-                isClearable
-                className="w-full"
-                classNamePrefix="react-select"
-                maxMenuHeight={200}
+              <Input
+                ref={searchInputRef}
+                id="member-search"
+                placeholder="Search members by name, email, or phone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                autoFocus
               />
+              
+              {filteredMembers.length > 0 && (
+                <div className="flex items-center space-x-2 py-2 border-b">
+                  <Checkbox
+                    id="select-all"
+                    checked={isAllSelected}
+                    onCheckedChange={toggleSelectAll}
+                    className="data-[state=checked]:bg-infinity data-[state=checked]:border-infinity"
+                    ref={(el) => {
+                      if (el && isSomeSelected) {
+                        el.setAttribute('data-state', 'indeterminate');
+                      }
+                    }}
+                  />
+                  <Label 
+                    htmlFor="select-all" 
+                    className="text-sm font-medium cursor-pointer"
+                  >
+                    Select All ({selectedMemberIds.length} selected)
+                  </Label>
+                </div>
+              )}
+              
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {filteredMembers.length === 0 && searchTerm && (
+                  <div className="text-center text-muted-foreground py-4">
+                    No members found matching &ldquo;{searchTerm}&rdquo;
+                  </div>
+                )}
+                {filteredMembers.map((member) => {
+                  const isSelected = selectedMemberIds.includes(member.id);
+                  return (
+                    <div
+                      key={member.id}
+                      className={`flex items-center space-x-2 p-2 border rounded hover:bg-accent transition-colors cursor-pointer ${
+                        isSelected ? 'bg-accent border-infinity' : ''
+                      }`}
+                      onClick={() => toggleMemberSelection(member.id)}
+                    >
+                      <Checkbox
+                        id={`member-${member.id}`}
+                        checked={isSelected}
+                        onCheckedChange={() => toggleMemberSelection(member.id)}
+                        className="data-[state=checked]:bg-infinity data-[state=checked]:border-infinity"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
+                          <AvatarImage src={member.user.image || undefined} />
+                          <AvatarFallback>
+                            {member.user.name?.[0] || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium truncate">{member.user.name}</div>
+                          <div className="text-sm text-muted-foreground truncate">
+                            {member.user.email}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+            
+            {selectedMemberIds.length > 0 && (
+              <Button
+                className="w-full bg-infinity"
+                onClick={handleRegisterMembers}
+                disabled={addMultipleMutation.isPending}
+              >
+                {addMultipleMutation.isPending 
+                  ? "Registering..." 
+                  : `Add ${selectedMemberIds.length} Member${selectedMemberIds.length > 1 ? 's' : ''} to Class`
+                }
+              </Button>
+            )}
           </TabsContent>
           
           <TabsContent value="trial" className="space-y-4">
@@ -327,23 +372,16 @@ export function AdminClassRegisterDialog({
                 For gym visitors who don't have an account yet
               </p>
             </div>
+            
+            <Button
+              className="w-full bg-infinity"
+              onClick={handleRegisterTrialMember}
+              disabled={!trialMemberName.trim() || addTrialMutation.isPending}
+            >
+              {addTrialMutation.isPending ? "Registering..." : "Register Trial Member"}
+            </Button>
           </TabsContent>
         </Tabs>
-        
-        <DialogFooter>
-          <Button
-            className="w-full bg-infinity"
-            onClick={handleRegister}
-            disabled={
-              (activeTab === "existing" && !selectedMemberId) ||
-              (activeTab === "trial" && !trialMemberName.trim()) ||
-              addMutation.isPending ||
-              addTrialMutation.isPending
-            }
-          >
-            {addMutation.isPending || addTrialMutation.isPending ? "Registering..." : "Register"}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

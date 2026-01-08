@@ -111,6 +111,11 @@ enum SessionStatus {
     ONGOING
 }
 
+enum FreezeMode {
+    FIXED_DAYS
+    UNTIL_UNFREEZE
+}
+
 // Purchase and Adjustment Enums
 enum InventoryTransactionType {
     SALE              // Decrease from POS sale
@@ -338,10 +343,17 @@ model Subscription {
     endDate           DateTime?
     remainingSessions Int?
     isActive          Boolean          @default(false)
+    
+    // Freeze state (existing)
     isFrozen          Boolean          @default(false)
     frozenAt          DateTime?
     freezeAtStart     Boolean?         @default(false)
     freezeDays        Int?
+    
+    // Freeze improvements (new)
+    freezeMode        FreezeMode?
+    remainingDays     Int?
+    
     deletedAt         DateTime?        // Soft delete timestamp
     payments          Payment[]
     

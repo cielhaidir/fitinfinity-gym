@@ -32,6 +32,10 @@ export const financeRouter = createTRPCRouter({
             gte: start,
             lte: end,
           },
+                  deletedAt: null,
+        subscription: {
+          deletedAt: null
+        },
         },
         include: {
           subscription: {
@@ -132,6 +136,10 @@ export const financeRouter = createTRPCRouter({
             gte: start,
             lte: end,
           },
+                  deletedAt: null,
+        subscription: {
+          deletedAt: null
+        },
         },
         include: {
           subscription: {

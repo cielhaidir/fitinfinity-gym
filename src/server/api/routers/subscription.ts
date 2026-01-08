@@ -1293,46 +1293,87 @@ export const subscriptionRouter = createTRPCRouter({
         });
       }
 
-      // Find all active, non-frozen subscriptions for this member
+      const now = new Date();
+
+      // Find all active, non-frozen subscriptions for this member that haven't expired
+      // Validation guards (as per improvement plan):
+      // ❌ Cannot freeze if already frozen (filtered by isFrozen: false)
+      // ❌ Cannot freeze expired subscriptions (filtered by endDate > now)
+      // ❌ Cannot freeze subscriptions without endDate
       const activeSubscriptions = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
           isActive: true,
           isFrozen: false,
           deletedAt: null,
-          endDate: { gt: new Date() }, // Only subscriptions that haven't expired
+          endDate: { gt: now }, // Only subscriptions that haven't expired
         },
         include: { package: true },
       });
 
+      // Explicit validation: check if no active subscriptions found
       if (activeSubscriptions.length === 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "No active subscriptions found to freeze",
+          message: "No active subscriptions found to freeze. Subscriptions may already be frozen, expired, or not exist.",
         });
       }
 
-      const now = new Date();
+      // Additional validation: check if any subscription is missing endDate
+      const subscriptionsWithoutEndDate = activeSubscriptions.filter(sub => !sub.endDate);
+      if (subscriptionsWithoutEndDate.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cannot freeze ${subscriptionsWithoutEndDate.length} subscription(s) without end date. Only gym memberships with end dates can be frozen.`,
+        });
+      }
 
-      // Freeze all active subscriptions
-      const updatedSubscriptions = await ctx.db.subscription.updateMany({
-        where: {
-          memberId: input.memberId,
-          isActive: true,
-          isFrozen: false,
-          deletedAt: null,
-          endDate: { gt: now },
-        },
-        data: {
-          isFrozen: true,
-          frozenAt: now,
-          ...(input.freezeDays && { freezeDays: input.freezeDays }),
-        },
-      });
+      // Validate freezeDays is reasonable if provided
+      if (input.freezeDays !== undefined && input.freezeDays === 0) {
+        // Log warning but allow (treated as UNTIL_UNFREEZE)
+        console.warn(`Freeze requested with freezeDays=0 for member ${input.memberId}, treating as UNTIL_UNFREEZE mode`);
+      }
+
+      // Freeze each subscription individually using transaction
+      const results = await ctx.db.$transaction(
+        activeSubscriptions.map((subscription) => {
+          if (!subscription.endDate) {
+            // Skip subscriptions without endDate (shouldn't happen given the query filter)
+            return ctx.db.subscription.update({
+              where: { id: subscription.id },
+              data: {}, // No-op
+            });
+          }
+
+          // Calculate remaining days from now until endDate
+          // misalkan endate 30 januari, sekarang 8 januari, berarti remainingDays = 22
+          const remainingMillis = subscription.endDate.getTime() - now.getTime();
+          const remainingDays = Math.max(0, Math.floor(remainingMillis / (1000 * 60 * 60 * 24)));
+
+          // Determine freeze mode
+          const freezeMode = (input.freezeDays && input.freezeDays > 0)
+            ? "FIXED_DAYS"
+            : "UNTIL_UNFREEZE";
+
+
+          return ctx.db.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              isFrozen: true,
+              // isActive: false, // Subscription becomes inactive while frozen
+              frozenAt: now,
+              freezeDays: input.freezeDays ?? null,
+              freezeMode: freezeMode,
+              remainingDays: remainingDays,
+              // Do NOT modify endDate
+            },
+          });
+        })
+      );
 
       return {
-        message: `Successfully frozen ${updatedSubscriptions.count} subscription(s)`,
-        count: updatedSubscriptions.count,
+        message: `Successfully frozen ${results.length} subscription(s)`,
+        count: results.length,
         memberId: input.memberId,
         memberName: member.user?.name || "Unknown",
       };
@@ -1356,6 +1397,8 @@ export const subscriptionRouter = createTRPCRouter({
       }
 
       // Find all frozen subscriptions for this member
+      // Validation guards (as per improvement plan):
+      // ❌ Cannot unfreeze if not frozen (filtered by isFrozen: true)
       const frozenSubscriptions = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
@@ -1365,46 +1408,86 @@ export const subscriptionRouter = createTRPCRouter({
         include: { package: true },
       });
 
+      // Explicit validation: check if no frozen subscriptions found
       if (frozenSubscriptions.length === 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "No frozen subscriptions found to unfreeze",
+          message: "No frozen subscriptions found to unfreeze. All subscriptions may already be active or not exist.",
         });
+      }
+
+      // Additional validation: check data integrity
+      const subscriptionsWithoutFrozenAt = frozenSubscriptions.filter(sub => !sub.frozenAt);
+      if (subscriptionsWithoutFrozenAt.length > 0) {
+        console.error(`Data integrity issue: ${subscriptionsWithoutFrozenAt.length} frozen subscription(s) missing frozenAt timestamp for member ${input.memberId}`);
+        // Don't throw error, let the transaction skip them with the existing logic
       }
 
       const now = new Date();
       let unfrozenCount = 0;
 
-      // Unfreeze each subscription and calculate new end dates
-      for (const subscription of frozenSubscriptions) {
-        if (!subscription.frozenAt || !subscription.endDate) {
-          continue; // Skip subscriptions without freeze date or end date
-        }
+      // Unfreeze each subscription individually using transaction
+      const results = await ctx.db.$transaction(
+        frozenSubscriptions.map((subscription) => {
+          if (!subscription.frozenAt) {
+            // Skip subscriptions without frozenAt (data integrity issue)
+            return ctx.db.subscription.update({
+              where: { id: subscription.id },
+              data: {}, // No-op
+            });
+          }
 
-        // Calculate remaining days when it was frozen (days between frozenAt and endDate)
-        const remainingMillisWhenFrozen = subscription.endDate.getTime() - subscription.frozenAt.getTime();
-        
-        // Ensure remaining days is at least 0
-        const remainingDaysWhenFrozen = Math.max(0, Math.ceil(remainingMillisWhenFrozen / (1000 * 60 * 60 * 24)));
+          // Calculate how long subscription has been frozen
+          // misalkan frozenAt 1 januari, sekarang 8 januari, berarti frozenDaysSoFar = 7
+          const frozenMillis = now.getTime() - subscription.frozenAt.getTime();
+          const frozenDaysSoFar = Math.ceil(frozenMillis / (1000 * 60 * 60 * 24));
 
-        // Calculate new end date by adding remaining days to current date
-        const newEndDate = new Date(now);
-        newEndDate.setDate(newEndDate.getDate() + remainingDaysWhenFrozen);
-        // Set to end of day for consistency
-        newEndDate.setHours(23, 59, 59, 999);
+          // Infer freezeMode for backward compatibility (legacy data)
+          const freezeMode = subscription.freezeMode ||
+            (subscription.freezeDays && subscription.freezeDays > 0 ? "FIXED_DAYS" : "UNTIL_UNFREEZE");
 
-        await ctx.db.subscription.update({
-          where: { id: subscription.id },
-          data: {
-            isFrozen: false,
-            frozenAt: null,
-            endDate: newEndDate,
-            isActive: true, // Reactivate the subscription
-          },
-        });
+          let extraDays: number;
+          const remainingDays = subscription.remainingDays ?? 0;
 
-        unfrozenCount++;
-      }
+          if (freezeMode === "FIXED_DAYS") {
+            const freezeDays = subscription.freezeDays || 0;
+
+            extraDays = remainingDays;
+          } else {
+ 
+            if (subscription.remainingDays !== null) {
+              extraDays = subscription.remainingDays;
+            } else if (subscription.endDate && subscription.frozenAt) {
+              // Fallback for legacy data without remainingDays
+              const legacyRemainingMillis = subscription.endDate.getTime() - subscription.frozenAt.getTime();
+              extraDays = Math.max(0, Math.ceil(legacyRemainingMillis / (1000 * 60 * 60 * 24)));
+            } else {
+              extraDays = 0;
+            }
+          }
+
+          // Calculate new end date
+          const newEndDate = new Date(now);
+          newEndDate.setDate(newEndDate.getDate() + extraDays);
+          // Set to end of day for consistency
+          newEndDate.setHours(23, 59, 59, 999);
+
+          unfrozenCount++;
+
+          return ctx.db.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              isFrozen: false,
+              isActive: true, // Reactivate the subscription
+              frozenAt: null,
+              freezeDays: null,
+              freezeMode: null,
+              remainingDays: null,
+              endDate: newEndDate,
+            },
+          });
+        })
+      );
 
       return {
         message: `Successfully unfrozen ${unfrozenCount} subscription(s)`,

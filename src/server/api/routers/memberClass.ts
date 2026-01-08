@@ -264,6 +264,80 @@ export const memberClassRouter = createTRPCRouter({
           
       });
     }),
+
+  /**
+   * Admin: Add multiple members to a class manually
+   * Requires: classId, memberIds[]
+   */
+  adminAddMultipleMembers: protectedProcedure
+    .input(z.object({
+      classId: z.string(),
+      memberIds: z.array(z.string()).min(1)
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const class_ = await ctx.db.class.findUnique({
+        where: { id: input.classId },
+        include: { registeredMembers: true },
+      });
+
+      if (!class_) {
+        throw new Error("Class not found");
+      }
+
+      if (class_.schedule < new Date()) {
+        throw new Error("Cannot register for past classes");
+      }
+
+      // Check available spots
+      const currentCount = class_.registeredMembers.length;
+      const availableSpots = class_.limit ? class_.limit - currentCount : Infinity;
+      
+      if (class_.limit && input.memberIds.length > availableSpots) {
+        throw new Error(`Not enough spots available. Only ${availableSpots} spots left.`);
+      }
+
+      const results = await Promise.allSettled(
+        input.memberIds.map(async (memberId) => {
+          // Check if already registered
+          const existingRegistration = await ctx.db.classMember.findFirst({
+            where: {
+              classId: input.classId,
+              memberId: memberId,
+            },
+          });
+
+          if (existingRegistration) {
+            return {
+              success: false,
+              memberId,
+              error: "Already registered"
+            };
+          }
+
+          await ctx.db.classMember.create({
+            data: {
+              classId: input.classId,
+              memberId: memberId,
+            },
+          });
+
+          return {
+            success: true,
+            memberId
+          };
+        })
+      );
+
+      const successCount = results.filter(r => r.status === "fulfilled" && r.value.success).length;
+      const failedCount = results.length - successCount;
+
+      return {
+        total: results.length,
+        successful: successCount,
+        failed: failedCount,
+        results: results.map(r => r.status === "fulfilled" ? r.value : { success: false, error: "Unknown error" })
+      };
+    }),
     /**
      * Admin: Remove a member from a class manually
      * Requires: classId, memberId

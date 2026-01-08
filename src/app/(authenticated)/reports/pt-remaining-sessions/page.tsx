@@ -635,7 +635,7 @@ export default function PTRemainingSessionsReportPage() {
                           <CollapsibleTrigger asChild>
                             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 md:gap-4">
                                   <div>
                                     {isExpanded ? (
                                       <ChevronDown className="h-5 w-5" />
@@ -643,30 +643,30 @@ export default function PTRemainingSessionsReportPage() {
                                       <ChevronRight className="h-5 w-5" />
                                     )}
                                   </div>
-                                  <Avatar className="h-12 w-12">
+                                  <Avatar className="hidden md:block h-12 w-12">
                                     <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${trainer.trainerUser.name}`} />
                                     <AvatarFallback>
                                       {trainer.trainerUser.name?.charAt(0) || "T"}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div>
-                                    <h3 className="font-semibold text-lg">
+                                    <h3 className="font-semibold text-base md:text-lg">
                                       {trainer.trainerUser.name || "Unknown Trainer"}
                                     </h3>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
                                       <Phone className="h-3 w-3" />
                                       {trainer.trainerUser.phone || "No phone"}
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-3 md:gap-6">
                                   <div className="text-center">
-                                    <p className="text-2xl font-bold">{filteredMembers.length}</p>
+                                    <p className="text-xl md:text-2xl font-bold">{filteredMembers.length}</p>
                                     <p className="text-xs text-muted-foreground">Members</p>
                                   </div>
                                   <div className="text-center">
-                                    <p className="text-2xl font-bold text-blue-600">{totalRemaining}</p>
-                                    <p className="text-xs text-muted-foreground">Total Sessions</p>
+                                    <p className="text-xl md:text-2xl font-bold text-blue-600">{totalRemaining}</p>
+                                    <p className="text-xs text-muted-foreground">Sessions</p>
                                   </div>
                               
                                 </div>

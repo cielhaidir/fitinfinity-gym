@@ -84,6 +84,10 @@ getCashBankReport: protectedProcedure
       where: {
         createdAt: { gte: start, lte: end },
         status: 'SUCCESS',
+        deletedAt: null,
+        subscription: {
+          deletedAt: null
+        },
         ...(balanceAccountId && {
           subscription: {
             member: {
@@ -610,6 +614,10 @@ getCashBankReport: protectedProcedure
             gte: start,
             lte: end,
           },
+                  deletedAt: null,
+        subscription: {
+          deletedAt: null
+        },
           status: 'SUCCESS',
           ...(balanceAccountId && {
             subscription: {

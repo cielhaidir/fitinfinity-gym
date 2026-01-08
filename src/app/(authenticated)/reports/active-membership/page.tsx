@@ -18,8 +18,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import * as XLSX from "xlsx-js-style";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { useToast } from "@/hooks/use-toast";
-import type { DateRange } from "react-day-picker";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 interface ActiveMembershipItem {
   membershipId: string;
@@ -55,19 +53,15 @@ export default function ActiveMembershipReportPage() {
 
   // Filter form states (temp)
   const [tempSearch, setTempSearch] = useState<string>("");
-  const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 30),
-    to: new Date(),
-  });
+  const [tempStartDate, setTempStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
+  const [tempEndDate, setTempEndDate] = useState<Date | undefined>(new Date());
   const [tempPackageType, setTempPackageType] = useState<string>("all");
   const [tempStatus, setTempStatus] = useState<string>("active");
 
   // Applied filter states
   const [search, setSearch] = useState<string>("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 30),
-    to: new Date(),
-  });
+  const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [packageType, setPackageType] = useState<string>("all");
   const [status, setStatus] = useState<string>("active");
 
@@ -90,8 +84,8 @@ export default function ActiveMembershipReportPage() {
     refetch,
   } = api.reports.activeMembership.list.useQuery({
     isActive: status === "active",
-    startDate: dateRange?.from,
-    endDate: dateRange?.to,
+    startDate: startDate,
+    endDate: endDate,
     packageType:
       packageType === "all"
         ? undefined
@@ -115,7 +109,8 @@ export default function ActiveMembershipReportPage() {
   // Apply filters handler
   const handleApplyFilters = () => {
     setSearch(tempSearch);
-    setDateRange(tempDateRange);
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
     setPackageType(tempPackageType);
     setStatus(tempStatus);
     setPage(1); // Reset to first page
@@ -124,18 +119,18 @@ export default function ActiveMembershipReportPage() {
 
   // Reset filters handler
   const handleResetFilters = () => {
-    const defaultDateRange = {
-      from: subDays(new Date(), 30),
-      to: new Date(),
-    };
+    const defaultStartDate = subDays(new Date(), 30);
+    const defaultEndDate = new Date();
 
     setTempSearch("");
-    setTempDateRange(defaultDateRange);
+    setTempStartDate(defaultStartDate);
+    setTempEndDate(defaultEndDate);
     setTempPackageType("all");
     setTempStatus("active");
 
     setSearch("");
-    setDateRange(defaultDateRange);
+    setStartDate(defaultStartDate);
+    setEndDate(defaultEndDate);
     setPackageType("all");
     setStatus("active");
     setPage(1);
@@ -199,8 +194,8 @@ export default function ActiveMembershipReportPage() {
     const reportInfo = [
       {
         Metric: "Report Period",
-        Value: dateRange?.from && dateRange?.to
-          ? `${format(dateRange.from, "PPP")} - ${format(dateRange.to, "PPP")}`
+        Value: startDate && endDate
+          ? `${format(startDate, "PPP")} - ${format(endDate, "PPP")}`
           : "All Time",
       },
       { Metric: "Generated At", Value: format(new Date(), "PPP p") },
@@ -436,10 +431,19 @@ export default function ActiveMembershipReportPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>Date Range</Label>
-                  <DateRangePicker
-                    date={tempDateRange}
-                    onDateChange={setTempDateRange}
+                  <Label>Start Date</Label>
+                  <Input
+                    type="date"
+                    value={tempStartDate ? format(tempStartDate, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setTempStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                  />
+                </div>
+                <div>
+                  <Label>End Date</Label>
+                  <Input
+                    type="date"
+                    value={tempEndDate ? format(tempEndDate, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setTempEndDate(e.target.value ? new Date(e.target.value) : undefined)}
                   />
                 </div>
                 <div>
@@ -694,10 +698,10 @@ export default function ActiveMembershipReportPage() {
                   </Badge>
                 </div>
               </div>
-              {dateRange?.from && dateRange?.to && (
+              {startDate && endDate && (
                 <div className="text-sm text-muted-foreground">
-                  Report Period: {format(dateRange.from, "MMM d, yyyy")} -{" "}
-                  {format(dateRange.to, "MMM d, yyyy")}
+                  Report Period: {format(startDate, "MMM d, yyyy")} -{" "}
+                  {format(endDate, "MMM d, yyyy")}
                 </div>
               )}
             </div>
