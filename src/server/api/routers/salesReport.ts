@@ -22,6 +22,9 @@ interface SalesSummary {
   averageTransactionValue: number;
   posRevenue: number;
   subscriptionRevenue: number;
+  gymMembershipRevenue: number;
+  personalTrainerRevenue: number;
+  groupTrainingRevenue: number;
 }
 
 interface PaymentMethodBreakdown {
@@ -624,7 +627,10 @@ getRevenueBySales: protectedProcedure
             subscription: {
               select: {
                 package: {
-                  select: { name: true }
+                  select: {
+                    name: true,
+                    type: true
+                  }
                 }
               }
             }
@@ -633,6 +639,24 @@ getRevenueBySales: protectedProcedure
         });
         subscriptionTotal = subscriptionPayments.reduce((sum: number, payment: any) => sum + (payment.totalPayment || 0), 0);
       }
+
+      // Calculate totals by package type
+      let gymMembershipRevenue = 0;
+      let personalTrainerRevenue = 0;
+      let groupTrainingRevenue = 0;
+
+      subscriptionPayments.forEach((payment: any) => {
+        const packageType = payment.subscription?.package?.type;
+        const amount = payment.totalPayment || 0;
+        
+        if (packageType === 'GYM_MEMBERSHIP') {
+          gymMembershipRevenue += amount;
+        } else if (packageType === 'PERSONAL_TRAINER') {
+          personalTrainerRevenue += amount;
+        } else if (packageType === 'GROUP_TRAINING') {
+          groupTrainingRevenue += amount;
+        }
+      });
 
       // Calculate totals
       const totalRevenue = posTotal + subscriptionTotal;
@@ -711,6 +735,9 @@ getRevenueBySales: protectedProcedure
           averageTransactionValue,
           posRevenue: posTotal,
           subscriptionRevenue: subscriptionTotal,
+          gymMembershipRevenue,
+          personalTrainerRevenue,
+          groupTrainingRevenue,
         },
         paymentMethodBreakdown,
         dailyBreakdown,

@@ -45,6 +45,9 @@ interface SalesSummary {
     averageTransactionValue: number;
     posRevenue: number;
     subscriptionRevenue: number;
+    gymMembershipRevenue: number;
+    personalTrainerRevenue: number;
+    groupTrainingRevenue: number;
   };
   paymentMethodBreakdown: PaymentMethodBreakdown[];
   topSellingItems: TopSellingItem[];
@@ -144,7 +147,7 @@ export default function SalesReportPage() {
           "Member Name": user?.name || "N/A",
           "Email": user?.email || "N/A",
           "Package": subscription?.package?.name || "N/A",
-          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : "Personal Trainer",
+          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : subscription?.package?.type === "PERSONAL_TRAINER" ? "Personal Trainer" : "Group Training",
           "Trainer": trainer?.user?.name || "N/A",
           "Sales Person": fc?.user?.name || "N/A",
           "Amount": payment.totalPayment || 0,
@@ -167,6 +170,142 @@ export default function SalesReportPage() {
       subscriptionWorksheet['!cols'] = subCols;
 
       XLSX.utils.book_append_sheet(workbook, subscriptionWorksheet, "Subscriptions");
+
+      // Calculate package type totals
+      const gymMembershipRevenue = subscriptionData?.reduce((total, payment) => {
+        if (payment.subscription?.package?.type === "GYM_MEMBERSHIP") {
+          return total + (payment.totalPayment || 0);
+        }
+        return total;
+      }, 0) || 0;
+
+      const personalTrainerRevenue = subscriptionData?.reduce((total, payment) => {
+        if (payment.subscription?.package?.type === "PERSONAL_TRAINER") {
+          return total + (payment.totalPayment || 0);
+        }
+        return total;
+      }, 0) || 0;
+
+      const groupTrainingRevenue = subscriptionData?.reduce((total, payment) => {
+        if (payment.subscription?.package?.type === "GROUP_TRAINING") {
+          return total + (payment.totalPayment || 0);
+        }
+        return total;
+      }, 0) || 0;
+
+      // Sheet: Gym Membership
+      const gymMembershipData = subscriptionData?.filter(
+        (payment: any) => payment.subscription?.package?.type === "GYM_MEMBERSHIP"
+      ).map((payment: any) => {
+        const subscription = payment.subscription;
+        const member = subscription?.member;
+        const user = member?.user;
+        const fc = member?.fc;
+        const trainer = subscription?.trainer;
+      
+        return {
+          "Payment ID": payment.id,
+          "Invoice": payment.orderReference || "N/A",
+          "Member Name": user?.name || "N/A",
+          "Email": user?.email || "N/A",
+          "Package": subscription?.package?.name || "N/A",
+          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : subscription?.package?.type === "PERSONAL_TRAINER" ? "Personal Trainer" : "Group Training",
+          "Trainer": trainer?.user?.name || "N/A",
+          "Sales Person": fc?.user?.name || "N/A",
+          "Amount": payment.totalPayment || 0,
+          "Payment Method": payment.method || "Manual Payment",
+          "Status": payment.status,
+          "Start Date": subscription?.startDate ? format(new Date(subscription.startDate), "yyyy-MM-dd") : "N/A",
+          "End Date": subscription?.endDate ? format(new Date(subscription.endDate), "yyyy-MM-dd") : "N/A",
+          "Paid At": payment.paidAt ? format(new Date(payment.paidAt), "yyyy-MM-dd HH:mm:ss") : "N/A",
+          "Created At": format(new Date(payment.createdAt), "yyyy-MM-dd HH:mm:ss"),
+        };
+      });
+
+      if (gymMembershipData && gymMembershipData.length > 0) {
+        const gymWorksheet = XLSX.utils.json_to_sheet(gymMembershipData);
+        const gymCols = Object.keys(gymMembershipData[0] || {}).map(key => ({
+          wch: Math.max(key.length, 15)
+        }));
+        gymWorksheet['!cols'] = gymCols;
+        XLSX.utils.book_append_sheet(workbook, gymWorksheet, "Gym Membership");
+      }
+
+      // Sheet: Personal Training
+      const personalTrainerData = subscriptionData?.filter(
+        (payment: any) => payment.subscription?.package?.type === "PERSONAL_TRAINER"
+      ).map((payment: any) => {
+        const subscription = payment.subscription;
+        const member = subscription?.member;
+        const user = member?.user;
+        const fc = member?.fc;
+        const trainer = subscription?.trainer;
+      
+        return {
+          "Payment ID": payment.id,
+          "Invoice": payment.orderReference || "N/A",
+          "Member Name": user?.name || "N/A",
+          "Email": user?.email || "N/A",
+          "Package": subscription?.package?.name || "N/A",
+          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : subscription?.package?.type === "PERSONAL_TRAINER" ? "Personal Trainer" : "Group Training",
+          "Trainer": trainer?.user?.name || "N/A",
+          "Sales Person": fc?.user?.name || "N/A",
+          "Amount": payment.totalPayment || 0,
+          "Payment Method": payment.method || "Manual Payment",
+          "Status": payment.status,
+          "Start Date": subscription?.startDate ? format(new Date(subscription.startDate), "yyyy-MM-dd") : "N/A",
+          "End Date": subscription?.endDate ? format(new Date(subscription.endDate), "yyyy-MM-dd") : "N/A",
+          "Paid At": payment.paidAt ? format(new Date(payment.paidAt), "yyyy-MM-dd HH:mm:ss") : "N/A",
+          "Created At": format(new Date(payment.createdAt), "yyyy-MM-dd HH:mm:ss"),
+        };
+      });
+
+      if (personalTrainerData && personalTrainerData.length > 0) {
+        const ptWorksheet = XLSX.utils.json_to_sheet(personalTrainerData);
+        const ptCols = Object.keys(personalTrainerData[0] || {}).map(key => ({
+          wch: Math.max(key.length, 15)
+        }));
+        ptWorksheet['!cols'] = ptCols;
+        XLSX.utils.book_append_sheet(workbook, ptWorksheet, "Personal Training");
+      }
+
+      // Sheet: Group Training
+      const groupTrainingData = subscriptionData?.filter(
+        (payment: any) => payment.subscription?.package?.type === "GROUP_TRAINING"
+      ).map((payment: any) => {
+        const subscription = payment.subscription;
+        const member = subscription?.member;
+        const user = member?.user;
+        const fc = member?.fc;
+        const trainer = subscription?.trainer;
+      
+        return {
+          "Payment ID": payment.id,
+          "Invoice": payment.orderReference || "N/A",
+          "Member Name": user?.name || "N/A",
+          "Email": user?.email || "N/A",
+          "Package": subscription?.package?.name || "N/A",
+          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : subscription?.package?.type === "PERSONAL_TRAINER" ? "Personal Trainer" : "Group Training",
+          "Trainer": trainer?.user?.name || "N/A",
+          "Sales Person": fc?.user?.name || "N/A",
+          "Amount": payment.totalPayment || 0,
+          "Payment Method": payment.method || "Manual Payment",
+          "Status": payment.status,
+          "Start Date": subscription?.startDate ? format(new Date(subscription.startDate), "yyyy-MM-dd") : "N/A",
+          "End Date": subscription?.endDate ? format(new Date(subscription.endDate), "yyyy-MM-dd") : "N/A",
+          "Paid At": payment.paidAt ? format(new Date(payment.paidAt), "yyyy-MM-dd HH:mm:ss") : "N/A",
+          "Created At": format(new Date(payment.createdAt), "yyyy-MM-dd HH:mm:ss"),
+        };
+      });
+
+      if (groupTrainingData && groupTrainingData.length > 0) {
+        const gtWorksheet = XLSX.utils.json_to_sheet(groupTrainingData);
+        const gtCols = Object.keys(groupTrainingData[0] || {}).map(key => ({
+          wch: Math.max(key.length, 15)
+        }));
+        gtWorksheet['!cols'] = gtCols;
+        XLSX.utils.book_append_sheet(workbook, gtWorksheet, "Group Training");
+      }
     }
 
     // Sheet 3: Summary
@@ -179,6 +318,30 @@ export default function SalesReportPage() {
         { "Metric": "Average Transaction", "Value": formatRupiah(salesSummary.summary.averageTransactionValue) },
         { "Metric": "POS Revenue", "Value": formatRupiah(salesSummary.summary.posRevenue) },
         { "Metric": "Subscription Revenue", "Value": formatRupiah(salesSummary.summary.subscriptionRevenue) },
+        { "Metric": "Gym Membership Revenue", "Value": formatRupiah(
+          subscriptionData?.reduce((total, payment) => {
+            if (payment.subscription?.package?.type === "GYM_MEMBERSHIP") {
+              return total + (payment.totalPayment || 0);
+            }
+            return total;
+          }, 0) || 0
+        ) },
+        { "Metric": "Personal Trainer Revenue", "Value": formatRupiah(
+          subscriptionData?.reduce((total, payment) => {
+            if (payment.subscription?.package?.type === "PERSONAL_TRAINER") {
+              return total + (payment.totalPayment || 0);
+            }
+            return total;
+          }, 0) || 0
+        ) },
+        { "Metric": "Group Training Revenue", "Value": formatRupiah(
+          subscriptionData?.reduce((total, payment) => {
+            if (payment.subscription?.package?.type === "GROUP_TRAINING") {
+              return total + (payment.totalPayment || 0);
+            }
+            return total;
+          }, 0) || 0
+        ) },
       ];
 
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
@@ -341,6 +504,60 @@ export default function SalesReportPage() {
             <CardContent>
               <div className="text-2xl font-bold">
                 {formatRupiah(salesSummary.summary.posRevenue)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Gym Membership Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(
+                  subscriptionData?.reduce((total, payment) => {
+                    if (payment.subscription?.package?.type === "GYM_MEMBERSHIP") {
+                      return total + (payment.totalPayment || 0);
+                    }
+                    return total;
+                  }, 0) || 0
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Personal Trainer Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(
+                  subscriptionData?.reduce((total, payment) => {
+                    if (payment.subscription?.package?.type === "PERSONAL_TRAINER") {
+                      return total + (payment.totalPayment || 0);
+                    }
+                    return total;
+                  }, 0) || 0
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Group Training Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(
+                  subscriptionData?.reduce((total, payment) => {
+                    if (payment.subscription?.package?.type === "GROUP_TRAINING") {
+                      return total + (payment.totalPayment || 0);
+                    }
+                    return total;
+                  }, 0) || 0
+                )}
               </div>
             </CardContent>
           </Card>

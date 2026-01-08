@@ -1051,10 +1051,10 @@ export const paymentValidationRouter = createTRPCRouter({
             gte: startDate || defaultStart,
             lte: endDate || now,
           },
-                  deletedAt: null,
-        subscription: {
-          deletedAt: null
-        },
+          deletedAt: null,
+          subscription: {
+            deletedAt: null
+          },
         },
         include: {
           subscription: {
@@ -1069,10 +1069,18 @@ export const paymentValidationRouter = createTRPCRouter({
                       },
                     },
                   },
-                 
                 },
               },
-              package: true,
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  price: true,
+                  day: true,
+                  point: true,
+                },
+              },
               trainer: {
                 include: {
                   user: {
@@ -1084,6 +1092,9 @@ export const paymentValidationRouter = createTRPCRouter({
               },
             },
           },
+        },
+        orderBy: {
+          createdAt: 'desc',
         },
       });
     }),
