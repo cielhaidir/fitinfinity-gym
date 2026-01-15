@@ -36,6 +36,7 @@ export const reportsRouter = createTRPCRouter({
           isActive: z.boolean().optional().default(true),
           startDate: z.date().optional(),
           endDate: z.date().optional(),
+          dateFilterType: z.enum(["payment", "startDate", "endDate"]).optional().default("payment"),
           packageType: z
             .enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER", "GROUP_TRAINING"])
             .optional(),
@@ -74,13 +75,49 @@ export const reportsRouter = createTRPCRouter({
         }
 
         // Add date filter if provided (convert to GMT+8)
+        // Filter based on dateFilterType: payment (default), startDate, or endDate
         if (input.startDate || input.endDate) {
-          membershipWhere.registerDate = {};
-          if (input.startDate) {
-            membershipWhere.registerDate.gte = toGMT8StartOfDay(input.startDate);
-          }
-          if (input.endDate) {
-            membershipWhere.registerDate.lte = toGMT8EndOfDay(input.endDate);
+          if (input.dateFilterType === "payment") {
+            // Filter by membership register date (payment creation date)
+            membershipWhere.registerDate = {};
+            if (input.startDate) {
+              membershipWhere.registerDate.gte = toGMT8StartOfDay(input.startDate);
+            }
+            if (input.endDate) {
+              membershipWhere.registerDate.lte = toGMT8EndOfDay(input.endDate);
+            }
+          } else if (input.dateFilterType === "startDate") {
+            // Filter by subscription start date
+            const dateFilter: any = {};
+            if (input.startDate) {
+              dateFilter.gte = toGMT8StartOfDay(input.startDate);
+            }
+            if (input.endDate) {
+              dateFilter.lte = toGMT8EndOfDay(input.endDate);
+            }
+            membershipWhere.subscriptions = {
+              some: {
+                isActive: true,
+                deletedAt: null,
+                startDate: dateFilter,
+              },
+            };
+          } else if (input.dateFilterType === "endDate") {
+            // Filter by subscription end date
+            const dateFilter: any = {};
+            if (input.startDate) {
+              dateFilter.gte = toGMT8StartOfDay(input.startDate);
+            }
+            if (input.endDate) {
+              dateFilter.lte = toGMT8EndOfDay(input.endDate);
+            }
+            membershipWhere.subscriptions = {
+              some: {
+                isActive: true,
+                deletedAt: null,
+                endDate: dateFilter,
+              },
+            };
           }
         }
 

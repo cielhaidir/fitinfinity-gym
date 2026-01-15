@@ -55,6 +55,7 @@ export default function ActiveMembershipReportPage() {
   const [tempSearch, setTempSearch] = useState<string>("");
   const [tempStartDate, setTempStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
   const [tempEndDate, setTempEndDate] = useState<Date | undefined>(new Date());
+  const [tempDateFilterType, setTempDateFilterType] = useState<string>("payment");
   const [tempPackageType, setTempPackageType] = useState<string>("all");
   const [tempStatus, setTempStatus] = useState<string>("active");
 
@@ -62,6 +63,7 @@ export default function ActiveMembershipReportPage() {
   const [search, setSearch] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+  const [dateFilterType, setDateFilterType] = useState<string>("payment");
   const [packageType, setPackageType] = useState<string>("all");
   const [status, setStatus] = useState<string>("active");
 
@@ -86,6 +88,7 @@ export default function ActiveMembershipReportPage() {
     isActive: status === "active",
     startDate: startDate,
     endDate: endDate,
+    dateFilterType: dateFilterType as "payment" | "startDate" | "endDate",
     packageType:
       packageType === "all"
         ? undefined
@@ -111,6 +114,7 @@ export default function ActiveMembershipReportPage() {
     setSearch(tempSearch);
     setStartDate(tempStartDate);
     setEndDate(tempEndDate);
+    setDateFilterType(tempDateFilterType);
     setPackageType(tempPackageType);
     setStatus(tempStatus);
     setPage(1); // Reset to first page
@@ -125,12 +129,14 @@ export default function ActiveMembershipReportPage() {
     setTempSearch("");
     setTempStartDate(defaultStartDate);
     setTempEndDate(defaultEndDate);
+    setTempDateFilterType("payment");
     setTempPackageType("all");
     setTempStatus("active");
 
     setSearch("");
     setStartDate(defaultStartDate);
     setEndDate(defaultEndDate);
+    setDateFilterType("payment");
     setPackageType("all");
     setStatus("active");
     setPage(1);
@@ -417,7 +423,7 @@ export default function ActiveMembershipReportPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
                   <Label>Search</Label>
                   <div className="relative">
@@ -429,6 +435,19 @@ export default function ActiveMembershipReportPage() {
                       className="pl-8"
                     />
                   </div>
+                </div>
+                <div>
+                  <Label>Filter Period By</Label>
+                  <Select value={tempDateFilterType} onValueChange={setTempDateFilterType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="payment">Payment Created Date</SelectItem>
+                      <SelectItem value="startDate">Subscription Start Date</SelectItem>
+                      <SelectItem value="endDate">Subscription End Date</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Start Date</Label>

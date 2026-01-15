@@ -50,6 +50,7 @@ export default function AdminSubscriptionHistoryPage() {
   const [filterSalesId, setFilterSalesId] = useState<string>("all");
   const [filterTrainerId, setFilterTrainerId] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [filterDateType, setFilterDateType] = useState<"payment" | "startDate" | "endDate" | "createdAt">("payment");
   const [filterStartDate, setFilterStartDate] = useState<string>("");
   const [filterEndDate, setFilterEndDate] = useState<string>("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -110,6 +111,7 @@ export default function AdminSubscriptionHistoryPage() {
       salesId: filterSalesId !== "all" ? filterSalesId : undefined,
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
       status: filterStatus,
+      dateFilterType: filterDateType,
       startDate: filterStartDate ? new Date(filterStartDate) : undefined,
       endDate: filterEndDate ? new Date(filterEndDate) : undefined,
     },
@@ -843,6 +845,7 @@ export default function AdminSubscriptionHistoryPage() {
       salesId: filterSalesId !== "all" ? filterSalesId : undefined,
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
       status: filterStatus,
+      dateFilterType: filterDateType,
       startDate: filterStartDate ? new Date(filterStartDate) : undefined,
       endDate: filterEndDate ? new Date(filterEndDate) : undefined,
     },
@@ -976,7 +979,8 @@ export default function AdminSubscriptionHistoryPage() {
             <CardHeader className="pb-3 sm:pb-6">
               <CardTitle className="text-lg sm:text-xl">All Subscriptions</CardTitle>
               {/* Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
+               
                 <div>
                   <Label htmlFor="salesFilter" className="text-sm font-medium mb-2 block">
                     Filter by Sales
@@ -1034,6 +1038,28 @@ export default function AdminSubscriptionHistoryPage() {
                       <SelectItem value="all">All</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                 <div>
+                  <Label htmlFor="dateTypeFilter" className="text-sm font-medium mb-2 block">
+                    Filter Period By
+                  </Label>
+                  <Select
+                    value={filterDateType}
+                    onValueChange={(value) => {
+                      setFilterDateType(value as "payment" | "startDate" | "endDate" | "createdAt");
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger id="dateTypeFilter">
+                      <SelectValue placeholder="Select date type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="payment">Payment Created Date</SelectItem>
+                      <SelectItem value="startDate">Subscription Start Date</SelectItem>
+                      <SelectItem value="endDate">Subscription End Date</SelectItem>
+                 
                     </SelectContent>
                   </Select>
                 </div>

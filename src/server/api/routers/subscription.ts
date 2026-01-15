@@ -509,6 +509,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
+        dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
       }),
@@ -536,19 +537,57 @@ export const subscriptionRouter = createTRPCRouter({
   ...(input.trainerId && {
     trainerId: input.trainerId,
   }),
-  // Filter by payment creation date range if provided
-  ...((input.startDate || input.endDate) && {
-    payments: {
-      some: {
+  // Filter by date range based on selected date field type
+  ...((input.startDate || input.endDate) && (() => {
+    const dateFilterType = input.dateFilterType || "payment";
+    
+    if (dateFilterType === "payment") {
+      // Filter by payment creation date (current behavior)
+      return {
+        payments: {
+          some: {
+            ...(input.startDate && {
+              createdAt: { gte: input.startDate },
+            }),
+            ...(input.endDate && {
+              createdAt: { lte: input.endDate },
+            }),
+          },
+        },
+      };
+    } else if (dateFilterType === "startDate") {
+      // Filter by subscription start date
+      return {
+        ...(input.startDate && {
+          startDate: { gte: input.startDate },
+        }),
+        ...(input.endDate && {
+          startDate: { lte: input.endDate },
+        }),
+      };
+    } else if (dateFilterType === "endDate") {
+      // Filter by subscription end date
+      return {
+        ...(input.startDate && {
+          endDate: { gte: input.startDate },
+        }),
+        ...(input.endDate && {
+          endDate: { lte: input.endDate },
+        }),
+      };
+    } else if (dateFilterType === "createdAt") {
+      // Filter by subscription creation date
+      return {
         ...(input.startDate && {
           createdAt: { gte: input.startDate },
         }),
         ...(input.endDate && {
           createdAt: { lte: input.endDate },
         }),
-      },
-    },
-  }),
+      };
+    }
+    return {};
+  })()),
   ...(input.search
     ? input.searchColumn === "member.user.name"
       ? {
@@ -1858,6 +1897,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
+        dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
       }),
@@ -1885,19 +1925,57 @@ export const subscriptionRouter = createTRPCRouter({
         ...(input.trainerId && {
           trainerId: input.trainerId,
         }),
-        // Filter by payment creation date range if provided
-        ...((input.startDate || input.endDate) && {
-          payments: {
-            some: {
+        // Filter by date range based on selected date field type
+        ...((input.startDate || input.endDate) && (() => {
+          const dateFilterType = input.dateFilterType || "payment";
+          
+          if (dateFilterType === "payment") {
+            // Filter by payment creation date (current behavior)
+            return {
+              payments: {
+                some: {
+                  ...(input.startDate && {
+                    createdAt: { gte: input.startDate },
+                  }),
+                  ...(input.endDate && {
+                    createdAt: { lte: input.endDate },
+                  }),
+                },
+              },
+            };
+          } else if (dateFilterType === "startDate") {
+            // Filter by subscription start date
+            return {
+              ...(input.startDate && {
+                startDate: { gte: input.startDate },
+              }),
+              ...(input.endDate && {
+                startDate: { lte: input.endDate },
+              }),
+            };
+          } else if (dateFilterType === "endDate") {
+            // Filter by subscription end date
+            return {
+              ...(input.startDate && {
+                endDate: { gte: input.startDate },
+              }),
+              ...(input.endDate && {
+                endDate: { lte: input.endDate },
+              }),
+            };
+          } else if (dateFilterType === "createdAt") {
+            // Filter by subscription creation date
+            return {
               ...(input.startDate && {
                 createdAt: { gte: input.startDate },
               }),
               ...(input.endDate && {
                 createdAt: { lte: input.endDate },
               }),
-            },
-          },
-        }),
+            };
+          }
+          return {};
+        })()),
       };
 
       const items = await ctx.db.subscription.findMany({
