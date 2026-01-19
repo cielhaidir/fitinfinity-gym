@@ -9,6 +9,7 @@ import { emailService } from "@/lib/email/emailService"; // Add this import
 import { format } from "date-fns"; // Add this import
 import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
 import { subscriptionsCreatedTotal } from "@/server/metrics"; // Add metrics import
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 // Fungsi untuk mengupdate subscription yang sudah expired
 async function updateExpiredSubscriptions(ctx: any) {
@@ -2314,5 +2315,151 @@ export const subscriptionRouter = createTRPCRouter({
       });
 
       return updatedSubscription;
+    }),
+
+  // Get admin dashboard statistics with date filtering
+  getAdminDashboardStats: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Apply GMT+8 timezone adjustments to dates
+      const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
+      const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
+
+      // Build date filter for payments (consistent with salesReport.ts)
+      const paymentDateFilter = start && end
+        ? {
+            createdAt: {
+              gte: start,
+              lte: end,
+            },
+          }
+        : {};
+
+      // 1. Active Memberships Count: subscriptions with endDate AFTER filter's end date
+      const activeMembershipsCount = await ctx.db.subscription.count({
+        where: {
+          deletedAt: null,
+          isActive: true,
+          ...(end && {
+            endDate: {
+              gt: end,
+            },
+          }),
+        },
+      });
+
+      // 2. Get all subscriptions with payments within date range for further analysis
+      const subscriptionsInRange = await ctx.db.subscription.findMany({
+        where: {
+          deletedAt: null,
+          payments: {
+            some: {
+              status: "SUCCESS",
+              deletedAt: null,
+              ...paymentDateFilter,
+            },
+          },
+        },
+        include: {
+          member: {
+            select: {
+              id: true,
+              userId: true,
+            },
+          },
+          package: {
+            select: {
+              type: true,
+              price: true,
+            },
+          },
+          payments: {
+            where: {
+              status: "SUCCESS",
+              deletedAt: null,
+              ...paymentDateFilter,
+            },
+            select: {
+              totalPayment: true,
+              createdAt: true,
+            },
+          },
+        },
+      });
+
+      // Group subscriptions by member to analyze purchase patterns
+      const memberSubscriptions = new Map<string, typeof subscriptionsInRange>();
+      
+      for (const sub of subscriptionsInRange) {
+        const memberId = sub.member.id;
+        if (!memberSubscriptions.has(memberId)) {
+          memberSubscriptions.set(memberId, []);
+        }
+        memberSubscriptions.get(memberId)!.push(sub);
+      }
+
+      // 3. Total Renewals: Members with more than one subscription in the date range
+      let totalRenewals = 0;
+      for (const [, subs] of memberSubscriptions) {
+        if (subs.length > 1) {
+          totalRenewals += subs.length - 1; // Count renewals (all purchases after first)
+        }
+      }
+
+      // 4. Total New Members: Members with their first subscription in the date range
+      let totalNewMembers = 0;
+      
+      for (const [memberId, subsInRange] of memberSubscriptions) {
+        // Check if this member's first ever subscription is within the date range
+        const firstSubscription = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: memberId,
+            deletedAt: null,
+          },
+          orderBy: {
+            startDate: 'asc',
+          },
+        });
+
+        // If first subscription's startDate is within our date range
+        if (firstSubscription && subsInRange.some(s => s.id === firstSubscription.id)) {
+          totalNewMembers++;
+        }
+      }
+
+      // 5. Subscription Type Breakdown
+      const subscriptionTypeBreakdown = {
+        MEMBERSHIP: { count: 0, revenue: 0 },
+        PERSONAL_TRAINER: { count: 0, revenue: 0 },
+        GROUP_TRAINER: { count: 0, revenue: 0 },
+      };
+
+      for (const sub of subscriptionsInRange) {
+        const packageType = sub.package.type;
+        const revenue = sub.payments.reduce((sum, payment) => sum + payment.totalPayment, 0);
+
+        if (packageType === "GYM_MEMBERSHIP") {
+          subscriptionTypeBreakdown.MEMBERSHIP.count++;
+          subscriptionTypeBreakdown.MEMBERSHIP.revenue += revenue;
+        } else if (packageType === "PERSONAL_TRAINER") {
+          subscriptionTypeBreakdown.PERSONAL_TRAINER.count++;
+          subscriptionTypeBreakdown.PERSONAL_TRAINER.revenue += revenue;
+        } else if (packageType === "GROUP_TRAINING") {
+          subscriptionTypeBreakdown.GROUP_TRAINER.count++;
+          subscriptionTypeBreakdown.GROUP_TRAINER.revenue += revenue;
+        }
+      }
+
+      return {
+        activeMembershipsCount,
+        totalRenewals,
+        totalNewMembers,
+        subscriptionTypeBreakdown,
+      };
     }),
 });

@@ -41,13 +41,34 @@ type MemberCheckinLog = {
 export default function MemberAttendanceReportPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [lokerSelection, setLokerSelection] = useState<string>("None");
+  const [lokerNumber, setLokerNumber] = useState<string>("");
+  const [handukSelection, setHandukSelection] = useState<string>("None");
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(50);
   
+  // Format facility description based on loker and handuk selections
+  const formatFacilityDescription = (lokerSel: string, lokerNum: string, handuk: string): string => {
+    const parts: string[] = [];
+    
+    if (lokerSel === "Number" && lokerNum.trim()) {
+      parts.push(`Loker = ${lokerNum.trim()}`);
+    }
+    
+    if (handuk !== "None") {
+      parts.push(`Handuk = ${handuk}`);
+    }
+    
+    return parts.length > 0 ? parts.join(", ") : "";
+  };
+
+  const facilityFilter = formatFacilityDescription(lokerSelection, lokerNumber, handukSelection);
+  
   const { data, isLoading, error, refetch } = api.esp32.getMemberCheckinLogs.useQuery({
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    facilityDescription: facilityFilter || undefined,
     page: currentPage,
     limit: itemsPerPage,
   });
@@ -137,6 +158,9 @@ export default function MemberAttendanceReportPage() {
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
+    setLokerSelection("None");
+    setLokerNumber("");
+    setHandukSelection("None");
     setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
     setCurrentPage(1); // Reset to first page when clearing filters
   };
@@ -164,7 +188,7 @@ export default function MemberAttendanceReportPage() {
             <CardTitle>Filters & Reports</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
@@ -183,6 +207,56 @@ export default function MemberAttendanceReportPage() {
                   onChange={(e) => setEndDate(e.target.value)}
                 />
               </div>
+            </div>
+
+            {/* Facility Filters */}
+            <div className="border-t pt-4 mb-4">
+              <h3 className="text-sm font-semibold mb-3">Facility Filters</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="loker">Loker</Label>
+                    <Select value={lokerSelection} onValueChange={setLokerSelection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select loker option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Number">Number</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {lokerSelection === "Number" && (
+                      <Input
+                        type="number"
+                        placeholder="Enter loker number"
+                        value={lokerNumber}
+                        onChange={(e) => setLokerNumber(e.target.value)}
+                        className="mt-2"
+                        min="1"
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="handuk">Handuk</Label>
+                    <Select value={handukSelection} onValueChange={setHandukSelection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select handuk option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Besar">Besar</SelectItem>
+                        <SelectItem value="Kecil">Kecil</SelectItem>
+                        <SelectItem value="Keduanya">Keduanya</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="flex items-end gap-2">
                 <Button onClick={handleApplyFilters} className="w-full">
                   Apply Filters

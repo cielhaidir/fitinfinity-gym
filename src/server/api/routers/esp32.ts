@@ -768,6 +768,7 @@ export const esp32Router = createTRPCRouter({
       startDate: z.string().optional(),
       endDate: z.string().optional(),
       memberName: z.string().optional(),
+      facilityDescription: z.string().optional(),
       page: z.number().min(1).default(1),
       limit: z.number().min(1).max(100).default(50),
     }).optional())
@@ -803,6 +804,13 @@ export const esp32Router = createTRPCRouter({
               mode: 'insensitive'
             }
           }
+        };
+      }
+
+      if (input?.facilityDescription) {
+        whereClause.facilityDescription = {
+          contains: input.facilityDescription,
+          mode: 'insensitive'
         };
       }
 
