@@ -24,6 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/app/_components/ui/radio-group";
+import { Label } from "@/app/_components/ui/label";
+import { Card, CardContent } from "@/app/_components/ui/card";
 
 import { DataTable } from "@/components/datatable/data-table";
 import { createColumns } from "./columns";
@@ -81,6 +84,9 @@ export default function MemberPage() {
   const [freezeModalOpen, setFreezeModalOpen] = useState(false);
   const [selectedMemberForFreeze, setSelectedMemberForFreeze] = useState<Member | null>(null);
   const [freezeDaysInput, setFreezeDaysInput] = useState<string>("");
+  const [selectedFreezeOption, setSelectedFreezeOption] = useState<string>("custom");
+  const [selectedFreezePriceId, setSelectedFreezePriceId] = useState<string | null>(null);
+  const [selectedBalanceAccountId, setSelectedBalanceAccountId] = useState<number | null>(null);
 
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
@@ -92,6 +98,19 @@ export default function MemberPage() {
       search,
       searchColumn,
     });
+
+  // Fetch active freeze prices
+  const { data: freezePrices = [], isLoading: isLoadingFreezePrices } =
+    api.freezePrice.getActive.useQuery();
+
+  // Fetch balance accounts
+  const { data: balanceAccountsData, isLoading: isLoadingBalanceAccounts } =
+    api.balanceAccount.getAll.useQuery({
+      page: 1,
+      limit: 100,
+    });
+
+  const balanceAccounts = balanceAccountsData?.items ?? [];
 
   // Get users with memberships to exclude them from search
   const usersWithMemberships = useMemo(() =>
@@ -372,12 +391,42 @@ export default function MemberPage() {
   const handleConfirmFreeze = async () => {
     if (!selectedMemberForFreeze) return;
 
+    // Validate selection
+    if (selectedFreezeOption === "custom") {
+      if (freezeDaysInput.trim() === "") {
+        toast.error("Please enter freeze days or select a freeze price option");
+        return;
+      }
+    } else if (!selectedFreezePriceId) {
+      toast.error("Please select a freeze price option");
+      return;
+    }
+
+    // Validate balance account for paid freeze
+    if (selectedFreezeOption !== "custom") {
+      const selectedPrice = freezePrices.find(p => p.id === selectedFreezePriceId);
+      if (selectedPrice && selectedPrice.price > 0 && !selectedBalanceAccountId) {
+        toast.error("Silakan pilih akun kas untuk freeze berbayar");
+        return;
+      }
+    }
+
     try {
-      const freezeDays = freezeDaysInput.trim() === "" ? undefined : parseInt(freezeDaysInput);
-      await freezeSubscriptionMutation.mutateAsync({
-        memberId: selectedMemberForFreeze.id,
-        freezeDays,
-      });
+      if (selectedFreezeOption === "custom") {
+        // Free custom freeze - pass freezeDays directly
+        const freezeDays = parseInt(freezeDaysInput);
+        await freezeSubscriptionMutation.mutateAsync({
+          memberId: selectedMemberForFreeze.id,
+          freezeDays,
+        });
+      } else {
+        // Paid freeze - pass freezePriceId and balanceAccountId
+        await freezeSubscriptionMutation.mutateAsync({
+          memberId: selectedMemberForFreeze.id,
+          freezePriceId: selectedFreezePriceId,
+          balanceAccountId: selectedBalanceAccountId ?? undefined,
+        });
+      }
     } catch (error) {
       console.error("Error freezing subscription:", error);
     }
@@ -387,6 +436,9 @@ export default function MemberPage() {
     setFreezeModalOpen(false);
     setSelectedMemberForFreeze(null);
     setFreezeDaysInput("");
+    setSelectedFreezeOption("custom");
+    setSelectedFreezePriceId(null);
+    setSelectedBalanceAccountId(null);
   };
 
   const handleUnfreezeSubscription = async (member: Member) => {
@@ -545,36 +597,179 @@ export default function MemberPage() {
 
       {/* Freeze Modal */}
       <Dialog open={freezeModalOpen} onOpenChange={setFreezeModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Freeze Member Subscriptions</DialogTitle>
             <DialogDescription>
               {selectedMemberForFreeze && (
                 <>
                   Freeze all active subscriptions for <strong>{selectedMemberForFreeze.user.name}</strong>.
-                  Specify the number of freeze days or leave empty for indefinite freeze.
+                  Select a freeze price option or choose custom freeze.
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="freezeDays" className="text-sm font-medium">
-                Freeze Days (leave empty for indefinite)
-              </label>
-              <Input
-                id="freezeDays"
-                type="number"
-                placeholder="Enter number of days (optional)"
-                value={freezeDaysInput}
-                onChange={(e) => setFreezeDaysInput(e.target.value)}
-                min="0"
-                max="365"
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave empty to freeze indefinitely, or enter days (0-365)
-              </p>
-            </div>
+            {isLoadingFreezePrices ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">Loading freeze prices...</p>
+              </div>
+            ) : (
+              <RadioGroup value={selectedFreezeOption} onValueChange={(value) => {
+                setSelectedFreezeOption(value);
+                if (value === "custom") {
+                  setSelectedFreezePriceId(null);
+                } else {
+                  setSelectedFreezePriceId(value);
+                  setFreezeDaysInput("");
+                }
+              }}>
+                <div className="space-y-3">
+                  {/* Free Custom Freeze Option */}
+                  <Card className={selectedFreezeOption === "custom" ? "border-infinity border-2" : ""}>
+                    <CardContent className="flex items-start space-x-4 p-4">
+                      <RadioGroupItem value="custom" id="freeze-custom" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="freeze-custom" className="font-semibold cursor-pointer">
+                          Free Custom Freeze
+                        </Label>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Enter custom number of freeze days (free of charge)
+                        </p>
+                        {selectedFreezeOption === "custom" && (
+                          <div className="mt-2">
+                            <Input
+                              type="number"
+                              placeholder="Enter number of days"
+                              value={freezeDaysInput}
+                              onChange={(e) => setFreezeDaysInput(e.target.value)}
+                              min="1"
+                              max="365"
+                              className="w-full"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Enter days (1-365) or leave empty for indefinite freeze
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-600">FREE</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Freeze Price Options */}
+                  {freezePrices.length > 0 ? (
+                    freezePrices.map((price) => (
+                      <Card
+                        key={price.id}
+                        className={selectedFreezeOption === price.id ? "border-infinity border-2" : ""}
+                      >
+                        <CardContent className="flex items-start space-x-4 p-4">
+                          <RadioGroupItem value={price.id} id={`freeze-${price.id}`} className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor={`freeze-${price.id}`} className="font-semibold cursor-pointer">
+                              {price.freezeDays} Days Freeze
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              Freeze subscription for {price.freezeDays} days
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-infinity">
+                              {new Intl.NumberFormat('id-ID', {
+                                style: 'currency',
+                                currency: 'IDR',
+                                minimumFractionDigits: 0,
+                              }).format(price.price)}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <Card>
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground text-center">
+                          No freeze price options available. Use custom freeze instead.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </RadioGroup>
+            )}
+
+            {/* Balance Account Selection - only show for paid freeze options */}
+            {selectedFreezeOption !== "custom" && selectedFreezePriceId && (
+              (() => {
+                const selectedPrice = freezePrices.find(p => p.id === selectedFreezePriceId);
+                const isPaidFreeze = selectedPrice && selectedPrice.price > 0;
+                
+                return isPaidFreeze ? (
+                  <div className="mt-4 space-y-2">
+                    <Label htmlFor="balance-account" className="text-sm font-medium">
+                      Akun Kas / Balance Account <span className="text-red-500">*</span>
+                    </Label>
+                    {isLoadingBalanceAccounts ? (
+                      <div className="text-sm text-muted-foreground">Loading balance accounts...</div>
+                    ) : (
+                      <>
+                        <Select
+                          value={selectedBalanceAccountId?.toString() ?? ""}
+                          onValueChange={(value) => setSelectedBalanceAccountId(value ? parseInt(value) : null)}
+                        >
+                          <SelectTrigger id="balance-account">
+                            <SelectValue placeholder="Pilih akun kas" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {balanceAccounts.length > 0 ? (
+                              balanceAccounts.map((account) => (
+                                <SelectItem key={account.id} value={account.id.toString()}>
+                                  {account.name} ({account.account_number})
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-accounts" disabled>
+                                No balance accounts available
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Pilih akun kas untuk mencatat pembayaran freeze
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ) : null;
+              })()
+            )}
+
+            {/* Show selected price summary */}
+            {selectedFreezeOption !== "custom" && selectedFreezePriceId && (
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">Selected:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {freezePrices.find(p => p.id === selectedFreezePriceId)?.freezeDays} Days Freeze
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Total Price:</p>
+                    <p className="text-xl font-bold text-infinity">
+                      {new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR',
+                        minimumFractionDigits: 0,
+                      }).format(freezePrices.find(p => p.id === selectedFreezePriceId)?.price ?? 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button

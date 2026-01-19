@@ -1316,7 +1316,9 @@ export const subscriptionRouter = createTRPCRouter({
   freeze: permissionProtectedProcedure(["update:subscription"])
     .input(z.object({
       memberId: z.string(),
+      freezePriceId: z.string().optional(),
       freezeDays: z.number().min(0).max(365).optional(),
+      balanceAccountId: z.number().int().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       // Find member
@@ -1330,6 +1332,41 @@ export const subscriptionRouter = createTRPCRouter({
           code: "NOT_FOUND",
           message: "Member not found",
         });
+      }
+
+      // Handle freeze pricing
+      let freezePrice = null;
+      let actualFreezeDays = input.freezeDays || 0;
+      let freezePaymentAmount = 0;
+
+      if (input.freezePriceId) {
+        // Look up the freeze price
+        freezePrice = await ctx.db.freezePrice.findUnique({
+          where: { id: input.freezePriceId },
+        });
+
+        if (!freezePrice) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Freeze price not found",
+          });
+        }
+
+        if (!freezePrice.isActive) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Selected freeze price is not active",
+          });
+        }
+
+        actualFreezeDays = freezePrice.freezeDays;
+        freezePaymentAmount = freezePrice.price;
+      } else if (input.freezeDays) {
+        // Legacy: freezeDays provided directly (free freeze)
+        actualFreezeDays = input.freezeDays;
+      } else {
+        // No freeze days specified, treat as UNTIL_UNFREEZE mode
+        actualFreezeDays = 0;
       }
 
       const now = new Date();
@@ -1368,9 +1405,65 @@ export const subscriptionRouter = createTRPCRouter({
       }
 
       // Validate freezeDays is reasonable if provided
-      if (input.freezeDays !== undefined && input.freezeDays === 0) {
+      if (actualFreezeDays === 0) {
         // Log warning but allow (treated as UNTIL_UNFREEZE)
         console.warn(`Freeze requested with freezeDays=0 for member ${input.memberId}, treating as UNTIL_UNFREEZE mode`);
+      }
+
+      // Validate balanceAccountId if there's a freeze fee
+      if (freezePaymentAmount > 0) {
+        if (!input.balanceAccountId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Balance account is required when freeze fee is applied",
+          });
+        }
+
+        // Verify balance account exists
+        const balanceAccount = await ctx.db.balanceAccount.findUnique({
+          where: { id: input.balanceAccountId },
+        });
+
+        if (!balanceAccount) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Balance account not found",
+          });
+        }
+      }
+
+      // Create transaction freeze and freeze operation records if there's a payment
+      let transactionFreezeId = null;
+      if (freezePaymentAmount > 0 && freezePrice && input.balanceAccountId) {
+        const transactionFreeze = await ctx.db.transactionFreeze.create({
+          data: {
+            balanceAccountId: input.balanceAccountId,
+            amount: freezePaymentAmount,
+            description: `Freeze fee for ${actualFreezeDays} days`,
+            createdBy: ctx.session.user.id,
+          },
+        });
+        transactionFreezeId = transactionFreeze.id;
+
+        // Create freeze operation record
+        await ctx.db.freezeOperation.create({
+          data: {
+            memberId: input.memberId,
+            operationType: "FREEZE",
+            freezePriceId: freezePrice.id,
+            transactionFreezeId: transactionFreeze.id,
+          },
+        });
+      } else {
+        // Create freeze operation record without payment (free freeze)
+        await ctx.db.freezeOperation.create({
+          data: {
+            memberId: input.memberId,
+            operationType: "FREEZE",
+            freezePriceId: input.freezePriceId || null,
+            transactionFreezeId: null,
+          },
+        });
       }
 
       // Freeze each subscription individually using transaction
@@ -1390,7 +1483,7 @@ export const subscriptionRouter = createTRPCRouter({
           const remainingDays = Math.max(0, Math.floor(remainingMillis / (1000 * 60 * 60 * 24)));
 
           // Determine freeze mode
-          const freezeMode = (input.freezeDays && input.freezeDays > 0)
+          const freezeMode = (actualFreezeDays && actualFreezeDays > 0)
             ? "FIXED_DAYS"
             : "UNTIL_UNFREEZE";
 
@@ -1401,7 +1494,7 @@ export const subscriptionRouter = createTRPCRouter({
               isFrozen: true,
               // isActive: false, // Subscription becomes inactive while frozen
               frozenAt: now,
-              freezeDays: input.freezeDays ?? null,
+              freezeDays: actualFreezeDays > 0 ? actualFreezeDays : null,
               freezeMode: freezeMode,
               remainingDays: remainingDays,
               // Do NOT modify endDate
@@ -1411,10 +1504,12 @@ export const subscriptionRouter = createTRPCRouter({
       );
 
       return {
-        message: `Successfully frozen ${results.length} subscription(s)`,
+        message: `Successfully frozen ${results.length} subscription(s)${freezePaymentAmount > 0 ? ` with ${actualFreezeDays} days freeze fee of ${freezePaymentAmount}` : ""}`,
         count: results.length,
         memberId: input.memberId,
         memberName: member.user?.name || "Unknown",
+        freezePaymentAmount,
+        transactionFreezeId,
       };
     }),
 
@@ -1464,6 +1559,16 @@ export const subscriptionRouter = createTRPCRouter({
 
       const now = new Date();
       let unfrozenCount = 0;
+
+      // Create unfreeze operation record
+      await ctx.db.freezeOperation.create({
+        data: {
+          memberId: input.memberId,
+          operationType: "UNFREEZE",
+          freezePriceId: null,
+          transactionFreezeId: null,
+        },
+      });
 
       // Unfreeze each subscription individually using transaction
       const results = await ctx.db.$transaction(

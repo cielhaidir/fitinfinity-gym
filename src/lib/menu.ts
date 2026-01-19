@@ -146,6 +146,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: CreditCard,
           requiredPermission: "menu:subscription",
         },
+        {
+          title: "Freeze Price",
+          url: "/admin/freeze-price",
+          icon: DollarSign,
+          requiredPermission: "list:subscription",
+        },
         // {
         //   title: "Import Subscriptions",
         //   url: "/management/subscription/import",

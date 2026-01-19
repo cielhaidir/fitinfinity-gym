@@ -116,6 +116,11 @@ enum FreezeMode {
     UNTIL_UNFREEZE
 }
 
+enum FreezeOperationType {
+    FREEZE
+    UNFREEZE
+}
+
 // Purchase and Adjustment Enums
 enum InventoryTransactionType {
     SALE              // Decrease from POS sale
@@ -227,6 +232,12 @@ model User {
     createdPurchaseOrders   PurchaseOrder[]        @relation("PurchaseOrderCreator")
     updatedPurchaseOrders   PurchaseOrder[]        @relation("PurchaseOrderUpdater")
     priceHistoryChanges     POSItemPriceHistory[]  @relation("POSItemPriceHistoryUser")
+    
+    // Freeze operations performed by user
+    performedFreezeOperations FreezeOperation[]    @relation("FreezeOperationPerformedBy")
+    
+    // Freeze transactions created by user
+    createdTransactionFreezes TransactionFreeze[]  @relation("TransactionFreezeCreator")
 }
 
 model Class {
@@ -368,25 +379,30 @@ model Subscription {
     
     // Upgrade relations
     upgradePackages   UpgradePackage[]
+    
+    // Freeze operations
+    freezeOperations  FreezeOperation[]
 }
 
 model Payment {
-    id             String        @id @default(cuid())
-    subscriptionId String
-    subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
-    status         PaymentStatus
-    method         String
-    amount          Int?
-    totalPayment   Int
-    token          String?       // Dedicated field for payment gateway token
-    tokenExpiry    DateTime?     // When the token expires
-    orderReference String?       @unique  // Used to track payments with the gateway
-    gatewayResponse Json?        // Store the complete gateway response
-    paymentUrl     String?       // URL to payment page (if applicable)
-    paidAt         DateTime?     // When the payment was completed
-    deletedAt      DateTime?     // Soft delete timestamp
-    createdAt      DateTime      @default(now())
-    updatedAt      DateTime      @default(now())
+    id             String           @id @default(cuid())
+    subscriptionId    String
+    subscription      Subscription     @relation(fields: [subscriptionId], references: [id])
+    status            PaymentStatus
+    method            String
+    amount            Int?
+    totalPayment      Int
+    token             String?          // Dedicated field for payment gateway token
+    tokenExpiry       DateTime?        // When the token expires
+    orderReference    String?          @unique  // Used to track payments with the gateway
+    gatewayResponse   Json?            // Store the complete gateway response
+    paymentUrl        String?          // URL to payment page (if applicable)
+    paidAt            DateTime?        // When the payment was completed
+    deletedAt         DateTime?        // Soft delete timestamp
+    createdAt         DateTime         @default(now())
+    updatedAt         DateTime         @default(now())
+    freezeOperationId String?
+    freezeOperation   FreezeOperation? @relation(fields: [freezeOperationId], references: [id])
 }
 
 model PersonalTrainer {
@@ -612,6 +628,7 @@ model BalanceAccount {
     paymentValidations PaymentValidation[]
     posSales         POSSale[]
     periodClosings   BalanceAccountPeriodClosing[]
+    transactionFreezes TransactionFreeze[]
 }
 
 model BalanceAccountPeriodClosing {
@@ -1052,6 +1069,56 @@ model UpgradePackage {
     @@index([subscriptionId, createdAt])
     @@index([oldPackageId])
     @@index([newPackageId])
+}
+
+// ============================================
+// Freeze Pricing Models
+// ============================================
+
+model FreezePrice {
+    id         String   @id @default(cuid())
+    freezeDays Int      @unique
+    price      Int
+    isActive   Boolean  @default(true)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    freezeOperations FreezeOperation[]
+}
+
+model TransactionFreeze {
+    id               String   @id @default(cuid())
+    balanceAccountId Int
+    amount           Int
+    description      String?
+    createdBy        String
+    createdAt        DateTime @default(now())
+
+    balanceAccount   BalanceAccount @relation(fields: [balanceAccountId], references: [id])
+    creator          User           @relation("TransactionFreezeCreator", fields: [createdBy], references: [id])
+    freezeOperations FreezeOperation[]
+
+    @@index([balanceAccountId])
+    @@index([createdBy])
+    @@index([createdAt])
+}
+
+model FreezeOperation {
+    id                  String              @id @default(cuid())
+    subscriptionId      String
+    freezePriceId       String
+    transactionFreezeId String?
+    operationType       FreezeOperationType
+    freezeDays          Int
+    price               Int
+    performedAt         DateTime            @default(now())
+    performedById       String
+
+    subscription      Subscription         @relation(fields: [subscriptionId], references: [id])
+    freezePrice       FreezePrice          @relation(fields: [freezePriceId], references: [id])
+    transactionFreeze TransactionFreeze?   @relation(fields: [transactionFreezeId], references: [id])
+    performedBy       User                 @relation("FreezeOperationPerformedBy", fields: [performedById], references: [id])
+    payments          Payment[]
 }
 
 // ============================================
