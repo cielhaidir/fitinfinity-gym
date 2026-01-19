@@ -2365,6 +2365,7 @@ export const subscriptionRouter = createTRPCRouter({
             },
           },
         },
+        distinct: ['id'], // Ensure we only get unique subscriptions
         include: {
           member: {
             select: {
@@ -2392,43 +2393,31 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      // Group subscriptions by member to analyze purchase patterns
-      const memberSubscriptions = new Map<string, typeof subscriptionsInRange>();
+      // 3. Count Total New Members and Total Renewals
+      // Logic: For each subscription in range, check if it's the member's first purchase or a renewal
+      let totalNewMembers = 0;
+      let totalRenewals = 0;
       
       for (const sub of subscriptionsInRange) {
         const memberId = sub.member.id;
-        if (!memberSubscriptions.has(memberId)) {
-          memberSubscriptions.set(memberId, []);
-        }
-        memberSubscriptions.get(memberId)!.push(sub);
-      }
-
-      // 3. Total Renewals: Members with more than one subscription in the date range
-      let totalRenewals = 0;
-      for (const [, subs] of memberSubscriptions) {
-        if (subs.length > 1) {
-          totalRenewals += subs.length - 1; // Count renewals (all purchases after first)
-        }
-      }
-
-      // 4. Total New Members: Members with their first subscription in the date range
-      let totalNewMembers = 0;
-      
-      for (const [memberId, subsInRange] of memberSubscriptions) {
-        // Check if this member's first ever subscription is within the date range
-        const firstSubscription = await ctx.db.subscription.findFirst({
+        
+        // Get all subscriptions for this member before the current one (by startDate)
+        const previousSubscriptionsCount = await ctx.db.subscription.count({
           where: {
             memberId: memberId,
             deletedAt: null,
-          },
-          orderBy: {
-            startDate: 'asc',
+            startDate: {
+              lt: sub.startDate, // All subscriptions that started before this one
+            },
           },
         });
-
-        // If first subscription's startDate is within our date range
-        if (firstSubscription && subsInRange.some(s => s.id === firstSubscription.id)) {
+        
+        if (previousSubscriptionsCount === 0) {
+          // This is the member's first subscription (new member)
           totalNewMembers++;
+        } else {
+          // This member has purchased before (renewal)
+          totalRenewals++;
         }
       }
 
