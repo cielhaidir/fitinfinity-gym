@@ -24,6 +24,8 @@ export const freezePriceRouter = createTRPCRouter({
         whereClause.isActive = input.isActive;
       }
 
+      whereClause.price = { gt: 0 };
+
       const items = await ctx.db.freezePrice.findMany({
         skip: (input.page - 1) * input.limit,
         take: input.limit,
