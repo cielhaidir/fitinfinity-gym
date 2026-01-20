@@ -1446,25 +1446,76 @@ export const subscriptionRouter = createTRPCRouter({
         });
         transactionFreezeId = transactionFreeze.id;
 
-        // Create freeze operation record
-        await ctx.db.freezeOperation.create({
-          data: {
-            memberId: input.memberId,
-            operationType: "FREEZE",
-            freezePriceId: freezePrice.id,
-            transactionFreezeId: transactionFreeze.id,
-          },
-        });
+        // Create freeze operation record for each subscription
+        for (const subscription of activeSubscriptions) {
+          await ctx.db.freezeOperation.create({
+            data: {
+              subscriptionId: subscription.id,
+              operationType: "FREEZE",
+              freezePriceId: freezePrice.id,
+              transactionFreezeId: transactionFreeze.id,
+              freezeDays: actualFreezeDays,
+              price: freezePaymentAmount,
+              performedById: ctx.session.user.id,
+            },
+          });
+        }
       } else {
-        // Create freeze operation record without payment (free freeze)
-        await ctx.db.freezeOperation.create({
-          data: {
-            memberId: input.memberId,
-            operationType: "FREEZE",
-            freezePriceId: input.freezePriceId || null,
-            transactionFreezeId: null,
-          },
-        });
+        // Create freeze operation record without payment (free freeze) for each subscription
+        // For custom freezes without a freezePriceId, create or find a FreezePrice entry
+        let customFreezePriceId = input.freezePriceId;
+        
+        if (!customFreezePriceId && actualFreezeDays > 0) {
+          // Try to find an existing FreezePrice for this duration (prefer free one)
+          let customFreezePrice = await ctx.db.freezePrice.findFirst({
+            where: {
+              freezeDays: actualFreezeDays,
+            },
+          });
+
+          // If no FreezePrice exists with these days, try to create one (might fail if not unique)
+          if (!customFreezePrice) {
+            try {
+              customFreezePrice = await ctx.db.freezePrice.create({
+                data: {
+                  freezeDays: actualFreezeDays,
+                  price: 0,
+                  isActive: true,
+                },
+              });
+            } catch (error) {
+              // If creation fails (e.g., unique constraint), try to find again
+              customFreezePrice = await ctx.db.freezePrice.findFirst({
+                where: {
+                  freezeDays: actualFreezeDays,
+                },
+              });
+            }
+          }
+
+          customFreezePriceId = customFreezePrice?.id;
+        }
+
+        if (!customFreezePriceId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Freeze price ID is required",
+          });
+        }
+
+        for (const subscription of activeSubscriptions) {
+          await ctx.db.freezeOperation.create({
+            data: {
+              subscriptionId: subscription.id,
+              operationType: "FREEZE",
+              freezePriceId: customFreezePriceId,
+              transactionFreezeId: null,
+              freezeDays: actualFreezeDays,
+              price: 0,
+              performedById: ctx.session.user.id,
+            },
+          });
+        }
       }
 
       // Freeze each subscription individually using transaction
@@ -2401,11 +2452,18 @@ export const subscriptionRouter = createTRPCRouter({
       for (const sub of subscriptionsInRange) {
         const memberId = sub.member.id;
         
+        if (sub.package.type !== "GYM_MEMBERSHIP") {
+    continue;
+  }
+  
         // Get all subscriptions for this member before the current one (by startDate)
         const previousSubscriptionsCount = await ctx.db.subscription.count({
           where: {
             memberId: memberId,
             deletedAt: null,
+            package:{
+              type: "GYM_MEMBERSHIP",
+            },
             startDate: {
               lt: sub.startDate, // All subscriptions that started before this one
             },
