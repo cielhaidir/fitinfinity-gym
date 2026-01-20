@@ -1618,6 +1618,7 @@ export const subscriptionRouter = createTRPCRouter({
           memberId: input.memberId,
           operationType: "UNFREEZE",
           freezePriceId: null,
+          price: 0,
           transactionFreezeId: null,
           freezeDays: 0,
           performedById: ctx.session.user.id,
