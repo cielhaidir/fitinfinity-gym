@@ -204,9 +204,12 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Total Sales Summary */}
+       
+
         {/* Subscription Type Breakdown */}
         <div>
-          <h3 className="mb-4 text-lg font-semibold">Subscription Sales</h3>
+          <h3 className="mb-4 text-lg font-semibold">Subscription Sales by Type</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Card className="p-6">
               <div className="flex items-center gap-4">
@@ -259,6 +262,34 @@ const DashboardPage: React.FC = () => {
               </div>
             </Card>
           </div>
+        </div>
+
+         <div>
+          {/* <h3 className="mb-4 text-lg font-semibold">Total Sales</h3> */}
+          <Card className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full bg-green-500/20 p-4">
+                <CreditCard className="h-8 w-8 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground font-medium">Total Revenue (All Types)</p>
+                <h2 className="text-3xl font-bold text-green-700">
+                  {statsLoading ? "..." : formatRupiah(
+                    (dashboardStats?.subscriptionTypeBreakdown.MEMBERSHIP.revenue ?? 0) +
+                    (dashboardStats?.subscriptionTypeBreakdown.PERSONAL_TRAINER.revenue ?? 0) +
+                    (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.revenue ?? 0)
+                  )}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total Subscriptions: {statsLoading ? "..." : 
+                    (dashboardStats?.subscriptionTypeBreakdown.MEMBERSHIP.count ?? 0) +
+                    (dashboardStats?.subscriptionTypeBreakdown.PERSONAL_TRAINER.count ?? 0) +
+                    (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.count ?? 0)
+                  }
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {latestTransactions.length > 0 && (
