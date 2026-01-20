@@ -266,7 +266,7 @@ const DashboardPage: React.FC = () => {
 
          <div>
           {/* <h3 className="mb-4 text-lg font-semibold">Total Sales</h3> */}
-          <Card className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <Card className="p-6 ">
             <div className="flex items-center gap-4">
               <div className="rounded-full bg-green-500/20 p-4">
                 <CreditCard className="h-8 w-8 text-green-600" />
