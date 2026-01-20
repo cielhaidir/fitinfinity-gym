@@ -1619,6 +1619,8 @@ export const subscriptionRouter = createTRPCRouter({
           operationType: "UNFREEZE",
           freezePriceId: null,
           transactionFreezeId: null,
+          freezeDays: 0,
+          performedById: ctx.session.user.id,
         },
       });
 
@@ -2368,6 +2370,64 @@ export const subscriptionRouter = createTRPCRouter({
       return updatedSubscription;
     }),
 
+  // Count subscriptions with optional filter
+  count: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        where: z.any().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.subscription.count({
+        where: input.where,
+      });
+    }),
+
+  // Get freeze statistics with date filtering
+  getFreezeStats: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
+      const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
+
+      const dateFilter = start && end
+        ? {
+            performedAt: {
+              gte: start,
+              lte: end,
+            },
+          }
+        : {};
+
+      // Get all freeze operations within the date range
+      const freezeOperations = await ctx.db.freezeOperation.findMany({
+        where: {
+          operationType: "FREEZE",
+          ...dateFilter,
+        },
+        include: {
+          freezePrice: true,
+          transactionFreeze: true,
+        },
+      });
+
+      // Calculate total freeze count and revenue
+      const freezeCount = freezeOperations.length;
+      const totalRevenue = freezeOperations.reduce((sum, op) => {
+        return sum + (op.price || 0);
+      }, 0);
+
+      return {
+        freezeCount,
+        totalRevenue,
+      };
+    }),
+
   // Get admin dashboard statistics with date filtering
   getAdminDashboardStats: permissionProtectedProcedure(["list:subscription"])
     .input(
@@ -2391,11 +2451,12 @@ export const subscriptionRouter = createTRPCRouter({
           }
         : {};
 
-      // 1. Active Memberships Count: subscriptions with endDate AFTER filter's end date
+      // 1. Active Memberships Count: subscriptions with endDate AFTER filter's end date (excluding frozen)
       const activeMembershipsCount = await ctx.db.subscription.count({
         where: {
           deletedAt: null,
           isActive: true,
+          isFrozen: false,
           ...(end && {
             endDate: {
               gt: end,

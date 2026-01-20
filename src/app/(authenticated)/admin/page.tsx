@@ -10,13 +10,15 @@ import { Input } from "@/components/ui/input";
 
 const DashboardPage: React.FC = () => {
   // Get current month date range
-  const getCurrentMonthDates = () => {
+  const getCurrentMonthDates = (): { start: string; end: string } => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const startStr = firstDay.toISOString().split('T')[0] as string;
+    const endStr = lastDay.toISOString().split('T')[0] as string;
     return {
-      start: firstDay.toISOString().split('T')[0],
-      end: lastDay.toISOString().split('T')[0]
+      start: startStr,
+      end: endStr
     };
   };
 
@@ -36,19 +38,38 @@ const DashboardPage: React.FC = () => {
   const { data: memberData, isLoading: memberLoading } =
     api.member.getAllActive.useQuery();
 
-  const { data: employeeData, isLoading: employeeLoading } =
-    api.employee.list.useQuery({
-      page: 1,
-      limit: 1,
-      search: "",
-      searchColumn: "",
+  // Query for frozen subscriptions count
+  const { data: frozenSubsData, isLoading: frozenSubsLoading } =
+    api.subs.count.useQuery({
+      where: {
+        isFrozen: true,
+        deletedAt: null,
+      },
     });
 
-  const { data: transactionData, isLoading: transactionLoading } =
-    api.subs.list.useQuery({
-      page: 1,
-      limit: 5,
-    });
+  // Query for freeze operations with date range
+  const { data: freezeStatsData, isLoading: freezeStatsLoading } =
+    api.subs.getFreezeStats.useQuery(
+      {
+        startDate: appliedStartDate,
+        endDate: appliedEndDate,
+      },
+      {
+        enabled: !!appliedStartDate && !!appliedEndDate,
+      }
+    );
+
+  // Query POS sales with date range
+  const { data: posSalesData, isLoading: posSalesLoading } =
+    api.finance.getPosSales.useQuery(
+      {
+        startDate: appliedStartDate,
+        endDate: appliedEndDate,
+      },
+      {
+        enabled: !!appliedStartDate && !!appliedEndDate,
+      }
+    );
 
   // Query admin dashboard stats with date range
   const { data: dashboardStats, isLoading: statsLoading } =
@@ -64,10 +85,13 @@ const DashboardPage: React.FC = () => {
 
   const activeMembers =
     memberData?.filter((member) =>
-      member.subscriptions.some((sub) => sub.isActive)
+      member.subscriptions.some((sub) => sub.isActive && !sub.isFrozen)
     ).length ?? 0;
-  const totalEmployees = employeeData?.total ?? 0;
-  const latestTransactions = transactionData?.items ?? [];
+  const totalFrozenSubscriptions = frozenSubsData ?? 0;
+  const posSalesTotal = posSalesData?.total ?? 0;
+  const posSalesCount = posSalesData?.count ?? 0;
+  const freezePeriodCount = freezeStatsData?.freezeCount ?? 0;
+  const freezeRevenue = freezeStatsData?.totalRevenue ?? 0;
 
   // Format currency as Indonesian Rupiah
   const formatRupiah = (amount: number) => {
@@ -127,13 +151,13 @@ const DashboardPage: React.FC = () => {
 
           <Card className="p-6">
             <div className="flex items-center gap-4">
-              <div className="rounded-full bg-green-500/20 p-3">
-                <UserCog className="h-6 w-6 text-green-500" />
+              <div className="rounded-full bg-amber-500/20 p-3">
+                <UserCog className="h-6 w-6 text-amber-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Employees</p>
+                <p className="text-sm text-muted-foreground">Total Frozen Subscriptions</p>
                 <h2 className="text-2xl font-bold">
-                  {employeeLoading ? "..." : totalEmployees}
+                  {frozenSubsLoading ? "..." : totalFrozenSubscriptions}
                 </h2>
                 </div>
             </div>
@@ -146,11 +170,14 @@ const DashboardPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Latest Transactions
+                  Total Sales POS
                 </p>
                 <h2 className="text-2xl font-bold">
-                  {transactionLoading ? "..." : latestTransactions.length}
+                  {posSalesLoading ? "..." : formatRupiah(posSalesTotal)}
                 </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {posSalesLoading ? "..." : `${posSalesCount} transactions`}
+                </p>
               </div>
             </div>
           </Card>
@@ -166,7 +193,7 @@ const DashboardPage: React.FC = () => {
                   <Users className="h-6 w-6 text-cyan-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Subscription</p>
+                  <p className="text-sm text-muted-foreground">Active Subscription (Non-Frozen)</p>
                   <h2 className="text-2xl font-bold">
                     {statsLoading ? "..." : dashboardStats?.activeMembershipsCount ?? 0}
                   </h2>
@@ -264,15 +291,34 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-         <div>
-          {/* <h3 className="mb-4 text-lg font-semibold">Total Sales</h3> */}
-          <Card className="p-6 ">
+        {/* Total Revenue Row - 2 Columns */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Freeze Period Stats */}
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full bg-blue-500/20 p-4">
+                <RefreshCw className="h-8 w-8 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground font-medium">Total Freeze Period</p>
+                <h2 className="text-3xl font-bold text-blue-700">
+                  {freezeStatsLoading ? "..." : freezePeriodCount}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Revenue: {freezeStatsLoading ? "..." : formatRupiah(freezeRevenue)}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Total Subscription Revenue */}
+          <Card className="p-6">
             <div className="flex items-center gap-4">
               <div className="rounded-full bg-green-500/20 p-4">
                 <CreditCard className="h-8 w-8 text-green-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground font-medium">Total Revenue (All Types)</p>
+                <p className="text-sm text-muted-foreground font-medium">Total Revenue (All Subscriptions)</p>
                 <h2 className="text-3xl font-bold text-green-700">
                   {statsLoading ? "..." : formatRupiah(
                     (dashboardStats?.subscriptionTypeBreakdown.MEMBERSHIP.revenue ?? 0) +
@@ -281,7 +327,7 @@ const DashboardPage: React.FC = () => {
                   )}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Total Subscriptions: {statsLoading ? "..." : 
+                  Total Subscriptions: {statsLoading ? "..." :
                     (dashboardStats?.subscriptionTypeBreakdown.MEMBERSHIP.count ?? 0) +
                     (dashboardStats?.subscriptionTypeBreakdown.PERSONAL_TRAINER.count ?? 0) +
                     (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.count ?? 0)
@@ -292,38 +338,6 @@ const DashboardPage: React.FC = () => {
           </Card>
         </div>
 
-        {latestTransactions.length > 0 && (
-          <Card className="p-6">
-            <h3 className="mb-4 text-lg font-semibold">Recent Transactions</h3>
-            <div className="space-y-4">
-              {latestTransactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex items-center justify-between border-b pb-2"
-                >
-                  <div>
-                    <p className="font-medium">{transaction.member.user.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {transaction.package.name}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">
-                      Rp {transaction.package.price.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {transaction.payments[0]?.paidAt
-                        ? new Date(
-                            transaction.payments[0].paidAt,
-                          ).toLocaleDateString()
-                        : "No payment date"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
       </div>
     </ProtectedRoute>
   );
