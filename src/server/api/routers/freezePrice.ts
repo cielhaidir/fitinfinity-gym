@@ -50,7 +50,7 @@ export const freezePriceRouter = createTRPCRouter({
   getActive: permissionProtectedProcedure(["list:subscription"])
     .query(async ({ ctx }) => {
       return ctx.db.freezePrice.findMany({
-        where: { isActive: true },
+        where: { isActive: true, price: { gt: 0 } },
         orderBy: { freezeDays: "asc" },
       });
     }),

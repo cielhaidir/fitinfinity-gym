@@ -1612,18 +1612,38 @@ export const subscriptionRouter = createTRPCRouter({
       const now = new Date();
       let unfrozenCount = 0;
 
-      // Create unfreeze operation record
-      await ctx.db.freezeOperation.create({
-        data: {
-          memberId: input.memberId,
-          operationType: "UNFREEZE",
-          freezePriceId: null,
-          price: 0,
-          transactionFreezeId: null,
+      // Get or create a FreezePrice entry for unfreeze operations (0 days, 0 price)
+      let unfreezePrice = await ctx.db.freezePrice.findFirst({
+        where: {
           freezeDays: 0,
-          performedById: ctx.session.user.id,
+          price: 0,
         },
       });
+
+      if (!unfreezePrice) {
+        unfreezePrice = await ctx.db.freezePrice.create({
+          data: {
+            freezeDays: 0,
+            price: 0,
+            isActive: true,
+          },
+        });
+      }
+
+      // Create unfreeze operation record for each subscription
+      for (const subscription of frozenSubscriptions) {
+        await ctx.db.freezeOperation.create({
+          data: {
+            subscriptionId: subscription.id,
+            operationType: "UNFREEZE",
+            freezePriceId: unfreezePrice.id,
+            price: 0,
+            transactionFreezeId: null,
+            freezeDays: 0,
+            performedById: ctx.session.user.id,
+          },
+        });
+      }
 
       // Unfreeze each subscription individually using transaction
       const results = await ctx.db.$transaction(
