@@ -14,16 +14,25 @@ export default function ConfigLayout({
     ? "site"
     : pathname.includes("/email")
       ? "email"
-      : "site";
+      : "general";
+
+  const handleTabChange = (value: string) => {
+    if (value === "general") {
+      router.push("/management/config");
+    } else {
+      router.push(`/management/config/${value}`);
+    }
+  };
 
   return (
     <div className="container mx-auto space-y-6 py-6">
       <Tabs
         value={currentTab}
         className="w-full"
-        onValueChange={(value) => router.push(`/management/config/${value}`)}
+        onValueChange={handleTabChange}
       >
         <TabsList>
+          <TabsTrigger value="general">General Config</TabsTrigger>
           <TabsTrigger value="site">Site Settings</TabsTrigger>
           <TabsTrigger value="email">Email Settings</TabsTrigger>
         </TabsList>

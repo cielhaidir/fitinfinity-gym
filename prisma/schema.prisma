@@ -308,6 +308,8 @@ model Membership {
     trainerSessions   TrainerSession[]
     paymentValidations PaymentValidation[]
     attendanceMembers AttendanceMember[] @relation("AttendanceMemberToMembership")
+    transfersFrom     SubscriptionTransferHistory[]
+    freezeOperations  FreezeOperation[]  @relation("FreezeOperationMember")
 }
 
 model Role {
@@ -382,6 +384,9 @@ model Subscription {
     
     // Freeze operations
     freezeOperations  FreezeOperation[]
+    
+    // Transfer history
+    transferHistory   SubscriptionTransferHistory[]
 }
 
 model Payment {
@@ -1106,6 +1111,7 @@ model TransactionFreeze {
 model FreezeOperation {
     id                  String              @id @default(cuid())
     subscriptionId      String
+    memberId            String              // Track which member this freeze operation is for
     freezePriceId       String
     transactionFreezeId String?
     operationType       FreezeOperationType
@@ -1115,6 +1121,7 @@ model FreezeOperation {
     performedById       String
 
     subscription      Subscription         @relation(fields: [subscriptionId], references: [id])
+    member            Membership           @relation("FreezeOperationMember", fields: [memberId], references: [id])
     freezePrice       FreezePrice          @relation(fields: [freezePriceId], references: [id])
     transactionFreeze TransactionFreeze?   @relation(fields: [transactionFreezeId], references: [id])
     performedBy       User                 @relation("FreezeOperationPerformedBy", fields: [performedById], references: [id])
@@ -1245,4 +1252,33 @@ model POSItemPriceHistory {
     @@index([itemId])
     @@index([effectiveFrom])
     @@index([changedBy])
+}
+
+// ============================================
+// Subscription Transfer History
+// ============================================
+
+model SubscriptionTransferHistory {
+    id               String     @id @default(cuid())
+    subscriptionId   String
+    transferredPoint Int
+    fromMemberId     String
+    fromMemberName   String
+    amount           Float
+    file             String?
+    reason           String?
+    isCancelled      Boolean    @default(false)
+    cancelledAt      DateTime?
+    cancelledBy      String?
+    cancelReason     String?
+    createdAt        DateTime   @default(now())
+    updatedAt        DateTime   @updatedAt
+    
+    subscription     Subscription @relation(fields: [subscriptionId], references: [id])
+    fromMember       Membership   @relation(fields: [fromMemberId], references: [id])
+    
+    @@index([subscriptionId])
+    @@index([fromMemberId])
+    @@index([createdAt])
+    @@index([isCancelled])
 }

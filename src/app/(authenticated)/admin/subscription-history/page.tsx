@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck, UserPlus, User, Download, Trash2 } from "lucide-react";
+import { Package, Users, Calendar, Clock, CreditCard, Edit, ArrowRightLeft, MoreHorizontal, TrendingUp, UserCheck, UserPlus, User, Download, Trash2, FileText } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { useRBAC } from "@/hooks/useRBAC";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function AdminSubscriptionHistoryPage() {
   const { data: session } = useSession();
@@ -49,6 +55,7 @@ export default function AdminSubscriptionHistoryPage() {
   const [searchColumn, setSearchColumn] = useState("member.user.name");
   const [filterSalesId, setFilterSalesId] = useState<string>("all");
   const [filterTrainerId, setFilterTrainerId] = useState<string>("all");
+  const [filterPackageId, setFilterPackageId] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [filterDateType, setFilterDateType] = useState<"payment" | "startDate" | "endDate" | "createdAt">("payment");
   const [filterStartDate, setFilterStartDate] = useState<string>("");
@@ -98,6 +105,10 @@ export default function AdminSubscriptionHistoryPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedSubscriptionForDelete, setSelectedSubscriptionForDelete] = useState<any>(null);
   
+  // Transfer History pagination state
+  const [transferPage, setTransferPage] = useState(1);
+  const [transferLimit, setTransferLimit] = useState(10);
+  
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
 
@@ -110,8 +121,25 @@ export default function AdminSubscriptionHistoryPage() {
       searchColumn: searchColumn || undefined,
       salesId: filterSalesId !== "all" ? filterSalesId : undefined,
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
+      packageId: filterPackageId !== "all" ? filterPackageId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
+      startDate: filterStartDate ? new Date(filterStartDate) : undefined,
+      endDate: filterEndDate ? new Date(filterEndDate) : undefined,
+    },
+    {
+      enabled: !!session,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      staleTime: 0,
+    },
+  );
+
+  // Query for transfer history
+  const { data: transferHistory, isLoading: isLoadingTransferHistory, refetch: refetchTransferHistory } = api.subs.listAllTransferHistory.useQuery(
+    {
+      page: transferPage,
+      limit: transferLimit,
       startDate: filterStartDate ? new Date(filterStartDate) : undefined,
       endDate: filterEndDate ? new Date(filterEndDate) : undefined,
     },
@@ -141,6 +169,9 @@ export default function AdminSubscriptionHistoryPage() {
 
   // Query for getting gym packages for upgrade functionality
   const { data: gymPackages = [] } = api.subs.getGymPackages.useQuery(undefined, {
+    enabled: !!session,
+  });
+  const { data: allPackages = [] } = api.package.listAlll.useQuery(undefined, {
     enabled: !!session,
   });
 
@@ -802,9 +833,193 @@ export default function AdminSubscriptionHistoryPage() {
     },
   ];
 
+  // Transfer History columns
+  const transferHistoryColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: "id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="ID" />
+      ),
+      cell: ({ row }) => {
+        const id = row.original.id;
+        const truncatedId = id ? id.slice(0, 8) : "N/A";
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="min-w-[70px] cursor-help">
+                  <span className="text-xs font-mono">{truncatedId}...</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="font-mono text-xs">{id}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      },
+    },
+    {
+      accessorKey: "subscriptionId",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Subscription ID" />
+      ),
+      cell: ({ row }) => {
+        const subId = row.original.subscriptionId;
+        const truncatedSubId = subId ? subId.slice(0, 8) : "N/A";
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="min-w-[100px] cursor-help">
+                  <span className="text-xs font-mono">{truncatedSubId}...</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="font-mono text-xs">{subId}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      },
+    },
+    {
+      accessorKey: "transferredPoint",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Transferred Points" />
+      ),
+      cell: ({ row }) => {
+        const points = row.original.transferredPoint;
+        return (
+          <div className="text-center min-w-[80px]">
+            <span className="font-medium">{points ?? "N/A"}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "fromMemberId",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="From Member ID" />
+      ),
+      cell: ({ row }) => {
+        const fromId = row.original.fromMemberId;
+        const truncatedFromId = fromId ? fromId.slice(0, 8) : "N/A";
+        return (
+          <div className="min-w-[100px]">
+            <span className="text-xs font-mono">{truncatedFromId}...</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "fromMemberName",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="From Member Name" />
+      ),
+      cell: ({ row }) => {
+        const name = row.original.fromMemberName;
+        return (
+          <div className="min-w-[120px]">
+            <span className="text-sm">{name || "N/A"}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "amount",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Amount" />
+      ),
+      cell: ({ row }) => {
+        const amount = row.original.amount;
+        return (
+          <div className="min-w-[100px]">
+            <span className="text-sm font-medium">
+              {amount != null ? `Rp ${amount.toLocaleString('id-ID')}` : "N/A"}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "file",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="File" />
+      ),
+      cell: ({ row }) => {
+        const file = row.original.file;
+        return (
+          <div className="min-w-[70px]">
+            {file ? (
+              <a
+                href={file}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="text-xs">Yes</span>
+              </a>
+            ) : (
+              <span className="text-xs text-muted-foreground">No</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "reason",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Reason" />
+      ),
+      cell: ({ row }) => {
+        const reason = row.original.reason;
+        const truncatedReason = reason && reason.length > 30 ? reason.slice(0, 30) + "..." : reason;
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="min-w-[150px] cursor-help">
+                  <span className="text-xs">{truncatedReason || "N/A"}</span>
+                </div>
+              </TooltipTrigger>
+              {reason && reason.length > 30 && (
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">{reason}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        );
+      },
+    },
+    {
+      accessorKey: "createdAt",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Date" />
+      ),
+      cell: ({ row }) => {
+        const createdAt = row.original.createdAt;
+        return (
+          <div className="min-w-[110px]">
+            <span className="text-xs">
+              {createdAt ? format(new Date(createdAt), "dd/MM/yyyy HH:mm") : "N/A"}
+            </span>
+          </div>
+        );
+      },
+    },
+  ];
+
   const handlePaginationChange = (newPage: number, newLimit: number) => {
     setPage(newPage);
     setLimit(newLimit);
+  };
+
+  const handleTransferPaginationChange = (newPage: number, newLimit: number) => {
+    setTransferPage(newPage);
+    setTransferLimit(newLimit);
   };
 
   const handleSearch = (value: string, column: string) => {
@@ -820,6 +1035,11 @@ export default function AdminSubscriptionHistoryPage() {
 
   const handleTrainerFilterChange = (trainerId: string) => {
     setFilterTrainerId(trainerId);
+    setPage(1);
+  };
+
+  const handlePackageFilterChange = (packageId: string) => {
+    setFilterPackageId(packageId);
     setPage(1);
   };
 
@@ -844,6 +1064,7 @@ export default function AdminSubscriptionHistoryPage() {
     {
       salesId: filterSalesId !== "all" ? filterSalesId : undefined,
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
+      packageId: filterPackageId !== "all" ? filterPackageId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
       startDate: filterStartDate ? new Date(filterStartDate) : undefined,
@@ -1024,6 +1245,27 @@ export default function AdminSubscriptionHistoryPage() {
                   </Select>
                 </div>
                 <div>
+                  <Label htmlFor="packageFilter" className="text-sm font-medium mb-2 block">
+                    Filter by Package
+                  </Label>
+                  <Select
+                    value={filterPackageId}
+                    onValueChange={handlePackageFilterChange}
+                  >
+                    <SelectTrigger id="packageFilter">
+                      <SelectValue placeholder="All Packages" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Packages</SelectItem>
+                      {allPackages?.map((pkg) => (
+                        <SelectItem key={pkg.id} value={pkg.id}>
+                          {pkg.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label htmlFor="statusFilter" className="text-sm font-medium mb-2 block">
                     Filter by Status
                   </Label>
@@ -1118,6 +1360,28 @@ export default function AdminSubscriptionHistoryPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Transfer History Card */}
+          <Card className="w-full mt-6">
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-lg sm:text-xl">Transfer History</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                View all subscription transfer records with detailed information
+              </p>
+            </CardHeader>
+            <CardContent className="p-0 sm:p-6">
+              <div className="w-full">
+                <DataTable
+                  columns={transferHistoryColumns}
+                  data={transferHistory ?? { items: [], total: 0, page: 1, limit: 10 }}
+                  isLoading={isLoadingTransferHistory}
+                  onPaginationChange={handleTransferPaginationChange}
+                  onSearch={() => {}}
+                  searchColumns={[]}
+                />
               </div>
             </CardContent>
           </Card>

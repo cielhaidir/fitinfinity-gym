@@ -510,7 +510,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
-        dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
+        dateFilterType: z.enum(["payment", "startDate", "endDate"]).optional().default("payment"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
       }),
@@ -574,16 +574,6 @@ export const subscriptionRouter = createTRPCRouter({
         }),
         ...(input.endDate && {
           endDate: { lte: input.endDate },
-        }),
-      };
-    } else if (dateFilterType === "createdAt") {
-      // Filter by subscription creation date
-      return {
-        ...(input.startDate && {
-          createdAt: { gte: input.startDate },
-        }),
-        ...(input.endDate && {
-          createdAt: { lte: input.endDate },
         }),
       };
     }
@@ -1433,29 +1423,30 @@ export const subscriptionRouter = createTRPCRouter({
         }
       }
 
-      // Create transaction freeze and freeze operation records if there's a payment
+      // Create ONE transaction freeze record for the member (if there's a payment)
       let transactionFreezeId = null;
       if (freezePaymentAmount > 0 && freezePrice && input.balanceAccountId) {
         const transactionFreeze = await ctx.db.transactionFreeze.create({
           data: {
             balanceAccountId: input.balanceAccountId,
             amount: freezePaymentAmount,
-            description: `Freeze fee for ${actualFreezeDays} days`,
+            description: `Freeze fee for ${actualFreezeDays} days - ${activeSubscriptions.length} subscription(s)`,
             createdBy: ctx.session.user.id,
           },
         });
         transactionFreezeId = transactionFreeze.id;
 
-        // Create freeze operation record for each subscription
+        // Create freeze operation record for EACH subscription but link to the SAME TransactionFreeze
         for (const subscription of activeSubscriptions) {
           await ctx.db.freezeOperation.create({
             data: {
               subscriptionId: subscription.id,
+              memberId: input.memberId,
               operationType: "FREEZE",
               freezePriceId: freezePrice.id,
               transactionFreezeId: transactionFreeze.id,
               freezeDays: actualFreezeDays,
-              price: freezePaymentAmount,
+              price: freezePaymentAmount, // Same price for all (member pays once)
               performedById: ctx.session.user.id,
             },
           });
@@ -1507,6 +1498,7 @@ export const subscriptionRouter = createTRPCRouter({
           await ctx.db.freezeOperation.create({
             data: {
               subscriptionId: subscription.id,
+              memberId: input.memberId,
               operationType: "FREEZE",
               freezePriceId: customFreezePriceId,
               transactionFreezeId: null,
@@ -1630,17 +1622,23 @@ export const subscriptionRouter = createTRPCRouter({
         });
       }
 
+      // Create a common performedAt timestamp for all unfreeze operations in this batch
+      // This ensures they group together in the freeze history
+      const batchPerformedAt = new Date();
+
       // Create unfreeze operation record for each subscription
       for (const subscription of frozenSubscriptions) {
         await ctx.db.freezeOperation.create({
           data: {
             subscriptionId: subscription.id,
+            memberId: input.memberId,
             operationType: "UNFREEZE",
             freezePriceId: unfreezePrice.id,
             price: 0,
             transactionFreezeId: null,
             freezeDays: 0,
             performedById: ctx.session.user.id,
+            performedAt: batchPerformedAt, // Use the same timestamp for all operations
           },
         });
       }
@@ -1844,6 +1842,12 @@ export const subscriptionRouter = createTRPCRouter({
       //   });
       // }
 
+      // Get transfer price from config
+      const transferPriceConfig = await ctx.db.config.findUnique({
+        where: { key: "transfer_price" },
+      });
+      const transferPrice = transferPriceConfig ? parseFloat(transferPriceConfig.value) : 0;
+
       return ctx.db.$transaction(async (tx) => {
         // Create new membership for the target user
 
@@ -1863,6 +1867,18 @@ export const subscriptionRouter = createTRPCRouter({
             membershipId = existingMembership.id;
           }
 
+        // Create transfer history record
+        await tx.subscriptionTransferHistory.create({
+          data: {
+            subscriptionId: input.subscriptionId,
+            transferredPoint: subscription.package.point,
+            fromMemberId: subscription.memberId,
+            fromMemberName: subscription.member.user?.name || "Unknown",
+            amount: transferPrice,
+            reason: input.reason || null,
+            file: null,
+          },
+        });
 
         // Update the subscription to point to the new membership
         const updatedSubscription = await tx.subscription.update({
@@ -2077,7 +2093,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
-        dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
+        dateFilterType: z.enum(["payment", "startDate", "endDate"]).optional().default("payment"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
       }),
@@ -2141,16 +2157,6 @@ export const subscriptionRouter = createTRPCRouter({
               }),
               ...(input.endDate && {
                 endDate: { lte: input.endDate },
-              }),
-            };
-          } else if (dateFilterType === "createdAt") {
-            // Filter by subscription creation date
-            return {
-              ...(input.startDate && {
-                createdAt: { gte: input.startDate },
-              }),
-              ...(input.endDate && {
-                createdAt: { lte: input.endDate },
               }),
             };
           }
@@ -2590,5 +2596,566 @@ export const subscriptionRouter = createTRPCRouter({
         totalNewMembers,
         subscriptionTypeBreakdown,
       };
+    }),
+
+  // Get transfer history for a specific subscription
+  getTransferHistory: permissionProtectedProcedure(["list:subscription"])
+    .input(z.object({ subscriptionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const transferHistory = await ctx.db.subscriptionTransferHistory.findMany({
+        where: {
+          subscriptionId: input.subscriptionId,
+        },
+        include: {
+          fromMember: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      return transferHistory;
+    }),
+
+  // List all transfer history with pagination and filters (for admin page)
+  listAllTransferHistory: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        memberId: z.string().optional(),
+        memberSearch: z.string().optional(),
+        showCancelled: z.boolean().optional().default(true),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const whereClause: any = {
+        ...(input.memberId && {
+          fromMemberId: input.memberId,
+        }),
+        ...(input.startDate && {
+          createdAt: {
+            gte: input.startDate,
+          },
+        }),
+        ...(input.endDate && {
+          createdAt: {
+            ...((input.startDate && { gte: input.startDate }) || {}),
+            lte: input.endDate,
+          },
+        }),
+        // Filter by cancelled status
+        ...(!input.showCancelled && {
+          isCancelled: false,
+        }),
+        // Search by member name or email
+        ...(input.memberSearch && {
+          OR: [
+            {
+              fromMemberName: {
+                contains: input.memberSearch,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              fromMember: {
+                user: {
+                  email: {
+                    contains: input.memberSearch,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+            {
+              subscription: {
+                member: {
+                  user: {
+                    OR: [
+                      {
+                        name: {
+                          contains: input.memberSearch,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                      {
+                        email: {
+                          contains: input.memberSearch,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      };
+
+      const items = await ctx.db.subscriptionTransferHistory.findMany({
+        skip: (input.page - 1) * input.limit,
+        take: input.limit,
+        where: whereClause,
+        include: {
+          subscription: {
+            include: {
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  price: true,
+                },
+              },
+              member: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      phone: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          fromMember: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      const total = await ctx.db.subscriptionTransferHistory.count({
+        where: whereClause,
+      });
+
+      // Add fromMemberEmail to each item for easier access
+      const itemsWithEmail = items.map(item => ({
+        ...item,
+        fromMemberEmail: item.fromMember?.user?.email || "",
+      }));
+
+      return {
+        items: itemsWithEmail,
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
+
+  // Cancel a subscription transfer
+  cancelTransfer: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        transferHistoryId: z.string(),
+        reason: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.$transaction(async (tx) => {
+        // Find the transfer history record
+        const transferHistory = await tx.subscriptionTransferHistory.findUnique({
+          where: { id: input.transferHistoryId },
+          include: {
+            subscription: {
+              include: {
+                package: true,
+                member: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+            fromMember: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
+
+        if (!transferHistory) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Transfer history record not found",
+          });
+        }
+
+        // Check if already cancelled
+        if (transferHistory.isCancelled) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This transfer has already been cancelled",
+          });
+        }
+
+        // Transfer the subscription BACK to the original member (fromMemberId)
+        await tx.subscription.update({
+          where: { id: transferHistory.subscriptionId },
+          data: {
+            memberId: transferHistory.fromMemberId,
+          },
+        });
+
+        // Transfer points back: Remove from current owner, add back to original owner
+        if (transferHistory.transferredPoint > 0) {
+          // Remove points from current member (who received the transfer)
+          const currentMemberUserId = transferHistory.subscription.member.userId;
+          await tx.user.update({
+            where: { id: currentMemberUserId },
+            data: {
+              point: { decrement: transferHistory.transferredPoint },
+            },
+          });
+
+          // Add points back to original member (who transferred away)
+          const originalMemberUserId = transferHistory.fromMember.userId;
+          await tx.user.update({
+            where: { id: originalMemberUserId },
+            data: {
+              point: { increment: transferHistory.transferredPoint },
+            },
+          });
+        }
+
+        // Mark the transfer history as cancelled
+        const updatedTransferHistory = await tx.subscriptionTransferHistory.update({
+          where: { id: input.transferHistoryId },
+          data: {
+            isCancelled: true,
+            cancelledAt: new Date(),
+            cancelledBy: ctx.session.user.id,
+            cancelReason: input.reason || null,
+          },
+          include: {
+            subscription: {
+              include: {
+                package: true,
+                member: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+            fromMember: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
+
+        return {
+          success: true,
+          message: "Transfer cancelled successfully. Subscription returned to original member.",
+          transferHistory: updatedTransferHistory,
+        };
+      });
+    }),
+
+  // List all freeze operations grouped by member (for admin freeze history page)
+  listFreezeHistory: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        operationType: z.enum(["all", "FREEZE", "UNFREEZE"]).optional().default("all"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Build the where clause for freeze operations
+      const whereClause: any = {
+        ...(input.operationType !== "all" && {
+          operationType: input.operationType,
+        }),
+      };
+
+      // Apply date filter on performedAt
+      if (input.startDate || input.endDate) {
+        whereClause.performedAt = {};
+        if (input.startDate) {
+          whereClause.performedAt.gte = input.startDate;
+        }
+        if (input.endDate) {
+          whereClause.performedAt.lte = input.endDate;
+        }
+      }
+
+      // Get all freeze operations with member info
+      const allOperations = await ctx.db.freezeOperation.findMany({
+        where: whereClause,
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          subscription: {
+            include: {
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          transactionFreeze: true,
+          performedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          performedAt: "desc",
+        },
+      });
+
+      // Group operations by member and transactionFreezeId (or by member + performedAt for free freezes)
+      const groupedMap = new Map<string, any>();
+
+      for (const operation of allOperations) {
+        // Create a unique key for grouping:
+        // - If there's a transactionFreeze, group by memberId + transactionFreezeId (paid freezes)
+        // - Otherwise, group by memberId + operationType + performedAt (rounded to second) for free freezes/unfreezes
+        let groupKey: string;
+        if (operation.transactionFreezeId) {
+          groupKey = `${operation.memberId}_${operation.transactionFreezeId}`;
+        } else {
+          // Round performedAt to the second to group operations that happened at nearly the same time
+          const roundedTime = new Date(operation.performedAt);
+          roundedTime.setMilliseconds(0);
+          groupKey = `${operation.memberId}_${operation.operationType}_${roundedTime.toISOString()}`;
+        }
+
+        if (!groupedMap.has(groupKey)) {
+          groupedMap.set(groupKey, {
+            id: groupKey,
+            memberId: operation.memberId,
+            memberName: operation.member.user?.name || "Unknown",
+            memberEmail: operation.member.user?.email || "",
+            operationType: operation.operationType,
+            performedAt: operation.performedAt,
+            performedBy: operation.performedBy,
+            freezeDays: operation.freezeDays,
+            price: operation.price,
+            transactionFreeze: operation.transactionFreeze,
+            subscriptions: [],
+          });
+        }
+
+        // Add this subscription to the group
+        groupedMap.get(groupKey)!.subscriptions.push({
+          id: operation.subscription.id,
+          packageName: operation.subscription.package.name,
+          packageType: operation.subscription.package.type,
+        });
+      }
+
+      // Convert map to array and sort by performedAt
+      const grouped = Array.from(groupedMap.values()).sort(
+        (a, b) => b.performedAt.getTime() - a.performedAt.getTime()
+      );
+
+      // Apply pagination
+      const total = grouped.length;
+      const startIndex = (input.page - 1) * input.limit;
+      const endIndex = startIndex + input.limit;
+      const items = grouped.slice(startIndex, endIndex);
+
+      return {
+        items,
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
+
+  // Cancel freeze operation - reverse/undo freeze
+  cancelFreeze: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        memberId: z.string(),
+        reason: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.$transaction(async (tx) => {
+        // Find member
+        const member = await tx.membership.findUnique({
+          where: { id: input.memberId },
+          include: { user: true },
+        });
+
+        if (!member) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member not found",
+          });
+        }
+
+        // Find all subscriptions with freeze data (either currently frozen OR have freeze history)
+        const subscriptionsWithFreeze = await tx.subscription.findMany({
+          where: {
+            memberId: input.memberId,
+            deletedAt: null,
+            OR: [
+              { isFrozen: true }, // Currently frozen
+              { freezeAtStart: true }, // Was frozen at start
+              { freezeDays: { gt: 0 } }, // Has freeze days
+            ],
+          },
+          include: {
+            package: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+          },
+        });
+
+        if (subscriptionsWithFreeze.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No subscriptions with freeze data found for this member",
+          });
+        }
+
+        const now = new Date();
+        let cancelledCount = 0;
+        const affectedSubscriptions: any[] = [];
+
+        // Process each subscription
+        for (const subscription of subscriptionsWithFreeze) {
+          // Only process if it has freeze data
+          const hasFreezeDays = subscription.freezeDays && subscription.freezeDays > 0;
+          const hasFreezeAtStart = subscription.freezeAtStart === true;
+          
+          if (!hasFreezeDays && !hasFreezeAtStart) {
+            continue; // Skip subscriptions without freeze data
+          }
+
+          // Calculate original end date by subtracting freeze days
+          let originalEndDate = subscription.endDate;
+          if (originalEndDate && subscription.freezeDays && subscription.freezeDays > 0) {
+            originalEndDate = new Date(originalEndDate);
+            originalEndDate.setDate(originalEndDate.getDate() - subscription.freezeDays);
+          }
+
+          // Update the subscription - reset all freeze fields
+          const updatedSubscription = await tx.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              freezeAtStart: false,
+              freezeDays: null,
+              isFrozen: false,
+              frozenAt: null,
+              freezeMode: null,
+              remainingDays: null,
+              // Restore original end date (before freeze extension)
+              ...(originalEndDate && { endDate: originalEndDate }),
+            },
+          });
+
+          affectedSubscriptions.push({
+            id: updatedSubscription.id,
+            packageName: subscription.package.name,
+            originalEndDate,
+            previousEndDate: subscription.endDate,
+          });
+
+          cancelledCount++;
+        }
+
+        // Create a log entry for the cancellation (using FreezeOperation)
+        // We'll create an UNFREEZE operation to track this cancellation
+        const unfreezePrice = await tx.freezePrice.findFirst({
+          where: {
+            freezeDays: 0,
+            price: 0,
+          },
+        });
+
+        let freezePriceId = unfreezePrice?.id;
+        if (!freezePriceId) {
+          const createdUnfreezePrice = await tx.freezePrice.create({
+            data: {
+              freezeDays: 0,
+              price: 0,
+              isActive: true,
+            },
+          });
+          freezePriceId = createdUnfreezePrice.id;
+        }
+
+        // Log cancellation for each affected subscription
+        for (const sub of affectedSubscriptions) {
+          await tx.freezeOperation.create({
+            data: {
+              subscriptionId: sub.id,
+              memberId: input.memberId,
+              operationType: "UNFREEZE",
+              freezePriceId: freezePriceId,
+              price: 0,
+              transactionFreezeId: null,
+              freezeDays: 0,
+              performedById: ctx.session.user.id,
+            },
+          });
+        }
+
+        return {
+          success: true,
+          message: `Successfully cancelled freeze for ${cancelledCount} subscription(s)`,
+          count: cancelledCount,
+          memberId: input.memberId,
+          memberName: member.user?.name || "Unknown",
+          affectedSubscriptions,
+        };
+      });
     }),
 });

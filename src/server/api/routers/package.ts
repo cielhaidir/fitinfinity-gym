@@ -162,6 +162,13 @@ export const packageRouter = createTRPCRouter({
     },
   ),
 
+   listAlll: permissionProtectedProcedure(["list:packages"]).query(
+    async ({ ctx }) => {
+      return ctx.db.package.findMany();
+    },
+  ),
+
+
   listByType: permissionProtectedProcedure(["list:packages"])
     .input(z.object({ type: packageType }))
     .query(async ({ ctx, input }) => {
