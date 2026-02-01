@@ -317,6 +317,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: FileText,
           requiredPermission: "list:logs",
         },
+        {
+          title: "API Mutation Logs",
+          url: "/admin/system-logs",
+          icon: FileText,
+          requiredPermission: "list:logs",
+        },
 
         // {
         //     title: "Settings",

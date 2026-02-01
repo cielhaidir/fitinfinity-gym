@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const rolePermissionRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:role-permission"])
@@ -10,21 +11,46 @@ export const rolePermissionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { roleId, permissionIds } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Create all role permissions
-      const rolePermissions = await Promise.all(
-        permissionIds.map((permissionId) =>
-          ctx.db.rolePermission.create({
-            data: {
-              roleId,
-              permissionId,
-            },
-          }),
-        ),
-      );
+      try {
+        const { roleId, permissionIds } = input;
 
-      return rolePermissions;
+        // Create all role permissions
+        result = await Promise.all(
+          permissionIds.map((permissionId) =>
+            ctx.db.rolePermission.create({
+              data: {
+                roleId,
+                permissionId,
+              },
+            }),
+          ),
+        );
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "rolePermission.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   list: permissionProtectedProcedure(["list:role-permission"])
@@ -134,28 +160,53 @@ export const rolePermissionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { roleId, permissionIds } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Delete existing role permissions
-      await ctx.db.rolePermission.deleteMany({
-        where: {
-          roleId,
-        },
-      });
+      try {
+        const { roleId, permissionIds } = input;
 
-      // Create new role permissions
-      const rolePermissions = await Promise.all(
-        permissionIds.map((permissionId) =>
-          ctx.db.rolePermission.create({
-            data: {
-              roleId,
-              permissionId,
-            },
-          }),
-        ),
-      );
+        // Delete existing role permissions
+        await ctx.db.rolePermission.deleteMany({
+          where: {
+            roleId,
+          },
+        });
 
-      return rolePermissions;
+        // Create new role permissions
+        result = await Promise.all(
+          permissionIds.map((permissionId) =>
+            ctx.db.rolePermission.create({
+              data: {
+                roleId,
+                permissionId,
+              },
+            }),
+          ),
+        );
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "rolePermission.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   delete: permissionProtectedProcedure(["delete:role-permission"])
@@ -166,17 +217,42 @@ export const rolePermissionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { roleId, permissionId } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      const deletedRolePermission = await ctx.db.rolePermission.delete({
-        where: {
-          roleId_permissionId: {
-            roleId,
-            permissionId,
+      try {
+        const { roleId, permissionId } = input;
+
+        result = await ctx.db.rolePermission.delete({
+          where: {
+            roleId_permissionId: {
+              roleId,
+              permissionId,
+            },
           },
-        },
-      });
-
-      return deletedRolePermission;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "rolePermission.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 });

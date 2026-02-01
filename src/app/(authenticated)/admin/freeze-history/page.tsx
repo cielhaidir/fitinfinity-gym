@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Download, XCircle } from "lucide-react";
+import { Download, XCircle, Play } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { format } from "date-fns";
@@ -38,6 +38,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function FreezeHistoryPage() {
   const { data: session } = useSession();
@@ -48,6 +56,9 @@ export default function FreezeHistoryPage() {
   const [operationType, setOperationType] = useState<"all" | "FREEZE" | "UNFREEZE">("all");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedFreeze, setSelectedFreeze] = useState<any>(null);
+  const [unfreezeDialogOpen, setUnfreezeDialogOpen] = useState(false);
+  const [selectedSubscriptionToUnfreeze, setSelectedSubscriptionToUnfreeze] = useState<any>(null);
+  const [unfreezeConfirmationText, setUnfreezeConfirmationText] = useState("");
 
   const { toast } = useToast();
 
@@ -83,6 +94,27 @@ export default function FreezeHistoryPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to cancel freeze",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Unfreeze mutation
+  const unfreezeMutation = api.subs.unfreeze.useMutation({
+    onSuccess: (data) => {
+      toast({
+        title: "Subscription Unfrozen",
+        description: data.message || "Subscription has been successfully unfrozen",
+      });
+      setUnfreezeDialogOpen(false);
+      setSelectedSubscriptionToUnfreeze(null);
+      setUnfreezeConfirmationText("");
+      void refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unfreeze subscription",
         variant: "destructive",
       });
     },
@@ -125,6 +157,39 @@ export default function FreezeHistoryPage() {
       reason: "Freeze cancelled from admin panel",
     });
   };
+
+  // Handle unfreeze dialog
+  const handleUnfreeze = (subscription: any) => {
+    setSelectedSubscriptionToUnfreeze(subscription);
+    setUnfreezeConfirmationText("");
+    setUnfreezeDialogOpen(true);
+  };
+
+  const confirmUnfreeze = () => {
+    if (!selectedSubscriptionToUnfreeze) return;
+    
+    // Find the first frozen subscription from the subscriptions array
+    const frozenSubscription = selectedSubscriptionToUnfreeze.subscriptions?.find((sub: any) => sub.isFrozen);
+    
+    if (!frozenSubscription?.id) {
+      toast({
+        title: "Error",
+        description: "No frozen subscription found",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    unfreezeMutation.mutate({
+      subscriptionId: frozenSubscription.id,
+    });
+  };
+
+  // Check if unfreeze confirmation text is valid (memoized to prevent input lag)
+  const isUnfreezeConfirmationValid = useMemo(
+    () => unfreezeConfirmationText.toLowerCase().trim() === "unfreeze",
+    [unfreezeConfirmationText]
+  );
 
   // Freeze History columns - grouped by member
   const columns: ColumnDef<any>[] = [
@@ -279,13 +344,16 @@ export default function FreezeHistoryPage() {
         const isFreezeOperation = freeze.operationType === "FREEZE";
         const hasFreezeData = freeze.freezeDays && freeze.freezeDays > 0;
         
+        // Check if any subscription is currently frozen
+        const hasFrozenSubscription = freeze.subscriptions?.some((sub: any) => sub.isFrozen);
+        
         // Only show cancel button for FREEZE operations with freeze days
         if (!isFreezeOperation || !hasFreezeData) {
           return <div className="text-center text-xs text-muted-foreground">-</div>;
         }
 
         return (
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-1">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -304,6 +372,27 @@ export default function FreezeHistoryPage() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            
+        
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleUnfreeze(freeze)}
+                      disabled={unfreezeMutation.isPending}
+                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <Play className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Unfreeze Subscription</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            
           </div>
         );
       },
@@ -581,6 +670,98 @@ export default function FreezeHistoryPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Unfreeze Confirmation Dialog */}
+        <Dialog
+          open={unfreezeDialogOpen}
+          onOpenChange={(open) => {
+            setUnfreezeDialogOpen(open);
+            if (!open) {
+              setUnfreezeConfirmationText("");
+              setSelectedSubscriptionToUnfreeze(null);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Unfreeze Subscription</DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-3">
+                  <p>
+                    Are you sure you want to unfreeze the subscription for{" "}
+                    <span className="font-semibold">{selectedSubscriptionToUnfreeze?.memberName}</span>?
+                  </p>
+                  
+                  {selectedSubscriptionToUnfreeze && (
+                    <div className="rounded-lg border bg-muted/50 p-3 space-y-2 text-sm">
+                      <div className="font-medium">What will happen:</div>
+                      <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                        <li>The subscription will resume immediately</li>
+                        <li>Freeze status will be removed</li>
+                        <li>Member will regain full access to the gym</li>
+                        <li>
+                          Affected packages: {selectedSubscriptionToUnfreeze.subscriptions?.length || 0} subscription(s)
+                        </li>
+                      </ul>
+                      
+                      {selectedSubscriptionToUnfreeze.subscriptions && selectedSubscriptionToUnfreeze.subscriptions.length > 0 && (
+                        <div className="mt-2 pt-2 border-t">
+                          <div className="font-medium mb-1">Packages:</div>
+                          <div className="space-y-1">
+                            {selectedSubscriptionToUnfreeze.subscriptions.map((sub: any, idx: number) => (
+                              <div key={idx} className="text-xs text-muted-foreground">
+                                • {sub.packageName} ({sub.packageType})
+                                {sub.isFrozen && <span className="ml-1 text-blue-600">(Currently Frozen)</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-destructive">
+                      To confirm, please type <span className="font-mono font-bold">unfreeze</span> below:
+                    </p>
+                    <Input
+                      placeholder="Type 'unfreeze' to confirm"
+                      value={unfreezeConfirmationText}
+                      onChange={(e) => setUnfreezeConfirmationText(e.target.value)}
+                      className={
+                        unfreezeConfirmationText && isUnfreezeConfirmationValid
+                          ? "border-green-500 focus-visible:ring-green-500"
+                          : ""
+                      }
+                      autoComplete="off"
+                      disabled={unfreezeMutation.isPending}
+                    />
+                  </div>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setUnfreezeDialogOpen(false);
+                  setUnfreezeConfirmationText("");
+                  setSelectedSubscriptionToUnfreeze(null);
+                }}
+                disabled={unfreezeMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmUnfreeze}
+                disabled={!isUnfreezeConfirmationValid || unfreezeMutation.isPending}
+                variant="destructive"
+              >
+                {unfreezeMutation.isPending ? "Unfreezing..." : "Confirm Unfreeze"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   );

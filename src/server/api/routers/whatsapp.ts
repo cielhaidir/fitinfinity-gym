@@ -6,6 +6,7 @@ import {
 } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import jwt from "jsonwebtoken";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const apiUrl = process.env.WHATSAPP_API_URL!;
 const username = process.env.WHATSAPP_API_USERNAME!;
@@ -77,9 +78,36 @@ export const whatsappRouter = createTRPCRouter({
         message: z.string(),
       }),
     )
-    .mutation(async ({ input }) => {
-      const formattedPhone = `${input.phone}@s.whatsapp.net`;
-      return sendWhatsAppMessage(formattedPhone, input.message);
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const formattedPhone = `${input.phone}@s.whatsapp.net`;
+        result = await sendWhatsAppMessage(formattedPhone, input.message);
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "whatsapp.sendMessage",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: { phone: input.phone, messageLength: input.message.length },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   sendResetPasswordLink: publicProcedure
@@ -88,24 +116,51 @@ export const whatsappRouter = createTRPCRouter({
         phone: z.string(),
       }),
     )
-    .mutation(async ({ input }) => {
-      const user = await db.user.findFirst({
-        where: {
-          phone: input.phone,
-        },
-      });
-      if (!user) throw new Error("User not found");
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
-        expiresIn: "1h",
-      });
+      try {
+        const user = await db.user.findFirst({
+          where: {
+            phone: input.phone,
+          },
+        });
+        if (!user) throw new Error("User not found");
 
-      const link = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`;
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
+          expiresIn: "1h",
+        });
 
-      const formattedPhone = `${input.phone}@s.whatsapp.net`;
-      return sendWhatsAppMessage(
-        formattedPhone,
-        `Click to reset your password: ${link}`,
-      );
+        const link = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}`;
+
+        const formattedPhone = `${input.phone}@s.whatsapp.net`;
+        result = await sendWhatsAppMessage(
+          formattedPhone,
+          `Click to reset your password: ${link}`,
+        );
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "whatsapp.sendResetPasswordLink",
+          method: "POST",
+          userId: null,
+          requestData: { phone: input.phone },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 });

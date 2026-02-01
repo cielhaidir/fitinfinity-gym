@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Inventory transaction type enum values for validation
 const inventoryTransactionTypes = [
@@ -102,112 +103,139 @@ export const inventoryRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { itemId, type, stockType, quantity, reason, note, idempotencyKey } = input;
-      const userId = ctx.session.user.id;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      return ctx.db.$transaction(async (tx) => {
-        // Check idempotencyKey if provided (prevent duplicates)
-        if (idempotencyKey) {
-          const existingTransaction = await tx.inventoryTransaction.findUnique({
-            where: { idempotencyKey },
+      try {
+        const { itemId, type, stockType, quantity, reason, note, idempotencyKey } = input;
+        const userId = ctx.session.user.id;
+
+        result = await ctx.db.$transaction(async (tx) => {
+          // Check idempotencyKey if provided (prevent duplicates)
+          if (idempotencyKey) {
+            const existingTransaction = await tx.inventoryTransaction.findUnique({
+              where: { idempotencyKey },
+            });
+
+            if (existingTransaction) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message: "Duplicate adjustment request detected",
+              });
+            }
+          }
+
+          // Get current stock
+          const item = await tx.pOSItem.findUnique({
+            where: { id: itemId },
+            select: {
+              id: true,
+              name: true,
+              stock: true,
+              warehouseStock: true,
+              showcaseStock: true,
+            },
           });
 
-          if (existingTransaction) {
+          if (!item) {
             throw new TRPCError({
-              code: "CONFLICT",
-              message: "Duplicate adjustment request detected",
+              code: "NOT_FOUND",
+              message: "Item not found",
             });
           }
-        }
 
-        // Get current stock
-        const item = await tx.pOSItem.findUnique({
-          where: { id: itemId },
-          select: {
-            id: true,
-            name: true,
-            stock: true,
-            warehouseStock: true,
-            showcaseStock: true,
-          },
-        });
+          // Determine which stock field to use
+          const stockField = stockType === "warehouse" ? "warehouseStock" : "showcaseStock";
+          const currentStock = item[stockField];
+          let quantityAfter: number;
+          let adjustedQuantity: number;
 
-        if (!item) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Item not found",
+          if (type === "ADJUSTMENT_OUT") {
+            // For ADJUSTMENT_OUT, verify sufficient stock
+            if (currentStock < quantity) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Insufficient ${stockType} stock. Available: ${currentStock}, Requested: ${quantity}`,
+              });
+            }
+            quantityAfter = currentStock - quantity;
+            adjustedQuantity = -quantity; // Negative for decrease
+          } else {
+            // ADJUSTMENT_IN
+            quantityAfter = currentStock + quantity;
+            adjustedQuantity = quantity; // Positive for increase
+          }
+
+          // Update the specific stock field (and legacy stock field)
+          await tx.pOSItem.update({
+            where: { id: itemId },
+            data: {
+              [stockField]: quantityAfter,
+              stock: type === "ADJUSTMENT_IN"
+                ? { increment: quantity }
+                : { decrement: quantity },
+            },
           });
-        }
 
-        // Determine which stock field to use
-        const stockField = stockType === "warehouse" ? "warehouseStock" : "showcaseStock";
-        const currentStock = item[stockField];
-        let quantityAfter: number;
-        let adjustedQuantity: number;
-
-        if (type === "ADJUSTMENT_OUT") {
-          // For ADJUSTMENT_OUT, verify sufficient stock
-          if (currentStock < quantity) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: `Insufficient ${stockType} stock. Available: ${currentStock}, Requested: ${quantity}`,
-            });
-          }
-          quantityAfter = currentStock - quantity;
-          adjustedQuantity = -quantity; // Negative for decrease
-        } else {
-          // ADJUSTMENT_IN
-          quantityAfter = currentStock + quantity;
-          adjustedQuantity = quantity; // Positive for increase
-        }
-
-        // Update the specific stock field (and legacy stock field)
-        await tx.pOSItem.update({
-          where: { id: itemId },
-          data: {
-            [stockField]: quantityAfter,
-            stock: type === "ADJUSTMENT_IN"
-              ? { increment: quantity }
-              : { decrement: quantity },
-          },
-        });
-
-        // Create InventoryTransaction record
-        const transaction = await tx.inventoryTransaction.create({
-          data: {
-            itemId,
-            type,
-            quantity: adjustedQuantity,
-            quantityBefore: currentStock,
-            quantityAfter,
-            referenceType: "Adjustment",
-            stockType,
-            reason,
-            note,
-            userId,
-            idempotencyKey,
-          },
-          include: {
-            item: {
-              select: {
-                id: true,
-                name: true,
-                stock: true,
-                warehouseStock: true,
-                showcaseStock: true,
+          // Create InventoryTransaction record
+          const transaction = await tx.inventoryTransaction.create({
+            data: {
+              itemId,
+              type,
+              quantity: adjustedQuantity,
+              quantityBefore: currentStock,
+              quantityAfter,
+              referenceType: "Adjustment",
+              stockType,
+              reason,
+              note,
+              userId,
+              idempotencyKey,
+            },
+            include: {
+              item: {
+                select: {
+                  id: true,
+                  name: true,
+                  stock: true,
+                  warehouseStock: true,
+                  showcaseStock: true,
+                },
+              },
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
-            user: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        });
+          });
 
-        return transaction;
-      });
+          return transaction;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "inventory.createAdjustment",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Transfer stock from warehouse to showcase
@@ -220,68 +248,95 @@ export const inventoryRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.$transaction(async (tx) => {
-        const item = await tx.pOSItem.findUnique({
-          where: { id: input.itemId },
-          select: { 
-            id: true, 
-            name: true, 
-            warehouseStock: true, 
-            showcaseStock: true 
-          },
-        });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-        if (!item) {
-          throw new TRPCError({ 
-            code: "NOT_FOUND", 
-            message: "Item not found" 
-          });
-        }
-
-        if (item.warehouseStock < input.quantity) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Insufficient warehouse stock. Available: ${item.warehouseStock}`,
-          });
-        }
-
-        // Decrease warehouse, increase showcase
-        await tx.pOSItem.update({
-          where: { id: input.itemId },
-          data: {
-            warehouseStock: { decrement: input.quantity },
-            showcaseStock: { increment: input.quantity },
-          },
-        });
-
-        // Create two inventory transactions
-        await tx.inventoryTransaction.createMany({
-          data: [
-            {
-              itemId: input.itemId,
-              type: "TRANSFER_OUT",
-              quantity: -input.quantity,
-              quantityBefore: item.warehouseStock,
-              quantityAfter: item.warehouseStock - input.quantity,
-              stockType: "warehouse",
-              note: input.note ?? "Transfer to showcase",
-              userId: ctx.session.user.id,
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
+          const item = await tx.pOSItem.findUnique({
+            where: { id: input.itemId },
+            select: {
+              id: true,
+              name: true,
+              warehouseStock: true,
+              showcaseStock: true
             },
-            {
-              itemId: input.itemId,
-              type: "TRANSFER_IN",
-              quantity: input.quantity,
-              quantityBefore: item.showcaseStock,
-              quantityAfter: item.showcaseStock + input.quantity,
-              stockType: "showcase",
-              note: input.note ?? "Transfer from warehouse",
-              userId: ctx.session.user.id,
-            },
-          ],
-        });
+          });
 
-        return { success: true };
-      });
+          if (!item) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Item not found"
+            });
+          }
+
+          if (item.warehouseStock < input.quantity) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Insufficient warehouse stock. Available: ${item.warehouseStock}`,
+            });
+          }
+
+          // Decrease warehouse, increase showcase
+          await tx.pOSItem.update({
+            where: { id: input.itemId },
+            data: {
+              warehouseStock: { decrement: input.quantity },
+              showcaseStock: { increment: input.quantity },
+            },
+          });
+
+          // Create two inventory transactions
+          await tx.inventoryTransaction.createMany({
+            data: [
+              {
+                itemId: input.itemId,
+                type: "TRANSFER_OUT",
+                quantity: -input.quantity,
+                quantityBefore: item.warehouseStock,
+                quantityAfter: item.warehouseStock - input.quantity,
+                stockType: "warehouse",
+                note: input.note ?? "Transfer to showcase",
+                userId: ctx.session.user.id,
+              },
+              {
+                itemId: input.itemId,
+                type: "TRANSFER_IN",
+                quantity: input.quantity,
+                quantityBefore: item.showcaseStock,
+                quantityAfter: item.showcaseStock + input.quantity,
+                stockType: "showcase",
+                note: input.note ?? "Transfer from warehouse",
+                userId: ctx.session.user.id,
+              },
+            ],
+          });
+
+          return { success: true };
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "inventory.transferStock",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Get current stock levels with low stock alerts
@@ -520,77 +575,104 @@ export const inventoryRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { items, reason } = input;
-      const userId = ctx.session.user.id;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      return ctx.db.$transaction(async (tx) => {
-        const transactions = [];
-        let updatedCount = 0;
+      try {
+        const { items, reason } = input;
+        const userId = ctx.session.user.id;
 
-        for (const itemInput of items) {
-          const { itemId, actualStock, note } = itemInput;
+        result = await ctx.db.$transaction(async (tx) => {
+          const transactions = [];
+          let updatedCount = 0;
 
-          // Get current stock
-          const item = await tx.pOSItem.findUnique({
-            where: { id: itemId },
-          });
+          for (const itemInput of items) {
+            const { itemId, actualStock, note } = itemInput;
 
-          if (!item) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: `Item with ID ${itemId} not found`,
+            // Get current stock
+            const item = await tx.pOSItem.findUnique({
+              where: { id: itemId },
             });
-          }
 
-          const quantityBefore = item.stock;
-          const difference = actualStock - quantityBefore;
+            if (!item) {
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: `Item with ID ${itemId} not found`,
+              });
+            }
 
-          // Skip if no difference
-          if (difference === 0) {
-            continue;
-          }
+            const quantityBefore = item.stock;
+            const difference = actualStock - quantityBefore;
 
-          // Determine transaction type based on difference
-          const type = difference > 0 ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT";
+            // Skip if no difference
+            if (difference === 0) {
+              continue;
+            }
 
-          // Update POSItem.stock to actualStock
-          await tx.pOSItem.update({
-            where: { id: itemId },
-            data: { stock: actualStock },
-          });
+            // Determine transaction type based on difference
+            const type = difference > 0 ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT";
 
-          // Create InventoryTransaction
-          const transaction = await tx.inventoryTransaction.create({
-            data: {
-              itemId,
-              type,
-              quantity: difference,
-              quantityBefore,
-              quantityAfter: actualStock,
-              referenceType: "Adjustment",
-              reason,
-              note,
-              userId,
-            },
-            include: {
-              item: {
-                select: {
-                  id: true,
-                  name: true,
+            // Update POSItem.stock to actualStock
+            await tx.pOSItem.update({
+              where: { id: itemId },
+              data: { stock: actualStock },
+            });
+
+            // Create InventoryTransaction
+            const transaction = await tx.inventoryTransaction.create({
+              data: {
+                itemId,
+                type,
+                quantity: difference,
+                quantityBefore,
+                quantityAfter: actualStock,
+                referenceType: "Adjustment",
+                reason,
+                note,
+                userId,
+              },
+              include: {
+                item: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
                 },
               },
-            },
-          });
+            });
 
-          transactions.push(transaction);
-          updatedCount++;
-        }
+            transactions.push(transaction);
+            updatedCount++;
+          }
 
-        return {
-          updated: updatedCount,
-          transactions,
-        };
-      });
+          return {
+            updated: updatedCount,
+            transactions,
+          };
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "inventory.bulkStockTake",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Get stock report aggregated by category

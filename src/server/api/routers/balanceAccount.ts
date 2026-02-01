@@ -5,6 +5,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const balanceAccountRouter = createTRPCRouter({
   getAll: permissionProtectedProcedure(["list:balances"])
@@ -76,13 +77,41 @@ export const balanceAccountRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.balanceAccount.create({
-        data: {
-          name: input.name,
-          account_number: input.account_number,
-          initialBalance: input.initialBalance,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const account = await ctx.db.balanceAccount.create({
+          data: {
+            name: input.name,
+            account_number: input.account_number,
+            initialBalance: input.initialBalance,
+          },
+        });
+        result = account;
+        success = true;
+        return account;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "balanceAccount.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: permissionProtectedProcedure(["update:balances"])
@@ -95,43 +124,99 @@ export const balanceAccountRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const account = await ctx.db.balanceAccount.findUnique({
-        where: { id: input.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!account) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Balance account not found",
+      try {
+        const account = await ctx.db.balanceAccount.findUnique({
+          where: { id: input.id },
+        });
+
+        if (!account) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Balance account not found",
+          });
+        }
+
+        const updated = await ctx.db.balanceAccount.update({
+          where: { id: input.id },
+          data: {
+            name: input.name,
+            account_number: input.account_number,
+            initialBalance: input.initialBalance,
+          },
+        });
+        result = updated;
+        success = true;
+        return updated;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "balanceAccount.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      return await ctx.db.balanceAccount.update({
-        where: { id: input.id },
-        data: {
-          name: input.name,
-          account_number: input.account_number,
-          initialBalance: input.initialBalance,
-        },
-      });
     }),
 
   delete: permissionProtectedProcedure(["delete:balances"])
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const account = await ctx.db.balanceAccount.findUnique({
-        where: { id: input.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!account) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Balance account not found",
+      try {
+        const account = await ctx.db.balanceAccount.findUnique({
+          where: { id: input.id },
+        });
+
+        if (!account) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Balance account not found",
+          });
+        }
+
+        const deleted = await ctx.db.balanceAccount.delete({
+          where: { id: input.id },
+        });
+        result = deleted;
+        success = true;
+        return deleted;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "balanceAccount.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      return await ctx.db.balanceAccount.delete({
-        where: { id: input.id },
-      });
     }),
 });

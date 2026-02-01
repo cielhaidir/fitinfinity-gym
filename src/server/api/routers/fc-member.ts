@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "../trpc";
 import { type Prisma, type FcMember } from "@prisma/client";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const FCMemberStatus = {
   new: "new",
@@ -38,23 +39,50 @@ export const fcMemberRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Get the current user's FC ID
-      const fc = await ctx.db.fC.findFirst({
-        where: {
-          userId: ctx.session.user.id,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!fc) {
-        throw new Error("FC not found");
+      try {
+        // Get the current user's FC ID
+        const fc = await ctx.db.fC.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+          },
+        });
+
+        if (!fc) {
+          throw new Error("FC not found");
+        }
+
+        result = await ctx.db.fcMember.create({
+          data: {
+            ...input,
+            fc_id: fc.id,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "fcMember.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      return ctx.db.fcMember.create({
-        data: {
-          ...input,
-          fc_id: fc.id,
-        },
-      });
     }),
 
   // Get all FC Members for current FC
@@ -144,66 +172,120 @@ export const fcMemberRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const fc = await ctx.db.fC.findFirst({
-        where: {
-          userId: ctx.session.user.id,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!fc) {
-        throw new Error("FC not found");
+      try {
+        const fc = await ctx.db.fC.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+          },
+        });
+
+        if (!fc) {
+          throw new Error("FC not found");
+        }
+
+        const { id, ...updateData } = input;
+
+        const fcMember = await ctx.db.fcMember.findFirst({
+          where: {
+            id,
+            fc_id: fc.id,
+          },
+        });
+
+        if (!fcMember) {
+          throw new Error(
+            "FC Member not found or you don't have permission to update",
+          );
+        }
+
+        result = await ctx.db.fcMember.update({
+          where: { id },
+          data: updateData,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "fcMember.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      const { id, ...updateData } = input;
-
-      const fcMember = await ctx.db.fcMember.findFirst({
-        where: {
-          id,
-          fc_id: fc.id,
-        },
-      });
-
-      if (!fcMember) {
-        throw new Error(
-          "FC Member not found or you don't have permission to update",
-        );
-      }
-
-      return ctx.db.fcMember.update({
-        where: { id },
-        data: updateData,
-      });
     }),
 
   // Delete FC Member
   delete: permissionProtectedProcedure(["delete:fc-member"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const fc = await ctx.db.fC.findFirst({
-        where: {
-          userId: ctx.session.user.id,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!fc) {
-        throw new Error("FC not found");
+      try {
+        const fc = await ctx.db.fC.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+          },
+        });
+
+        if (!fc) {
+          throw new Error("FC not found");
+        }
+
+        const fcMember = await ctx.db.fcMember.findFirst({
+          where: {
+            id: input.id,
+            fc_id: fc.id,
+          },
+        });
+
+        if (!fcMember) {
+          throw new Error(
+            "FC Member not found or you don't have permission to delete",
+          );
+        }
+
+        result = await ctx.db.fcMember.delete({
+          where: { id: input.id },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "fcMember.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      const fcMember = await ctx.db.fcMember.findFirst({
-        where: {
-          id: input.id,
-          fc_id: fc.id,
-        },
-      });
-
-      if (!fcMember) {
-        throw new Error(
-          "FC Member not found or you don't have permission to delete",
-        );
-      }
-
-      return ctx.db.fcMember.delete({
-        where: { id: input.id },
-      });
     }),
 });

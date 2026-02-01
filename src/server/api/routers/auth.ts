@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { hash } from "bcryptjs";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const authRouter = createTRPCRouter({
   verifyResetToken: publicProcedure
@@ -38,35 +39,62 @@ export const authRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const user = await ctx.db.user.findFirst({
-        where: {
-          resetToken: input.token,
-          resetTokenExpiry: {
-            gt: new Date(),
-          },
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Reset token is invalid or has expired",
+      try {
+        const user = await ctx.db.user.findFirst({
+          where: {
+            resetToken: input.token,
+            resetTokenExpiry: {
+              gt: new Date(),
+            },
+          },
+        });
+
+        if (!user) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Reset token is invalid or has expired",
+          });
+        }
+
+        // Hash new password
+        const hashedPassword = await hash(input.password, 12);
+
+        // Update user password and clear reset token
+        await ctx.db.user.update({
+          where: { id: user.id },
+          data: {
+            password: hashedPassword,
+            resetToken: null,
+            resetTokenExpiry: null,
+          },
+        });
+
+        result = { success: true };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "auth.resetPassword",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: { token: input.token }, // Don't log password
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      // Hash new password
-      const hashedPassword = await hash(input.password, 12);
-
-      // Update user password and clear reset token
-      await ctx.db.user.update({
-        where: { id: user.id },
-        data: {
-          password: hashedPassword,
-          resetToken: null,
-          resetTokenExpiry: null,
-        },
-      });
-
-      return { success: true };
     }),
 });

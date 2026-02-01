@@ -5,6 +5,7 @@ import {
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { VoucherType } from "@prisma/client";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const voucherRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:voucher"])
@@ -187,35 +188,40 @@ export const voucherRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { voucherId } = input;
-
-      // Find the voucher
-      const voucher = await ctx.db.voucher.findFirst({
-        where: {
-          id: voucherId,
-          isActive: true,
-          OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
-        },
-      });
-
-      if (!voucher) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Voucher tidak ditemukan atau sudah tidak aktif",
-        });
-      }
-
-      // Check if voucher has reached max claim
-      if (voucher.maxClaim <= 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Voucher sudah mencapai batas klaim maksimum",
-        });
-      }
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
       try {
+        const { voucherId } = input;
+
+        // Find the voucher
+        const voucher = await ctx.db.voucher.findFirst({
+          where: {
+            id: voucherId,
+            isActive: true,
+            OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+          },
+        });
+
+        if (!voucher) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Voucher tidak ditemukan atau sudah tidak aktif",
+          });
+        }
+
+        // Check if voucher has reached max claim
+        if (voucher.maxClaim <= 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Voucher sudah mencapai batas klaim maksimum",
+          });
+        }
+
         // Use transaction to ensure both operations succeed or fail together
-        const result = await ctx.db.$transaction(async (tx) => {
+        const transactionResult = await ctx.db.$transaction(async (tx) => {
           // Create VoucherClaim
           await tx.voucherClaim.create({
             data: {
@@ -237,18 +243,39 @@ export const voucherRouter = createTRPCRouter({
           return updatedVoucher;
         });
 
-        return {
-          id: result.id,
-          name: result.name,
-          amount: result.amount,
-          discountType: result.discountType,
-          minimumPurchase: result.minimumPurchase,
-          allowStack: result.allowStack,
+        result = {
+          id: transactionResult.id,
+          name: transactionResult.name,
+          amount: transactionResult.amount,
+          discountType: transactionResult.discountType,
+          minimumPurchase: transactionResult.minimumPurchase,
+          allowStack: transactionResult.allowStack,
         };
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        if (err instanceof TRPCError) {
+          throw err;
+        }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Gagal mengklaim voucher",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "voucher.finalizeVoucherClaim",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -276,12 +303,39 @@ export const voucherRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.voucher.create({
-        data: {
-          ...input,
-          isActive: true,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.voucher.create({
+          data: {
+            ...input,
+            isActive: true,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "voucher.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: permissionProtectedProcedure(["update:voucher"])
@@ -301,19 +355,73 @@ export const voucherRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      return ctx.db.voucher.update({
-        where: { id },
-        data,
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const { id, ...data } = input;
+        result = await ctx.db.voucher.update({
+          where: { id },
+          data,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "voucher.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   delete: permissionProtectedProcedure(["delete:voucher"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.voucher.delete({
-        where: { id: input.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.voucher.delete({
+          where: { id: input.id },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "voucher.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   getGeneralVouchers: permissionProtectedProcedure(["list:voucher"]).query(

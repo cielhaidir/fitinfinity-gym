@@ -6,6 +6,7 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc";
 import { memberSchema } from "@/app/(authenticated)/personal-trainers/member-list/schema";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const personalTrainerRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:trainers"])
@@ -19,37 +20,64 @@ export const personalTrainerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
-        // Create the personal trainer record
-        const personalTrainer = await tx.personalTrainer.create({
-          data: {
-            userId: input.userId,
-            isActive: input.isActive ?? true,
-            description: input.description,
-            expertise: input.expertise,
-          },
-        });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-        // Find the "Personal Trainer" role
-        const personalTrainerRole = await tx.role.findFirst({
-          where: {
-            name: "Personal Trainer",
-          },
-        });
-
-
-        if (personalTrainerRole) {
-          await tx.user.update({
-            where: { id: input.userId },
-            data: { roles: { connect: { id: personalTrainerRole.id } } },
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
+          // Create the personal trainer record
+          const personalTrainer = await tx.personalTrainer.create({
+            data: {
+              userId: input.userId,
+              isActive: input.isActive ?? true,
+              description: input.description,
+              expertise: input.expertise,
+            },
           });
 
-        }
+          // Find the "Personal Trainer" role
+          const personalTrainerRole = await tx.role.findFirst({
+            where: {
+              name: "Personal Trainer",
+            },
+          });
 
-        
 
-        return personalTrainer;
-      });
+          if (personalTrainerRole) {
+            await tx.user.update({
+              where: { id: input.userId },
+              data: { roles: { connect: { id: personalTrainerRole.id } } },
+            });
+
+          }
+
+          
+
+          return personalTrainer;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "personalTrainer.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: permissionProtectedProcedure(["update:trainers"])
@@ -62,14 +90,41 @@ export const personalTrainerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.personalTrainer.update({
-        where: { id: input.id },
-        data: {
-          description: input.description,
-          expertise: input.expertise,
-          isActive: input.isActive,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.personalTrainer.update({
+          where: { id: input.id },
+          data: {
+            description: input.description,
+            expertise: input.expertise,
+            isActive: input.isActive,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "personalTrainer.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   getById: permissionProtectedProcedure(["show:trainers"])
@@ -137,27 +192,54 @@ export const personalTrainerRouter = createTRPCRouter({
   remove: permissionProtectedProcedure(["delete:trainers"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Use a transaction to ensure all related data is deleted properly
-      return ctx.db.$transaction(async (tx) => {
-        // First delete all trainer sessions
-        await tx.trainerSession.deleteMany({
-          where: { trainerId: input.id },
-        });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-        // Note: Class model doesn't have trainerId field, so this deletion is not needed
-        // Classes are not directly associated with trainers in the current schema
+      try {
+        // Use a transaction to ensure all related data is deleted properly
+        result = await ctx.db.$transaction(async (tx) => {
+          // First delete all trainer sessions
+          await tx.trainerSession.deleteMany({
+            where: { trainerId: input.id },
+          });
 
-        // Update subscriptions to remove trainer reference
-        await tx.subscription.updateMany({
-          where: { trainerId: input.id },
-          data: { trainerId: null },
-        });
+          // Note: Class model doesn't have trainerId field, so this deletion is not needed
+          // Classes are not directly associated with trainers in the current schema
 
-        // Finally delete the trainer
-        return tx.personalTrainer.delete({
-          where: { id: input.id },
+          // Update subscriptions to remove trainer reference
+          await tx.subscription.updateMany({
+            where: { trainerId: input.id },
+            data: { trainerId: null },
+          });
+
+          // Finally delete the trainer
+          return tx.personalTrainer.delete({
+            where: { id: input.id },
+          });
         });
-      });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "personalTrainer.remove",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   listAll: permissionProtectedProcedure(["list:trainers"]).query(
@@ -183,54 +265,74 @@ export const personalTrainerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("ctx.db:", ctx.db);
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      const trainer = await ctx.db.personalTrainer.findFirst({
-        where: {
-          userId: ctx.session.user.id,
-          isActive: true,
-        },
-      });
+      try {
+        console.log("ctx.db:", ctx.db);
 
-      console.log("Current user ID:", ctx.session.user.id);
-      console.log("Found trainer:", trainer);
-
-      if (!trainer) {
-        throw new Error(
-          "Trainer not found. Please make sure you are registered as an active trainer.",
-        );
-      }
-
-      return ctx.db.$transaction(async (tx) => {
-        // Create the trainer session
-        const session = await tx.trainerSession.create({
-          data: {
-            trainerId: trainer.id,
-            memberId: input.memberId,
-            date: input.date,
-            startTime: input.startTime,
-            endTime: input.endTime,
-            description: input.description,
+        const trainer = await ctx.db.personalTrainer.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+            isActive: true,
           },
         });
 
-        // If it's a group session, we need to decrease the remaining sessions
-        // from the lead subscription
-        if (input.isGroup && input.groupId) {
-          const groupSubscription = await tx.groupSubscription.findFirst({
-            where: {
-              id: input.groupId,
-            },
-            include: {
-              leadSubscription: true,
+        console.log("Current user ID:", ctx.session.user.id);
+        console.log("Found trainer:", trainer);
+
+        if (!trainer) {
+          throw new Error(
+            "Trainer not found. Please make sure you are registered as an active trainer.",
+          );
+        }
+
+        result = await ctx.db.$transaction(async (tx) => {
+          // Create the trainer session
+          const session = await tx.trainerSession.create({
+            data: {
+              trainerId: trainer.id,
+              memberId: input.memberId,
+              date: input.date,
+              startTime: input.startTime,
+              endTime: input.endTime,
+              description: input.description,
             },
           });
 
-          if (groupSubscription) {
-            // Decrease remaining sessions from the lead subscription
-            await tx.subscription.update({
+          // If it's a group session, we need to decrease the remaining sessions
+          // from the lead subscription
+          if (input.isGroup && input.groupId) {
+            const groupSubscription = await tx.groupSubscription.findFirst({
               where: {
-                id: groupSubscription.leadSubscriptionId,
+                id: input.groupId,
+              },
+              include: {
+                leadSubscription: true,
+              },
+            });
+
+            if (groupSubscription) {
+              // Decrease remaining sessions from the lead subscription
+              await tx.subscription.update({
+                where: {
+                  id: groupSubscription.leadSubscriptionId,
+                },
+                data: {
+                  remainingSessions: {
+                    decrement: 1,
+                  },
+                },
+              });
+            }
+          } else {
+            // For individual sessions, decrease remaining sessions from the member's subscription
+            await tx.subscription.updateMany({
+              where: {
+                memberId: input.memberId,
+                trainerId: trainer.id,
               },
               data: {
                 remainingSessions: {
@@ -239,23 +341,30 @@ export const personalTrainerRouter = createTRPCRouter({
               },
             });
           }
-        } else {
-          // For individual sessions, decrease remaining sessions from the member's subscription
-          await tx.subscription.updateMany({
-            where: {
-              memberId: input.memberId,
-              trainerId: trainer.id,
-            },
-            data: {
-              remainingSessions: {
-                decrement: 1,
-              },
-            },
-          });
-        }
 
-        return session;
-      });
+          return session;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "personalTrainer.createSession",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // For management to get members by specific trainer ID
@@ -542,71 +651,98 @@ export const personalTrainerRouter = createTRPCRouter({
   updateMember: protectedProcedure
     .input(memberSchema)
     .mutation(async ({ ctx, input }) => {
-      const trainer = await ctx.db.personalTrainer.findFirst({
-        where: {
-          userId: ctx.session.user.id,
-          isActive: true,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!trainer) {
-        throw new Error("Trainer not found or not active.");
+      try {
+        const trainer = await ctx.db.personalTrainer.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+            isActive: true,
+          },
+        });
+
+        if (!trainer) {
+          throw new Error("Trainer not found or not active.");
+        }
+
+        result = await ctx.db.$transaction(async (prisma) => {
+          // Update User details
+          await prisma.user.update({
+            where: { id: input.id },
+            data: {
+              name: input.name,
+              email: input.email,
+              phone: input.phone,
+              height: input.height,
+              weight: input.weight,
+            },
+          });
+
+          // Find Membership record using User.id
+          const membership = await prisma.membership.findUnique({
+            where: {
+              userId: input.id,
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          if (!membership) {
+            throw new Error("Membership not found for this user.");
+          }
+
+          // Update Subscription details
+          // We need to find the specific subscription for this member (Membership.id) with this trainer
+          const subscription = await prisma.subscription.findFirst({
+            where: {
+              memberId: membership.id,
+              trainerId: trainer.id,
+            },
+          });
+
+          if (!subscription) {
+            throw new Error(
+              "Subscription not found for this member with the current trainer.",
+            );
+          }
+
+          await prisma.subscription.update({
+            where: {
+              id: subscription.id,
+            },
+            data: {
+              remainingSessions: input.remainingSessions,
+              endDate: new Date(input.subscriptionEndDate),
+            },
+          });
+
+          return { success: true, message: "Member updated successfully" };
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "personalTrainer.updateMember",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      return ctx.db.$transaction(async (prisma) => {
-        // Update User details
-        await prisma.user.update({
-          where: { id: input.id },
-          data: {
-            name: input.name,
-            email: input.email,
-            phone: input.phone,
-            height: input.height,
-            weight: input.weight,
-          },
-        });
-
-        // Find Membership record using User.id
-        const membership = await prisma.membership.findUnique({
-          where: {
-            userId: input.id,
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        if (!membership) {
-          throw new Error("Membership not found for this user.");
-        }
-
-        // Update Subscription details
-        // We need to find the specific subscription for this member (Membership.id) with this trainer
-        const subscription = await prisma.subscription.findFirst({
-          where: {
-            memberId: membership.id,
-            trainerId: trainer.id,
-          },
-        });
-
-        if (!subscription) {
-          throw new Error(
-            "Subscription not found for this member with the current trainer.",
-          );
-        }
-
-        await prisma.subscription.update({
-          where: {
-            id: subscription.id,
-          },
-          data: {
-            remainingSessions: input.remainingSessions,
-            endDate: new Date(input.subscriptionEndDate),
-          },
-        });
-
-        return { success: true, message: "Member updated successfully" };
-      });
     }),
 
 

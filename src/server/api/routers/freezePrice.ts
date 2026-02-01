@@ -4,6 +4,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const freezePriceRouter = createTRPCRouter({
   /**
@@ -89,25 +90,52 @@ export const freezePriceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if a freeze price with the same freezeDays already exists
-      const existing = await ctx.db.freezePrice.findFirst({
-        where: { freezeDays: input.freezeDays },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (existing) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: `A freeze price for ${input.freezeDays} days already exists`,
+      try {
+        // Check if a freeze price with the same freezeDays already exists
+        const existing = await ctx.db.freezePrice.findFirst({
+          where: { freezeDays: input.freezeDays },
+        });
+
+        if (existing) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `A freeze price for ${input.freezeDays} days already exists`,
+          });
+        }
+
+        result = await ctx.db.freezePrice.create({
+          data: {
+            freezeDays: input.freezeDays,
+            price: input.price,
+            isActive: input.isActive,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "freezePrice.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      return ctx.db.freezePrice.create({
-        data: {
-          freezeDays: input.freezeDays,
-          price: input.price,
-          isActive: input.isActive,
-        },
-      });
     }),
 
   /**
@@ -123,41 +151,68 @@ export const freezePriceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Check if freeze price exists
-      const existing = await ctx.db.freezePrice.findUnique({
-        where: { id },
-      });
+      try {
+        const { id, ...updateData } = input;
 
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: `Freeze price with ID ${id} not found`,
-        });
-      }
-
-      // If updating freezeDays, check for conflicts
-      if (updateData.freezeDays && updateData.freezeDays !== existing.freezeDays) {
-        const conflict = await ctx.db.freezePrice.findFirst({
-          where: {
-            freezeDays: updateData.freezeDays,
-            id: { not: id },
-          },
+        // Check if freeze price exists
+        const existing = await ctx.db.freezePrice.findUnique({
+          where: { id },
         });
 
-        if (conflict) {
+        if (!existing) {
           throw new TRPCError({
-            code: "CONFLICT",
-            message: `A freeze price for ${updateData.freezeDays} days already exists`,
+            code: "NOT_FOUND",
+            message: `Freeze price with ID ${id} not found`,
           });
         }
-      }
 
-      return ctx.db.freezePrice.update({
-        where: { id },
-        data: updateData,
-      });
+        // If updating freezeDays, check for conflicts
+        if (updateData.freezeDays && updateData.freezeDays !== existing.freezeDays) {
+          const conflict = await ctx.db.freezePrice.findFirst({
+            where: {
+              freezeDays: updateData.freezeDays,
+              id: { not: id },
+            },
+          });
+
+          if (conflict) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `A freeze price for ${updateData.freezeDays} days already exists`,
+            });
+          }
+        }
+
+        result = await ctx.db.freezePrice.update({
+          where: { id },
+          data: updateData,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "freezePrice.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   /**
@@ -171,40 +226,67 @@ export const freezePriceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if freeze price exists
-      const existing = await ctx.db.freezePrice.findUnique({
-        where: { id: input.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: `Freeze price with ID ${input.id} not found`,
-        });
-      }
-
-      // Check if any freeze operations are using this price
-      const usageCount = await ctx.db.freezeOperation.count({
-        where: { freezePriceId: input.id },
-      });
-
-      if (usageCount > 0 && input.hardDelete) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: `Cannot delete freeze price with ${usageCount} associated freeze operations. Use soft delete instead.`,
-        });
-      }
-
-      if (input.hardDelete) {
-        // Hard delete - only if no operations reference it
-        return ctx.db.freezePrice.delete({
+      try {
+        // Check if freeze price exists
+        const existing = await ctx.db.freezePrice.findUnique({
           where: { id: input.id },
         });
-      } else {
-        // Soft delete - set isActive to false
-        return ctx.db.freezePrice.update({
-          where: { id: input.id },
-          data: { isActive: false },
+
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Freeze price with ID ${input.id} not found`,
+          });
+        }
+
+        // Check if any freeze operations are using this price
+        const usageCount = await ctx.db.freezeOperation.count({
+          where: { freezePriceId: input.id },
+        });
+
+        if (usageCount > 0 && input.hardDelete) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Cannot delete freeze price with ${usageCount} associated freeze operations. Use soft delete instead.`,
+          });
+        }
+
+        if (input.hardDelete) {
+          // Hard delete - only if no operations reference it
+          result = await ctx.db.freezePrice.delete({
+            where: { id: input.id },
+          });
+        } else {
+          // Soft delete - set isActive to false
+          result = await ctx.db.freezePrice.update({
+            where: { id: input.id },
+            data: { isActive: false },
+          });
+        }
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "freezePrice.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),

@@ -4,6 +4,7 @@ import {
   publicProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const classTypeRouter = createTRPCRouter({
   // Public procedure to list all active class types
@@ -75,6 +76,11 @@ export const classTypeRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const classType = await ctx.db.classType.create({
           data: {
@@ -82,9 +88,27 @@ export const classTypeRouter = createTRPCRouter({
             name: input.name.toLowerCase(),
           },
         });
+        result = classType;
+        success = true;
         return classType;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         throw new Error("Failed to create class type");
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "classType.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
@@ -101,8 +125,13 @@ export const classTypeRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
+        const { id, ...data } = input;
         const updateData = { ...data };
         if (data.name) {
           updateData.name = data.name.toLowerCase();
@@ -112,9 +141,27 @@ export const classTypeRouter = createTRPCRouter({
           where: { id },
           data: updateData,
         });
+        result = classType;
+        success = true;
         return classType;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         throw new Error("Failed to update class type");
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "classType.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
@@ -122,14 +169,37 @@ export const classTypeRouter = createTRPCRouter({
   delete: permissionProtectedProcedure(["delete:classes"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const classType = await ctx.db.classType.update({
           where: { id: input.id },
           data: { isActive: false },
         });
+        result = classType;
+        success = true;
         return classType;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         throw new Error("Failed to delete class type");
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "classType.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 });

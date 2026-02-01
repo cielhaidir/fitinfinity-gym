@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const posCategoryRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:pos-category"])
@@ -70,9 +71,36 @@ export const posCategoryRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.pOSCategory.create({
-        data: input,
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.pOSCategory.create({
+          data: input,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "posCategory.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: permissionProtectedProcedure(["update:pos-category"])
@@ -85,28 +113,82 @@ export const posCategoryRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      return ctx.db.pOSCategory.update({
-        where: { id },
-        data,
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const { id, ...data } = input;
+        result = await ctx.db.pOSCategory.update({
+          where: { id },
+          data,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "posCategory.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   delete: permissionProtectedProcedure(["delete:pos-category"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Check if category has items
-      const itemCount = await ctx.db.pOSItem.count({
-        where: { categoryId: input.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (itemCount > 0) {
-        throw new Error("Cannot delete category with existing items");
+      try {
+        // Check if category has items
+        const itemCount = await ctx.db.pOSItem.count({
+          where: { categoryId: input.id },
+        });
+
+        if (itemCount > 0) {
+          throw new Error("Cannot delete category with existing items");
+        }
+
+        result = await ctx.db.pOSCategory.delete({
+          where: { id: input.id },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "posCategory.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      return ctx.db.pOSCategory.delete({
-        where: { id: input.id },
-      });
     }),
 
   getAll: permissionProtectedProcedure(["list:pos-category"])

@@ -5,6 +5,7 @@ import { runPaddleOCRMultiple } from "@/lib/paddleOcrClient";
 import { parseOCRText } from "@/server/utils/ocrParser";
 import { createAIService } from "@/server/utils/aiService";
 import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLimitService";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Helper function to check if user has active membership
 async function checkActiveMembership(db: any, userId: string) {
@@ -231,6 +232,11 @@ export const trackingRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const trackingRecord = await ctx.db.trackingUser.create({
           data: {
@@ -252,17 +258,35 @@ export const trackingRouter = createTRPCRouter({
           }
         });
 
-        return {
+        result = {
           success: true,
           data: trackingRecord
         };
-      } catch (error) {
-        console.error('Save tracking error:', error);
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        console.error('Save tracking error:', err);
+        success = false;
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to save tracking data',
+          error: err instanceof Error ? err.message : 'Failed to save tracking data',
           data: null
         };
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "tracking.createTracking",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
@@ -353,6 +377,11 @@ export const trackingRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const trackingRecord = await ctx.db.trackingUser.updateMany({
           where: { 
@@ -389,17 +418,35 @@ export const trackingRouter = createTRPCRouter({
           }
         });
 
-        return {
+        result = {
           success: true,
           data: updatedRecord
         };
-      } catch (error) {
-        console.error('Update tracking error:', error);
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        console.error('Update tracking error:', err);
+        success = false;
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to update tracking data',
+          error: err instanceof Error ? err.message : 'Failed to update tracking data',
           data: null
         };
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "tracking.updateTracking",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
@@ -407,6 +454,11 @@ export const trackingRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const deletedRecord = await ctx.db.trackingUser.deleteMany({
           where: { 
@@ -419,17 +471,35 @@ export const trackingRouter = createTRPCRouter({
           throw new Error('Tracking record not found or access denied');
         }
 
-        return {
+        result = {
           success: true,
           message: 'Tracking record deleted successfully'
         };
-      } catch (error) {
-        console.error('Delete tracking error:', error);
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        console.error('Delete tracking error:', err);
+        success = false;
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to delete tracking data',
+          error: err instanceof Error ? err.message : 'Failed to delete tracking data',
           data: null
         };
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "tracking.deleteTracking",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 });

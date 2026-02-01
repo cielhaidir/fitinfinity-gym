@@ -11,6 +11,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const trainerSessionRouter = createTRPCRouter({
   // For management to create schedule with trainer selection
@@ -29,95 +30,121 @@ export const trainerSessionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("Creating schedule for trainer:", input.trainerId);
+      const startTime = Date.now();
+      let success = false;
+      let result;
 
-      // Verify trainer exists and is active
-      const trainer = await ctx.db.personalTrainer.findFirst({
-        where: {
-          id: input.trainerId,
-          isActive: true,
-        },
-      });
+      try {
+        console.log("Creating schedule for trainer:", input.trainerId);
 
-      if (!trainer) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Trainer not found or not active",
+        // Verify trainer exists and is active
+        const trainer = await ctx.db.personalTrainer.findFirst({
+          where: {
+            id: input.trainerId,
+            isActive: true,
+          },
         });
-      }
 
-      // Get the member's subscription with this trainer
-      const subscription = await ctx.db.subscription.findFirst({
-        where: {
-          memberId: input.memberId,
-          trainerId: trainer.id,
-        },
-        orderBy: {
-          remainingSessions: "desc",
-        },
-        include: {
-          package: true,
-        },
-      });
-
-      if (!subscription) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Member does not have a subscription with this trainer",
-        });
-      }
-
-      if (
-        !subscription.remainingSessions ||
-        subscription.remainingSessions <= 0
-      ) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Member tidak memiliki sisa sesi yang tersedia",
-        });
-      }
-
-      // Validate attendance count against package maxUsers for group sessions
-      if (input.isGroup && input.attendanceCount && subscription.package?.maxUsers) {
-        if (input.attendanceCount > subscription.package.maxUsers) {
+        if (!trainer) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+            code: "NOT_FOUND",
+            message: "Trainer not found or not active",
           });
         }
-      }
 
-      // Create the training session and decrement remaining sessions in a transaction
-      return ctx.db.$transaction(async (tx) => {
-        // Create the session
-        const session = await tx.trainerSession.create({
-          data: {
-            trainerId: trainer.id,
-            memberId: input.memberId,
-            date: input.date,
-            startTime: input.startTime,
-            endTime: input.endTime,
-            description: input.description,
-            isGroup: input.isGroup || false,
-            attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
-            status: input.status || "NOT_YET",
-          },
-        });
-
-        // Decrement remaining sessions
-        await tx.subscription.update({
+        // Get the member's subscription with this trainer
+        const subscription = await ctx.db.subscription.findFirst({
           where: {
-            id: subscription.id,
+            memberId: input.memberId,
+            trainerId: trainer.id,
           },
-          data: {
-            remainingSessions: {
-              decrement: 1,
-            },
+          orderBy: {
+            remainingSessions: "desc",
+          },
+          include: {
+            package: true,
           },
         });
 
-        return session;
-      });
+        if (!subscription) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member does not have a subscription with this trainer",
+          });
+        }
+
+        if (
+          !subscription.remainingSessions ||
+          subscription.remainingSessions <= 0
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Member tidak memiliki sisa sesi yang tersedia",
+          });
+        }
+
+        // Validate attendance count against package maxUsers for group sessions
+        if (input.isGroup && input.attendanceCount && subscription.package?.maxUsers) {
+          if (input.attendanceCount > subscription.package.maxUsers) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+            });
+          }
+        }
+
+        // Create the training session and decrement remaining sessions in a transaction
+        result = await ctx.db.$transaction(async (tx) => {
+          // Create the session
+          const session = await tx.trainerSession.create({
+            data: {
+              trainerId: trainer.id,
+              memberId: input.memberId,
+              date: input.date,
+              startTime: input.startTime,
+              endTime: input.endTime,
+              description: input.description,
+              isGroup: input.isGroup || false,
+              attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
+              status: input.status || "NOT_YET",
+            },
+          });
+
+          // Decrement remaining sessions
+          await tx.subscription.update({
+            where: {
+              id: subscription.id,
+            },
+            data: {
+              remainingSessions: {
+                decrement: 1,
+              },
+            },
+          });
+
+          return session;
+        });
+
+        success = true;
+        return result;
+      } catch (error) {
+        success = false;
+        throw error;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "trainerSession.createSchedule",
+          method: "POST",
+          userId: ctx.session.user.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: success ? null : "Failed to create schedule",
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   create: permissionProtectedProcedure(["create:session"])
@@ -133,114 +160,140 @@ export const trainerSessionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("Creating session for member:", input.memberId);
+      const startTime = Date.now();
+      let success = false;
+      let result;
 
-      // Get the trainer ID for the current user
-      const trainer = await ctx.db.personalTrainer.findFirst({
-        where: {
-          userId: ctx.session.user.id,
-          isActive: true,
-        },
-      });
+      try {
+        console.log("Creating session for member:", input.memberId);
 
-      if (!trainer) {
-        console.log("Trainer not found or not active");
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Trainer not found or not active",
+        // Get the trainer ID for the current user
+        const trainer = await ctx.db.personalTrainer.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+            isActive: true,
+          },
         });
-      }
 
-      console.log("Found trainer:", trainer.id);
-
-      // Get the member's subscription
-      const subscription = await ctx.db.subscription.findFirst({
-        where: {
-          memberId: input.memberId,
-          trainerId: trainer.id,
-        },
-        orderBy: {
-          remainingSessions: "desc",
-        },
-        include: {
-          package: true,
-        },
-      });
-
-      if (!subscription) {
-        console.log("No subscription found for member");
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Member does not have a subscription with this trainer",
-        });
-      }
-
-      console.log("Found subscription:", {
-        id: subscription.id,
-        remainingSessions: subscription.remainingSessions,
-        endDate: subscription.endDate,
-      });
-
-      if (
-        !subscription.remainingSessions ||
-        subscription.remainingSessions <= 0
-      ) {
-        console.log("No remaining sessions:", subscription.remainingSessions);
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Member tidak memiliki sisa sesi yang tersedia",
-        });
-      }
-
-      // Validate attendance count against package maxUsers for group sessions
-      if (input.isGroup && input.attendanceCount && subscription.package?.maxUsers) {
-        if (input.attendanceCount > subscription.package.maxUsers) {
+        if (!trainer) {
+          console.log("Trainer not found or not active");
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+            code: "NOT_FOUND",
+            message: "Trainer not found or not active",
           });
         }
-      }
 
-      // Create the training session and decrement remaining sessions in a transaction
-      return ctx.db.$transaction(async (tx) => {
-        console.log("Starting transaction");
+        console.log("Found trainer:", trainer.id);
 
-        // Create the session
-        const session = await tx.trainerSession.create({
-          data: {
-            trainerId: trainer.id,
-            memberId: input.memberId,
-            date: input.date,
-            startTime: input.startTime,
-            endTime: input.endTime,
-            description: input.description,
-            isGroup: input.isGroup || false,
-            attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
-          },
-        });
-
-        console.log("Session created:", session.id);
-
-        // Decrement remaining sessions
-        const updatedSubscription = await tx.subscription.update({
+        // Get the member's subscription
+        const subscription = await ctx.db.subscription.findFirst({
           where: {
-            id: subscription.id,
+            memberId: input.memberId,
+            trainerId: trainer.id,
           },
-          data: {
-            remainingSessions: {
-              decrement: 1,
+          orderBy: {
+            remainingSessions: "desc",
+          },
+          include: {
+            package: true,
+          },
+        });
+
+        if (!subscription) {
+          console.log("No subscription found for member");
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member does not have a subscription with this trainer",
+          });
+        }
+
+        console.log("Found subscription:", {
+          id: subscription.id,
+          remainingSessions: subscription.remainingSessions,
+          endDate: subscription.endDate,
+        });
+
+        if (
+          !subscription.remainingSessions ||
+          subscription.remainingSessions <= 0
+        ) {
+          console.log("No remaining sessions:", subscription.remainingSessions);
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Member tidak memiliki sisa sesi yang tersedia",
+          });
+        }
+
+        // Validate attendance count against package maxUsers for group sessions
+        if (input.isGroup && input.attendanceCount && subscription.package?.maxUsers) {
+          if (input.attendanceCount > subscription.package.maxUsers) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+            });
+          }
+        }
+
+        // Create the training session and decrement remaining sessions in a transaction
+        result = await ctx.db.$transaction(async (tx) => {
+          console.log("Starting transaction");
+
+          // Create the session
+          const session = await tx.trainerSession.create({
+            data: {
+              trainerId: trainer.id,
+              memberId: input.memberId,
+              date: input.date,
+              startTime: input.startTime,
+              endTime: input.endTime,
+              description: input.description,
+              isGroup: input.isGroup || false,
+              attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
             },
-          },
+          });
+
+          console.log("Session created:", session.id);
+
+          // Decrement remaining sessions
+          const updatedSubscription = await tx.subscription.update({
+            where: {
+              id: subscription.id,
+            },
+            data: {
+              remainingSessions: {
+                decrement: 1,
+              },
+            },
+          });
+
+          console.log("Updated subscription:", {
+            id: updatedSubscription.id,
+            remainingSessions: updatedSubscription.remainingSessions,
+          });
+
+          return session;
         });
 
-        console.log("Updated subscription:", {
-          id: updatedSubscription.id,
-          remainingSessions: updatedSubscription.remainingSessions,
+        success = true;
+        return result;
+      } catch (error) {
+        success = false;
+        throw error;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "trainerSession.create",
+          method: "POST",
+          userId: ctx.session.user.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: success ? null : "Failed to create session",
+          duration: Date.now() - startTime,
         });
-
-        return session;
-      });
+      }
     }),
 
     getAll: permissionProtectedProcedure(["list:session"]).query(
@@ -454,43 +507,69 @@ export const trainerSessionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Get the trainer ID for the current user
-      const trainer = await ctx.db.personalTrainer.findFirst({
-        where: {
+      const startTime = Date.now();
+      let success = false;
+      let result;
+
+      try {
+        // Get the trainer ID for the current user
+        const trainer = await ctx.db.personalTrainer.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+            isActive: true,
+          },
+        });
+
+        if (!trainer) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Trainer not found or not active",
+          });
+        }
+
+        // Check if the session belongs to this trainer
+        const session = await ctx.db.trainerSession.findFirst({
+          where: {
+            id: input.id,
+            trainerId: trainer.id,
+          },
+        });
+
+        if (!session) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message:
+              "Session not found or you do not have permission to delete it",
+          });
+        }
+
+        // Delete the session
+        result = await ctx.db.trainerSession.delete({
+          where: {
+            id: input.id,
+          },
+        });
+
+        success = true;
+        return result;
+      } catch (error) {
+        success = false;
+        throw error;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "trainerSession.delete",
+          method: "DELETE",
           userId: ctx.session.user.id,
-          isActive: true,
-        },
-      });
-
-      if (!trainer) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Trainer not found or not active",
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: success ? null : "Failed to delete session",
+          duration: Date.now() - startTime,
         });
       }
-
-      // Check if the session belongs to this trainer
-      const session = await ctx.db.trainerSession.findFirst({
-        where: {
-          id: input.id,
-          trainerId: trainer.id,
-        },
-      });
-
-      if (!session) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message:
-            "Session not found or you do not have permission to delete it",
-        });
-      }
-
-      // Delete the session
-      return ctx.db.trainerSession.delete({
-        where: {
-          id: input.id,
-        },
-      });
     }),
 
   update: permissionProtectedProcedure(["edit:session"])
@@ -508,16 +587,20 @@ export const trainerSessionRouter = createTRPCRouter({
     )
     
     .mutation(async ({ ctx, input }) => {
-      console.log("Received update mutation:", {
-        id: input.id,
-        date: input.date.toISOString(),
-        startTime: input.startTime.toISOString(),
-        endTime: input.endTime.toISOString(),
-        status: input.status,
-        exerciseResult: input.exerciseResult,
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result;
 
       try {
+        console.log("Received update mutation:", {
+          id: input.id,
+          date: input.date.toISOString(),
+          startTime: input.startTime.toISOString(),
+          endTime: input.endTime.toISOString(),
+          status: input.status,
+          exerciseResult: input.exerciseResult,
+        });
+
         // Verify the trainer owns this session
         const existingSession = await ctx.db.trainerSession.findFirst({
           where: {
@@ -551,7 +634,7 @@ export const trainerSessionRouter = createTRPCRouter({
         });
 
         // Update the session
-        const updatedSession = await ctx.db.trainerSession.update({
+        result = await ctx.db.trainerSession.update({
           where: { id: input.id },
           data: {
             date: updateDate,
@@ -569,14 +652,30 @@ export const trainerSessionRouter = createTRPCRouter({
           },
         });
 
-        console.log("Update successful:", updatedSession);
-        return updatedSession;
+        console.log("Update successful:", result);
+        success = true;
+        return result;
       } catch (error) {
+        success = false;
         console.error("Error in update mutation:", error);
         if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Gagal mengupdate sesi",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "trainerSession.update",
+          method: "PATCH",
+          userId: ctx.session.user.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: success ? null : "Failed to update session",
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -808,66 +907,94 @@ export const trainerSessionRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Get the trainer ID for the current user
-      const trainer = await ctx.db.personalTrainer.findFirst({
-        where: {
-          userId: ctx.session.user.id,
-          isActive: true,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result;
+      let error: Error | null = null;
 
-      if (!trainer) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Trainer not found or not active",
+      try {
+        // Get the trainer ID for the current user
+        const trainer = await ctx.db.personalTrainer.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+            isActive: true,
+          },
         });
-      }
 
-      // Verify the trainer owns this session
-      const existingSession = await ctx.db.trainerSession.findFirst({
-        where: {
-          id: input.sessionId,
-          trainerId: trainer.id,
-        },
-        include: {
-          member: true,
+        if (!trainer) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Trainer not found or not active",
+          });
         }
-      });
 
-      if (!existingSession) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Session not found or you do not have permission to edit it",
+        // Verify the trainer owns this session
+        const existingSession = await ctx.db.trainerSession.findFirst({
+          where: {
+            id: input.sessionId,
+            trainerId: trainer.id,
+          },
+          include: {
+            member: true,
+          }
+        });
+
+        if (!existingSession) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Session not found or you do not have permission to edit it",
+          });
+        }
+
+        // Validate attendance count against package maxUsers
+        const subscription = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: existingSession.memberId,
+            trainerId: trainer.id,
+            isActive: true,
+          },
+          include: {
+            package: true,
+          },
+        });
+
+        if (subscription?.package?.maxUsers && input.attendanceCount > subscription.package.maxUsers) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
+          });
+        }
+
+        // Update the session
+        result = await ctx.db.trainerSession.update({
+          where: { id: input.sessionId },
+          data: {
+            attendanceCount: input.attendanceCount,
+            isGroup: input.isGroup ?? true,
+          },
+        });
+
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "trainerSession.updateSessionAttendance",
+          method: "PATCH",
+          userId: ctx.session.user.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      // Validate attendance count against package maxUsers
-      const subscription = await ctx.db.subscription.findFirst({
-        where: {
-          memberId: existingSession.memberId,
-          trainerId: trainer.id,
-          isActive: true,
-        },
-        include: {
-          package: true,
-        },
-      });
-
-      if (subscription?.package?.maxUsers && input.attendanceCount > subscription.package.maxUsers) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Attendance count cannot exceed package limit of ${subscription.package.maxUsers} users`,
-        });
-      }
-
-      // Update the session
-      return ctx.db.trainerSession.update({
-        where: { id: input.sessionId },
-        data: {
-          attendanceCount: input.attendanceCount,
-          isGroup: input.isGroup ?? true,
-        },
-      });
     }),
 
   // Admin endpoint to get all trainer sessions with filters

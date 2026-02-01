@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
 import { configService } from "@/lib/config/configService";
 import { TRPCError } from "@trpc/server";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const configRouter = createTRPCRouter({
   getAll: permissionProtectedProcedure(["list:config"]).query(async ({ ctx }) => {
@@ -25,20 +26,74 @@ export const configRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check for admin permission
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      await configService.set(
-        input.key,
-        input.value,
-        input.category ?? 'default' // Use 'default' as fallback category
-      );
+      try {
+        // Check for admin permission
 
-      return { success: true };
+        await configService.set(
+          input.key,
+          input.value,
+          input.category ?? 'default' // Use 'default' as fallback category
+        );
+
+        result = { success: true };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "config.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   resetToDefaults: permissionProtectedProcedure(["update:config"]).mutation(async ({ ctx }) => {
-    await configService.initializeDefaults();
+    const startTime = Date.now();
+    let success = false;
+    let result: any = null;
+    let error: Error | null = null;
 
-    return { success: true };
+    try {
+      await configService.initializeDefaults();
+
+      result = { success: true };
+      success = true;
+      return result;
+    } catch (err) {
+      error = err as Error;
+      success = false;
+      throw err;
+    } finally {
+      await logApiMutation({
+        db: ctx.db,
+        endpoint: "config.resetToDefaults",
+        method: "POST",
+        userId: ctx.session?.user?.id,
+        requestData: {},
+        responseData: success ? result : null,
+        ipAddress: extractIpAddress(ctx.headers),
+        userAgent: extractUserAgent(ctx.headers),
+        success,
+        errorMessage: error?.message,
+        duration: Date.now() - startTime,
+      });
+    }
   }),
 });

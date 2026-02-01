@@ -7,6 +7,7 @@ import {
 } from "@/server/api/trpc";
 import { uploadFile } from "@/lib/upload";
 import bcrypt from "bcryptjs";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const profileRouter = createTRPCRouter({
   get: permissionProtectedProcedure(["show:profile"])
@@ -112,19 +113,46 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.user.update({
-        where: { id: ctx.session.user.id },
-        data: {
-          name: input.name,
-          phone: input.phone,
-          address: input.address,
-          birthDate: input.birthDate,
-          image: input.image,
-          height: input.height,
-          weight: input.weight,
-          gender: input.gender,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.user.update({
+          where: { id: ctx.session.user.id },
+          data: {
+            name: input.name,
+            phone: input.phone,
+            address: input.address,
+            birthDate: input.birthDate,
+            image: input.image,
+            height: input.height,
+            weight: input.weight,
+            gender: input.gender,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   uploadImage: permissionProtectedProcedure(["update:profile"])
@@ -139,6 +167,11 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         // Generate a temporary filename
         const tempFileName = `profile-${Date.now()}.jpg`;
@@ -152,13 +185,31 @@ export const profileRouter = createTRPCRouter({
           data: { image: imageUrl },
         });
 
-        return { imageUrl };
-      } catch (error) {
+        result = { imageUrl };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
         console.error("Profile image upload error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
             error instanceof Error ? error.message : "Failed to upload image",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.uploadImage",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: { fileSize: input.file.length },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -175,6 +226,11 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         // Check if user is a PT
         const pt = await ctx.db.personalTrainer.findFirst({
@@ -203,8 +259,12 @@ export const profileRouter = createTRPCRouter({
           data: { image: imageUrl },
         });
 
-        return { imageUrl };
-      } catch (error) {
+        result = { imageUrl };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
         console.error("PT profile image upload error:", error);
         if (error instanceof TRPCError) {
           throw error;
@@ -213,6 +273,20 @@ export const profileRouter = createTRPCRouter({
           code: "INTERNAL_SERVER_ERROR",
           message:
             error instanceof Error ? error.message : "Failed to upload image",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.uploadPTPhoto",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: { fileSize: input.file.length },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -227,42 +301,69 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const user = await ctx.db.user.findUnique({
-        where: { id: ctx.session.user.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
+      try {
+        const user = await ctx.db.user.findUnique({
+          where: { id: ctx.session.user.id },
+        });
+
+        if (!user) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
+
+        // Verify current password
+        const isPasswordValid = await bcrypt.compare(
+          input.currentPassword,
+          user.password!,
+        );
+
+        if (!isPasswordValid) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Current password is incorrect",
+          });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(input.newPassword, 10);
+
+        // Update password
+        await ctx.db.user.update({
+          where: { id: ctx.session.user.id },
+          data: {
+            password: hashedPassword,
+          },
+        });
+
+        result = { success: true };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.changePassword",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: { hasCurrentPassword: !!input.currentPassword },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      // Verify current password
-      const isPasswordValid = await bcrypt.compare(
-        input.currentPassword,
-        user.password!,
-      );
-
-      if (!isPasswordValid) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Current password is incorrect",
-        });
-      }
-
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(input.newPassword, 10);
-
-      // Update password
-      await ctx.db.user.update({
-        where: { id: ctx.session.user.id },
-        data: {
-          password: hashedPassword,
-        },
-      });
-
-      return { success: true };
     }),
 
   // Admin endpoint to update member points
@@ -274,24 +375,51 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Find the membership to get the user ID
-      const membership = await ctx.db.membership.findUnique({
-        where: { id: input.memberId },
-        include: { user: true },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!membership) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Member not found",
+      try {
+        // Find the membership to get the user ID
+        const membership = await ctx.db.membership.findUnique({
+          where: { id: input.memberId },
+          include: { user: true },
+        });
+
+        if (!membership) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member not found",
+          });
+        }
+
+        // Update the user's points
+        result = await ctx.db.user.update({
+          where: { id: membership.userId },
+          data: { point: input.points },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.updatePoints",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      // Update the user's points
-      return ctx.db.user.update({
-        where: { id: membership.userId },
-        data: { point: input.points },
-      });
     }),
 
   // Admin endpoint to update member profiles
@@ -310,25 +438,52 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Find the membership to get the user ID
-      const membership = await ctx.db.membership.findUnique({
-        where: { id: input.memberId },
-        include: { user: true },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!membership) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Member not found",
+      try {
+        // Find the membership to get the user ID
+        const membership = await ctx.db.membership.findUnique({
+          where: { id: input.memberId },
+          include: { user: true },
+        });
+
+        if (!membership) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member not found",
+          });
+        }
+
+        const { memberId, ...updateData } = input;
+
+        result = await ctx.db.user.update({
+          where: { id: membership.userId },
+          data: updateData,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.updateMember",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      const { memberId, ...updateData } = input;
-
-      return ctx.db.user.update({
-        where: { id: membership.userId },
-        data: updateData,
-      });
     }),
 
   // Admin endpoint to change password without requiring current password
@@ -342,36 +497,63 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      let userId = ctx.session.user.id;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // If memberId is provided, admin is changing another user's password
-      if (input.memberId) {
-        const membership = await ctx.db.membership.findUnique({
-          where: { id: input.memberId },
-        });
+      try {
+        let userId = ctx.session.user.id;
 
-        if (!membership) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Member not found",
+        // If memberId is provided, admin is changing another user's password
+        if (input.memberId) {
+          const membership = await ctx.db.membership.findUnique({
+            where: { id: input.memberId },
           });
+
+          if (!membership) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Member not found",
+            });
+          }
+
+          userId = membership.userId;
         }
 
-        userId = membership.userId;
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(input.newPassword, 10);
+
+        // Update password
+        await ctx.db.user.update({
+          where: { id: userId },
+          data: {
+            password: hashedPassword,
+          },
+        });
+
+        result = { success: true };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.adminChangePassword",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: { memberId: input.memberId },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(input.newPassword, 10);
-
-      // Update password
-      await ctx.db.user.update({
-        where: { id: userId },
-        data: {
-          password: hashedPassword,
-        },
-      });
-
-      return { success: true };
     }),
 
   // Account transfer functionality
@@ -383,51 +565,78 @@ export const profileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
-        // Find the target user by email
-        const toUser = await tx.user.findUnique({
-          where: { email: input.toUserEmail },
-        });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-        if (!toUser) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Target user not found",
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
+          // Find the target user by email
+          const toUser = await tx.user.findUnique({
+            where: { email: input.toUserEmail },
           });
-        }
 
-        // Find the from user's account records
-        const fromAccounts = await tx.account.findMany({
-          where: { userId: input.fromUserId },
-        });
+          if (!toUser) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Target user not found",
+            });
+          }
 
-        if (fromAccounts.length === 0) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "No accounts found for the source user",
+          // Find the from user's account records
+          const fromAccounts = await tx.account.findMany({
+            where: { userId: input.fromUserId },
           });
-        }
 
-        // Transfer all accounts to the new user
-        for (const account of fromAccounts) {
-          await tx.account.update({
-            where: { id: account.id },
+          if (fromAccounts.length === 0) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "No accounts found for the source user",
+            });
+          }
+
+          // Transfer all accounts to the new user
+          for (const account of fromAccounts) {
+            await tx.account.update({
+              where: { id: account.id },
+              data: { userId: toUser.id },
+            });
+          }
+
+          // Update sessions if any exist
+          await tx.session.updateMany({
+            where: { userId: input.fromUserId },
             data: { userId: toUser.id },
           });
-        }
 
-        // Update sessions if any exist
-        await tx.session.updateMany({
-          where: { userId: input.fromUserId },
-          data: { userId: toUser.id },
+          return {
+            success: true,
+            transferredAccounts: fromAccounts.length,
+            toUserId: toUser.id,
+          };
         });
-
-        return {
-          success: true,
-          transferredAccounts: fromAccounts.length,
-          toUserId: toUser.id,
-        };
-      });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "profile.transferAccount",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   checkPhone: publicProcedure

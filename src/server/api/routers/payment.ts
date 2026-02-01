@@ -14,6 +14,7 @@ import { emailService } from "@/lib/email/emailService";
 import { format } from "date-fns";
 import { siteConfig } from "@/lib/config/siteConfig";
 import { dokuPaymentService } from "@/lib/payment/doku";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const paymentRouter = createTRPCRouter({
   createTransaction: protectedProcedure
@@ -41,6 +42,11 @@ export const paymentRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         // Check if payment already exists, if not create it
         let payment = await ctx.db.payment.findFirst({
@@ -114,10 +120,12 @@ export const paymentRouter = createTRPCRouter({
               },
             });
 
-            return {
+            result = {
               token: transaction.token,
               redirect_url: transaction.redirect_url,
             };
+            success = true;
+            return result;
           }
 
           case "shopee": {
@@ -136,9 +144,11 @@ export const paymentRouter = createTRPCRouter({
                 },
               });
 
-              return {
+              result = {
                 redirect_url: response.webRedirectUrl,
               };
+              success = true;
+              return result;
             } catch (error) {
               // Update payment status to failed
               await ctx.db.payment.update({
@@ -148,7 +158,7 @@ export const paymentRouter = createTRPCRouter({
               
               throw new TRPCError({
                 code: "INTERNAL_SERVER_ERROR",
-                message: error instanceof Error && (error.message.includes('Private key') || error.message.includes('private key') || error.message.includes('Invalid private key')) 
+                message: error instanceof Error && (error.message.includes('Private key') || error.message.includes('private key') || error.message.includes('Invalid private key'))
                   ? "ShopeePay is not available. Please contact administrator to configure the payment method or choose another option."
                   : `ShopeePay payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
               });
@@ -179,9 +189,11 @@ export const paymentRouter = createTRPCRouter({
               },
             });
 
-            return {
+            result = {
               redirect_url: response.webRedirectUrl,
             };
+            success = true;
+            return result;
           }
 
           // case "akulaku": {
@@ -235,9 +247,11 @@ export const paymentRouter = createTRPCRouter({
               },
             });
 
-            return {
+            result = {
               redirect_url: response.payment.url,
             };
+            success = true;
+            return result;
           }
 
 
@@ -276,12 +290,14 @@ export const paymentRouter = createTRPCRouter({
                 },
               });
 
-              return {
+              result = {
                 qrString: response.qrString,
                 partnerReferenceNo: response.partnerReferenceNo,
                 responseCode: response.responseCode,
                 responseMessage: response.responseMessage,
               };
+              success = true;
+              return result;
             } catch (error) {
               await ctx.db.payment.update({
                 where: { id: payment.id },
@@ -304,14 +320,23 @@ export const paymentRouter = createTRPCRouter({
               message: "Unsupported payment gateway",
             });
         }
-      } catch (error) {
-        console.error("Error creating transaction:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to create transaction",
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "payment.createTransaction",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -319,23 +344,50 @@ export const paymentRouter = createTRPCRouter({
   getByOrderReference: protectedProcedure
     .input(z.object({ orderReference: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const payment = await ctx.db.payment.findFirst({
-        where: {
-          orderReference: input.orderReference,
-          // Only get tokens that haven't expired
-          OR: [{ tokenExpiry: { gt: new Date() } }, { tokenExpiry: null }],
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!payment?.token) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Payment token not found or expired",
+      try {
+        const payment = await ctx.db.payment.findFirst({
+          where: {
+            orderReference: input.orderReference,
+            // Only get tokens that haven't expired
+            OR: [{ tokenExpiry: { gt: new Date() } }, { tokenExpiry: null }],
+          },
+        });
+
+        if (!payment?.token) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Payment token not found or expired",
+          });
+        }
+
+        // Return the token directly from the payment record
+        result = { token: payment.token };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "payment.getByOrderReference",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      // Return the token directly from the payment record
-      return { token: payment.token };
     }),
 
   // handleNotification: publicProcedure
@@ -542,6 +594,11 @@ export const paymentRouter = createTRPCRouter({
   handleNotification: publicProcedure
   .input(z.record(z.any()))
   .mutation(async ({ input, ctx }) => {
+    const startTime = Date.now();
+    let success = false;
+    let result: any = null;
+    let error: Error | null = null;
+
     try {
       console.log("Received DOKU Notification:", input);
 
@@ -635,14 +692,31 @@ export const paymentRouter = createTRPCRouter({
           }
       }
 
-      return {
+      result = {
         status: status.toLowerCase(),
         orderId,
         subscriptionId: payment.subscription.id,
       };
-    } catch (error) {
-      console.error("Notification error:", error);
-      throw new Error("Failed to process payment notification");
+      success = true;
+      return result;
+    } catch (err) {
+      error = err as Error;
+      success = false;
+      throw err;
+    } finally {
+      await logApiMutation({
+        db: ctx.db,
+        endpoint: "payment.handleNotification",
+        method: "POST",
+        userId: undefined, // publicProcedure has no session
+        requestData: input,
+        responseData: success ? result : null,
+        ipAddress: extractIpAddress(ctx.headers),
+        userAgent: extractUserAgent(ctx.headers),
+        success,
+        errorMessage: error?.message,
+        duration: Date.now() - startTime,
+      });
     }
   }),
 

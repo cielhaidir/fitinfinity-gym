@@ -10,6 +10,7 @@ import { format } from "date-fns"; // Add this import
 import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
 import { subscriptionsCreatedTotal } from "@/server/metrics"; // Add metrics import
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Fungsi untuk mengupdate subscription yang sudah expired
 async function updateExpiredSubscriptions(ctx: any) {
@@ -100,6 +101,11 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const member = await ctx.db.membership.findUnique({
           where: { userId: input.memberId },
@@ -242,8 +248,12 @@ export const subscriptionRouter = createTRPCRouter({
           }
         }
 
+        result = subscription;
+        success = true;
         return subscription;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         // Log detailed error for debugging
         console.error("Subscription creation error:", {
           error: error instanceof Error ? error.message : "Unknown error",
@@ -286,6 +296,20 @@ export const subscriptionRouter = createTRPCRouter({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Failed to create subscription. Please try again.",
         });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
@@ -307,7 +331,13 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const payment = await ctx.db.payment.findFirst({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const payment = await ctx.db.payment.findFirst({
         where: { orderReference: input.orderReference },
         include: { subscription: true },
       });
@@ -489,7 +519,28 @@ export const subscriptionRouter = createTRPCRouter({
         // }
       }
 
-      return updatedPayment;
+        result = updatedPayment;
+        success = true;
+        return updatedPayment;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.updatePaymentStatus",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   detail: permissionProtectedProcedure(["show:subscription"])
@@ -1070,20 +1121,46 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-          const shouldBeActive = input.endDate 
-      ? input.endDate > new Date() 
-      : undefined;
+      try {
+        const shouldBeActive = input.endDate
+          ? input.endDate > new Date()
+          : undefined;
 
-      return ctx.db.subscription.update({
-        where: { id: input.id },
-        data: {
-          memberId: input.memberId,
-          startDate: input.startDate,
-          endDate: input.endDate,
-           ...(shouldBeActive !== undefined && { isActive: shouldBeActive }),
-        },
-      });
+        result = await ctx.db.subscription.update({
+          where: { id: input.id },
+          data: {
+            memberId: input.memberId,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            ...(shouldBeActive !== undefined && { isActive: shouldBeActive }),
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   checkout: permissionProtectedProcedure(["create:subscription"])
@@ -1096,6 +1173,11 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const member = await ctx.db.membership.findFirst({
           where: {
@@ -1169,7 +1251,7 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
 
-        return {
+        result = {
           success: true,
           subscription,
           message:
@@ -1177,16 +1259,40 @@ export const subscriptionRouter = createTRPCRouter({
               ? `Checkout successful! You earned ${packageData.point * input.duration} points.`
               : "Checkout initiated. Please complete the payment to activate your subscription.",
         };
-      } catch (error) {
-        console.error("Checkout error:", error);
-        throw error;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        console.error("Checkout error:", err);
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.checkout",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
   delete: permissionProtectedProcedure(["delete:subscription"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         const subscription = await tx.subscription.findUnique({
           where: { id: input.id },
           include: {
@@ -1283,24 +1389,72 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
 
-        return deletedSubscription;
-      });
+          return deletedSubscription;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Tambahkan procedure untuk menonaktifkan subscription yang sudah expired
   deactivateExpired: permissionProtectedProcedure(["update:subscription"])
     .mutation(async ({ ctx }) => {
-      const now = new Date();
-      const result = await ctx.db.subscription.updateMany({
-        where: {
-          isActive: true,
-          endDate: { lt: now },
-        },
-        data: {
-          isActive: false,
-        },
-      });
-      return { count: result.count };
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const now = new Date();
+        const updateResult = await ctx.db.subscription.updateMany({
+          where: {
+            isActive: true,
+            endDate: { lt: now },
+          },
+          data: {
+            isActive: false,
+          },
+        });
+        result = { count: updateResult.count };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.deactivateExpired",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: {},
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Freeze all active subscriptions for a member
@@ -1312,8 +1466,14 @@ export const subscriptionRouter = createTRPCRouter({
       balanceAccountId: z.number().int().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Find member
-      const member = await ctx.db.membership.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Find member
+        const member = await ctx.db.membership.findUnique({
         where: { id: input.memberId },
         include: { user: true },
       });
@@ -1547,22 +1707,49 @@ export const subscriptionRouter = createTRPCRouter({
         })
       );
 
-      return {
-        message: `Successfully frozen ${results.length} subscription(s)${freezePaymentAmount > 0 ? ` with ${actualFreezeDays} days freeze fee of ${freezePaymentAmount}` : ""}`,
-        count: results.length,
-        memberId: input.memberId,
-        memberName: member.user?.name || "Unknown",
-        freezePaymentAmount,
-        transactionFreezeId,
-      };
+        result = {
+          message: `Successfully frozen ${results.length} subscription(s)${freezePaymentAmount > 0 ? ` with ${actualFreezeDays} days freeze fee of ${freezePaymentAmount}` : ""}`,
+          count: results.length,
+          memberId: input.memberId,
+          memberName: member.user?.name || "Unknown",
+          freezePaymentAmount,
+          transactionFreezeId,
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.freeze",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Unfreeze all frozen subscriptions for a member
   unfreeze: permissionProtectedProcedure(["update:subscription"])
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Find member
-      const member = await ctx.db.membership.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Find member
+        const member = await ctx.db.membership.findUnique({
         where: { id: input.memberId },
         include: { user: true },
       });
@@ -1706,12 +1893,33 @@ export const subscriptionRouter = createTRPCRouter({
         })
       );
 
-      return {
-        message: `Successfully unfrozen ${unfrozenCount} subscription(s)`,
-        count: unfrozenCount,
-        memberId: input.memberId,
-        memberName: member.user?.name || "Unknown",
-      };
+        result = {
+          message: `Successfully unfrozen ${unfrozenCount} subscription(s)`,
+          count: unfrozenCount,
+          memberId: input.memberId,
+          memberName: member.user?.name || "Unknown",
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.unfreeze",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Update sales information for a subscription
@@ -1724,8 +1932,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("Updating sales information for subscription:", input.subscriptionId);
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        console.log("Updating sales information for subscription:", input.subscriptionId);
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
       });
 
@@ -1775,7 +1989,28 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      return updatedSubscription;
+        result = updatedSubscription;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.updateSales",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Transfer subscription to another user
@@ -1788,8 +2023,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify the subscription exists and is active
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Verify the subscription exists and is active
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
         include: {
           member: {
@@ -1848,7 +2089,7 @@ export const subscriptionRouter = createTRPCRouter({
       });
       const transferPrice = transferPriceConfig ? parseFloat(transferPriceConfig.value) : 0;
 
-      return ctx.db.$transaction(async (tx) => {
+        result = await ctx.db.$transaction(async (tx) => {
         // Create new membership for the target user
 
           let membershipId: string;
@@ -1913,8 +2154,29 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
         
-        return updatedSubscription;
-      });
+          return updatedSubscription;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.transfer",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Upgrade gym membership to a new package
@@ -1928,7 +2190,13 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         // Verify the subscription exists and is eligible for upgrade
         const subscription = await tx.subscription.findUnique({
           where: { id: input.subscriptionId },
@@ -2060,8 +2328,29 @@ export const subscriptionRouter = createTRPCRouter({
           },
         });
 
-        return updatedSubscription;
-      });
+          return updatedSubscription;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.upgradeGymSimple",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Get gym packages for upgrade dropdown
@@ -2224,8 +2513,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify the subscription exists
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Verify the subscription exists
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
         include: {
           package: true,
@@ -2291,7 +2586,28 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      return updatedSubscription;
+        result = updatedSubscription;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.updateRemainingSessions",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Update personal trainer for a subscription
@@ -2303,8 +2619,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify the subscription exists
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Verify the subscription exists
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
         include: {
           package: true,
@@ -2394,7 +2716,28 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      return updatedSubscription;
+        result = updatedSubscription;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.updateTrainer",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Count subscriptions with optional filter
@@ -2780,7 +3123,13 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         // Find the transfer history record
         const transferHistory = await tx.subscriptionTransferHistory.findUnique({
           where: { id: input.transferHistoryId },
@@ -2875,12 +3224,33 @@ export const subscriptionRouter = createTRPCRouter({
           },
         });
 
-        return {
-          success: true,
-          message: "Transfer cancelled successfully. Subscription returned to original member.",
-          transferHistory: updatedTransferHistory,
-        };
-      });
+          return {
+            success: true,
+            message: "Transfer cancelled successfully. Subscription returned to original member.",
+            transferHistory: updatedTransferHistory,
+          };
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.cancelTransfer",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // List all freeze operations grouped by member (for admin freeze history page)
@@ -3022,7 +3392,13 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         // Find member
         const member = await tx.membership.findUnique({
           where: { id: input.memberId },
@@ -3148,14 +3524,35 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
 
-        return {
-          success: true,
-          message: `Successfully cancelled freeze for ${cancelledCount} subscription(s)`,
-          count: cancelledCount,
-          memberId: input.memberId,
-          memberName: member.user?.name || "Unknown",
-          affectedSubscriptions,
-        };
-      });
+          return {
+            success: true,
+            message: `Successfully cancelled freeze for ${cancelledCount} subscription(s)`,
+            count: cancelledCount,
+            memberId: input.memberId,
+            memberName: member.user?.name || "Unknown",
+            affectedSubscriptions,
+          };
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "subscription.cancelFreeze",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 });

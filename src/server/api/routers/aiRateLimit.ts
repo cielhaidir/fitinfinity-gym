@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLimitService";
 import { Prisma } from "@prisma/client";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const aiRateLimitRouter = createTRPCRouter({
   // Get current user's rate limit status
@@ -42,43 +43,70 @@ export const aiRateLimitRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const rateLimitService = createAIRateLimitService(ctx.db);
-      
-      // Get current limits
-      const currentLimits = await rateLimitService.getUserRateLimit(
-        ctx.session.user.id,
-        input.requestType
-      );
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Only allow users to reduce their limits, not increase them beyond defaults
-      const defaultLimits = {
-        dailyLimit: parseInt(process.env.AI_DEFAULT_DAILY_LIMIT || "5"),
-        weeklyLimit: parseInt(process.env.AI_DEFAULT_WEEKLY_LIMIT || "20"),
-        monthlyLimit: parseInt(process.env.AI_DEFAULT_MONTHLY_LIMIT || "50"),
-      };
+      try {
+        const rateLimitService = createAIRateLimitService(ctx.db);
+        
+        // Get current limits
+        const currentLimits = await rateLimitService.getUserRateLimit(
+          ctx.session.user.id,
+          input.requestType
+        );
 
-      const newLimits = {
-        dailyLimit: input.dailyLimit !== undefined 
-          ? Math.min(input.dailyLimit, defaultLimits.dailyLimit)
-          : currentLimits.dailyLimit,
-        weeklyLimit: input.weeklyLimit !== undefined 
-          ? Math.min(input.weeklyLimit, defaultLimits.weeklyLimit)
-          : currentLimits.weeklyLimit,
-        monthlyLimit: input.monthlyLimit !== undefined 
-          ? Math.min(input.monthlyLimit, defaultLimits.monthlyLimit)
-          : currentLimits.monthlyLimit,
-      };
+        // Only allow users to reduce their limits, not increase them beyond defaults
+        const defaultLimits = {
+          dailyLimit: parseInt(process.env.AI_DEFAULT_DAILY_LIMIT || "5"),
+          weeklyLimit: parseInt(process.env.AI_DEFAULT_WEEKLY_LIMIT || "20"),
+          monthlyLimit: parseInt(process.env.AI_DEFAULT_MONTHLY_LIMIT || "50"),
+        };
 
-      await rateLimitService.updateUserLimits(
-        ctx.session.user.id,
-        input.requestType,
-        newLimits
-      );
+        const newLimits = {
+          dailyLimit: input.dailyLimit !== undefined
+            ? Math.min(input.dailyLimit, defaultLimits.dailyLimit)
+            : currentLimits.dailyLimit,
+          weeklyLimit: input.weeklyLimit !== undefined
+            ? Math.min(input.weeklyLimit, defaultLimits.weeklyLimit)
+            : currentLimits.weeklyLimit,
+          monthlyLimit: input.monthlyLimit !== undefined
+            ? Math.min(input.monthlyLimit, defaultLimits.monthlyLimit)
+            : currentLimits.monthlyLimit,
+        };
 
-      return {
-        success: true,
-        limits: newLimits,
-      };
+        await rateLimitService.updateUserLimits(
+          ctx.session.user.id,
+          input.requestType,
+          newLimits
+        );
+
+        result = {
+          success: true,
+          limits: newLimits,
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "aiRateLimit.updateMyLimits",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Check if user can make a request
@@ -211,21 +239,48 @@ export const aiRateLimitRouter = createTRPCRouter({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        // TODO: Add admin role check here
-        // const isAdmin = await checkAdminRole(ctx.session.user.id, ctx.db);
-        // if (!isAdmin) throw new TRPCError({ code: "FORBIDDEN" });
+        const startTime = Date.now();
+        let success = false;
+        let result: any = null;
+        let error: Error | null = null;
 
-        const rateLimitService = createAIRateLimitService(ctx.db);
-        const { userId, requestType, ...limits } = input;
+        try {
+          // TODO: Add admin role check here
+          // const isAdmin = await checkAdminRole(ctx.session.user.id, ctx.db);
+          // if (!isAdmin) throw new TRPCError({ code: "FORBIDDEN" });
 
-        await rateLimitService.updateUserLimits(userId, requestType, limits);
+          const rateLimitService = createAIRateLimitService(ctx.db);
+          const { userId, requestType, ...limits } = input;
 
-        return {
-          success: true,
-          userId,
-          requestType,
-          limits,
-        };
+          await rateLimitService.updateUserLimits(userId, requestType, limits);
+
+          result = {
+            success: true,
+            userId,
+            requestType,
+            limits,
+          };
+          success = true;
+          return result;
+        } catch (err) {
+          error = err as Error;
+          success = false;
+          throw err;
+        } finally {
+          await logApiMutation({
+            db: ctx.db,
+            endpoint: "aiRateLimit.admin.updateUserLimits",
+            method: "PUT",
+            userId: ctx.session?.user?.id,
+            requestData: input,
+            responseData: success ? result : null,
+            ipAddress: extractIpAddress(ctx.headers),
+            userAgent: extractUserAgent(ctx.headers),
+            success,
+            errorMessage: error?.message,
+            duration: Date.now() - startTime,
+          });
+        }
       }),
 
     // Get rate limit statistics

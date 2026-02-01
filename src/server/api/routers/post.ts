@@ -5,6 +5,7 @@ import {
   publicProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const postRouter = createTRPCRouter({
   hello: publicProcedure
@@ -18,12 +19,39 @@ export const postRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:post"])
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.post.create({
-        data: {
-          name: input.name,
-          createdBy: { connect: { id: ctx.session.user.id } },
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.post.create({
+          data: {
+            name: input.name,
+            createdBy: { connect: { id: ctx.session.user.id } },
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "post.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   getLatest: permissionProtectedProcedure(["show:post"]).query(async ({ ctx }) => {

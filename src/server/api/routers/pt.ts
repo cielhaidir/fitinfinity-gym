@@ -4,6 +4,7 @@ import {
   publicProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const personalTrainerRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:trainers"])
@@ -14,12 +15,39 @@ export const personalTrainerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.personalTrainer.create({
-        data: {
-          userId: input.userId,
-          description: input.description,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.personalTrainer.create({
+          data: {
+            userId: input.userId,
+            description: input.description,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "pt.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   edit: permissionProtectedProcedure(["update:trainers"])
@@ -32,14 +60,41 @@ export const personalTrainerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.personalTrainer.update({
-        where: { id: input.id },
-        data: {
-          userId: input.userId ?? undefined,
-          description: input.description ?? undefined,
-          isActive: input.isActive ?? undefined,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.personalTrainer.update({
+          where: { id: input.id },
+          data: {
+            userId: input.userId ?? undefined,
+            description: input.description ?? undefined,
+            isActive: input.isActive ?? undefined,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "pt.edit",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   detail: permissionProtectedProcedure(["show:trainers"])
@@ -92,14 +147,41 @@ export const personalTrainerRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.personalTrainer.update({
-        where: { id: input.id },
-        data: {
-          userId: input.userId ?? undefined,
-          description: input.description ?? undefined,
-          isActive: input.isActive ?? undefined,
-        },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.personalTrainer.update({
+          where: { id: input.id },
+          data: {
+            userId: input.userId ?? undefined,
+            description: input.description ?? undefined,
+            isActive: input.isActive ?? undefined,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "pt.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   listWithUsers: permissionProtectedProcedure(["report:pt"])

@@ -1,0 +1,248 @@
+{
+  "timestamp": "2026-01-31T09:47:07.831Z",
+  "totalMutations": 197,
+  "summary": {
+    "hasLogging": 3,
+    "needsLogging": 44,
+    "noMutations": 5
+  },
+  "filesNeedingLogging": [
+    {
+      "filename": "subscription.ts",
+      "status": "needs_logging",
+      "mutations": 15
+    },
+    {
+      "filename": "email.ts",
+      "status": "needs_logging",
+      "mutations": 9
+    },
+    {
+      "filename": "esp32.ts",
+      "status": "needs_logging",
+      "mutations": 9
+    },
+    {
+      "filename": "package.ts",
+      "status": "needs_logging",
+      "mutations": 8
+    },
+    {
+      "filename": "memberClass.ts",
+      "status": "needs_logging",
+      "mutations": 8
+    },
+    {
+      "filename": "profile.ts",
+      "status": "needs_logging",
+      "mutations": 8
+    },
+    {
+      "filename": "purchaseOrder.ts",
+      "status": "needs_logging",
+      "mutations": 7
+    },
+    {
+      "filename": "mqtt.ts",
+      "status": "needs_logging",
+      "mutations": 7
+    },
+    {
+      "filename": "trainerSession.ts",
+      "status": "needs_logging",
+      "mutations": 7
+    },
+    {
+      "filename": "voucher.ts",
+      "status": "needs_logging",
+      "mutations": 6
+    },
+    {
+      "filename": "tracking.ts",
+      "status": "needs_logging",
+      "mutations": 6
+    },
+    {
+      "filename": "transaction.ts",
+      "status": "needs_logging",
+      "mutations": 5
+    },
+    {
+      "filename": "personalTrainer.ts",
+      "status": "needs_logging",
+      "mutations": 5
+    },
+    {
+      "filename": "payment.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "class.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "reward.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "device.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "managerCalendar.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "paymentValidation.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "permission.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "posItem.ts",
+      "status": "needs_logging",
+      "mutations": 4
+    },
+    {
+      "filename": "employee.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "inventory.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "posSale.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "role.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "balanceAccount.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "chartAccount.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "classType.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "fc-member.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "fc.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "freezePrice.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "posCategory.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "pt.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "role-permission.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "supplier.ts",
+      "status": "needs_logging",
+      "mutations": 3
+    },
+    {
+      "filename": "aiRateLimit.ts",
+      "status": "needs_logging",
+      "mutations": 2
+    },
+    {
+      "filename": "cashBankReport.ts",
+      "status": "needs_logging",
+      "mutations": 2
+    },
+    {
+      "filename": "config.ts",
+      "status": "needs_logging",
+      "mutations": 2
+    },
+    {
+      "filename": "subscriptionImport.ts",
+      "status": "needs_logging",
+      "mutations": 2
+    },
+    {
+      "filename": "whatsapp.ts",
+      "status": "needs_logging",
+      "mutations": 2
+    },
+    {
+      "filename": "attendance.ts",
+      "status": "needs_logging",
+      "mutations": 1
+    },
+    {
+      "filename": "logs.ts",
+      "status": "needs_logging",
+      "mutations": 1
+    },
+    {
+      "filename": "memberReward.ts",
+      "status": "needs_logging",
+      "mutations": 1
+    },
+    {
+      "filename": "post.ts",
+      "status": "needs_logging",
+      "mutations": 1
+    }
+  ],
+  "filesWithLogging": [
+    {
+      "filename": "auth.ts",
+      "status": "has_logging",
+      "mutations": 1
+    },
+    {
+      "filename": "member.ts",
+      "status": "has_logging",
+      "mutations": 5
+    },
+    {
+      "filename": "user.ts",
+      "status": "has_logging",
+      "mutations": 3
+    }
+  ]
+}

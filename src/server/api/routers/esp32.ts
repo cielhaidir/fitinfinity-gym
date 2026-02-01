@@ -3,6 +3,7 @@ import { createTRPCRouter, publicProcedure, deviceProcedure, protectedProcedure 
 import { TRPCError } from "@trpc/server";
 import { EnrollmentStatus } from "@prisma/client";
 import { mqttService } from "@/lib/mqtt/mqttService";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Output schema for getMemberCheckinLogs
 const memberCheckinLogSchema = z.object({
@@ -53,15 +54,38 @@ export const esp32Router = createTRPCRouter({
       accessKey: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
-        return {
+        result = {
           authenticated: true,
           message: "Device authenticated successfully"
         };
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Invalid device credentials",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.authenticate",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -73,6 +97,11 @@ export const esp32Router = createTRPCRouter({
       deviceId: z.string().optional(), // Make optional for now
     }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         console.log("Starting enrollment request for employee:", input.employeeId);
 
@@ -143,24 +172,42 @@ export const esp32Router = createTRPCRouter({
         );
 
         console.log("Enrollment request completed successfully");
-        return {
+        result = {
           success: true,
           message: "Enrollment request sent to device",
           deviceId: targetDeviceId
         };
-      } catch (error) {
-        console.error("Enrollment request failed:", error);
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        console.error("Enrollment request failed:", err);
         console.error("Error details:", {
           employeeId: input.employeeId,
           deviceId: input.deviceId,
-          errorMessage: error instanceof Error ? error.message : "Unknown error",
-          errorStack: error instanceof Error ? error.stack : undefined
+          errorMessage: err instanceof Error ? err.message : "Unknown error",
+          errorStack: err instanceof Error ? err.stack : undefined
         });
 
-        if (error instanceof TRPCError) throw error;
+        if (err instanceof TRPCError) throw err;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to initiate enrollment"
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.requestEnrollment",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -210,6 +257,11 @@ export const esp32Router = createTRPCRouter({
       accessKey: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         await ctx.db.employee.update({
           where: { id: input.employeeId },
@@ -220,14 +272,32 @@ export const esp32Router = createTRPCRouter({
           }
         });
 
-        return {
+        result = {
           success: true,
           message: `Enrollment ${input.status.toLowerCase()}`
         };
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to update enrollment status"
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.updateEnrollmentStatus",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -240,6 +310,11 @@ export const esp32Router = createTRPCRouter({
       accessKey: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const { fingerId, timestamp, deviceId, accessKey } = input;
 
@@ -292,7 +367,7 @@ export const esp32Router = createTRPCRouter({
 
         if (!existingAttendance) {
           // Belum ada data, buat check-in
-          return await ctx.db.attendance.create({
+          result = await ctx.db.attendance.create({
             data: {
               employeeId: employee.id,
               checkIn: logTime,
@@ -300,22 +375,26 @@ export const esp32Router = createTRPCRouter({
               deviceId,
             },
           });
+          success = true;
+          return result;
         }
 
         // Check if this is a checkout (if checkIn exists but no checkOut)
         if (!existingAttendance.checkOut) {
           // This is a checkout
-          return await ctx.db.attendance.update({
+          result = await ctx.db.attendance.update({
             where: { id: existingAttendance.id },
             data: {
               checkOut: logTime,
               deviceId,
             },
           });
+          success = true;
+          return result;
         }
 
         // If already checked out, create new attendance record for new check-in
-        return await ctx.db.attendance.create({
+        result = await ctx.db.attendance.create({
           data: {
             employeeId: employee.id,
             checkIn: logTime,
@@ -323,15 +402,33 @@ export const esp32Router = createTRPCRouter({
             deviceId,
           },
         });
+        success = true;
+        return result;
 
-      } catch (error) {
-        console.error("Attendance logging error:", error);
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        console.error("Attendance logging error:", err);
 
-        if (error instanceof TRPCError) throw error;
+        if (err instanceof TRPCError) throw err;
 
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to log attendance",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.logFingerprint",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -345,6 +442,11 @@ export const esp32Router = createTRPCRouter({
       accessKey: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const { rfid, timestamp, deviceId } = input;
         const logTime = timestamp ? new Date(timestamp) : new Date();
@@ -422,17 +524,35 @@ export const esp32Router = createTRPCRouter({
           });
         }
 
-        return {
+        result = {
           success: true,
           message: "Member attendance logged successfully",
           data: memberAttendance
         };
+        success = true;
+        return result;
 
-      } catch (error) {
-        if (error instanceof TRPCError) throw error;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        if (err instanceof TRPCError) throw err;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to log member attendance",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.logRFID",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -445,6 +565,11 @@ export const esp32Router = createTRPCRouter({
       timestamp: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const { memberId, timestamp } = input;
         // const logTime = timestamp ? new Date(timestamp) : new Date();
@@ -521,17 +646,35 @@ export const esp32Router = createTRPCRouter({
           });
         }
 
-        return {
+        result = {
           success: true,
           message: "Member checked in manually successfully",
           data: memberAttendance
         };
+        success = true;
+        return result;
 
-      } catch (error) {
-        if (error instanceof TRPCError) throw error;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        if (err instanceof TRPCError) throw err;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to log manual check-in",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.manualCheckIn",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -547,46 +690,73 @@ export const esp32Router = createTRPCRouter({
       timestamp: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const attendance = await ctx.db.attendanceMember.findUnique({
-        where: { id: input.attendanceId },
-        include: {
-          member: {
-            include: { user: true },
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const attendance = await ctx.db.attendanceMember.findUnique({
+          where: { id: input.attendanceId },
+          include: {
+            member: {
+              include: { user: true },
+            },
           },
-        },
-      });
-      if (!attendance) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Attendance record not found",
+        });
+        if (!attendance) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Attendance record not found",
+          });
+        }
+        if (attendance.checkout) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Already checked out",
+          });
+        }
+        const checkoutTime = input.timestamp ? new Date(input.timestamp) : new Date();
+        const updated = await ctx.db.attendanceMember.update({
+          where: { id: input.attendanceId },
+          data: { checkout: checkoutTime },
+          include: {
+            member: {
+              include: { user: true },
+            },
+          },
+        });
+        result = {
+          id: updated.id,
+          checkin: updated.checkin,
+          checkout: updated.checkout,
+          memberId: updated.memberId,
+          memberName: updated.member?.user?.name ?? null,
+          userName: updated.member?.user?.name ?? null,
+          facilityDescription: updated.facilityDescription ?? null,
+          status: updated.checkout ? "Checked Out" : "Checked In",
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.manualCheckout",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-      if (attendance.checkout) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Already checked out",
-        });
-      }
-      const checkoutTime = input.timestamp ? new Date(input.timestamp) : new Date();
-      const updated = await ctx.db.attendanceMember.update({
-        where: { id: input.attendanceId },
-        data: { checkout: checkoutTime },
-        include: {
-          member: {
-            include: { user: true },
-          },
-        },
-      });
-      return {
-        id: updated.id,
-        checkin: updated.checkin,
-        checkout: updated.checkout,
-        memberId: updated.memberId,
-        memberName: updated.member?.user?.name ?? null,
-        userName: updated.member?.user?.name ?? null,
-        facilityDescription: updated.facilityDescription ?? null,
-        status: updated.checkout ? "Checked Out" : "Checked In",
-      };
     }),
 
   /**
@@ -873,6 +1043,11 @@ export const esp32Router = createTRPCRouter({
       }))
     }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const results = await Promise.all(
           input.logs.map(async (log) => {
@@ -970,14 +1145,32 @@ export const esp32Router = createTRPCRouter({
           })
         );
 
-        return {
+        result = {
           success: true,
           results
         };
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to process bulk attendance logs",
+        });
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.bulkLog",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -996,38 +1189,64 @@ export const esp32Router = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      const updateData: Record<string, any> = {};
-      if (input.checkin) updateData.checkin = new Date(input.checkin);
-      if (input.facilityDescription !== undefined)
-        updateData.facilityDescription = input.facilityDescription;
+      try {
+        const updateData: Record<string, any> = {};
+        if (input.checkin) updateData.checkin = new Date(input.checkin);
+        if (input.facilityDescription !== undefined)
+          updateData.facilityDescription = input.facilityDescription;
 
-      if (Object.keys(updateData).length === 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No fields to update",
-        });
-      }
+        if (Object.keys(updateData).length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No fields to update",
+          });
+        }
 
-      const updated = await ctx.db.attendanceMember.update({
-        where: { id: input.id },
-        data: updateData,
-        include: {
-          member: {
-            include: {
-              user: true,
+        const updated = await ctx.db.attendanceMember.update({
+          where: { id: input.id },
+          data: updateData,
+          include: {
+            member: {
+              include: {
+                user: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      return {
-        id: updated.id,
-        checkin: updated.checkin,
-        memberId: updated.memberId,
-        memberName: updated.member?.user?.name ?? null,
-        userName: updated.member?.user?.name ?? null,
-        facilityDescription: updated.facilityDescription ?? null,
-      };
+        result = {
+          id: updated.id,
+          checkin: updated.checkin,
+          memberId: updated.memberId,
+          memberName: updated.member?.user?.name ?? null,
+          userName: updated.member?.user?.name ?? null,
+          facilityDescription: updated.facilityDescription ?? null,
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "esp32.updateMemberCheckinLog",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 });

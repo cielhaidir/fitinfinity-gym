@@ -5,6 +5,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { employeeSchema } from "@/app/(authenticated)/management/employee/schema";
+import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const employeeRouter = createTRPCRouter({
   getAttendanceHistory: permissionProtectedProcedure(["list:employees"])
@@ -126,30 +127,58 @@ export const employeeRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:employees"])
     .input(employeeSchema)
     .mutation(async ({ ctx, input }) => {
-      const {
-        userId,
-        position,
-        department,
-        image,
-        isActive,
-        fingerprintId = null,
-        enrollmentStatus = null
-      } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      return ctx.db.employee.create({
-        data: {
+      try {
+        const {
           userId,
           position,
           department,
           image,
           isActive,
-          fingerprintId,
-          enrollmentStatus
-        },
-        include: {
-          user: true
-        }
-      });
+          fingerprintId = null,
+          enrollmentStatus = null
+        } = input;
+
+        const employee = await ctx.db.employee.create({
+          data: {
+            userId,
+            position,
+            department,
+            image,
+            isActive,
+            fingerprintId,
+            enrollmentStatus
+          },
+          include: {
+            user: true
+          }
+        });
+        result = employee;
+        success = true;
+        return employee;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "employee.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: permissionProtectedProcedure(["update:employees"])
@@ -163,22 +192,78 @@ export const employeeRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      return ctx.db.employee.update({
-        where: { id },
-        data,
-        include: {
-          user: true
-        }
-      });
+      try {
+        const { id, ...data } = input;
+
+        const employee = await ctx.db.employee.update({
+          where: { id },
+          data,
+          include: {
+            user: true
+          }
+        });
+        result = employee;
+        success = true;
+        return employee;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "employee.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   delete: permissionProtectedProcedure(["delete:employees"])
     .input(z.string())
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.employee.delete({
-        where: { id: input },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const employee = await ctx.db.employee.delete({
+          where: { id: input },
+        });
+        result = employee;
+        success = true;
+        return employee;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        await logApiMutation({
+          db: ctx.db,
+          endpoint: "employee.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: { id: input },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 });
