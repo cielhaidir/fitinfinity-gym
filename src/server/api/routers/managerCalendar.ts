@@ -70,52 +70,37 @@ export const managerCalendarRouter = createTRPCRouter({
       },
     });
 
-    // Enrich with group info
-    const memberIds = sessions.map((s) => s.memberId);
-    const subscriptions = await db.subscription.findMany({
+    // Fetch group information for sessions that are actually group sessions
+    const groupSessionIds = sessions
+      .filter((s) => s.isGroup && s.groupId)
+      .map((s) => s.groupId!);
+    
+    const groupSubscriptions = await db.groupSubscription.findMany({
       where: {
-        memberId: { in: memberIds },
-        isActive: true,
-        deletedAt: null,
+        id: { in: groupSessionIds },
       },
       select: {
         id: true,
-        memberId: true,
+        groupName: true,
       },
     });
-    const subscriptionIdToMemberId: Record<string, string> = {};
-    subscriptions.forEach((sub) => {
-      subscriptionIdToMemberId[sub.id] = sub.memberId;
+
+    const groupIdToGroupInfo: Record<string, { groupName: string | null }> = {};
+    groupSubscriptions.forEach((gs) => {
+      groupIdToGroupInfo[gs.id] = {
+        groupName: gs.groupName ?? "Group",
+      };
     });
-    const subscriptionIds = subscriptions.map((sub) => sub.id);
-    const groupMembers = await db.groupMember.findMany({
-      where: {
-        subscriptionId: { in: subscriptionIds },
-        status: "ACTIVE",
-      },
-      include: {
-        groupSubscription: true,
-      },
-    });
-    const memberIdToGroup: Record<string, { groupName: string | null; groupId: string }> = {};
-    groupMembers.forEach((gm) => {
-      const memberId = subscriptionIdToMemberId[gm.subscriptionId];
-      if (memberId && gm.groupSubscription) {
-        memberIdToGroup[memberId] = {
-          groupName: gm.groupSubscription.groupName ?? "Group",
-          groupId: gm.groupSubscription.id,
-        };
-      }
-    });
-    // Attach group info to sessions
+
+    // Map sessions with correct type based on isGroup flag
     return sessions.map((session) => {
-      const group = memberIdToGroup[session.memberId];
-      if (group) {
+      if (session.isGroup && session.groupId) {
+        const groupInfo = groupIdToGroupInfo[session.groupId];
         return {
           ...session,
-          groupName: group.groupName,
-          groupId: group.groupId,
-          type: "group",
+          groupName: groupInfo?.groupName ?? "Group",
+          groupId: session.groupId,
+          type: "group" as const,
           exerciseResult: session.exerciseResult,
           attendanceCount: session.attendanceCount,
           isGroup: session.isGroup,
@@ -124,7 +109,7 @@ export const managerCalendarRouter = createTRPCRouter({
       }
       return {
         ...session,
-        type: "individual",
+        type: "individual" as const,
         exerciseResult: session.exerciseResult,
         attendanceCount: session.attendanceCount,
         isGroup: session.isGroup,
