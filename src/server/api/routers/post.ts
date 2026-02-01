@@ -5,7 +5,7 @@ import {
   publicProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const postRouter = createTRPCRouter({
   hello: publicProcedure
@@ -38,7 +38,7 @@ export const postRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "post.create",
           method: "POST",

@@ -3,7 +3,7 @@ import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trp
 import { TRPCError } from "@trpc/server";
 import * as XLSX from "xlsx";
 import { format, parse } from "date-fns";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Error codes enum
 export const ImportErrorCode = {
@@ -503,7 +503,7 @@ export const subscriptionImportRouter = createTRPCRouter({
           message: err instanceof Error ? err.message : "Failed to parse file",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscriptionImport.importMembers",
           method: "POST",
@@ -798,7 +798,7 @@ export const subscriptionImportRouter = createTRPCRouter({
           message: err instanceof Error ? err.message : "Failed to process import",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscriptionImport.processImport",
           method: "POST",

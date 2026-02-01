@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { hash } from "bcryptjs";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const authRouter = createTRPCRouter({
   verifyResetToken: publicProcedure
@@ -82,7 +82,7 @@ export const authRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "auth.resetPassword",
           method: "PATCH",

@@ -6,7 +6,7 @@ import {
 } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import jwt from "jsonwebtoken";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const apiUrl = process.env.WHATSAPP_API_URL!;
 const username = process.env.WHATSAPP_API_USERNAME!;
@@ -94,7 +94,7 @@ export const whatsappRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "whatsapp.sendMessage",
           method: "POST",
@@ -148,7 +148,7 @@ export const whatsappRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "whatsapp.sendResetPasswordLink",
           method: "POST",

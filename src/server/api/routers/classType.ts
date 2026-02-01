@@ -4,7 +4,7 @@ import {
   publicProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const classTypeRouter = createTRPCRouter({
   // Public procedure to list all active class types
@@ -96,7 +96,7 @@ export const classTypeRouter = createTRPCRouter({
         success = false;
         throw new Error("Failed to create class type");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "classType.create",
           method: "POST",
@@ -149,7 +149,7 @@ export const classTypeRouter = createTRPCRouter({
         success = false;
         throw new Error("Failed to update class type");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "classType.update",
           method: "PATCH",
@@ -187,7 +187,7 @@ export const classTypeRouter = createTRPCRouter({
         success = false;
         throw new Error("Failed to delete class type");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "classType.delete",
           method: "DELETE",

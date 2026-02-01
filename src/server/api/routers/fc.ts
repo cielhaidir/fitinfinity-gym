@@ -5,7 +5,7 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const fcRouter = createTRPCRouter({
   list: publicProcedure
@@ -146,7 +146,7 @@ export const fcRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "fc.create",
           method: "POST",
@@ -215,7 +215,7 @@ export const fcRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "fc.update",
           method: "PATCH",
@@ -264,7 +264,7 @@ export const fcRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "fc.remove",
           method: "DELETE",

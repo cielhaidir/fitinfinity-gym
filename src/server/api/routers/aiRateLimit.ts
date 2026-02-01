@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLimitService";
 import { Prisma } from "@prisma/client";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const aiRateLimitRouter = createTRPCRouter({
   // Get current user's rate limit status
@@ -93,7 +93,7 @@ export const aiRateLimitRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "aiRateLimit.updateMyLimits",
           method: "PUT",
@@ -267,7 +267,7 @@ export const aiRateLimitRouter = createTRPCRouter({
           success = false;
           throw err;
         } finally {
-          await logApiMutation({
+          logApiMutationAsync({
             db: ctx.db,
             endpoint: "aiRateLimit.admin.updateUserLimits",
             method: "PUT",

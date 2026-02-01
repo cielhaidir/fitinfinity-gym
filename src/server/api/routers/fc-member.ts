@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "../trpc";
 import { type Prisma, type FcMember } from "@prisma/client";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const FCMemberStatus = {
   new: "new",
@@ -69,7 +69,7 @@ export const fcMemberRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "fcMember.create",
           method: "POST",
@@ -214,7 +214,7 @@ export const fcMemberRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "fcMember.update",
           method: "PATCH",
@@ -273,7 +273,7 @@ export const fcMemberRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "fcMember.delete",
           method: "DELETE",

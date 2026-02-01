@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const posItemRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:pos-item"])
@@ -89,7 +89,7 @@ export const posItemRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "posItem.create",
           method: "POST",
@@ -138,7 +138,7 @@ export const posItemRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "posItem.update",
           method: "PATCH",
@@ -173,7 +173,7 @@ export const posItemRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "posItem.delete",
           method: "DELETE",
@@ -214,7 +214,7 @@ export const posItemRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "posItem.updateStock",
           method: "PATCH",

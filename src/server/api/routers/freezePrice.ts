@@ -4,7 +4,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const freezePriceRouter = createTRPCRouter({
   /**
@@ -122,7 +122,7 @@ export const freezePriceRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "freezePrice.create",
           method: "POST",
@@ -199,7 +199,7 @@ export const freezePriceRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "freezePrice.update",
           method: "PATCH",
@@ -275,7 +275,7 @@ export const freezePriceRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "freezePrice.delete",
           method: "DELETE",

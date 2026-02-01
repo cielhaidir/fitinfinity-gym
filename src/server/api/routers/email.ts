@@ -13,7 +13,7 @@ import { TRPCError } from "@trpc/server";
 import { smtp } from "@/lib/email/smtpProvider";
 import { emailService } from "@/lib/email/emailService";
 import { randomBytes } from "crypto";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const emailRouter = createTRPCRouter({
   createConfig: permissionProtectedProcedure(["create:email"])
@@ -36,7 +36,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.createConfig",
           method: "POST",
@@ -78,7 +78,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.updateConfig",
           method: "PATCH",
@@ -114,7 +114,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.deleteConfig",
           method: "DELETE",
@@ -181,7 +181,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.setActiveConfig",
           method: "PATCH",
@@ -245,7 +245,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.testConnection",
           method: "POST",
@@ -281,7 +281,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.createTemplate",
           method: "POST",
@@ -323,7 +323,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.updateTemplate",
           method: "PATCH",
@@ -359,7 +359,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.deleteTemplate",
           method: "DELETE",
@@ -483,7 +483,7 @@ export const emailRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "email.sendPasswordResetEmail",
           method: "POST",

@@ -11,7 +11,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const trainerSessionRouter = createTRPCRouter({
   // For management to create schedule with trainer selection
@@ -131,7 +131,7 @@ export const trainerSessionRouter = createTRPCRouter({
         success = false;
         throw error;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "trainerSession.createSchedule",
           method: "POST",
@@ -280,7 +280,7 @@ export const trainerSessionRouter = createTRPCRouter({
         success = false;
         throw error;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "trainerSession.create",
           method: "POST",
@@ -556,7 +556,7 @@ export const trainerSessionRouter = createTRPCRouter({
         success = false;
         throw error;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "trainerSession.delete",
           method: "DELETE",
@@ -664,7 +664,7 @@ export const trainerSessionRouter = createTRPCRouter({
           message: "Gagal mengupdate sesi",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "trainerSession.update",
           method: "PATCH",
@@ -981,7 +981,7 @@ export const trainerSessionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "trainerSession.updateSessionAttendance",
           method: "PATCH",

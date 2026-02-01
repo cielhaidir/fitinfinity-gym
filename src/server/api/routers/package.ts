@@ -6,7 +6,7 @@ import {
 } from "@/server/api/trpc";
 
 import { PackageType } from '@prisma/client';
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const packageType = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER", "GROUP_TRAINING"]);
 const groupPriceType = z.enum(["TOTAL", "PER_PERSON"]);
@@ -61,7 +61,7 @@ export const packageRouter = createTRPCRouter({
       success = false;
       throw err;
     } finally {
-      await logApiMutation({
+      logApiMutationAsync({
         db: ctx.db,
         endpoint: "package.create",
         method: "POST",
@@ -185,7 +185,7 @@ export const packageRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "package.update",
           method: "PATCH",
@@ -220,7 +220,7 @@ export const packageRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "package.remove",
           method: "DELETE",
@@ -334,7 +334,7 @@ export const packageRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "package.createGroupSubscription",
           method: "POST",
@@ -504,7 +504,7 @@ export const packageRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "package.joinGroup",
           method: "POST",
@@ -582,7 +582,7 @@ export const packageRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "package.leaveGroup",
           method: "POST",
@@ -667,7 +667,7 @@ export const packageRouter = createTRPCRouter({
           success = false;
           throw err;
         } finally {
-          await logApiMutation({
+          logApiMutationAsync({
             db: ctx.db,
             endpoint: "package.kickMember",
             method: "POST",
@@ -808,7 +808,7 @@ export const packageRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "package.inviteToGroup",
           method: "POST",

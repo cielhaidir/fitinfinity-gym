@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Purchase order status enum values for validation
 const purchaseOrderStatuses = [
@@ -270,7 +270,7 @@ export const purchaseOrderRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "purchaseOrder.create",
           method: "POST",
@@ -403,7 +403,7 @@ export const purchaseOrderRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "purchaseOrder.update",
           method: "PUT",
@@ -499,7 +499,7 @@ export const purchaseOrderRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "purchaseOrder.updateStatus",
           method: "PATCH",
@@ -844,7 +844,7 @@ export const purchaseOrderRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "purchaseOrder.createTransactionForPO",
           method: "POST",
@@ -991,7 +991,7 @@ export const purchaseOrderRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "purchaseOrder.delete",
           method: "DELETE",
@@ -1073,7 +1073,7 @@ export const purchaseOrderRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "purchaseOrder.cancel",
           method: "POST",

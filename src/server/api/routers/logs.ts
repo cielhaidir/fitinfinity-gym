@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 import * as fs from "fs";
 import * as path from "path";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const logsDirectory = path.resolve("logs");
 
@@ -269,7 +269,7 @@ export const logsRouter = createTRPCRouter({
         console.error('Error deleting log file:', error);
         throw error;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "logs.deleteLog",
           method: "DELETE",

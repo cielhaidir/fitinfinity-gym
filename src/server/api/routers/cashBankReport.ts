@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Cash bank report input schema
 const cashBankReportInputSchema = z.object({
@@ -551,7 +551,7 @@ getCashBankReport: protectedProcedure
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "cashBankReport.closePeriod",
           method: "POST",
@@ -636,7 +636,7 @@ getCashBankReport: protectedProcedure
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "cashBankReport.reopenPeriod",
           method: "DELETE",

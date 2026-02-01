@@ -3,7 +3,7 @@ import {
   createTRPCRouter,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const rewardInputSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -51,7 +51,7 @@ export const rewardRouter = createTRPCRouter({
         console.error("Error creating reward:", error);
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "reward.create",
           method: "POST",
@@ -99,7 +99,7 @@ export const rewardRouter = createTRPCRouter({
         console.error("Error updating reward:", error);
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "reward.update",
           method: "PUT",
@@ -160,7 +160,7 @@ export const rewardRouter = createTRPCRouter({
         }
         throw new Error("Failed to delete reward");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "reward.delete",
           method: "DELETE",
@@ -252,7 +252,7 @@ export const rewardRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "reward.redeem",
           method: "POST",

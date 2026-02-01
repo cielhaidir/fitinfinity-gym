@@ -6,7 +6,7 @@ import {
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import * as XLSX from "xlsx";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const attendanceRouter = createTRPCRouter({
   getAllHistory: permissionProtectedProcedure(["list:employees"])
@@ -274,7 +274,7 @@ export const attendanceRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "attendance.exportToExcel",
           method: "POST",

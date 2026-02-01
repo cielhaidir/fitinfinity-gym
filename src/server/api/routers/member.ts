@@ -7,7 +7,7 @@ import {
   publicProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Fungsi untuk mengupdate subscription yang sudah expired
 async function updateExpiredSubscriptions(ctx: any) {
@@ -76,7 +76,7 @@ export const memberRouter = createTRPCRouter({
         throw e;
       } finally {
         // Log the mutation
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "member.create",
           method: "POST",
@@ -129,7 +129,7 @@ export const memberRouter = createTRPCRouter({
         error = e as Error;
         throw e;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "member.edit",
           method: "PUT",

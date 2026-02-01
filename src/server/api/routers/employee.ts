@@ -5,7 +5,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { employeeSchema } from "@/app/(authenticated)/management/employee/schema";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const employeeRouter = createTRPCRouter({
   getAttendanceHistory: permissionProtectedProcedure(["list:employees"])
@@ -165,7 +165,7 @@ export const employeeRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "employee.create",
           method: "POST",
@@ -215,7 +215,7 @@ export const employeeRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "employee.update",
           method: "PATCH",
@@ -251,7 +251,7 @@ export const employeeRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "employee.delete",
           method: "DELETE",

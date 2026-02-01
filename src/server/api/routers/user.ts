@@ -10,7 +10,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { uploadProfileImage } from "@/utils/minio";
 import { createModelLogger } from "@/utils/logger";
 import { hash } from "bcryptjs";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const userLogger = createModelLogger("User");
 
@@ -101,7 +101,7 @@ export const userRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "user.create",
           method: "POST",
@@ -180,7 +180,7 @@ export const userRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "user.update",
           method: "PUT",
@@ -226,7 +226,7 @@ export const userRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "user.delete",
           method: "DELETE",

@@ -4,7 +4,7 @@ import {
   protectedProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const memberRewardRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:reward"])
@@ -134,7 +134,7 @@ export const memberRewardRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "memberReward.create",
           method: "POST",

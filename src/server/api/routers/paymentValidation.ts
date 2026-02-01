@@ -19,7 +19,7 @@ import { TRPCError } from "@trpc/server";
 import { siteConfig } from "@/lib/config/siteConfig";
 import { start } from "repl";
 import { useRFIDCheckIn } from "@/app/_components/hooks/useRFIDCheckIn";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const paymentValidationRouter = createTRPCRouter({
   uploadFile: permissionProtectedProcedure(["upload:payment"])
@@ -90,7 +90,7 @@ export const paymentValidationRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "paymentValidation.uploadFile",
           method: "POST",
@@ -199,7 +199,7 @@ export const paymentValidationRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "paymentValidation.create",
           method: "POST",
@@ -698,7 +698,7 @@ export const paymentValidationRouter = createTRPCRouter({
           cause: err,
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "paymentValidation.acceptPaymentValidation",
           method: "PUT",
@@ -748,7 +748,7 @@ export const paymentValidationRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "paymentValidation.delete",
           method: "DELETE",

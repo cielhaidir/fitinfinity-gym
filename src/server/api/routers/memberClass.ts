@@ -4,7 +4,7 @@ import {
   protectedProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const memberClassRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:classes"])
@@ -134,7 +134,7 @@ export const memberClassRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "memberClass.register",
           method: "POST",
@@ -223,7 +223,7 @@ export const memberClassRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "memberClass.joinWaitlist",
           method: "POST",
@@ -330,7 +330,7 @@ export const memberClassRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "memberClass.adminAddMember",
           method: "POST",
@@ -431,7 +431,7 @@ export const memberClassRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "memberClass.adminAddMultipleMembers",
           method: "POST",
@@ -494,7 +494,7 @@ export const memberClassRouter = createTRPCRouter({
           success = false;
           throw err;
         } finally {
-          await logApiMutation({
+          logApiMutationAsync({
             db: ctx.db,
             endpoint: "memberClass.adminRemoveMember",
             method: "DELETE",
@@ -827,7 +827,7 @@ export const memberClassRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "memberClass.exportClassMemberReport",
           method: "POST",

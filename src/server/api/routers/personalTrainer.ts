@@ -6,7 +6,7 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc";
 import { memberSchema } from "@/app/(authenticated)/personal-trainers/member-list/schema";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const personalTrainerRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:trainers"])
@@ -64,7 +64,7 @@ export const personalTrainerRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "personalTrainer.create",
           method: "POST",
@@ -111,7 +111,7 @@ export const personalTrainerRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "personalTrainer.update",
           method: "PUT",
@@ -226,7 +226,7 @@ export const personalTrainerRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "personalTrainer.remove",
           method: "DELETE",
@@ -351,7 +351,7 @@ export const personalTrainerRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "personalTrainer.createSession",
           method: "POST",
@@ -729,7 +729,7 @@ export const personalTrainerRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "personalTrainer.updateMember",
           method: "PUT",

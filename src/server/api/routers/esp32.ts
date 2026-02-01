@@ -3,7 +3,7 @@ import { createTRPCRouter, publicProcedure, deviceProcedure, protectedProcedure 
 import { TRPCError } from "@trpc/server";
 import { EnrollmentStatus } from "@prisma/client";
 import { mqttService } from "@/lib/mqtt/mqttService";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Output schema for getMemberCheckinLogs
 const memberCheckinLogSchema = z.object({
@@ -74,7 +74,7 @@ export const esp32Router = createTRPCRouter({
           message: "Invalid device credentials",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.authenticate",
           method: "POST",
@@ -196,7 +196,7 @@ export const esp32Router = createTRPCRouter({
           message: "Failed to initiate enrollment"
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.requestEnrollment",
           method: "POST",
@@ -286,7 +286,7 @@ export const esp32Router = createTRPCRouter({
           message: "Failed to update enrollment status"
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.updateEnrollmentStatus",
           method: "PATCH",
@@ -417,7 +417,7 @@ export const esp32Router = createTRPCRouter({
           message: "Failed to log attendance",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.logFingerprint",
           method: "POST",
@@ -541,7 +541,7 @@ export const esp32Router = createTRPCRouter({
           message: "Failed to log member attendance",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.logRFID",
           method: "POST",
@@ -663,7 +663,7 @@ export const esp32Router = createTRPCRouter({
           message: "Failed to log manual check-in",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.manualCheckIn",
           method: "POST",
@@ -743,7 +743,7 @@ export const esp32Router = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.manualCheckout",
           method: "PATCH",
@@ -1159,7 +1159,7 @@ export const esp32Router = createTRPCRouter({
           message: "Failed to process bulk attendance logs",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.bulkLog",
           method: "POST",
@@ -1234,7 +1234,7 @@ export const esp32Router = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "esp32.updateMemberCheckinLog",
           method: "PATCH",

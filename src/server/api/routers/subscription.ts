@@ -10,7 +10,7 @@ import { format } from "date-fns"; // Add this import
 import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
 import { subscriptionsCreatedTotal } from "@/server/metrics"; // Add metrics import
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Fungsi untuk mengupdate subscription yang sudah expired
 async function updateExpiredSubscriptions(ctx: any) {
@@ -297,7 +297,7 @@ export const subscriptionRouter = createTRPCRouter({
           message: error instanceof Error ? error.message : "Failed to create subscription. Please try again.",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.create",
           method: "POST",
@@ -527,7 +527,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.updatePaymentStatus",
           method: "PATCH",
@@ -1147,7 +1147,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.update",
           method: "PATCH",
@@ -1267,7 +1267,7 @@ export const subscriptionRouter = createTRPCRouter({
         console.error("Checkout error:", err);
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.checkout",
           method: "POST",
@@ -1398,7 +1398,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.delete",
           method: "DELETE",
@@ -1441,7 +1441,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.deactivateExpired",
           method: "PATCH",
@@ -1722,7 +1722,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.freeze",
           method: "PATCH",
@@ -1906,7 +1906,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.unfreeze",
           method: "PATCH",
@@ -1997,7 +1997,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.updateSales",
           method: "PATCH",
@@ -2163,7 +2163,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.transfer",
           method: "PATCH",
@@ -2337,7 +2337,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.upgradeGymSimple",
           method: "PATCH",
@@ -2594,7 +2594,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.updateRemainingSessions",
           method: "PATCH",
@@ -2724,7 +2724,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.updateTrainer",
           method: "PATCH",
@@ -3237,7 +3237,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.cancelTransfer",
           method: "PATCH",
@@ -3540,7 +3540,7 @@ export const subscriptionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "subscription.cancelFreeze",
           method: "PATCH",

@@ -5,7 +5,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const balanceAccountRouter = createTRPCRouter({
   getAll: permissionProtectedProcedure(["list:balances"])
@@ -98,7 +98,7 @@ export const balanceAccountRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "balanceAccount.create",
           method: "POST",
@@ -157,7 +157,7 @@ export const balanceAccountRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "balanceAccount.update",
           method: "PATCH",
@@ -204,7 +204,7 @@ export const balanceAccountRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "balanceAccount.delete",
           method: "DELETE",

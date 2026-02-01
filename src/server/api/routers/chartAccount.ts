@@ -8,7 +8,7 @@ import {
   updateChartAccountSchema,
 } from "@/app/(authenticated)/finance/chart-of-account/schema";
 import { z } from "zod";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const chartAccountRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:coa"])
@@ -71,7 +71,7 @@ export const chartAccountRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "chartAccount.create",
           method: "POST",
@@ -109,7 +109,7 @@ export const chartAccountRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "chartAccount.update",
           method: "PATCH",
@@ -145,7 +145,7 @@ export const chartAccountRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "chartAccount.delete",
           method: "DELETE",

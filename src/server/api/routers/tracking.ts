@@ -5,7 +5,7 @@ import { runPaddleOCRMultiple } from "@/lib/paddleOcrClient";
 import { parseOCRText } from "@/server/utils/ocrParser";
 import { createAIService } from "@/server/utils/aiService";
 import { createAIRateLimitService, AIRequestType } from "@/server/utils/aiRateLimitService";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Helper function to check if user has active membership
 async function checkActiveMembership(db: any, userId: string) {
@@ -274,7 +274,7 @@ export const trackingRouter = createTRPCRouter({
           data: null
         };
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "tracking.createTracking",
           method: "POST",
@@ -434,7 +434,7 @@ export const trackingRouter = createTRPCRouter({
           data: null
         };
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "tracking.updateTracking",
           method: "PUT",
@@ -487,7 +487,7 @@ export const trackingRouter = createTRPCRouter({
           data: null
         };
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "tracking.deleteTracking",
           method: "DELETE",

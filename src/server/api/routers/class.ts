@@ -6,7 +6,7 @@ import {
   publicProcedure,
 } from "@/server/api/trpc";
 import { createClassSchema, createBulkClassSchema } from "@/app/(authenticated)/management/class/schema";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const classRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:classes"])
@@ -47,7 +47,7 @@ export const classRouter = createTRPCRouter({
         console.error("Failed to create class:", error);
         throw new Error("Failed to create class");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "class.create",
           method: "POST",
@@ -109,7 +109,7 @@ export const classRouter = createTRPCRouter({
         console.error("Failed to create bulk classes:", error);
         throw new Error("Failed to create bulk classes");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "class.createBulk",
           method: "POST",
@@ -226,7 +226,7 @@ export const classRouter = createTRPCRouter({
         console.error("Failed to update class:", error);
         throw new Error("Failed to update class");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "class.update",
           method: "PATCH",
@@ -263,7 +263,7 @@ export const classRouter = createTRPCRouter({
         console.error("Failed to delete class:", error);
         throw new Error("Failed to delete class");
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "class.remove",
           method: "DELETE",

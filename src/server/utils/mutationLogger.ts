@@ -127,6 +127,20 @@ function sanitizeData(data: unknown): unknown {
 }
 
 /**
+ * Fire-and-forget version of logApiMutation
+ * This version doesn't block the response and handles the promise internally
+ *
+ * @param params - LogMutationParams
+ */
+export function logApiMutationAsync(params: LogMutationParams): void {
+  // Fire and forget - don't await, don't block
+  logApiMutation(params).catch((error) => {
+    // This catch is just a safety net, but logApiMutation already handles errors
+    console.error("[mutationLogger] Unhandled error in async logging:", error);
+  });
+}
+
+/**
  * Extract IP address from headers object
  * 
  * @param headers - Headers object or Map

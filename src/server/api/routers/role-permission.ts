@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const rolePermissionRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:role-permission"])
@@ -37,7 +37,7 @@ export const rolePermissionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "rolePermission.create",
           method: "POST",
@@ -193,7 +193,7 @@ export const rolePermissionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "rolePermission.update",
           method: "PUT",
@@ -240,7 +240,7 @@ export const rolePermissionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "rolePermission.delete",
           method: "DELETE",

@@ -5,7 +5,7 @@ import {
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { VoucherType } from "@prisma/client";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const voucherRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:voucher"])
@@ -264,7 +264,7 @@ export const voucherRouter = createTRPCRouter({
           message: "Gagal mengklaim voucher",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "voucher.finalizeVoucherClaim",
           method: "POST",
@@ -322,7 +322,7 @@ export const voucherRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "voucher.create",
           method: "POST",
@@ -373,7 +373,7 @@ export const voucherRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "voucher.update",
           method: "PUT",
@@ -408,7 +408,7 @@ export const voucherRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "voucher.delete",
           method: "DELETE",

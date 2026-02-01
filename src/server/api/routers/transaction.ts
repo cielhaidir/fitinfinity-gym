@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const transactionRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:transaction"])
@@ -82,7 +82,7 @@ export const transactionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "transaction.create",
           method: "POST",
@@ -144,7 +144,7 @@ export const transactionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "transaction.update",
           method: "PATCH",
@@ -183,7 +183,7 @@ export const transactionRouter = createTRPCRouter({
           success = false;
           throw err;
         } finally {
-          await logApiMutation({
+          logApiMutationAsync({
             db: ctx.db,
             endpoint: "transaction.remove",
             method: "DELETE",
@@ -263,7 +263,7 @@ export const transactionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "transaction.delete",
           method: "DELETE",
@@ -328,7 +328,7 @@ export const transactionRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "transaction.uploadFile",
           method: "POST",

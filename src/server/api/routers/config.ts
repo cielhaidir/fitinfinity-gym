@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, permissionProtectedProcedure } from "@/server/api/trpc";
 import { configService } from "@/lib/config/configService";
 import { TRPCError } from "@trpc/server";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const configRouter = createTRPCRouter({
   getAll: permissionProtectedProcedure(["list:config"]).query(async ({ ctx }) => {
@@ -48,7 +48,7 @@ export const configRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "config.update",
           method: "PATCH",
@@ -81,7 +81,7 @@ export const configRouter = createTRPCRouter({
       success = false;
       throw err;
     } finally {
-      await logApiMutation({
+      logApiMutationAsync({
         db: ctx.db,
         endpoint: "config.resetToDefaults",
         method: "POST",

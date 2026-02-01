@@ -14,7 +14,7 @@ import { emailService } from "@/lib/email/emailService";
 import { format } from "date-fns";
 import { siteConfig } from "@/lib/config/siteConfig";
 import { dokuPaymentService } from "@/lib/payment/doku";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const paymentRouter = createTRPCRouter({
   createTransaction: protectedProcedure
@@ -325,7 +325,7 @@ export const paymentRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "payment.createTransaction",
           method: "POST",
@@ -374,7 +374,7 @@ export const paymentRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "payment.getByOrderReference",
           method: "POST",
@@ -704,7 +704,7 @@ export const paymentRouter = createTRPCRouter({
       success = false;
       throw err;
     } finally {
-      await logApiMutation({
+      logApiMutationAsync({
         db: ctx.db,
         endpoint: "payment.handleNotification",
         method: "POST",

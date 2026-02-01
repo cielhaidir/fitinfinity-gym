@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const posCategoryRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:pos-category"])
@@ -87,7 +87,7 @@ export const posCategoryRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "posCategory.create",
           method: "POST",
@@ -131,7 +131,7 @@ export const posCategoryRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "posCategory.update",
           method: "PATCH",
@@ -175,7 +175,7 @@ export const posCategoryRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "posCategory.delete",
           method: "DELETE",

@@ -2,7 +2,7 @@ import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trp
 import { db } from "@/server/db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const managerCalendarRouter = createTRPCRouter({
   getAllTrainers: permissionProtectedProcedure(["list:session"]).query(async ({ ctx }) => {
@@ -199,7 +199,8 @@ export const managerCalendarRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        // Fire and forget - don't block response
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "managerCalendar.updateAttendanceCount",
           method: "PATCH",
@@ -308,7 +309,8 @@ export const managerCalendarRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        // Fire and forget - don't block response
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "managerCalendar.updateSchedule",
           method: "PUT",
@@ -391,7 +393,8 @@ export const managerCalendarRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        // Fire and forget - don't block response
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "managerCalendar.cancelSchedule",
           method: "PATCH",
@@ -483,7 +486,8 @@ export const managerCalendarRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        // Fire and forget - don't block response
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "managerCalendar.restoreSchedule",
           method: "DELETE",

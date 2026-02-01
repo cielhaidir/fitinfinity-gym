@@ -7,7 +7,7 @@ import {
 } from "@/server/api/trpc";
 import { uploadFile } from "@/lib/upload";
 import bcrypt from "bcryptjs";
-import { logApiMutation, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const profileRouter = createTRPCRouter({
   get: permissionProtectedProcedure(["show:profile"])
@@ -139,7 +139,7 @@ export const profileRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.update",
           method: "PUT",
@@ -198,7 +198,7 @@ export const profileRouter = createTRPCRouter({
             error instanceof Error ? error.message : "Failed to upload image",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.uploadImage",
           method: "POST",
@@ -275,7 +275,7 @@ export const profileRouter = createTRPCRouter({
             error instanceof Error ? error.message : "Failed to upload image",
         });
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.uploadPTPhoto",
           method: "POST",
@@ -350,7 +350,7 @@ export const profileRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.changePassword",
           method: "PATCH",
@@ -406,7 +406,7 @@ export const profileRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.updatePoints",
           method: "PATCH",
@@ -470,7 +470,7 @@ export const profileRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.updateMember",
           method: "PUT",
@@ -540,7 +540,7 @@ export const profileRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.adminChangePassword",
           method: "PATCH",
@@ -623,7 +623,7 @@ export const profileRouter = createTRPCRouter({
         success = false;
         throw err;
       } finally {
-        await logApiMutation({
+        logApiMutationAsync({
           db: ctx.db,
           endpoint: "profile.transferAccount",
           method: "POST",
