@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
 import * as fs from "fs";
 import * as path from "path";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const logsDirectory = path.resolve("logs");
 
@@ -239,7 +240,12 @@ export const logsRouter = createTRPCRouter({
   // Delete old logs
   deleteLog: permissionProtectedProcedure(["delete:logs"])
     .input(z.object({ filename: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result;
+      let error: Error | null = null;
+
       try {
         const filePath = path.join(logsDirectory, input.filename);
         
@@ -254,10 +260,142 @@ export const logsRouter = createTRPCRouter({
         }
 
         fs.unlinkSync(filePath);
-        return { success: true, message: `Deleted ${input.filename}` };
-      } catch (error) {
+        result = { success: true, message: `Deleted ${input.filename}` };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
         console.error('Error deleting log file:', error);
         throw error;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "logs.deleteLog",
+          method: "DELETE",
+          userId: ctx.session.user.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
+    }),
+
+  // Get API mutation logs with filtering and pagination
+  getMutationLogs: permissionProtectedProcedure(["list:logs"])
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+        endpoint: z.string().optional(),
+        method: z.string().optional(),
+        success: z.boolean().optional(),
+        userId: z.string().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        search: z.string().optional(),
+        model: z.string().optional(),
+        action: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const where: any = {};
+
+      if (input.endpoint) {
+        where.endpoint = { contains: input.endpoint, mode: 'insensitive' };
+      }
+
+      // Model and action filters
+      if (input.model && input.action) {
+        // Both filters: exact match
+        where.endpoint = { equals: `${input.model}.${input.action}` };
+      } else if (input.model) {
+        // Model filter only: check if endpoint starts with model.
+        where.endpoint = { startsWith: `${input.model}.` };
+      } else if (input.action) {
+        // Action filter only: check if endpoint ends with .action
+        where.endpoint = { endsWith: `.${input.action}` };
+      }
+
+      if (input.method) {
+        where.method = input.method;
+      }
+
+      if (input.success !== undefined) {
+        where.success = input.success;
+      }
+
+      if (input.userId) {
+        where.userId = input.userId;
+      }
+
+      if (input.startDate || input.endDate) {
+        where.createdAt = {};
+        if (input.startDate) {
+          where.createdAt.gte = input.startDate;
+        }
+        if (input.endDate) {
+          const endOfDay = new Date(input.endDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          where.createdAt.lte = endOfDay;
+        }
+      }
+
+      if (input.search) {
+        where.OR = [
+          { endpoint: { contains: input.search, mode: 'insensitive' } },
+          { ipAddress: { contains: input.search, mode: 'insensitive' } },
+          { errorMessage: { contains: input.search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [items, total] = await Promise.all([
+        ctx.db.logs.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (input.page - 1) * input.limit,
+          take: input.limit,
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+        ctx.db.logs.count({ where }),
+      ]);
+
+      return {
+        items,
+        total,
+        page: input.page,
+        limit: input.limit,
+        totalPages: Math.ceil(total / input.limit),
+      };
+    }),
+
+  // Get mutation log by ID
+  getMutationLogById: permissionProtectedProcedure(["list:logs"])
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.logs.findUnique({
+        where: { id: input.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
     }),
 });

@@ -4,6 +4,7 @@ import { mqttService } from "../../../lib/mqtt/mqttService";
 import { wifiConfigService } from "../../../lib/wifi/wifiConfigService";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const enrollmentSchema = z.object({
   deviceId: z.string(),

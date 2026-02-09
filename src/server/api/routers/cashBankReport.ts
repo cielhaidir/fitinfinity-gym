@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Cash bank report input schema
 const cashBankReportInputSchema = z.object({
@@ -409,134 +410,161 @@ getCashBankReport: protectedProcedure
       endDate: z.date(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { balanceAccountId, startDate, endDate } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Check if period is already closed
-      const existingClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
-        where: {
-          balanceAccountId,
-          startDate: {
-            lte: endDate,
+      try {
+        const { balanceAccountId, startDate, endDate } = input;
+
+        // Check if period is already closed
+        const existingClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
+          where: {
+            balanceAccountId,
+            startDate: {
+              lte: endDate,
+            },
+            endDate: {
+              gte: startDate,
+            },
           },
-          endDate: {
-            gte: startDate,
+        });
+
+        if (existingClosing) {
+          throw new Error('This period overlaps with an already closed period');
+        }
+
+        // Get initial balance from previous closing or account's initial balance
+        const previousClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
+          where: {
+            balanceAccountId,
+            endDate: {
+              lt: startDate,
+            },
           },
-        },
-      });
-
-      if (existingClosing) {
-        throw new Error('This period overlaps with an already closed period');
-      }
-
-      // Get initial balance from previous closing or account's initial balance
-      const previousClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
-        where: {
-          balanceAccountId,
-          endDate: {
-            lt: startDate,
+          orderBy: {
+            endDate: 'desc',
           },
-        },
-        orderBy: {
-          endDate: 'desc',
-        },
-      });
+        });
 
-      const balanceAccount = await ctx.db.balanceAccount.findUnique({
-        where: { id: balanceAccountId },
-      });
+        const balanceAccount = await ctx.db.balanceAccount.findUnique({
+          where: { id: balanceAccountId },
+        });
 
-      if (!balanceAccount) {
-        throw new Error('Balance account not found');
-      }
+        if (!balanceAccount) {
+          throw new Error('Balance account not found');
+        }
 
-      const initialBalance = previousClosing?.closingBalance || balanceAccount.initialBalance;
+        const initialBalance = previousClosing?.closingBalance || balanceAccount.initialBalance;
 
-      // Convert dates to GMT+8 for calculations
-      const start = toGMT8StartOfDay(startDate);
-      const end = toGMT8EndOfDay(endDate);
+        // Convert dates to GMT+8 for calculations
+        const start = toGMT8StartOfDay(startDate);
+        const end = toGMT8EndOfDay(endDate);
 
-      // Calculate period totals
-      const paymentsTotal = await ctx.db.payment.aggregate({
-        where: {
-          createdAt: {
-            gte: start,
-            lte: end,
-          },
-          status: 'SUCCESS',
-          subscription: {
-            member: {
-              paymentValidations: {
-                some: {
-                  balanceId: balanceAccountId,
+        // Calculate period totals
+        const paymentsTotal = await ctx.db.payment.aggregate({
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end,
+            },
+            status: 'SUCCESS',
+            subscription: {
+              member: {
+                paymentValidations: {
+                  some: {
+                    balanceId: balanceAccountId,
+                  },
                 },
               },
             },
           },
-        },
-        _sum: {
-          totalPayment: true,
-        },
-      });
-
-      const posSalesTotal = await ctx.db.pOSSale.aggregate({
-        where: {
-          saleDate: {
-            gte: start,
-            lte: end,
+          _sum: {
+            totalPayment: true,
           },
-          balanceId: balanceAccountId,
-        },
-        _sum: {
-          total: true,
-        },
-      });
+        });
 
-      const transactionsTotal = await ctx.db.transaction.aggregate({
-        where: {
-          transaction_date: {
-            gte: start,
-            lte: end,
+        const posSalesTotal = await ctx.db.pOSSale.aggregate({
+          where: {
+            saleDate: {
+              gte: start,
+              lte: end,
+            },
+            balanceId: balanceAccountId,
           },
-          bank_id: balanceAccountId,
-        },
-        _sum: {
-          amount: true,
-        },
-      });
+          _sum: {
+            total: true,
+          },
+        });
 
-      const totalCredits = (paymentsTotal._sum.totalPayment || 0) + (posSalesTotal._sum.total || 0);
-      const totalDebits = transactionsTotal._sum.amount || 0;
-      const closingBalance = initialBalance + totalCredits - totalDebits;
+        const transactionsTotal = await ctx.db.transaction.aggregate({
+          where: {
+            transaction_date: {
+              gte: start,
+              lte: end,
+            },
+            bank_id: balanceAccountId,
+          },
+          _sum: {
+            amount: true,
+          },
+        });
 
-      // Create period closing record
-      const periodClosing = await ctx.db.balanceAccountPeriodClosing.create({
-        data: {
-          balanceAccountId,
-          startDate,
-          endDate,
-          initialBalance,
-          totalCredits,
-          totalDebits,
-          closingBalance,
-          closedBy: ctx.session.user.id,
-        },
-        include: {
-          balanceAccount: {
-            select: {
-              name: true,
-              account_number: true,
+        const totalCredits = (paymentsTotal._sum.totalPayment || 0) + (posSalesTotal._sum.total || 0);
+        const totalDebits = transactionsTotal._sum.amount || 0;
+        const closingBalance = initialBalance + totalCredits - totalDebits;
+
+        // Create period closing record
+        const periodClosing = await ctx.db.balanceAccountPeriodClosing.create({
+          data: {
+            balanceAccountId,
+            startDate,
+            endDate,
+            initialBalance,
+            totalCredits,
+            totalDebits,
+            closingBalance,
+            closedBy: ctx.session.user.id,
+          },
+          include: {
+            balanceAccount: {
+              select: {
+                name: true,
+                account_number: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      // Update balance account's last balance
-      await ctx.db.balanceAccount.update({
-        where: { id: balanceAccountId },
-        data: { lastBalance: closingBalance },
-      });
+        // Update balance account's last balance
+        await ctx.db.balanceAccount.update({
+          where: { id: balanceAccountId },
+          data: { lastBalance: closingBalance },
+        });
 
-      return periodClosing;
+        result = periodClosing;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "cashBankReport.closePeriod",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Reopen a closed period (delete closing record)
@@ -545,56 +573,83 @@ getCashBankReport: protectedProcedure
       periodClosingId: z.number(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { periodClosingId } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      const periodClosing = await ctx.db.balanceAccountPeriodClosing.findUnique({
-        where: { id: periodClosingId },
-        include: {
-          balanceAccount: true,
-        },
-      });
+      try {
+        const { periodClosingId } = input;
 
-      if (!periodClosing) {
-        throw new Error('Period closing not found');
-      }
-
-      // Check if there are newer closings that depend on this one
-      const newerClosings = await ctx.db.balanceAccountPeriodClosing.findMany({
-        where: {
-          balanceAccountId: periodClosing.balanceAccountId,
-          startDate: {
-            gt: periodClosing.endDate,
+        const periodClosing = await ctx.db.balanceAccountPeriodClosing.findUnique({
+          where: { id: periodClosingId },
+          include: {
+            balanceAccount: true,
           },
-        },
-      });
+        });
 
-      if (newerClosings.length > 0) {
-        throw new Error('Cannot reopen this period as there are newer closed periods that depend on it');
+        if (!periodClosing) {
+          throw new Error('Period closing not found');
+        }
+
+        // Check if there are newer closings that depend on this one
+        const newerClosings = await ctx.db.balanceAccountPeriodClosing.findMany({
+          where: {
+            balanceAccountId: periodClosing.balanceAccountId,
+            startDate: {
+              gt: periodClosing.endDate,
+            },
+          },
+        });
+
+        if (newerClosings.length > 0) {
+          throw new Error('Cannot reopen this period as there are newer closed periods that depend on it');
+        }
+
+        // Delete the closing record
+        await ctx.db.balanceAccountPeriodClosing.delete({
+          where: { id: periodClosingId },
+        });
+
+        // Recalculate the balance account's last balance
+        const lastClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
+          where: {
+            balanceAccountId: periodClosing.balanceAccountId,
+          },
+          orderBy: {
+            endDate: 'desc',
+          },
+        });
+
+        const newLastBalance = lastClosing?.closingBalance || periodClosing.balanceAccount.initialBalance;
+
+        await ctx.db.balanceAccount.update({
+          where: { id: periodClosing.balanceAccountId },
+          data: { lastBalance: newLastBalance },
+        });
+
+        result = { success: true };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "cashBankReport.reopenPeriod",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      // Delete the closing record
-      await ctx.db.balanceAccountPeriodClosing.delete({
-        where: { id: periodClosingId },
-      });
-
-      // Recalculate the balance account's last balance
-      const lastClosing = await ctx.db.balanceAccountPeriodClosing.findFirst({
-        where: {
-          balanceAccountId: periodClosing.balanceAccountId,
-        },
-        orderBy: {
-          endDate: 'desc',
-        },
-      });
-
-      const newLastBalance = lastClosing?.closingBalance || periodClosing.balanceAccount.initialBalance;
-
-      await ctx.db.balanceAccount.update({
-        where: { id: periodClosing.balanceAccountId },
-        data: { lastBalance: newLastBalance },
-      });
-
-      return { success: true };
     }),
 
   // Get cash bank report data for export (no pagination)

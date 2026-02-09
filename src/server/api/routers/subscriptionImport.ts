@@ -3,6 +3,7 @@ import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trp
 import { TRPCError } from "@trpc/server";
 import * as XLSX from "xlsx";
 import { format, parse } from "date-fns";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Error codes enum
 export const ImportErrorCode = {
@@ -181,6 +182,11 @@ export const subscriptionImportRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         // Decode base64
         const buffer = Buffer.from(input.fileBase64, "base64");
@@ -300,16 +306,16 @@ export const subscriptionImportRouter = createTRPCRouter({
           console.log(`Row ${idx + 2}: ${normalizedRow["NAMA"]}, NOMINAL raw: ${normalizedRow["NOMINAL"]}, parsed: ${nominal}`);
           return {
             rowNumber: idx + 2, // Excel row number (header is row 1)
-            tanggal: normalizedRow["TANGGAL"] || normalizedRow["tanggal"] || "",
-            nama: normalizedRow["NAMA"] || normalizedRow["nama"] || "",
-            membership: normalizedRow["MEMBERSHIP (START)"] || normalizedRow["MEMBERSHIP"] || normalizedRow["membership"] || "",
-            start: normalizedRow["START"] || normalizedRow["start"] || undefined,
-            disc: normalizedRow["Disc"] || normalizedRow["disc"] || undefined,
+            tanggal: String(normalizedRow["TANGGAL"] || normalizedRow["tanggal"] || ""),
+            nama: String(normalizedRow["NAMA"] || normalizedRow["nama"] || ""),
+            membership: String(normalizedRow["MEMBERSHIP (START)"] || normalizedRow["MEMBERSHIP"] || normalizedRow["membership"] || ""),
+            start: normalizedRow["START"] || normalizedRow["start"] ? String(normalizedRow["START"] || normalizedRow["start"]) : undefined,
+            disc: normalizedRow["Disc"] || normalizedRow["disc"] ? Number(normalizedRow["Disc"] || normalizedRow["disc"]) : undefined,
             nominal,
-            ptSession: normalizedRow["PT SESSION"] || normalizedRow["pt session"] || undefined,
-            payment: normalizedRow["PAYMENT"] || normalizedRow["payment"] || "",
-            fc: normalizedRow["FC"] || normalizedRow["fc"] || "",
-            id: normalizedRow["ID"] || normalizedRow["id"] || undefined,
+            ptSession: normalizedRow["PT SESSION"] || normalizedRow["pt session"] ? String(normalizedRow["PT SESSION"] || normalizedRow["pt session"]) : undefined,
+            payment: String(normalizedRow["PAYMENT"] || normalizedRow["payment"] || ""),
+            fc: String(normalizedRow["FC"] || normalizedRow["fc"] || ""),
+            id: normalizedRow["ID"] || normalizedRow["id"] ? String(normalizedRow["ID"] || normalizedRow["id"]) : undefined,
           };
         });
         
@@ -483,15 +489,32 @@ export const subscriptionImportRouter = createTRPCRouter({
           ),
         };
         
-        return {
+        result = {
           batches,
           stats,
         };
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
         console.error("Import preview error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Failed to parse file",
+          message: err instanceof Error ? err.message : "Failed to parse file",
+        });
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscriptionImport.importMembers",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: { fileSize: input.fileBase64.length },
+          responseData: success ? { batchCount: result?.batches?.length, stats: result?.stats } : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -504,7 +527,13 @@ export const subscriptionImportRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const summary = {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const summary = {
         usersCreated: 0,
         membershipsCreated: 0,
         subscriptionsCreated: 0,
@@ -752,12 +781,36 @@ export const subscriptionImportRouter = createTRPCRouter({
             message: error instanceof Error ? error.message : "Batch processing failed",
           });
         }
+        }
+        
+        result = {
+          summary,
+          errors,
+          warnings,
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err instanceof Error ? err.message : "Failed to process import",
+        });
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscriptionImport.processImport",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: { batchCount: input.batchIds.length },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-      
-      return {
-        summary,
-        errors,
-        warnings,
-      };
     }),
 });

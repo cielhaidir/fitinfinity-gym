@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Purchase order status enum values for validation
 const purchaseOrderStatuses = [
@@ -208,56 +209,81 @@ export const purchaseOrderRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const { supplierId, orderDate, expectedDate, tax, discount, notes, items } =
-        input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Generate order number
-      const orderNumber = await generateOrderNumber(ctx.db);
+      try {
+        const userId = ctx.session.user.id;
+        const { supplierId, orderDate, expectedDate, tax, discount, notes, items } =
+          input;
 
-      // Calculate subtotal from items
-      const subtotal = items.reduce(
-        (acc, item) => acc + item.quantity * item.unitCost,
-        0
-      );
+        // Generate order number
+        const orderNumber = await generateOrderNumber(ctx.db);
 
-      // Calculate total
-      const total = subtotal + tax - discount;
+        // Calculate subtotal from items
+        const subtotal = items.reduce(
+          (acc, item) => acc + item.quantity * item.unitCost,
+          0
+        );
 
-      // Create purchase order with items
-      const purchaseOrder = await ctx.db.purchaseOrder.create({
-        data: {
-          orderNumber,
-          supplierId,
-          orderDate,
-          expectedDate,
-          subtotal,
-          tax,
-          discount,
-          total,
-          notes,
-          createdBy: userId,
-          items: {
-            create: items.map((item) => ({
-              itemId: item.itemId,
-              quantity: item.quantity,
-              unitCost: item.unitCost,
-              subtotal: item.quantity * item.unitCost,
-              notes: item.notes,
-            })),
-          },
-        },
-        include: {
-          supplier: true,
-          items: {
-            include: {
-              item: true,
+        // Calculate total
+        const total = subtotal + tax - discount;
+
+        // Create purchase order with items
+        result = await ctx.db.purchaseOrder.create({
+          data: {
+            orderNumber,
+            supplierId,
+            orderDate,
+            expectedDate,
+            subtotal,
+            tax,
+            discount,
+            total,
+            notes,
+            createdBy: userId,
+            items: {
+              create: items.map((item) => ({
+                itemId: item.itemId,
+                quantity: item.quantity,
+                unitCost: item.unitCost,
+                subtotal: item.quantity * item.unitCost,
+                notes: item.notes,
+              })),
             },
           },
-        },
-      });
-
-      return purchaseOrder;
+          include: {
+            supplier: true,
+            items: {
+              include: {
+                item: true,
+              },
+            },
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "purchaseOrder.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Update purchase order (only if status is DRAFT or PENDING)
@@ -285,85 +311,112 @@ export const purchaseOrderRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const { id, items, ...updateData } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Check if purchase order exists and status allows update
-      const existingPO = await ctx.db.purchaseOrder.findUnique({
-        where: { id },
-      });
+      try {
+        const userId = ctx.session.user.id;
+        const { id, items, ...updateData } = input;
 
-      if (!existingPO) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Purchase order not found",
+        // Check if purchase order exists and status allows update
+        const existingPO = await ctx.db.purchaseOrder.findUnique({
+          where: { id },
         });
-      }
 
-      if (!["DRAFT", "PENDING"].includes(existingPO.status)) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Cannot update purchase order with status: ${existingPO.status}`,
-        });
-      }
-
-      // Calculate new totals if items provided
-      let subtotal = existingPO.subtotal;
-      const tax = updateData.tax ?? existingPO.tax;
-      const discount = updateData.discount ?? existingPO.discount;
-
-      if (items) {
-        subtotal = items.reduce(
-          (acc, item) => acc + item.quantity * item.unitCost,
-          0
-        );
-      }
-
-      const total = subtotal + tax - discount;
-
-      // Update purchase order
-      return ctx.db.$transaction(async (tx) => {
-        // Delete old items if new items provided
-        if (items) {
-          await tx.purchaseOrderItem.deleteMany({
-            where: { purchaseOrderId: id },
+        if (!existingPO) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Purchase order not found",
           });
         }
 
+        if (!["DRAFT", "PENDING"].includes(existingPO.status)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot update purchase order with status: ${existingPO.status}`,
+          });
+        }
+
+        // Calculate new totals if items provided
+        let subtotal = existingPO.subtotal;
+        const tax = updateData.tax ?? existingPO.tax;
+        const discount = updateData.discount ?? existingPO.discount;
+
+        if (items) {
+          subtotal = items.reduce(
+            (acc, item) => acc + item.quantity * item.unitCost,
+            0
+          );
+        }
+
+        const total = subtotal + tax - discount;
+
         // Update purchase order
-        const updatedPO = await tx.purchaseOrder.update({
-          where: { id },
-          data: {
-            ...updateData,
-            subtotal,
-            tax,
-            discount,
-            total,
-            updatedBy: userId,
-            ...(items && {
+        result = await ctx.db.$transaction(async (tx) => {
+          // Delete old items if new items provided
+          if (items) {
+            await tx.purchaseOrderItem.deleteMany({
+              where: { purchaseOrderId: id },
+            });
+          }
+
+          // Update purchase order
+          const updatedPO = await tx.purchaseOrder.update({
+            where: { id },
+            data: {
+              ...updateData,
+              subtotal,
+              tax,
+              discount,
+              total,
+              updatedBy: userId,
+              ...(items && {
+                items: {
+                  create: items.map((item) => ({
+                    itemId: item.itemId,
+                    quantity: item.quantity,
+                    unitCost: item.unitCost,
+                    subtotal: item.quantity * item.unitCost,
+                    notes: item.notes,
+                  })),
+                },
+              }),
+            },
+            include: {
+              supplier: true,
               items: {
-                create: items.map((item) => ({
-                  itemId: item.itemId,
-                  quantity: item.quantity,
-                  unitCost: item.unitCost,
-                  subtotal: item.quantity * item.unitCost,
-                  notes: item.notes,
-                })),
-              },
-            }),
-          },
-          include: {
-            supplier: true,
-            items: {
-              include: {
-                item: true,
+                include: {
+                  item: true,
+                },
               },
             },
-          },
-        });
+          });
 
-        return updatedPO;
-      });
+          return updatedPO;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "purchaseOrder.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Update status (submit order, mark as ordered, cancel)
@@ -375,64 +428,91 @@ export const purchaseOrderRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const { id, status } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Get current purchase order
-      const existingPO = await ctx.db.purchaseOrder.findUnique({
-        where: { id },
-      });
+      try {
+        const userId = ctx.session.user.id;
+        const { id, status } = input;
 
-      if (!existingPO) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Purchase order not found",
+        // Get current purchase order
+        const existingPO = await ctx.db.purchaseOrder.findUnique({
+          where: { id },
         });
-      }
 
-      // Validate status transition
-      const currentStatus = existingPO.status;
+        if (!existingPO) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Purchase order not found",
+          });
+        }
 
-      // Cannot change status if RECEIVED or PARTIALLY_RECEIVED
-      if (["RECEIVED", "PARTIALLY_RECEIVED"].includes(currentStatus)) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Cannot change status from ${currentStatus}`,
-        });
-      }
+        // Validate status transition
+        const currentStatus = existingPO.status;
 
-      // Validate allowed transitions
-      const validTransitions: Record<string, string[]> = {
-        DRAFT: ["PENDING", "CANCELLED"],
-        PENDING: ["ORDERED", "CANCELLED"],
-        ORDERED: [], // Cannot change from ORDERED using this endpoint
-        CANCELLED: [], // Cannot change from CANCELLED
-      };
+        // Cannot change status if RECEIVED or PARTIALLY_RECEIVED
+        if (["RECEIVED", "PARTIALLY_RECEIVED"].includes(currentStatus)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot change status from ${currentStatus}`,
+          });
+        }
 
-      if (!validTransitions[currentStatus]?.includes(status)) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Cannot transition from ${currentStatus} to ${status}`,
-        });
-      }
+        // Validate allowed transitions
+        const validTransitions: Record<string, string[]> = {
+          DRAFT: ["PENDING", "CANCELLED"],
+          PENDING: ["ORDERED", "CANCELLED"],
+          ORDERED: [], // Cannot change from ORDERED using this endpoint
+          CANCELLED: [], // Cannot change from CANCELLED
+        };
 
-      // Update the status
-      return ctx.db.purchaseOrder.update({
-        where: { id },
-        data: {
-          status,
-          updatedBy: userId,
-          ...(status === "ORDERED" && { orderDate: new Date() }),
-        },
-        include: {
-          supplier: true,
-          items: {
-            include: {
-              item: true,
+        if (!validTransitions[currentStatus]?.includes(status)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Cannot transition from ${currentStatus} to ${status}`,
+          });
+        }
+
+        // Update the status
+        result = await ctx.db.purchaseOrder.update({
+          where: { id },
+          data: {
+            status,
+            updatedBy: userId,
+            ...(status === "ORDERED" && { orderDate: new Date() }),
+          },
+          include: {
+            supplier: true,
+            items: {
+              include: {
+                item: true,
+              },
             },
           },
-        },
-      });
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "purchaseOrder.updateStatus",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Receive items from purchase order
@@ -691,7 +771,13 @@ export const purchaseOrderRouter = createTRPCRouter({
       transactionFile: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         const po = await tx.purchaseOrder.findUnique({
           where: { id: input.purchaseOrderId },
           include: { supplier: true, transaction: true }
@@ -749,8 +835,29 @@ export const purchaseOrderRouter = createTRPCRouter({
           data: { transactionId: transaction.id }
         });
 
-        return transaction;
-      });
+          return transaction;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "purchaseOrder.createTransactionForPO",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Enhanced delete purchase order with force and soft delete options
@@ -763,7 +870,13 @@ export const purchaseOrderRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         const po = await tx.purchaseOrder.findUnique({
           where: { id: input.id },
           include: {
@@ -869,8 +982,29 @@ export const purchaseOrderRouter = createTRPCRouter({
             message: "Purchase order deleted permanently",
             type: "hard" as const,
           };
-        }
-      });
+          }
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "purchaseOrder.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Cancel purchase order (safer alternative to delete)
@@ -882,50 +1016,77 @@ export const purchaseOrderRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const po = await ctx.db.purchaseOrder.findUnique({
-        where: { id: input.id },
-        select: { status: true, notes: true },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!po) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Purchase order not found",
+      try {
+        const po = await ctx.db.purchaseOrder.findUnique({
+          where: { id: input.id },
+          select: { status: true, notes: true },
         });
-      }
 
-      if (po.status === "RECEIVED") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message:
-            "Cannot cancel fully received purchase order. Use delete with force=true instead.",
-        });
-      }
+        if (!po) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Purchase order not found",
+          });
+        }
 
-      if (po.status === "CANCELLED") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Purchase order is already cancelled",
-        });
-      }
+        if (po.status === "RECEIVED") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Cannot cancel fully received purchase order. Use delete with force=true instead.",
+          });
+        }
 
-      const cancelNote = input.reason
-        ? `Cancelled: ${input.reason}`
-        : "Cancelled";
-      const updatedNotes = po.notes
-        ? `${po.notes}\n[${new Date().toISOString()}] ${cancelNote}`
+        if (po.status === "CANCELLED") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Purchase order is already cancelled",
+          });
+        }
+
+        const cancelNote = input.reason
+          ? `Cancelled: ${input.reason}`
+          : "Cancelled";
+        const updatedNotes = po.notes
+          ? `${po.notes}\n[${new Date().toISOString()}] ${cancelNote}`
         : `[${new Date().toISOString()}] ${cancelNote}`;
 
-      await ctx.db.purchaseOrder.update({
-        where: { id: input.id },
-        data: {
-          status: "CANCELLED",
-          notes: updatedNotes,
-          updatedBy: ctx.session.user.id,
-        },
-      });
+        await ctx.db.purchaseOrder.update({
+          where: { id: input.id },
+          data: {
+            status: "CANCELLED",
+            notes: updatedNotes,
+            updatedBy: ctx.session.user.id,
+          },
+        });
 
-      return { success: true, message: "Purchase order cancelled successfully" };
+        result = { success: true, message: "Purchase order cancelled successfully" };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "purchaseOrder.cancel",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Get dashboard stats

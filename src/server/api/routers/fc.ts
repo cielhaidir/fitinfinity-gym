@@ -5,6 +5,7 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const fcRouter = createTRPCRouter({
   list: publicProcedure
@@ -67,70 +68,98 @@ export const fcRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { userId, isActive, createdBy, referralCode } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Check if user exists
-      const user = await ctx.db.user.findUnique({
-        where: { id: userId },
-      });
+      try {
+        const { userId, isActive, createdBy, referralCode } = input;
 
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
-        });
-      }
-
-      // Check if FC already exists for this user
-      const existingFC = await ctx.db.fC.findUnique({
-        where: { userId },
-      });
-
-      if (existingFC) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "FC already exists for this user",
-        });
-      }
-
-      // Check if referral code is already taken
-      const existingReferralCode = await ctx.db.fC.findUnique({
-        where: { referralCode },
-      });
-
-      if (existingReferralCode) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Referral code is already taken",
-        });
-      }
-
-      const fcRole = await ctx.db.role.findFirst({
-        where: {
-          name: "Fitness Consultant",
-        },
-      });
-
-
-      if (fcRole) {
-        await ctx.db.user.update({
-          where: { id: input.userId },
-          data: { roles: { connect: { id: fcRole.id } } },
+        // Check if user exists
+        const user = await ctx.db.user.findUnique({
+          where: { id: userId },
         });
 
-      }
+        if (!user) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
 
-      return ctx.db.fC.create({
-        data: {
-          userId,
-          isActive,
-          createdBy,
-          referralCode,
-        },
-        include: {
-          user: true,
-        },
-      });
+        // Check if FC already exists for this user
+        const existingFC = await ctx.db.fC.findUnique({
+          where: { userId },
+        });
+
+        if (existingFC) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "FC already exists for this user",
+          });
+        }
+
+        // Check if referral code is already taken
+        const existingReferralCode = await ctx.db.fC.findUnique({
+          where: { referralCode },
+        });
+
+        if (existingReferralCode) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Referral code is already taken",
+          });
+        }
+
+        const fcRole = await ctx.db.role.findFirst({
+          where: {
+            name: "Fitness Consultant",
+          },
+        });
+
+
+        if (fcRole) {
+          await ctx.db.user.update({
+            where: { id: input.userId },
+            data: { roles: { connect: { id: fcRole.id } } },
+          });
+
+        }
+
+        const fc = await ctx.db.fC.create({
+          data: {
+            userId,
+            isActive,
+            createdBy,
+            referralCode,
+          },
+          include: {
+            user: true,
+          },
+        });
+        result = fc;
+        success = true;
+        return fc;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "fc.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: publicProcedure
@@ -148,51 +177,107 @@ export const fcRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, user } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      const fc = await ctx.db.fC.findUnique({
-        where: { id },
-        include: { user: true },
-      });
+      try {
+        const { id, user } = input;
 
-      if (!fc) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "FC not found",
+        const fc = await ctx.db.fC.findUnique({
+          where: { id },
+          include: { user: true },
+        });
+
+        if (!fc) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "FC not found",
+          });
+        }
+
+        // Update user data
+        await ctx.db.user.update({
+          where: { id: fc.userId },
+          data: user,
+        });
+
+        const updated = await ctx.db.fC.findUnique({
+          where: { id },
+          include: { user: true },
+        });
+        result = updated;
+        success = true;
+        return updated;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "fc.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      // Update user data
-      await ctx.db.user.update({
-        where: { id: fc.userId },
-        data: user,
-      });
-
-      return ctx.db.fC.findUnique({
-        where: { id },
-        include: { user: true },
-      });
     }),
 
   remove: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const { id } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      const fc = await ctx.db.fC.findUnique({
-        where: { id },
-      });
+      try {
+        const { id } = input;
 
-      if (!fc) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "FC not found",
+        const fc = await ctx.db.fC.findUnique({
+          where: { id },
+        });
+
+        if (!fc) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "FC not found",
+          });
+        }
+
+        const deleted = await ctx.db.fC.delete({
+          where: { id },
+        });
+        result = deleted;
+        success = true;
+        return deleted;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "fc.remove",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      return ctx.db.fC.delete({
-        where: { id },
-      });
     }),
 
   findByReferralCode: publicProcedure

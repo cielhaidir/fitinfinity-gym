@@ -28,6 +28,8 @@ import {
   Boxes,
   ArrowLeftRight,
   ClipboardList,
+  Snowflake,
+  ArrowRightLeft,
 } from "lucide-react";
 import { type LucideIcon, HandCoins } from "lucide-react";
 
@@ -164,12 +166,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: Gift,
           requiredPermission: "menu:reward",
         },
-        // {
-        //     title: "Configuration",
-        //     url: "/management/config",
-        //     icon: Settings,
-        //     // requiredPermission: "manage:config"
-        // },
+        {
+            title: "Configuration",
+            url: "/management/config",
+            icon: Settings,
+            // requiredPermission: "manage:config"
+        },
         {
           title: "Email Settings",
           url: "/management/config/email",
@@ -298,8 +300,26 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:transaction",
         },
         {
+          title: "Transfer History",
+          url: "/admin/transfer-history",
+          icon: ArrowRightLeft,
+          requiredPermission: "menu:transaction",
+        },
+        {
+          title: "Freeze History",
+          url: "/admin/freeze-history",
+          icon: Snowflake,
+          requiredPermission: "menu:transaction",
+        },
+        {
           title: "System Logs",
           url: "/admin/logs",
+          icon: FileText,
+          requiredPermission: "list:logs",
+        },
+        {
+          title: "API Mutation Logs",
+          url: "/admin/system-logs",
           icon: FileText,
           requiredPermission: "list:logs",
         },

@@ -19,6 +19,7 @@ import { TRPCError } from "@trpc/server";
 import { siteConfig } from "@/lib/config/siteConfig";
 import { start } from "repl";
 import { useRFIDCheckIn } from "@/app/_components/hooks/useRFIDCheckIn";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const paymentValidationRouter = createTRPCRouter({
   uploadFile: permissionProtectedProcedure(["upload:payment"])
@@ -30,52 +31,79 @@ export const paymentValidationRouter = createTRPCRouter({
         userId: z.string(),
       }),
     )
-    .mutation(async ({ input }) => {
-      const { fileData, fileName, fileType, userId } = input;
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Validate file type
-      const validTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/jpg",
-        "application/pdf",
-      ];
-      if (!validTypes.includes(fileType)) {
-        throw new Error(
-          "Invalid file type. Only PNG, JPG, JPEG, and PDF files are allowed.",
-        );
+      try {
+        const { fileData, fileName, fileType, userId } = input;
+
+        // Validate file type
+        const validTypes = [
+          "image/jpeg",
+          "image/png",
+          "image/jpg",
+          "application/pdf",
+        ];
+        if (!validTypes.includes(fileType)) {
+          throw new Error(
+            "Invalid file type. Only PNG, JPG, JPEG, and PDF files are allowed.",
+          );
+        }
+
+        // Remove data URL prefix if present
+        const base64Data = fileData.replace(/^data:.*?;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+
+        // Validate file size (5MB max)
+        const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        if (buffer.length > maxSize) {
+          throw new Error("File size too large. Maximum size is 5MB.");
+        }
+
+        // Generate a unique filename
+        const extension = path.extname(fileName);
+        const uniqueFilename = `${uuidv4()}${extension}`;
+
+        // Construct the path relative to the public directory
+        const relativeUploadDir = path.join("assets", "transaction", userId);
+        const uploadDir = path.join(process.cwd(), "public", relativeUploadDir);
+        const filePath = path.join("/", relativeUploadDir, uniqueFilename); // Path to be stored in DB
+
+        // Create directory if it doesn't exist
+        await mkdir(uploadDir, { recursive: true });
+
+        // Write the file
+        await writeFile(path.join(uploadDir, uniqueFilename), buffer);
+
+        result = {
+          success: true,
+          filePath: filePath,
+          message: "File uploaded successfully",
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "paymentValidation.uploadFile",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: { ...input, fileData: "[BASE64_DATA]" },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      // Remove data URL prefix if present
-      const base64Data = fileData.replace(/^data:.*?;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
-
-      // Validate file size (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-      if (buffer.length > maxSize) {
-        throw new Error("File size too large. Maximum size is 5MB.");
-      }
-
-      // Generate a unique filename
-      const extension = path.extname(fileName);
-      const uniqueFilename = `${uuidv4()}${extension}`;
-
-      // Construct the path relative to the public directory
-      const relativeUploadDir = path.join("assets", "transaction", userId);
-      const uploadDir = path.join(process.cwd(), "public", relativeUploadDir);
-      const filePath = path.join("/", relativeUploadDir, uniqueFilename); // Path to be stored in DB
-
-      // Create directory if it doesn't exist
-      await mkdir(uploadDir, { recursive: true });
-
-      // Write the file
-      await writeFile(path.join(uploadDir, uniqueFilename), buffer);
-
-      return {
-        success: true,
-        filePath: filePath,
-        message: "File uploaded successfully",
-      };
     }),
 
   create: permissionProtectedProcedure(["create:payment"])
@@ -99,8 +127,14 @@ export const paymentValidationRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Use transaction to ensure all operations succeed or fail together
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Use transaction to ensure all operations succeed or fail together
+        result = await ctx.db.$transaction(async (tx) => {
         // Get the membership to get the user ID
         const membership = await tx.membership.findUnique({
           where: { userId: input.userId },
@@ -156,8 +190,29 @@ export const paymentValidationRouter = createTRPCRouter({
           });
         }
 
-        return paymentValidation;
-      });
+          return paymentValidation;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "paymentValidation.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   listWaiting: permissionProtectedProcedure(["list:payment"])
@@ -207,12 +262,17 @@ export const paymentValidationRouter = createTRPCRouter({
       paymentDate: z.date().optional()
     }))
     .mutation(async ({ ctx, input }) => {
-      console.log("=== ACCEPT PAYMENT VALIDATION START ===");
-      console.log("Input:", { id: input.id, balanceId: input.balanceId, paymentDate: input.paymentDate });
-      
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
+        console.log("=== ACCEPT PAYMENT VALIDATION START ===");
+        console.log("Input:", { id: input.id, balanceId: input.balanceId, paymentDate: input.paymentDate });
+        
         // Use a transaction to ensure atomicity and prevent race conditions
-        return await ctx.db.$transaction(async (prisma) => {
+        result = await ctx.db.$transaction(async (prisma) => {
         console.log("Transaction started");
         
         // 1. Fetch and lock the payment validation record inside the transaction
@@ -614,7 +674,10 @@ export const paymentValidationRouter = createTRPCRouter({
           
           return { success: true, subscriptionId: subscription.id };
         });
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
         console.error("=== ACCEPT PAYMENT VALIDATION ERROR ===");
         console.error("Error details:", {
           message: error instanceof Error ? error.message : "Unknown error",
@@ -632,7 +695,21 @@ export const paymentValidationRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Failed to process payment acceptance. The payment validation status has been reverted to WAITING.",
-          cause: error,
+          cause: err,
+        });
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "paymentValidation.acceptPaymentValidation",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
     }),
@@ -640,24 +717,51 @@ export const paymentValidationRouter = createTRPCRouter({
   decline: permissionProtectedProcedure(["decline:payment"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const paymentValidation = await ctx.db.paymentValidation.findUnique({
-        where: { id: input.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      if (!paymentValidation) {
-        throw new Error("Payment validation record not found.");
-      }
-      if (paymentValidation.paymentStatus !== PaymentValidationStatus.WAITING) {
-        throw new Error("Payment validation is not in WAITING state.");
-      }
+      try {
+        const paymentValidation = await ctx.db.paymentValidation.findUnique({
+          where: { id: input.id },
+        });
 
-      return ctx.db.paymentValidation.update({
-        where: { id: input.id },
-        data: {
-          paymentStatus: PaymentValidationStatus.DECLINED,
-          updatedAt: new Date(),
-        },
-      });
+        if (!paymentValidation) {
+          throw new Error("Payment validation record not found.");
+        }
+        if (paymentValidation.paymentStatus !== PaymentValidationStatus.WAITING) {
+          throw new Error("Payment validation is not in WAITING state.");
+        }
+
+        result = await ctx.db.paymentValidation.update({
+          where: { id: input.id },
+          data: {
+            paymentStatus: PaymentValidationStatus.DECLINED,
+            updatedAt: new Date(),
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "paymentValidation.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   listAll: permissionProtectedProcedure(["list:payment"])

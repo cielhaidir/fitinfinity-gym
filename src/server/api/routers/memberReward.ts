@@ -4,6 +4,7 @@ import {
   protectedProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const memberRewardRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:reward"])
@@ -62,63 +63,90 @@ export const memberRewardRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { rewardId, memberId } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result;
+      let error: Error | null = null;
 
-      // Get reward and member details
-      const [reward, membership] = await Promise.all([
-        ctx.db.reward.findUnique({
-          where: { id: rewardId },
-        }),
-        ctx.db.membership.findUnique({
-          where: { id: memberId },
-          include: {
-            user: true,
-          },
-        }),
-      ]);
+      try {
+        const { rewardId, memberId } = input;
 
-      if (!reward) {
-        throw new Error("Reward not found");
+        // Get reward and member details
+        const [reward, membership] = await Promise.all([
+          ctx.db.reward.findUnique({
+            where: { id: rewardId },
+          }),
+          ctx.db.membership.findUnique({
+            where: { id: memberId },
+            include: {
+              user: true,
+            },
+          }),
+        ]);
+
+        if (!reward) {
+          throw new Error("Reward not found");
+        }
+
+        if (!membership) {
+          throw new Error("Member not found");
+        }
+
+        if (reward.stock <= 0) {
+          throw new Error("Reward out of stock");
+        }
+
+        if (membership.user.point < reward.price) {
+          throw new Error("Insufficient points");
+        }
+
+        // Create member reward and update points in a transaction
+        const transactionResult = await ctx.db.$transaction([
+          // Create member reward record
+          ctx.db.memberReward.create({
+            data: {
+              memberId: membership.userId,
+              rewardId,
+              claimedAt: new Date(),
+            },
+          }),
+          // Update member points
+          ctx.db.user.update({
+            where: { id: membership.userId },
+            data: {
+              point: membership.user.point - reward.price,
+            },
+          }),
+          // Update reward stock
+          ctx.db.reward.update({
+            where: { id: rewardId },
+            data: {
+              stock: reward.stock - 1,
+            },
+          }),
+        ]);
+
+        result = transactionResult[0];
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "memberReward.create",
+          method: "POST",
+          userId: ctx.session.user.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      if (!membership) {
-        throw new Error("Member not found");
-      }
-
-      if (reward.stock <= 0) {
-        throw new Error("Reward out of stock");
-      }
-
-      if (membership.user.point < reward.price) {
-        throw new Error("Insufficient points");
-      }
-
-      // Create member reward and update points in a transaction
-      const result = await ctx.db.$transaction([
-        // Create member reward record
-        ctx.db.memberReward.create({
-          data: {
-            memberId: membership.userId,
-            rewardId,
-            claimedAt: new Date(),
-          },
-        }),
-        // Update member points
-        ctx.db.user.update({
-          where: { id: membership.userId },
-          data: {
-            point: membership.user.point - reward.price,
-          },
-        }),
-        // Update reward stock
-        ctx.db.reward.update({
-          where: { id: rewardId },
-          data: {
-            stock: reward.stock - 1,
-          },
-        }),
-      ]);
-
-      return result[0];
     }),
 });

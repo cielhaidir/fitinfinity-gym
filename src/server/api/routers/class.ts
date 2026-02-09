@@ -6,13 +6,19 @@ import {
   publicProcedure,
 } from "@/server/api/trpc";
 import { createClassSchema, createBulkClassSchema } from "@/app/(authenticated)/management/class/schema";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const classRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:classes"])
     .input(createClassSchema)
     .mutation(async ({ ctx, input }) => {
-      console.log("Creating class with input:", input); // Debug log
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
+        console.log("Creating class with input:", input); // Debug log
         // Find the classType by name
         const classType = await ctx.db.classType.findUnique({
           where: { name: input.name.toLowerCase() },
@@ -32,18 +38,41 @@ export const classRouter = createTRPCRouter({
             classType: true,
           },
         });
+        result = newClass;
+        success = true;
         return newClass;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         console.error("Failed to create class:", error);
         throw new Error("Failed to create class");
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "class.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
   createBulk: permissionProtectedProcedure(["create:classes"])
     .input(createBulkClassSchema)
     .mutation(async ({ ctx, input }) => {
-      console.log("Creating bulk classes with input:", input); // Debug log
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
+        console.log("Creating bulk classes with input:", input); // Debug log
         const { schedules, ...classData } = input;
         
         // Find the classType by name
@@ -71,10 +100,28 @@ export const classRouter = createTRPCRouter({
           )
         );
         
+        result = createdClasses;
+        success = true;
         return createdClasses;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         console.error("Failed to create bulk classes:", error);
         throw new Error("Failed to create bulk classes");
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "class.createBulk",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
@@ -140,8 +187,13 @@ export const classRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
+        const { id, ...data } = input;
         // Find the classType by name if name is being updated
         let classTypeId = undefined;
         if (data.name) {
@@ -165,24 +217,65 @@ export const classRouter = createTRPCRouter({
             classType: true,
           },
         });
+        result = updatedClass;
+        success = true;
         return updatedClass;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         console.error("Failed to update class:", error);
         throw new Error("Failed to update class");
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "class.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
   remove: permissionProtectedProcedure(["delete:classes"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const deletedClass = await ctx.db.class.delete({
           where: { id: input.id },
         });
+        result = deletedClass;
+        success = true;
         return deletedClass;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         console.error("Failed to delete class:", error);
         throw new Error("Failed to delete class");
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "class.remove",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
   // Public procedure for landing page - no authentication required

@@ -10,6 +10,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { uploadProfileImage } from "@/utils/minio";
 import { createModelLogger } from "@/utils/logger";
 import { hash } from "bcryptjs";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const userLogger = createModelLogger("User");
 
@@ -29,65 +30,91 @@ export const userRouter = createTRPCRouter({
   create: publicProcedure
     .input(createUserSchema)
     .mutation(async ({ ctx, input }) => {
-      const { name, email, password, address, phone, birthDate, fcId } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Check if user already exists
-      const existingUser = await ctx.db.user.findUnique({
-        where: { email },
-      });
+      try {
+        const { name, email, password, address, phone, birthDate, fcId } = input;
 
-      if (existingUser) {
-        throw new Error("User with this email already exists");
-      }
-
-      // Hash password
-      const hashedPassword = await hash(password, 12);
-
-      // Create user and membership in a transaction
-      const result = await ctx.db.$transaction(async (tx) => {
-        // Create user
-        const user = await tx.user.create({
-          data: {
-            name,
-            email,
-            password: hashedPassword,
-            address,
-            phone,
-            birthDate,
-          },
+        // Check if user already exists
+        const existingUser = await ctx.db.user.findUnique({
+          where: { email },
         });
 
-        // Find Member role
-        const memberRole = await tx.role.findUnique({
-          where: { name: "Member" },
-        });
-
-        if (memberRole) {
-          // Assign Member role
-          await tx.user.update({
-            where: { id: user.id },
-            data: {
-              roles: {
-                connect: { id: memberRole.id },
-              },
-            },
-          });
+        if (existingUser) {
+          throw new Error("User with this email already exists");
         }
 
-        // Create membership with FC ID if provided
-        await tx.membership.create({
-          data: {
-            userId: user.id,
-            registerDate: new Date(),
-            isActive: true,
-            fcId: fcId || null,
-          },
+        // Hash password
+        const hashedPassword = await hash(password, 12);
+
+        // Create user and membership in a transaction
+        result = await ctx.db.$transaction(async (tx) => {
+          // Create user
+          const user = await tx.user.create({
+            data: {
+              name,
+              email,
+              password: hashedPassword,
+              address,
+              phone,
+              birthDate,
+            },
+          });
+
+          // Find Member role
+          const memberRole = await tx.role.findUnique({
+            where: { name: "Member" },
+          });
+
+          if (memberRole) {
+            // Assign Member role
+            await tx.user.update({
+              where: { id: user.id },
+              data: {
+                roles: {
+                  connect: { id: memberRole.id },
+                },
+              },
+            });
+          }
+
+          // Create membership with FC ID if provided
+          await tx.membership.create({
+            data: {
+              userId: user.id,
+              registerDate: new Date(),
+              isActive: true,
+              fcId: fcId || null,
+            },
+          });
+
+          return user;
         });
 
-        return user;
-      });
-
-      return result;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "user.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   read: publicProcedure
@@ -112,11 +139,16 @@ export const userRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const sessionUserId = ctx.session.user.id;
-      const sessionUserName = ctx.session.user.name;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
       try {
-        const user = await ctx.db.user.update({
+        const sessionUserId = ctx.session.user.id;
+        const sessionUserName = ctx.session.user.name;
+
+        result = await ctx.db.user.update({
           where: { id: input.id },
           data: {
             name: input.name,
@@ -134,36 +166,79 @@ export const userRouter = createTRPCRouter({
           },
         });
         userLogger.info(
-          `User ${sessionUserName} (${sessionUserId}) successfully updated user: ${JSON.stringify(user)}`,
+          `User ${sessionUserName} (${sessionUserId}) successfully updated user: ${JSON.stringify(result)}`,
         );
-        return user;
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        const sessionUserId = ctx.session.user.id;
+        const sessionUserName = ctx.session.user.name;
         userLogger.error(
-          `User ${sessionUserName} (${sessionUserId}) encountered an error while updating user: ${(error as Error).message}`,
+          `User ${sessionUserName} (${sessionUserId}) encountered an error while updating user: ${error.message}`,
         );
-        throw error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "user.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
   delete: permissionProtectedProcedure(["delete:user"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const sessionUserId = ctx.session.user.id;
-      const sessionUserName = ctx.session.user.name;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
       try {
-        const user = await ctx.db.user.delete({
+        const sessionUserId = ctx.session.user.id;
+        const sessionUserName = ctx.session.user.name;
+
+        result = await ctx.db.user.delete({
           where: { id: input.id },
         });
         userLogger.info(
           `User ${sessionUserName} (${sessionUserId}) successfully deleted user with ID: ${input.id}`,
         );
-        return user;
-      } catch (error) {
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        const sessionUserId = ctx.session.user.id;
+        const sessionUserName = ctx.session.user.name;
         userLogger.error(
-          `User ${sessionUserName} (${sessionUserId}) encountered an error while deleting user: ${(error as Error).message}`,
+          `User ${sessionUserName} (${sessionUserId}) encountered an error while deleting user: ${error.message}`,
         );
-        throw error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "user.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 

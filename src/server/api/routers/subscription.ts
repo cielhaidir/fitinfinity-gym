@@ -10,6 +10,7 @@ import { format } from "date-fns"; // Add this import
 import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
 import { subscriptionsCreatedTotal } from "@/server/metrics"; // Add metrics import
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Fungsi untuk mengupdate subscription yang sudah expired
 async function updateExpiredSubscriptions(ctx: any) {
@@ -100,6 +101,11 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const member = await ctx.db.membership.findUnique({
           where: { userId: input.memberId },
@@ -242,8 +248,12 @@ export const subscriptionRouter = createTRPCRouter({
           }
         }
 
+        result = subscription;
+        success = true;
         return subscription;
-      } catch (error) {
+      } catch (err) {
+        error = err as Error;
+        success = false;
         // Log detailed error for debugging
         console.error("Subscription creation error:", {
           error: error instanceof Error ? error.message : "Unknown error",
@@ -286,6 +296,20 @@ export const subscriptionRouter = createTRPCRouter({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Failed to create subscription. Please try again.",
         });
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
@@ -307,7 +331,13 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const payment = await ctx.db.payment.findFirst({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const payment = await ctx.db.payment.findFirst({
         where: { orderReference: input.orderReference },
         include: { subscription: true },
       });
@@ -489,7 +519,28 @@ export const subscriptionRouter = createTRPCRouter({
         // }
       }
 
-      return updatedPayment;
+        result = updatedPayment;
+        success = true;
+        return updatedPayment;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.updatePaymentStatus",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   detail: permissionProtectedProcedure(["show:subscription"])
@@ -510,7 +561,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
-        dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
+        dateFilterType: z.enum(["payment", "startDate", "endDate"]).optional().default("payment"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
       }),
@@ -1114,20 +1165,46 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-          const shouldBeActive = input.endDate 
-      ? input.endDate > new Date() 
-      : undefined;
+      try {
+        const shouldBeActive = input.endDate
+          ? input.endDate > new Date()
+          : undefined;
 
-      return ctx.db.subscription.update({
-        where: { id: input.id },
-        data: {
-          memberId: input.memberId,
-          startDate: input.startDate,
-          endDate: input.endDate,
-           ...(shouldBeActive !== undefined && { isActive: shouldBeActive }),
-        },
-      });
+        result = await ctx.db.subscription.update({
+          where: { id: input.id },
+          data: {
+            memberId: input.memberId,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            ...(shouldBeActive !== undefined && { isActive: shouldBeActive }),
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   checkout: permissionProtectedProcedure(["create:subscription"])
@@ -1140,6 +1217,11 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
       try {
         const member = await ctx.db.membership.findFirst({
           where: {
@@ -1213,7 +1295,7 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
 
-        return {
+        result = {
           success: true,
           subscription,
           message:
@@ -1221,16 +1303,40 @@ export const subscriptionRouter = createTRPCRouter({
               ? `Checkout successful! You earned ${packageData.point * input.duration} points.`
               : "Checkout initiated. Please complete the payment to activate your subscription.",
         };
-      } catch (error) {
-        console.error("Checkout error:", error);
-        throw error;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        console.error("Checkout error:", err);
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.checkout",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
     }),
 
   delete: permissionProtectedProcedure(["delete:subscription"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         const subscription = await tx.subscription.findUnique({
           where: { id: input.id },
           include: {
@@ -1327,24 +1433,72 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
 
-        return deletedSubscription;
-      });
+          return deletedSubscription;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Tambahkan procedure untuk menonaktifkan subscription yang sudah expired
   deactivateExpired: permissionProtectedProcedure(["update:subscription"])
     .mutation(async ({ ctx }) => {
-      const now = new Date();
-      const result = await ctx.db.subscription.updateMany({
-        where: {
-          isActive: true,
-          endDate: { lt: now },
-        },
-        data: {
-          isActive: false,
-        },
-      });
-      return { count: result.count };
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const now = new Date();
+        const updateResult = await ctx.db.subscription.updateMany({
+          where: {
+            isActive: true,
+            endDate: { lt: now },
+          },
+          data: {
+            isActive: false,
+          },
+        });
+        result = { count: updateResult.count };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.deactivateExpired",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: {},
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Freeze all active subscriptions for a member
@@ -1356,8 +1510,14 @@ export const subscriptionRouter = createTRPCRouter({
       balanceAccountId: z.number().int().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Find member
-      const member = await ctx.db.membership.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Find member
+        const member = await ctx.db.membership.findUnique({
         where: { id: input.memberId },
         include: { user: true },
       });
@@ -1467,29 +1627,30 @@ export const subscriptionRouter = createTRPCRouter({
         }
       }
 
-      // Create transaction freeze and freeze operation records if there's a payment
+      // Create ONE transaction freeze record for the member (if there's a payment)
       let transactionFreezeId = null;
       if (freezePaymentAmount > 0 && freezePrice && input.balanceAccountId) {
         const transactionFreeze = await ctx.db.transactionFreeze.create({
           data: {
             balanceAccountId: input.balanceAccountId,
             amount: freezePaymentAmount,
-            description: `Freeze fee for ${actualFreezeDays} days`,
+            description: `Freeze fee for ${actualFreezeDays} days - ${activeSubscriptions.length} subscription(s)`,
             createdBy: ctx.session.user.id,
           },
         });
         transactionFreezeId = transactionFreeze.id;
 
-        // Create freeze operation record for each subscription
+        // Create freeze operation record for EACH subscription but link to the SAME TransactionFreeze
         for (const subscription of activeSubscriptions) {
           await ctx.db.freezeOperation.create({
             data: {
               subscriptionId: subscription.id,
+              memberId: input.memberId,
               operationType: "FREEZE",
               freezePriceId: freezePrice.id,
               transactionFreezeId: transactionFreeze.id,
               freezeDays: actualFreezeDays,
-              price: freezePaymentAmount,
+              price: freezePaymentAmount, // Same price for all (member pays once)
               performedById: ctx.session.user.id,
             },
           });
@@ -1541,6 +1702,7 @@ export const subscriptionRouter = createTRPCRouter({
           await ctx.db.freezeOperation.create({
             data: {
               subscriptionId: subscription.id,
+              memberId: input.memberId,
               operationType: "FREEZE",
               freezePriceId: customFreezePriceId,
               transactionFreezeId: null,
@@ -1589,22 +1751,49 @@ export const subscriptionRouter = createTRPCRouter({
         })
       );
 
-      return {
-        message: `Successfully frozen ${results.length} subscription(s)${freezePaymentAmount > 0 ? ` with ${actualFreezeDays} days freeze fee of ${freezePaymentAmount}` : ""}`,
-        count: results.length,
-        memberId: input.memberId,
-        memberName: member.user?.name || "Unknown",
-        freezePaymentAmount,
-        transactionFreezeId,
-      };
+        result = {
+          message: `Successfully frozen ${results.length} subscription(s)${freezePaymentAmount > 0 ? ` with ${actualFreezeDays} days freeze fee of ${freezePaymentAmount}` : ""}`,
+          count: results.length,
+          memberId: input.memberId,
+          memberName: member.user?.name || "Unknown",
+          freezePaymentAmount,
+          transactionFreezeId,
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.freeze",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Unfreeze all frozen subscriptions for a member
   unfreeze: permissionProtectedProcedure(["update:subscription"])
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Find member
-      const member = await ctx.db.membership.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Find member
+        const member = await ctx.db.membership.findUnique({
         where: { id: input.memberId },
         include: { user: true },
       });
@@ -1664,17 +1853,23 @@ export const subscriptionRouter = createTRPCRouter({
         });
       }
 
+      // Create a common performedAt timestamp for all unfreeze operations in this batch
+      // This ensures they group together in the freeze history
+      const batchPerformedAt = new Date();
+
       // Create unfreeze operation record for each subscription
       for (const subscription of frozenSubscriptions) {
         await ctx.db.freezeOperation.create({
           data: {
             subscriptionId: subscription.id,
+            memberId: input.memberId,
             operationType: "UNFREEZE",
             freezePriceId: unfreezePrice.id,
             price: 0,
             transactionFreezeId: null,
             freezeDays: 0,
             performedById: ctx.session.user.id,
+            performedAt: batchPerformedAt, // Use the same timestamp for all operations
           },
         });
       }
@@ -1742,12 +1937,33 @@ export const subscriptionRouter = createTRPCRouter({
         })
       );
 
-      return {
-        message: `Successfully unfrozen ${unfrozenCount} subscription(s)`,
-        count: unfrozenCount,
-        memberId: input.memberId,
-        memberName: member.user?.name || "Unknown",
-      };
+        result = {
+          message: `Successfully unfrozen ${unfrozenCount} subscription(s)`,
+          count: unfrozenCount,
+          memberId: input.memberId,
+          memberName: member.user?.name || "Unknown",
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.unfreeze",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Update sales information for a subscription
@@ -1760,8 +1976,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("Updating sales information for subscription:", input.subscriptionId);
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        console.log("Updating sales information for subscription:", input.subscriptionId);
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
       });
 
@@ -1811,7 +2033,28 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      return updatedSubscription;
+        result = updatedSubscription;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.updateSales",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Transfer subscription to another user
@@ -1824,8 +2067,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify the subscription exists and is active
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Verify the subscription exists and is active
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
         include: {
           member: {
@@ -1878,7 +2127,13 @@ export const subscriptionRouter = createTRPCRouter({
       //   });
       // }
 
-      return ctx.db.$transaction(async (tx) => {
+      // Get transfer price from config
+      const transferPriceConfig = await ctx.db.config.findUnique({
+        where: { key: "transfer_price" },
+      });
+      const transferPrice = transferPriceConfig ? parseFloat(transferPriceConfig.value) : 0;
+
+        result = await ctx.db.$transaction(async (tx) => {
         // Create new membership for the target user
 
           let membershipId: string;
@@ -1897,6 +2152,18 @@ export const subscriptionRouter = createTRPCRouter({
             membershipId = existingMembership.id;
           }
 
+        // Create transfer history record
+        await tx.subscriptionTransferHistory.create({
+          data: {
+            subscriptionId: input.subscriptionId,
+            transferredPoint: subscription.package.point,
+            fromMemberId: subscription.memberId,
+            fromMemberName: subscription.member.user?.name || "Unknown",
+            amount: transferPrice,
+            reason: input.reason || null,
+            file: null,
+          },
+        });
 
         // Update the subscription to point to the new membership
         const updatedSubscription = await tx.subscription.update({
@@ -1931,8 +2198,29 @@ export const subscriptionRouter = createTRPCRouter({
           });
         }
         
-        return updatedSubscription;
-      });
+          return updatedSubscription;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.transfer",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Upgrade gym membership to a new package
@@ -1946,7 +2234,13 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         // Verify the subscription exists and is eligible for upgrade
         const subscription = await tx.subscription.findUnique({
           where: { id: input.subscriptionId },
@@ -2078,8 +2372,29 @@ export const subscriptionRouter = createTRPCRouter({
           },
         });
 
-        return updatedSubscription;
-      });
+          return updatedSubscription;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.upgradeGymSimple",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Get gym packages for upgrade dropdown
@@ -2111,7 +2426,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
-        dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
+        dateFilterType: z.enum(["payment", "startDate", "endDate"]).optional().default("payment"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
       }),
@@ -2257,8 +2572,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify the subscription exists
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Verify the subscription exists
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
         include: {
           package: true,
@@ -2324,7 +2645,28 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      return updatedSubscription;
+        result = updatedSubscription;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.updateRemainingSessions",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Update personal trainer for a subscription
@@ -2336,8 +2678,14 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify the subscription exists
-      const subscription = await ctx.db.subscription.findUnique({
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        // Verify the subscription exists
+        const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.subscriptionId },
         include: {
           package: true,
@@ -2427,7 +2775,28 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      return updatedSubscription;
+        result = updatedSubscription;
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.updateTrainer",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   // Count subscriptions with optional filter
@@ -2629,5 +2998,620 @@ export const subscriptionRouter = createTRPCRouter({
         totalNewMembers,
         subscriptionTypeBreakdown,
       };
+    }),
+
+  // Get transfer history for a specific subscription
+  getTransferHistory: permissionProtectedProcedure(["list:subscription"])
+    .input(z.object({ subscriptionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const transferHistory = await ctx.db.subscriptionTransferHistory.findMany({
+        where: {
+          subscriptionId: input.subscriptionId,
+        },
+        include: {
+          fromMember: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      return transferHistory;
+    }),
+
+  // List all transfer history with pagination and filters (for admin page)
+  listAllTransferHistory: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        memberId: z.string().optional(),
+        memberSearch: z.string().optional(),
+        showCancelled: z.boolean().optional().default(true),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const whereClause: any = {
+        ...(input.memberId && {
+          fromMemberId: input.memberId,
+        }),
+        ...(input.startDate && {
+          createdAt: {
+            gte: input.startDate,
+          },
+        }),
+        ...(input.endDate && {
+          createdAt: {
+            ...((input.startDate && { gte: input.startDate }) || {}),
+            lte: input.endDate,
+          },
+        }),
+        // Filter by cancelled status
+        ...(!input.showCancelled && {
+          isCancelled: false,
+        }),
+        // Search by member name or email
+        ...(input.memberSearch && {
+          OR: [
+            {
+              fromMemberName: {
+                contains: input.memberSearch,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              fromMember: {
+                user: {
+                  email: {
+                    contains: input.memberSearch,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+            {
+              subscription: {
+                member: {
+                  user: {
+                    OR: [
+                      {
+                        name: {
+                          contains: input.memberSearch,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                      {
+                        email: {
+                          contains: input.memberSearch,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      };
+
+      const items = await ctx.db.subscriptionTransferHistory.findMany({
+        skip: (input.page - 1) * input.limit,
+        take: input.limit,
+        where: whereClause,
+        include: {
+          subscription: {
+            include: {
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  price: true,
+                },
+              },
+              member: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      phone: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          fromMember: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      const total = await ctx.db.subscriptionTransferHistory.count({
+        where: whereClause,
+      });
+
+      // Add fromMemberEmail to each item for easier access
+      const itemsWithEmail = items.map(item => ({
+        ...item,
+        fromMemberEmail: item.fromMember?.user?.email || "",
+      }));
+
+      return {
+        items: itemsWithEmail,
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
+
+  // Cancel a subscription transfer
+  cancelTransfer: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        transferHistoryId: z.string(),
+        reason: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
+        // Find the transfer history record
+        const transferHistory = await tx.subscriptionTransferHistory.findUnique({
+          where: { id: input.transferHistoryId },
+          include: {
+            subscription: {
+              include: {
+                package: true,
+                member: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+            fromMember: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
+
+        if (!transferHistory) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Transfer history record not found",
+          });
+        }
+
+        // Check if already cancelled
+        if (transferHistory.isCancelled) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This transfer has already been cancelled",
+          });
+        }
+
+        // Transfer the subscription BACK to the original member (fromMemberId)
+        await tx.subscription.update({
+          where: { id: transferHistory.subscriptionId },
+          data: {
+            memberId: transferHistory.fromMemberId,
+          },
+        });
+
+        // Transfer points back: Remove from current owner, add back to original owner
+        if (transferHistory.transferredPoint > 0) {
+          // Remove points from current member (who received the transfer)
+          const currentMemberUserId = transferHistory.subscription.member.userId;
+          await tx.user.update({
+            where: { id: currentMemberUserId },
+            data: {
+              point: { decrement: transferHistory.transferredPoint },
+            },
+          });
+
+          // Add points back to original member (who transferred away)
+          const originalMemberUserId = transferHistory.fromMember.userId;
+          await tx.user.update({
+            where: { id: originalMemberUserId },
+            data: {
+              point: { increment: transferHistory.transferredPoint },
+            },
+          });
+        }
+
+        // Mark the transfer history as cancelled
+        const updatedTransferHistory = await tx.subscriptionTransferHistory.update({
+          where: { id: input.transferHistoryId },
+          data: {
+            isCancelled: true,
+            cancelledAt: new Date(),
+            cancelledBy: ctx.session.user.id,
+            cancelReason: input.reason || null,
+          },
+          include: {
+            subscription: {
+              include: {
+                package: true,
+                member: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+            fromMember: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
+
+          return {
+            success: true,
+            message: "Transfer cancelled successfully. Subscription returned to original member.",
+            transferHistory: updatedTransferHistory,
+          };
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.cancelTransfer",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
+    }),
+
+  // List all freeze operations grouped by member (for admin freeze history page)
+  listFreezeHistory: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(10),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        operationType: z.enum(["all", "FREEZE", "UNFREEZE"]).optional().default("all"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Build the where clause for freeze operations
+      const whereClause: any = {
+        ...(input.operationType !== "all" && {
+          operationType: input.operationType,
+        }),
+      };
+
+      // Apply date filter on performedAt
+      if (input.startDate || input.endDate) {
+        whereClause.performedAt = {};
+        if (input.startDate) {
+          whereClause.performedAt.gte = input.startDate;
+        }
+        if (input.endDate) {
+          whereClause.performedAt.lte = input.endDate;
+        }
+      }
+
+      // Get all freeze operations with member info
+      const allOperations = await ctx.db.freezeOperation.findMany({
+        where: whereClause,
+        include: {
+          member: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          subscription: {
+            include: {
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                },
+              },
+            },
+          },
+          transactionFreeze: true,
+          performedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: {
+          performedAt: "desc",
+        },
+      });
+
+      // Group operations by member and transactionFreezeId (or by member + performedAt for free freezes)
+      const groupedMap = new Map<string, any>();
+
+      for (const operation of allOperations) {
+        // Create a unique key for grouping:
+        // - If there's a transactionFreeze, group by memberId + transactionFreezeId (paid freezes)
+        // - Otherwise, group by memberId + operationType + performedAt (rounded to second) for free freezes/unfreezes
+        let groupKey: string;
+        if (operation.transactionFreezeId) {
+          groupKey = `${operation.memberId}_${operation.transactionFreezeId}`;
+        } else {
+          // Round performedAt to the second to group operations that happened at nearly the same time
+          const roundedTime = new Date(operation.performedAt);
+          roundedTime.setMilliseconds(0);
+          groupKey = `${operation.memberId}_${operation.operationType}_${roundedTime.toISOString()}`;
+        }
+
+        if (!groupedMap.has(groupKey)) {
+          groupedMap.set(groupKey, {
+            id: groupKey,
+            memberId: operation.memberId,
+            memberName: operation.member.user?.name || "Unknown",
+            memberEmail: operation.member.user?.email || "",
+            operationType: operation.operationType,
+            performedAt: operation.performedAt,
+            performedBy: operation.performedBy,
+            freezeDays: operation.freezeDays,
+            price: operation.price,
+            transactionFreeze: operation.transactionFreeze,
+            subscriptions: [],
+          });
+        }
+
+        // Add this subscription to the group
+        groupedMap.get(groupKey)!.subscriptions.push({
+          id: operation.subscription.id,
+          packageName: operation.subscription.package.name,
+          packageType: operation.subscription.package.type,
+        });
+      }
+
+      // Convert map to array and sort by performedAt
+      const grouped = Array.from(groupedMap.values()).sort(
+        (a, b) => b.performedAt.getTime() - a.performedAt.getTime()
+      );
+
+      // Apply pagination
+      const total = grouped.length;
+      const startIndex = (input.page - 1) * input.limit;
+      const endIndex = startIndex + input.limit;
+      const items = grouped.slice(startIndex, endIndex);
+
+      return {
+        items,
+        total,
+        page: input.page,
+        limit: input.limit,
+      };
+    }),
+
+  // Cancel freeze operation - reverse/undo freeze
+  cancelFreeze: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        memberId: z.string(),
+        reason: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
+        // Find member
+        const member = await tx.membership.findUnique({
+          where: { id: input.memberId },
+          include: { user: true },
+        });
+
+        if (!member) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Member not found",
+          });
+        }
+
+        // Find all subscriptions with freeze data (either currently frozen OR have freeze history)
+        const subscriptionsWithFreeze = await tx.subscription.findMany({
+          where: {
+            memberId: input.memberId,
+            deletedAt: null,
+            OR: [
+              { isFrozen: true }, // Currently frozen
+              { freezeAtStart: true }, // Was frozen at start
+              { freezeDays: { gt: 0 } }, // Has freeze days
+            ],
+          },
+          include: {
+            package: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+          },
+        });
+
+        if (subscriptionsWithFreeze.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No subscriptions with freeze data found for this member",
+          });
+        }
+
+        const now = new Date();
+        let cancelledCount = 0;
+        const affectedSubscriptions: any[] = [];
+
+        // Process each subscription
+        for (const subscription of subscriptionsWithFreeze) {
+          // Only process if it has freeze data
+          const hasFreezeDays = subscription.freezeDays && subscription.freezeDays > 0;
+          const hasFreezeAtStart = subscription.freezeAtStart === true;
+          
+          if (!hasFreezeDays && !hasFreezeAtStart) {
+            continue; // Skip subscriptions without freeze data
+          }
+
+          // Calculate original end date by subtracting freeze days
+          let originalEndDate = subscription.endDate;
+          if (originalEndDate && subscription.freezeDays && subscription.freezeDays > 0) {
+            originalEndDate = new Date(originalEndDate);
+            originalEndDate.setDate(originalEndDate.getDate() - subscription.freezeDays);
+          }
+
+          // Update the subscription - reset all freeze fields
+          const updatedSubscription = await tx.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              freezeAtStart: false,
+              freezeDays: null,
+              isFrozen: false,
+              frozenAt: null,
+              freezeMode: null,
+              remainingDays: null,
+              // Restore original end date (before freeze extension)
+              ...(originalEndDate && { endDate: originalEndDate }),
+            },
+          });
+
+          affectedSubscriptions.push({
+            id: updatedSubscription.id,
+            packageName: subscription.package.name,
+            originalEndDate,
+            previousEndDate: subscription.endDate,
+          });
+
+          cancelledCount++;
+        }
+
+        // Create a log entry for the cancellation (using FreezeOperation)
+        // We'll create an UNFREEZE operation to track this cancellation
+        const unfreezePrice = await tx.freezePrice.findFirst({
+          where: {
+            freezeDays: 0,
+            price: 0,
+          },
+        });
+
+        let freezePriceId = unfreezePrice?.id;
+        if (!freezePriceId) {
+          const createdUnfreezePrice = await tx.freezePrice.create({
+            data: {
+              freezeDays: 0,
+              price: 0,
+              isActive: true,
+            },
+          });
+          freezePriceId = createdUnfreezePrice.id;
+        }
+
+        // Log cancellation for each affected subscription
+        for (const sub of affectedSubscriptions) {
+          await tx.freezeOperation.create({
+            data: {
+              subscriptionId: sub.id,
+              memberId: input.memberId,
+              operationType: "UNFREEZE",
+              freezePriceId: freezePriceId,
+              price: 0,
+              transactionFreezeId: null,
+              freezeDays: 0,
+              performedById: ctx.session.user.id,
+            },
+          });
+        }
+
+          return {
+            success: true,
+            message: `Successfully cancelled freeze for ${cancelledCount} subscription(s)`,
+            count: cancelledCount,
+            memberId: input.memberId,
+            memberName: member.user?.name || "Unknown",
+            affectedSubscriptions,
+          };
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.cancelFreeze",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 });

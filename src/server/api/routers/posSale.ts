@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const posSaleRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:pos-sale"])
@@ -122,17 +123,23 @@ export const posSaleRouter = createTRPCRouter({
     })
   )
   .mutation(async ({ ctx, input }) => {
-    const { items, ...saleData } = input;
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0]?.replace(/-/g, '') || '';
-    const change = saleData.amountPaid - saleData.total;
+    const startTime = Date.now();
+    let success = false;
+    let result: any = null;
+    let error: Error | null = null;
 
-    let attempt = 0;
-    const maxAttempts = 3;
+    try {
+      const { items, ...saleData } = input;
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0]?.replace(/-/g, '') || '';
+      const change = saleData.amountPaid - saleData.total;
 
-    while (attempt < maxAttempts) {
-      try {
-        return await ctx.db.$transaction(async (tx) => {
+      let attempt = 0;
+      const maxAttempts = 3;
+
+      while (attempt < maxAttempts) {
+        try {
+          result = await ctx.db.$transaction(async (tx) => {
           // Validate stock availability for all items first
           const itemsWithStock: Array<{
             itemId: string;
@@ -241,20 +248,41 @@ export const posSaleRouter = createTRPCRouter({
             });
           }
 
-          return sale;
-        });
-      } catch (e: any) {
-        if (e.code === "P2002" && attempt < maxAttempts - 1) {
-          // Duplicate saleNumber, retry with new transaction
-          attempt++;
-          continue;
-        } else {
-          throw e;
+            return sale;
+          });
+          success = true;
+          return result;
+        } catch (e: any) {
+          if (e.code === "P2002" && attempt < maxAttempts - 1) {
+            // Duplicate saleNumber, retry with new transaction
+            attempt++;
+            continue;
+          } else {
+            throw e;
+          }
         }
       }
-    }
 
-    throw new Error("Failed to create sale with unique saleNumber after maximum attempts");
+      throw new Error("Failed to create sale with unique saleNumber after maximum attempts");
+    } catch (err) {
+      error = err as Error;
+      success = false;
+      throw err;
+    } finally {
+      logApiMutationAsync({
+        db: ctx.db,
+        endpoint: "posSale.create",
+        method: "POST",
+        userId: ctx.session?.user?.id,
+        requestData: input,
+        responseData: success ? result : null,
+        ipAddress: extractIpAddress(ctx.headers),
+        userAgent: extractUserAgent(ctx.headers),
+        success,
+        errorMessage: error?.message,
+        duration: Date.now() - startTime,
+      });
+    }
   }),
 
 
@@ -355,9 +383,15 @@ export const posSaleRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, items, ...saleData } = input;
-      
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const { id, items, ...saleData } = input;
+        
+        result = await ctx.db.$transaction(async (tx) => {
         // Get the existing sale to restore stock
         const existingSale = await tx.pOSSale.findUnique({
           where: { id },
@@ -506,14 +540,41 @@ export const posSaleRouter = createTRPCRouter({
           });
         }
 
-        return updatedSale;
-      });
+          return updatedSale;
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "posSale.update",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   delete: permissionProtectedProcedure(["delete:pos-sale"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.$transaction(async (tx) => {
         // Get sale items to restore stock
         const sale = await tx.pOSSale.findUnique({
           where: { id: input.id },
@@ -566,11 +627,32 @@ export const posSaleRouter = createTRPCRouter({
           });
         }
 
-        // Delete the sale (cascade will delete sale items)
-        return tx.pOSSale.delete({
-          where: { id: input.id },
+          // Delete the sale (cascade will delete sale items)
+          return tx.pOSSale.delete({
+            where: { id: input.id },
+          });
         });
-      });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "posSale.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   export: permissionProtectedProcedure(["list:pos-sale"])

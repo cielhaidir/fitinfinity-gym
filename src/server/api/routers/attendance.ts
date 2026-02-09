@@ -6,6 +6,7 @@ import {
 } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import * as XLSX from "xlsx";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const attendanceRouter = createTRPCRouter({
   getAllHistory: permissionProtectedProcedure(["list:employees"])
@@ -113,153 +114,180 @@ export const attendanceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { startDate, endDate, search, searchType, attendanceType } = input;
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
 
-      // Build where clause (same as getAllHistory)
-      let where: any = {};
+      try {
+        const { startDate, endDate, search, searchType, attendanceType } = input;
 
-      if (startDate && endDate) {
-        where.date = {
-          gte: startDate,
-          lte: endDate,
-        };
-      }
+        // Build where clause (same as getAllHistory)
+        let where: any = {};
 
-      if (search) {
-        switch (searchType) {
-          case "employee":
-            where.employee = {
-              user: {
-                name: {
-                  contains: search,
-                  mode: "insensitive",
-                },
-              },
-            };
-            break;
-          case "device":
-            where.deviceId = {
-              contains: search,
-              mode: "insensitive",
-            };
-            break;
-          case "fingerprint":
-            where.employee = {
-              fingerprintId: parseInt(search) || undefined,
-            };
-            break;
+        if (startDate && endDate) {
+          where.date = {
+            gte: startDate,
+            lte: endDate,
+          };
         }
-      }
 
-      if (attendanceType === "checkin") {
-        where.NOT = [{ checkIn: null }];
-        where.checkOut = null;
-      } else if (attendanceType === "checkout") {
-        where.NOT = [{ checkOut: null }];
-      }
+        if (search) {
+          switch (searchType) {
+            case "employee":
+              where.employee = {
+                user: {
+                  name: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              };
+              break;
+            case "device":
+              where.deviceId = {
+                contains: search,
+                mode: "insensitive",
+              };
+              break;
+            case "fingerprint":
+              where.employee = {
+                fingerprintId: parseInt(search) || undefined,
+              };
+              break;
+          }
+        }
 
-      // Get all records for export (no pagination)
-      const records = await ctx.db.attendance.findMany({
-        where,
-        include: {
-          employee: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  email: true,
+        if (attendanceType === "checkin") {
+          where.NOT = [{ checkIn: null }];
+          where.checkOut = null;
+        } else if (attendanceType === "checkout") {
+          where.NOT = [{ checkOut: null }];
+        }
+
+        // Get all records for export (no pagination)
+        const records = await ctx.db.attendance.findMany({
+          where,
+          include: {
+            employee: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
                 },
               },
             },
           },
-        },
-        orderBy: {
-          date: "desc",
-        },
-      });
+          orderBy: {
+            date: "desc",
+          },
+        });
 
-      // Prepare attendance data for Excel
-      const attendanceData = records.map((record) => ({
-        "Employee Name": record.employee.user.name,
-        "Employee Email": record.employee.user.email,
-        "Fingerprint ID": record.employee.fingerprintId || "-",
-        "Date": record.checkIn ? record.checkIn.toLocaleDateString("id-ID") : record.date.toLocaleDateString("id-ID"),
-        "Check In": record.checkIn ? record.checkIn.toLocaleString("id-ID") : "-",
-        "Check Out": record.checkOut ? record.checkOut.toLocaleString("id-ID") : "-",
-        "Device ID": record.deviceId || "-",
-        "Status": record.checkOut ? "Complete" : "Checked In",
-        "Duration (Hours)": record.checkOut && record.checkIn
-          ? ((record.checkOut.getTime() - record.checkIn.getTime()) / (1000 * 60 * 60)).toFixed(2)
-          : "-",
-      }));
+        // Prepare attendance data for Excel
+        const attendanceData = records.map((record) => ({
+          "Employee Name": record.employee.user.name,
+          "Employee Email": record.employee.user.email,
+          "Fingerprint ID": record.employee.fingerprintId || "-",
+          "Date": record.checkIn ? record.checkIn.toLocaleDateString("id-ID") : record.date.toLocaleDateString("id-ID"),
+          "Check In": record.checkIn ? record.checkIn.toLocaleString("id-ID") : "-",
+          "Check Out": record.checkOut ? record.checkOut.toLocaleString("id-ID") : "-",
+          "Device ID": record.deviceId || "-",
+          "Status": record.checkOut ? "Complete" : "Checked In",
+          "Duration (Hours)": record.checkOut && record.checkIn
+            ? ((record.checkOut.getTime() - record.checkIn.getTime()) / (1000 * 60 * 60)).toFixed(2)
+            : "-",
+        }));
 
-      // Get summary data for export
-      const summaryData = records.reduce((acc, record) => {
-        const employeeId = record.employee.id;
-        const employeeName = record.employee.user.name || "Unknown Employee";
+        // Get summary data for export
+        const summaryData = records.reduce((acc, record) => {
+          const employeeId = record.employee.id;
+          const employeeName = record.employee.user.name || "Unknown Employee";
 
-        if (!acc[employeeId]) {
-          acc[employeeId] = {
-            "Employee No": employeeId.slice(-8),
-            "Employee Name": employeeName,
-            "Total Attendance": 0,
-            "Total Hours": 0,
-          };
-        }
+          if (!acc[employeeId]) {
+            acc[employeeId] = {
+              "Employee No": employeeId.slice(-8),
+              "Employee Name": employeeName,
+              "Total Attendance": 0,
+              "Total Hours": 0,
+            };
+          }
 
-        acc[employeeId]!["Total Attendance"]++;
+          acc[employeeId]!["Total Attendance"]++;
 
-        if (record.checkIn && record.checkOut) {
-          const hours = (record.checkOut.getTime() - record.checkIn.getTime()) / (1000 * 60 * 60);
-          acc[employeeId]!["Total Hours"] += hours;
-        }
+          if (record.checkIn && record.checkOut) {
+            const hours = (record.checkOut.getTime() - record.checkIn.getTime()) / (1000 * 60 * 60);
+            acc[employeeId]!["Total Hours"] += hours;
+          }
 
-        return acc;
-      }, {} as Record<string, { "Employee No": string; "Employee Name": string; "Total Attendance": number; "Total Hours": number }>);
+          return acc;
+        }, {} as Record<string, { "Employee No": string; "Employee Name": string; "Total Attendance": number; "Total Hours": number }>);
 
-      // Convert summary to array and round hours
-      const summaryArray = Object.values(summaryData).map(summary => ({
-        ...summary,
-        "Total Hours": Math.round(summary["Total Hours"] * 100) / 100,
-      }));
+        // Convert summary to array and round hours
+        const summaryArray = Object.values(summaryData).map(summary => ({
+          ...summary,
+          "Total Hours": Math.round(summary["Total Hours"] * 100) / 100,
+        }));
 
-      // Sort by employee name
-      summaryArray.sort((a, b) => a["Employee Name"].localeCompare(b["Employee Name"]));
+        // Sort by employee name
+        summaryArray.sort((a, b) => a["Employee Name"].localeCompare(b["Employee Name"]));
 
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      
-      // Create attendance records worksheet
-      const attendanceWorksheet = XLSX.utils.json_to_sheet(attendanceData);
-      const attendanceColWidths = Object.keys(attendanceData[0] || {}).map((key) => ({
-        wch: Math.max(key.length, 15),
-      }));
-      attendanceWorksheet["!cols"] = attendanceColWidths;
-      XLSX.utils.book_append_sheet(workbook, attendanceWorksheet, "Attendance Records");
-
-      // Create employee summary worksheet
-      if (summaryArray.length > 0) {
-        const summaryWorksheet = XLSX.utils.json_to_sheet(summaryArray);
-        const summaryColWidths = Object.keys(summaryArray[0]!).map((key) => ({
+        // Create workbook
+        const workbook = XLSX.utils.book_new();
+        
+        // Create attendance records worksheet
+        const attendanceWorksheet = XLSX.utils.json_to_sheet(attendanceData);
+        const attendanceColWidths = Object.keys(attendanceData[0] || {}).map((key) => ({
           wch: Math.max(key.length, 15),
         }));
-        summaryWorksheet["!cols"] = summaryColWidths;
-        XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Employee Summary");
+        attendanceWorksheet["!cols"] = attendanceColWidths;
+        XLSX.utils.book_append_sheet(workbook, attendanceWorksheet, "Attendance Records");
+
+        // Create employee summary worksheet
+        if (summaryArray.length > 0) {
+          const summaryWorksheet = XLSX.utils.json_to_sheet(summaryArray);
+          const summaryColWidths = Object.keys(summaryArray[0]!).map((key) => ({
+            wch: Math.max(key.length, 15),
+          }));
+          summaryWorksheet["!cols"] = summaryColWidths;
+          XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Employee Summary");
+        }
+
+        // Generate buffer
+        const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+        // Generate filename
+        const dateRange = startDate && endDate
+          ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`
+          : "";
+        const filename = `attendance_records${dateRange}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+        result = {
+          buffer: Array.from(buffer),
+          filename,
+        };
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "attendance.exportToExcel",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? { filename: result?.filename } : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
       }
-
-      // Generate buffer
-      const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-
-      // Generate filename
-      const dateRange = startDate && endDate
-        ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`
-        : "";
-      const filename = `attendance_records${dateRange}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-      return {
-        buffer: Array.from(buffer),
-        filename,
-      };
     }),
 
   getStats: permissionProtectedProcedure(["list:employees"])

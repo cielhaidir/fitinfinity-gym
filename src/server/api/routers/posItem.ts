@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, permissionProtectedProcedure } from "@/server/api/trpc";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 export const posItemRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:pos-item"])
@@ -72,9 +73,36 @@ export const posItemRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.pOSItem.create({
-        data: input,
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.pOSItem.create({
+          data: input,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "posItem.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: permissionProtectedProcedure(["update:pos-item"])
@@ -92,19 +120,73 @@ export const posItemRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      return ctx.db.pOSItem.update({
-        where: { id },
-        data,
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const { id, ...data } = input;
+        result = await ctx.db.pOSItem.update({
+          where: { id },
+          data,
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "posItem.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   delete: permissionProtectedProcedure(["delete:pos-item"])
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.pOSItem.delete({
-        where: { id: input.id },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.pOSItem.delete({
+          where: { id: input.id },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "posItem.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   updateStock: permissionProtectedProcedure(["update:pos-item"])
@@ -115,10 +197,37 @@ export const posItemRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.pOSItem.update({
-        where: { id: input.id },
-        data: { stock: input.stock },
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.pOSItem.update({
+          where: { id: input.id },
+          data: { stock: input.stock },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "posItem.updateStock",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   getLowStock: permissionProtectedProcedure(["list:pos-item"])

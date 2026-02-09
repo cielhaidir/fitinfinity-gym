@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 const createDeviceSchema = z.object({
   name: z.string(),
@@ -22,12 +23,40 @@ export const deviceRouter = createTRPCRouter({
   create: protectedProcedure
     .input(createDeviceSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.device.create({
-        data: {
-          name: input.name,
-          accessKey: input.accessKey
-        }
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const device = await ctx.db.device.create({
+          data: {
+            name: input.name,
+            accessKey: input.accessKey
+          }
+        });
+        result = device;
+        success = true;
+        return device;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "device.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   update: protectedProcedure
@@ -38,19 +67,75 @@ export const deviceRouter = createTRPCRouter({
       isActive: z.boolean().optional()
     }))
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      return ctx.db.device.update({
-        where: { id },
-        data
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const { id, ...data } = input;
+        const device = await ctx.db.device.update({
+          where: { id },
+          data
+        });
+        result = device;
+        success = true;
+        return device;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "device.update",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   delete: protectedProcedure
     .input(z.string())
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.device.delete({
-        where: { id: input }
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const device = await ctx.db.device.delete({
+          where: { id: input }
+        });
+        result = device;
+        success = true;
+        return device;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "device.delete",
+          method: "DELETE",
+          userId: ctx.session?.user?.id,
+          requestData: { id: input },
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   updateLastSeen: protectedProcedure
@@ -58,11 +143,39 @@ export const deviceRouter = createTRPCRouter({
       id: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.device.update({
-        where: { id: input.id },
-        data: {
-          lastSeen: new Date()
-        }
-      });
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const device = await ctx.db.device.update({
+          where: { id: input.id },
+          data: {
+            lastSeen: new Date()
+          }
+        });
+        result = device;
+        success = true;
+        return device;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "device.updateLastSeen",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     })
 });

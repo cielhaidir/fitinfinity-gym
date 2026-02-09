@@ -7,6 +7,7 @@ import {
   publicProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
+import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
 // Fungsi untuk mengupdate subscription yang sudah expired
 async function updateExpiredSubscriptions(ctx: any) {
@@ -35,32 +36,60 @@ export const memberRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Get the user data first
-      const user = await ctx.db.user.findUnique({
-        where: { id: input.userId },
-      });
+      const startTime = Date.now();
+      let success = true;
+      let error: Error | null = null;
+      let result;
 
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
+      try {
+        // Get the user data first
+        const user = await ctx.db.user.findUnique({
+          where: { id: input.userId },
+        });
+
+        if (!user) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
+
+        // Create membership with user data
+        result = await ctx.db.membership.create({
+          data: {
+            userId: input.userId,
+            registerDate: input.registerDate,
+            rfidNumber: input.rfidNumber ?? null, // Allow null for rfidNumber
+            isActive: true, // Always set to true by default
+            createdBy: input.createdBy ?? ctx.session.user.id,
+            revokedAt: input.revokedAt,
+          },
+          include: {
+            user: true, // Include user data in response
+          },
+        });
+
+        return result;
+      } catch (e) {
+        success = false;
+        error = e as Error;
+        throw e;
+      } finally {
+        // Log the mutation
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "member.create",
+          method: "POST",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: result,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
         });
       }
-
-      // Create membership with user data
-      return ctx.db.membership.create({
-        data: {
-          userId: input.userId,
-          registerDate: input.registerDate,
-          rfidNumber: input.rfidNumber ?? null, // Allow null for rfidNumber
-          isActive: true, // Always set to true by default
-          createdBy: input.createdBy ?? ctx.session.user.id,
-          revokedAt: input.revokedAt,
-        },
-        include: {
-          user: true, // Include user data in response
-        },
-      });
     }),
 
   edit: permissionProtectedProcedure(["update:member"])
@@ -76,17 +105,44 @@ export const memberRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.membership.update({
-        where: { id: input.id },
-        data: {
-          userId: input.userId,
-          registerDate: input.registerDate,
-          rfidNumber: input.rfidNumber,
-          isActive: input.isActive,
-          createdBy: input.createdBy,
-          revokedAt: input.revokedAt,
-        },
-      });
+      const startTime = Date.now();
+      let success = true;
+      let error: Error | null = null;
+      let result;
+
+      try {
+        result = await ctx.db.membership.update({
+          where: { id: input.id },
+          data: {
+            userId: input.userId,
+            registerDate: input.registerDate,
+            rfidNumber: input.rfidNumber,
+            isActive: input.isActive,
+            createdBy: input.createdBy,
+            revokedAt: input.revokedAt,
+          },
+        });
+
+        return result;
+      } catch (e) {
+        success = false;
+        error = e as Error;
+        throw e;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "member.edit",
+          method: "PUT",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: result,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
     }),
 
   detail: permissionProtectedProcedure(["show:member"])
