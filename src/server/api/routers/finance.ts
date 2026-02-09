@@ -4,6 +4,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { PaymentStatus } from "@prisma/client";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 export const financeRouter = createTRPCRouter({
   getFinanceMetrics: permissionProtectedProcedure(["list:payment"])
@@ -21,8 +22,9 @@ export const financeRouter = createTRPCRouter({
       const defaultStart = new Date();
       defaultStart.setDate(now.getDate() - 30);
       
-      const start = startDate || defaultStart;
-      const end = endDate || now;
+      // Convert dates to GMT+8 timezone boundaries
+      const start = toGMT8StartOfDay(startDate || defaultStart);
+      const end = toGMT8EndOfDay(endDate || now);
 
       // 1. Total Membership Sales (from subscription.payment.totalAmount where payment status = SUCCESS)
       const membershipSales = await ctx.db.payment.findMany({
@@ -126,8 +128,9 @@ export const financeRouter = createTRPCRouter({
       const defaultStart = new Date();
       defaultStart.setDate(now.getDate() - 30);
       
-      const start = startDate || defaultStart;
-      const end = endDate || now;
+      // Convert dates to GMT+8 timezone boundaries
+      const start = toGMT8StartOfDay(startDate || defaultStart);
+      const end = toGMT8EndOfDay(endDate || now);
 
       const membershipSales = await ctx.db.payment.findMany({
         where: {
@@ -184,8 +187,9 @@ export const financeRouter = createTRPCRouter({
       const defaultStart = new Date();
       defaultStart.setDate(now.getDate() - 30);
       
-      const start = startDate || defaultStart;
-      const end = endDate || now;
+      // Convert dates to GMT+8 timezone boundaries
+      const start = toGMT8StartOfDay(startDate || defaultStart);
+      const end = toGMT8EndOfDay(endDate || now);
 
       const expenses = await ctx.db.transaction.findMany({
         where: {
@@ -232,8 +236,11 @@ export const financeRouter = createTRPCRouter({
       const defaultStart = new Date();
       defaultStart.setDate(now.getDate() - 30);
       
-      const start = startDate || defaultStart;
-      const end = endDate || now;
+      // Convert dates to GMT+8 timezone boundaries
+      const start = toGMT8StartOfDay(startDate || defaultStart);
+      const end = toGMT8EndOfDay(endDate || now);
+      //       const start = startDate || defaultStart;
+      // const end = endDate || now;
 
       const posSales = await ctx.db.pOSSale.findMany({
         where: {

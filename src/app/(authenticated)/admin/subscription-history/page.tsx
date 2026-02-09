@@ -43,6 +43,15 @@ import { useRBAC } from "@/hooks/useRBAC";
 export default function AdminSubscriptionHistoryPage() {
   const { data: session } = useSession();
   const router = useRouter();
+
+  const today = new Date();
+const sevenDaysAgo = new Date();
+sevenDaysAgo.setDate(today.getDate() - 7);
+
+const formatDate = (date: Date): string =>
+  date.toISOString().split("T")[0] ?? "";
+
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
@@ -51,8 +60,12 @@ export default function AdminSubscriptionHistoryPage() {
   const [filterTrainerId, setFilterTrainerId] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [filterDateType, setFilterDateType] = useState<"payment" | "startDate" | "endDate" | "createdAt">("payment");
-  const [filterStartDate, setFilterStartDate] = useState<string>("");
-  const [filterEndDate, setFilterEndDate] = useState<string>("");
+const [filterStartDate, setFilterStartDate] = useState<string>(
+  formatDate(sevenDaysAgo)
+);
+const [filterEndDate, setFilterEndDate] = useState<string>(
+  formatDate(today)
+);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [selectedSalesId, setSelectedSalesId] = useState<string>("");
@@ -101,6 +114,39 @@ export default function AdminSubscriptionHistoryPage() {
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
 
+  // Helper function to convert date string to GMT+8
+  const convertToGMT8Date = (dateString: string): Date | undefined => {
+    if (!dateString) return undefined;
+    // Parse the date string as if it's in GMT+8
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day) return undefined;
+    
+    // Create date in GMT+8 timezone using UTC methods to avoid local timezone issues
+    // Feb 1 00:00 GMT+8 = Jan 31 16:00 UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    // Subtract 8 hours to convert from GMT+8 to UTC
+    utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+    
+    console.log(`[convertToGMT8Date] Input: ${dateString}, Output: ${utcDate.toISOString()}`);
+    return utcDate;
+  };
+
+  const convertToGMT8EndDate = (dateString: string): Date | undefined => {
+    if (!dateString) return undefined;
+    // Parse the date string as if it's in GMT+8
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day) return undefined;
+    
+    // Create end of day in GMT+8 timezone using UTC methods
+    // Feb 2 23:59:59.999 GMT+8 = Feb 2 15:59:59.999 UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+    // Subtract 8 hours to convert from GMT+8 to UTC
+    utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+    
+    console.log(`[convertToGMT8EndDate] Input: ${dateString}, Output: ${utcDate.toISOString()}`);
+    return utcDate;
+  };
+
   // Query for getting all subscriptions with required fields
   const { data: subscriptions, isLoading, refetch } = api.subs.listActive.useQuery(
     {
@@ -112,8 +158,8 @@ export default function AdminSubscriptionHistoryPage() {
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
-      startDate: filterStartDate ? new Date(filterStartDate) : undefined,
-      endDate: filterEndDate ? new Date(filterEndDate) : undefined,
+      startDate: new Date(filterStartDate),
+      endDate: new Date(filterEndDate),
     },
     {
       enabled: !!session,
@@ -709,6 +755,38 @@ export default function AdminSubscriptionHistoryPage() {
       },
         },
         {
+      id: "paymentCreated",
+      accessorKey: "payments",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Payment Created" />
+      ),
+      cell: ({ row }) => {
+        const payments = row.original.payments as Array<{ paidAt: Date,  }> | undefined;
+        const paidAt = payments?.[0]?.paidAt;
+        console.log("Payments:", payments);
+
+        if (!paidAt) {
+          return (
+               <div className="min-w-[100px]">
+         <span className="text-xs ">
+            "N/a"
+            </span>
+          </div>
+          );
+        }
+        // Convert UTC to GMT+8 by adding 8 hours
+        const utcDate = new Date(paidAt);
+        const gmt8Date = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+        return (
+          <div className="min-w-[100px]">
+            <span className="text-sm">
+              {format(utcDate , "dd/MM/yy HH:mm")}
+            </span>
+          </div>
+        );
+      },
+        },
+        {
       accessorKey: "isActive",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Status" />
@@ -846,8 +924,8 @@ export default function AdminSubscriptionHistoryPage() {
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
-      startDate: filterStartDate ? new Date(filterStartDate) : undefined,
-      endDate: filterEndDate ? new Date(filterEndDate) : undefined,
+      startDate: convertToGMT8Date(filterStartDate),
+      endDate: convertToGMT8EndDate(filterEndDate),
     },
     {
       enabled: shouldExport,
@@ -905,6 +983,7 @@ export default function AdminSubscriptionHistoryPage() {
         "Personal Trainer",
         "Sales Person",
         "Payment Total",
+        "Payment Created",
         "Status"
       ];
 
@@ -920,6 +999,9 @@ export default function AdminSubscriptionHistoryPage() {
         item.trainer?.user?.name || "N/A",
         getSalesPersonName(item.salesId, item.salesType),
         item.payments?.[0]?.totalPayment || "N/A",
+        item.payments?.[0]?.createdAt
+          ? format(new Date(new Date(item.payments[0].createdAt).getTime() + (8 * 60 * 60 * 1000)), "dd/MM/yyyy HH:mm")
+          : "N/A",
         item.isActive ? "Active" : "Inactive"
       ]);
 

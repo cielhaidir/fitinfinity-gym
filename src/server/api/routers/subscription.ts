@@ -516,12 +516,19 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+
       // Update expired subscriptions sebelum query
       await updateExpiredSubscriptions(ctx);
+      
+      // Dates are already converted to UTC in the frontend
+      const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
+      const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
+      console.log("Input", input, start, end)
 
      const whereClause: any = {
   // Exclude soft deleted subscriptions
   deletedAt: null,
+
   // Filter by status if not "all"
   ...(input.status !== "all" && {
     isActive: input.status === "active",
@@ -539,19 +546,21 @@ export const subscriptionRouter = createTRPCRouter({
     trainerId: input.trainerId,
   }),
   // Filter by date range based on selected date field type
-  ...((input.startDate || input.endDate) && (() => {
+  ...((start || end) && (() => {
     const dateFilterType = input.dateFilterType || "payment";
     
     if (dateFilterType === "payment") {
-      // Filter by payment creation date (current behavior)
+      // Filter by payment paid date (when payment was actually completed)
+      // Use 'some' to find subscriptions with at least one successful payment in the date range
       return {
         payments: {
           some: {
-            ...(input.startDate && {
-              createdAt: { gte: input.startDate },
-            }),
-            ...(input.endDate && {
-              createdAt: { lte: input.endDate },
+            status: "SUCCESS",
+            ...((start || end) && {
+              paidAt: {
+                ...(start && { gte: start }),
+                ...(end && { lte: end }),
+              },
             }),
           },
         },
@@ -559,31 +568,31 @@ export const subscriptionRouter = createTRPCRouter({
     } else if (dateFilterType === "startDate") {
       // Filter by subscription start date
       return {
-        ...(input.startDate && {
-          startDate: { gte: input.startDate },
+        ...(start && {
+          startDate: { gte: start },
         }),
-        ...(input.endDate && {
-          startDate: { lte: input.endDate },
+        ...(end && {
+          startDate: { lte: end },
         }),
       };
     } else if (dateFilterType === "endDate") {
       // Filter by subscription end date
       return {
-        ...(input.startDate && {
-          endDate: { gte: input.startDate },
+        ...(start && {
+          endDate: { gte: start },
         }),
-        ...(input.endDate && {
-          endDate: { lte: input.endDate },
+        ...(end && {
+          endDate: { lte: end },
         }),
       };
     } else if (dateFilterType === "createdAt") {
       // Filter by subscription creation date
       return {
-        ...(input.startDate && {
-          createdAt: { gte: input.startDate },
+        ...(start && {
+          createdAt: { gte: start },
         }),
-        ...(input.endDate && {
-          createdAt: { lte: input.endDate },
+        ...(end && {
+          createdAt: { lte: end },
         }),
       };
     }
@@ -657,6 +666,20 @@ export const subscriptionRouter = createTRPCRouter({
             },
           },
           payments: {
+            where: {
+        status: "SUCCESS",
+        ...(start || end
+          ? {
+              paidAt: {
+                ...(start && { gte: start }),
+                ...(end && { lte: end }),
+              },
+            }
+          : {}),
+      },
+      orderBy: {
+        paidAt: "desc",
+      },
             select: {
               id: true,
               status: true,
@@ -664,6 +687,7 @@ export const subscriptionRouter = createTRPCRouter({
               totalPayment: true,
               orderReference: true,
               paidAt: true,
+              createdAt: true,
               updatedAt: true,
             },
           },
@@ -671,6 +695,16 @@ export const subscriptionRouter = createTRPCRouter({
       });
 
       const total = await ctx.db.subscription.count({ where: whereClause });
+      
+      // Debug: Log payments for each subscription
+      items.forEach((subscription, index) => {
+        console.log(`Subscription #${index + 1} (${subscription.id}):`, {
+          packageName: subscription.package.name,
+          memberName: subscription.member.user.name,
+          paymentsCount: subscription.payments.length,
+          payments: subscription.payments
+        });
+      });
 
       return {
         items,
@@ -2086,6 +2120,10 @@ export const subscriptionRouter = createTRPCRouter({
       // Update expired subscriptions before query
       await updateExpiredSubscriptions(ctx);
 
+      // Dates are already converted to UTC in the frontend
+      const start = input.startDate;
+      const end = input.endDate;
+
       const whereClause: any = {
         // Exclude soft deleted subscriptions
         deletedAt: null,
@@ -2106,19 +2144,19 @@ export const subscriptionRouter = createTRPCRouter({
           trainerId: input.trainerId,
         }),
         // Filter by date range based on selected date field type
-        ...((input.startDate || input.endDate) && (() => {
+        ...((start || end) && (() => {
           const dateFilterType = input.dateFilterType || "payment";
           
           if (dateFilterType === "payment") {
-            // Filter by payment creation date (current behavior)
+            // Filter by payment paid date (when payment was actually completed)
             return {
               payments: {
                 some: {
-                  ...(input.startDate && {
-                    createdAt: { gte: input.startDate },
+                  ...(start && {
+                    paidAt: { gte: start },
                   }),
-                  ...(input.endDate && {
-                    createdAt: { lte: input.endDate },
+                  ...(end && {
+                    paidAt: { lte: end },
                   }),
                 },
               },
@@ -2126,31 +2164,31 @@ export const subscriptionRouter = createTRPCRouter({
           } else if (dateFilterType === "startDate") {
             // Filter by subscription start date
             return {
-              ...(input.startDate && {
-                startDate: { gte: input.startDate },
+              ...(start && {
+                startDate: { gte: start },
               }),
-              ...(input.endDate && {
-                startDate: { lte: input.endDate },
+              ...(end && {
+                startDate: { lte: end },
               }),
             };
           } else if (dateFilterType === "endDate") {
             // Filter by subscription end date
             return {
-              ...(input.startDate && {
-                endDate: { gte: input.startDate },
+              ...(start && {
+                endDate: { gte: start },
               }),
-              ...(input.endDate && {
-                endDate: { lte: input.endDate },
+              ...(end && {
+                endDate: { lte: end },
               }),
             };
           } else if (dateFilterType === "createdAt") {
             // Filter by subscription creation date
             return {
-              ...(input.startDate && {
-                createdAt: { gte: input.startDate },
+              ...(start && {
+                createdAt: { gte: start },
               }),
-              ...(input.endDate && {
-                createdAt: { lte: input.endDate },
+              ...(end && {
+                createdAt: { lte: end },
               }),
             };
           }
@@ -2200,6 +2238,7 @@ export const subscriptionRouter = createTRPCRouter({
               totalPayment: true,
               orderReference: true,
               paidAt: true,
+              createdAt: true,
               updatedAt: true,
             },
           },

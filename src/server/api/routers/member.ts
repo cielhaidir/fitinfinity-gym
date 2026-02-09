@@ -437,6 +437,7 @@ export const memberRouter = createTRPCRouter({
           subscriptions: {
             where: {
               isActive: true,
+              deletedAt: null,
             },
             include: {
               trainer: {
