@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound } from "lucide-react";
+import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound, ArrowLeftRight } from "lucide-react";
 import { api } from "@/trpc/react";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,18 @@ const DashboardPage: React.FC = () => {
   // Query admin dashboard stats with date range
   const { data: dashboardStats, isLoading: statsLoading } =
     api.subs.getAdminDashboardStats.useQuery(
+      {
+        startDate: appliedStartDate,
+        endDate: appliedEndDate,
+      },
+      {
+        enabled: !!appliedStartDate && !!appliedEndDate,
+      }
+    );
+
+  // Query transfer statistics with date range
+  const { data: transferStats, isLoading: transferStatsLoading } =
+    api.subs.getTransferStats.useQuery(
       {
         startDate: appliedStartDate,
         endDate: appliedEndDate,
@@ -291,8 +303,8 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Total Revenue Row - 2 Columns */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Total Revenue Row - 3 Columns */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* Freeze Period Stats */}
           <Card className="p-6">
             <div className="flex items-center gap-4">
@@ -306,6 +318,24 @@ const DashboardPage: React.FC = () => {
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   Revenue: {freezeStatsLoading ? "..." : formatRupiah(freezeRevenue)}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Transfer Period Stats */}
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full bg-violet-500/20 p-4">
+                <ArrowLeftRight className="h-8 w-8 text-violet-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground font-medium">Total Transfer Period</p>
+                <h2 className="text-3xl font-bold text-violet-700">
+                  {transferStatsLoading ? "..." : transferStats?.totalTransfers ?? 0}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Revenue: {transferStatsLoading ? "..." : formatRupiah(transferStats?.totalRevenue ?? 0)}
                 </p>
               </div>
             </div>

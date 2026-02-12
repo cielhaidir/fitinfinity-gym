@@ -35,6 +35,7 @@ export default function POSPage() {
   const [filterCashier, setFilterCashier] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [itemSearchTerm, setItemSearchTerm] = useState<string>("");
   
   // Summary tab states
   const [summaryDateFrom, setSummaryDateFrom] = useState<string>(() => {
@@ -81,10 +82,13 @@ export default function POSPage() {
     }
   );
 
-  // Filter items by selected category
-  const filteredItems = selectedCategory && selectedCategory !== "all"
-    ? items?.filter(item => item.categoryId === selectedCategory)
-    : items;
+  // Filter items by selected category and search term
+  const filteredItems = items?.filter(item => {
+    const matchesCategory = selectedCategory === "all" || item.categoryId === selectedCategory;
+    const matchesSearch = !itemSearchTerm ||
+      item.name.toLowerCase().includes(itemSearchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   // Calculate totals
   const subtotal = cartItems.reduce((sum, item) => sum + item.subtotal, 0);
@@ -444,7 +448,14 @@ export default function POSPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Products Section */}
           <div className="lg:col-span-2">
-            <div className="mb-4">
+            <div className="mb-4 space-y-3">
+              <Input
+                type="text"
+                placeholder="Search items by name..."
+                value={itemSearchTerm}
+                onChange={(e) => setItemSearchTerm(e.target.value)}
+                className="w-full"
+              />
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by category" />

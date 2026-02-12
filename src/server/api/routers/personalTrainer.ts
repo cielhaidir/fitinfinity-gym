@@ -251,6 +251,18 @@ export const personalTrainerRouter = createTRPCRouter({
       });
     },
   ),
+    listAllActive: permissionProtectedProcedure(["list:trainers"]).query(
+    async ({ ctx }) => {
+      return ctx.db.personalTrainer.findMany({
+        where: {
+          isActive: true,
+        },
+        include: {
+          user: true,
+        },
+      });
+    },
+  ),
 
   createSession: permissionProtectedProcedure(["create:session"])
     .input(

@@ -109,29 +109,21 @@ getRevenueBySales: protectedProcedure
   .query(async ({ ctx, input }) => {
     const { startDate, endDate, salesId } = input;
 
-    // Ambil semua subscription yang punya payment di rentang waktu (convert to GMT+8)
+    // Get all subscriptions with payments in date range (convert to GMT+8)
     const allAcceptedPayments = await ctx.db.subscription.findMany({
      where: {
-  salesId: salesId ? salesId : undefined,
-  AND: [
-    {
-      OR: [
-        { groupMembers: { none: {} } },
-        { leadGroupSubscriptions: { some: {} } },
-      ],
-    },
-    {
-      payments: {
-        some: {
-              status: 'SUCCESS',
-          createdAt: {
-            gte: toGMT8StartOfDay(startDate),
-            lte: toGMT8EndOfDay(endDate),
-          },
-        },
+  deletedAt: null,
+  ...(salesId && { salesId }),
+  payments: {
+    some: {
+      status: 'SUCCESS',
+      deletedAt: null,
+      createdAt: {
+        gte: toGMT8StartOfDay(startDate),
+        lte: toGMT8EndOfDay(endDate),
       },
     },
-  ],
+  },
 },
 
       select: {
@@ -151,6 +143,8 @@ getRevenueBySales: protectedProcedure
         },
         payments: {
           where: {
+            status: 'SUCCESS',
+            deletedAt: null,
             createdAt: {
               gte: toGMT8StartOfDay(startDate),
               lte: toGMT8EndOfDay(endDate),

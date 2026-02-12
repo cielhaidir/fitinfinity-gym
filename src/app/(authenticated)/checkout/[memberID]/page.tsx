@@ -61,7 +61,7 @@ export default function SubscriptionPage({
   const { data: groupPackages } = api.package.listByType.useQuery({
     type: "GROUP_TRAINING",
   });
-  const { data: trainers } = api.personalTrainer.listAll.useQuery();
+  const { data: trainers } = api.personalTrainer.listAllActive.useQuery();
   const { data: salesList } = api.subs.getSalesList.useQuery();
 
   // Check for active gym membership

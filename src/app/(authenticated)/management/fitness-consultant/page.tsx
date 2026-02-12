@@ -280,6 +280,35 @@ export default function FCPage() {
     await utils.fc.list.invalidate();
   };
 
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const promise = updateFCMutation.mutateAsync({
+        id,
+        isActive: !currentStatus,
+        user: {
+          name: null,
+          email: null,
+          address: null,
+          phone: null,
+          birthDate: null,
+          idNumber: null,
+        },
+      });
+
+      toast.promise(promise, {
+        loading: "Updating status...",
+        success: `FC ${!currentStatus ? "activated" : "deactivated"} successfully!`,
+        error: (error) =>
+          error instanceof Error ? error.message : String(error),
+      });
+
+      await promise;
+      await utils.fc.list.invalidate();
+    } catch (error) {
+      console.error("Error toggling FC status:", error);
+    }
+  };
+
   const handlePaginationChange = (newPage: number, newLimit: number) => {
     setPage(newPage);
     setLimit(newLimit);
@@ -288,6 +317,7 @@ export default function FCPage() {
   const columns = createColumns({
     onEditMember: handleEditFC,
     onDeleteMember: handleDeleteFC,
+    onToggleStatus: handleToggleStatus,
   });
 
   const handleSelectUser = async (user: User) => {

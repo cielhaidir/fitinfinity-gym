@@ -5,6 +5,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Edit, Trash2 } from "lucide-react";
 
 import { type FC } from "./schema";
@@ -14,11 +15,13 @@ import { DataTableRowActions } from "@/components/datatable/data-table-row-actio
 interface ColumnsProps {
   onEditMember: (member: any) => void;
   onDeleteMember: (member: any) => void;
+  onToggleStatus?: (id: string, currentStatus: boolean) => void;
 }
 
 export const createColumns = ({
   onEditMember,
   onDeleteMember,
+  onToggleStatus,
 }: ColumnsProps): ColumnDef<FC>[] => [
   {
     id: "select",
@@ -78,7 +81,14 @@ export const createColumns = ({
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => (
-      <div className="w-[100px]">
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={row.getValue("isActive")}
+          onCheckedChange={() =>
+            onToggleStatus?.(row.original.id, row.getValue("isActive"))
+          }
+          aria-label="Toggle status"
+        />
         <Badge
           variant={row.getValue("isActive") ? "default" : "secondary"}
           className={

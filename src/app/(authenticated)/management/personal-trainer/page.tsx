@@ -262,6 +262,35 @@ export default function PersonalTrainerPage() {
     await utils.personalTrainer.list.invalidate();
   };
 
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const promise = updateTrainerMutation.mutateAsync({
+        id,
+        isActive: !currentStatus,
+        user: {
+          name: null,
+          email: null,
+          address: undefined,
+          phone: undefined,
+          birthDate: undefined,
+          idNumber: undefined,
+        },
+      });
+
+      toast.promise(promise, {
+        loading: "Updating status...",
+        success: `Trainer ${!currentStatus ? "activated" : "deactivated"} successfully!`,
+        error: (error) =>
+          error instanceof Error ? error.message : String(error),
+      });
+
+      await promise;
+      await utils.personalTrainer.list.invalidate();
+    } catch (error) {
+      console.error("Error toggling trainer status:", error);
+    }
+  };
+
   const handlePaginationChange = (newPage: number, newLimit: number) => {
     setPage(newPage);
     setLimit(newLimit);
@@ -270,6 +299,7 @@ export default function PersonalTrainerPage() {
   const columns = createColumns({
     onEditMember: handleEditTrainer,
     onDeleteMember: handleDeleteTrainer,
+    onToggleStatus: handleToggleStatus,
   });
 
   const handleSelectUser = async (user: User) => {

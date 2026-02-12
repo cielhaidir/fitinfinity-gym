@@ -32,6 +32,56 @@ export const subscriptionRouter = createTRPCRouter({
     .query(async ({ ctx }) => {
       const [personalTrainers, fcs] = await Promise.all([
         ctx.db.personalTrainer.findMany({
+          // where: { isActive: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+        ctx.db.fC.findMany({
+          // where: { isActive: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      // Combine and format the data
+      const salesList = [
+        ...personalTrainers.map((pt) => ({
+          id: pt.id,
+          name: pt.user?.name || "Unknown",
+          email: pt.user?.email || "",
+          type: "PersonalTrainer" as const,
+          typeName: "Personal Trainer",
+        })),
+        ...fcs.map((fc) => ({
+          id: fc.id,
+          name: fc.user?.name || "Unknown",
+          email: fc.user?.email || "",
+          type: "FC" as const,
+          typeName: "Fitness Consultant",
+        })),
+      ];
+
+      return salesList.sort((a, b) => a.name.localeCompare(b.name));
+    }),
+
+      getSalesListActive: permissionProtectedProcedure(["list:subscription"])
+    .query(async ({ ctx }) => {
+      const [personalTrainers, fcs] = await Promise.all([
+        ctx.db.personalTrainer.findMany({
           where: { isActive: true },
           include: {
             user: {
@@ -77,7 +127,6 @@ export const subscriptionRouter = createTRPCRouter({
 
       return salesList.sort((a, b) => a.name.localeCompare(b.name));
     }),
-
   create: permissionProtectedProcedure(["create:subscription"])
     .input(
       z.object({
@@ -2064,6 +2113,7 @@ export const subscriptionRouter = createTRPCRouter({
         subscriptionId: z.string(),
         newUserId: z.string(),
         reason: z.string().optional(),
+        transferPrice: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2127,11 +2177,16 @@ export const subscriptionRouter = createTRPCRouter({
       //   });
       // }
 
-      // Get transfer price from config
-      const transferPriceConfig = await ctx.db.config.findUnique({
-        where: { key: "transfer_price" },
-      });
-      const transferPrice = transferPriceConfig ? parseFloat(transferPriceConfig.value) : 0;
+      // Use provided transfer price or get from config
+      let transferPrice: number;
+      if (input.transferPrice !== undefined) {
+        transferPrice = input.transferPrice;
+      } else {
+        const transferPriceConfig = await ctx.db.config.findUnique({
+          where: { key: "transfer_price" },
+        });
+        transferPrice = transferPriceConfig ? parseFloat(transferPriceConfig.value) : 0;
+      }
 
         result = await ctx.db.$transaction(async (tx) => {
         // Create new membership for the target user
@@ -3613,5 +3668,79 @@ export const subscriptionRouter = createTRPCRouter({
           duration: Date.now() - startTime,
         });
       }
+    }),
+
+  // Get aggregate transfer statistics for admin dashboard
+  getTransferStats: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const whereClause: any = {
+        isCancelled: false, // Only count non-cancelled transfers
+      };
+
+      // Apply date filters
+      if (input.startDate || input.endDate) {
+        whereClause.createdAt = {};
+        if (input.startDate) {
+          whereClause.createdAt.gte = input.startDate;
+        }
+        if (input.endDate) {
+          whereClause.createdAt.lte = input.endDate;
+        }
+      }
+
+      // Get total count of transfers
+      const totalTransfers = await ctx.db.subscriptionTransferHistory.count({
+        where: whereClause,
+      });
+
+      // Get aggregate data
+      const aggregateData = await ctx.db.subscriptionTransferHistory.aggregate({
+        where: whereClause,
+        _sum: {
+          transferredPoint: true,
+          amount: true,
+        },
+        _avg: {
+          amount: true,
+        },
+      });
+
+      // Get date range of transfers
+      const dateRange = await ctx.db.subscriptionTransferHistory.findMany({
+        where: whereClause,
+        select: {
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+        take: 1,
+      });
+
+      const latestTransfer = await ctx.db.subscriptionTransferHistory.findMany({
+        where: whereClause,
+        select: {
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 1,
+      });
+
+      return {
+        totalTransfers,
+        totalPoints: aggregateData._sum.transferredPoint ?? 0,
+        totalRevenue: aggregateData._sum.amount ?? 0,
+        averageAmount: aggregateData._avg.amount ?? 0,
+        earliestTransfer: dateRange[0]?.createdAt ?? null,
+        latestTransfer: latestTransfer[0]?.createdAt ?? null,
+      };
     }),
 });

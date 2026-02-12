@@ -36,6 +36,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/app/_components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { useRBAC } from "@/hooks/useRBAC";
@@ -86,6 +87,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
   const [transferUserSearch, setTransferUserSearch] = useState("");
   const [transferReason, setTransferReason] = useState("");
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [transferPriceOption, setTransferPriceOption] = useState<"free" | "config">("config");
   
   // Edit dates functionality state
   const [editDatesDialogOpen, setEditDatesDialogOpen] = useState(false);
@@ -223,6 +225,13 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
 
   // Query for getting personal trainers for edit trainer functionality
   const { data: personalTrainers = [] } = api.personalTrainer.getActiveTrainers.useQuery();
+  
+  // Query for getting transfer price from config
+  const { data: configs = [] } = api.config.getAll.useQuery(undefined, {
+    enabled: !!session,
+  });
+  const transferPriceConfig = configs.find((c) => c.key === "transfer_price");
+  const configTransferPrice = transferPriceConfig ? parseFloat(transferPriceConfig.value) : 0;
   // Debounce user search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -269,6 +278,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       setTransferUserSearch("");
       setTransferReason("");
       setShowUserDropdown(false);
+      setTransferPriceOption("config");
       refetch();
     },
     onError: (error) => {
@@ -420,10 +430,13 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
   const handleConfirmTransfer = () => {
     if (!selectedSubscriptionForTransfer || !transferNewUserId) return;
 
+    const selectedPrice = transferPriceOption === "free" ? 0 : configTransferPrice;
+
     transferSubscriptionMutation.mutate({
       subscriptionId: selectedSubscriptionForTransfer.id,
       newUserId: transferNewUserId,
       reason: transferReason.trim() || undefined,
+      transferPrice: selectedPrice,
     });
   };
 
@@ -435,6 +448,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     setTransferUserSearch("");
     setTransferReason("");
     setShowUserDropdown(false);
+    setTransferPriceOption("config");
   };
 
   const handleUserSelect = (user: { id: string; name: string; email: string }) => {
@@ -1283,28 +1297,29 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
               <CardTitle className="text-lg sm:text-xl">All Subscriptions</CardTitle>
               {/* Filters */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
-               
-                <div>
-                  <Label htmlFor="salesFilter" className="text-sm font-medium mb-2 block">
-                    Filter by Sales
-                  </Label>
-                  <Select
-                    value={filterSalesId}
-                    onValueChange={handleSalesFilterChange}
-                  >
-                    <SelectTrigger id="salesFilter">
-                      <SelectValue placeholder="All Sales" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Sales</SelectItem>
-                      {salesList?.map((sales) => (
-                        <SelectItem key={sales.id} value={sales.id}>
-                          {sales.name} ({sales.typeName})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              
+               <div>
+                 <Label htmlFor="salesFilter" className="text-sm font-medium mb-2 block">
+                   Filter by Sales
+                 </Label>
+                 <Select
+                   value={filterSalesId}
+                   onValueChange={handleSalesFilterChange}
+                 >
+                   <SelectTrigger id="salesFilter">
+                     <SelectValue placeholder="All Sales" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="all">All Sales</SelectItem>
+                     <SelectItem value="none">No Sales</SelectItem>
+                     {salesList?.map((sales) => (
+                       <SelectItem key={sales.id} value={sales.id}>
+                         {sales.name} ({sales.typeName})
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </div>
                 <div>
                   <Label htmlFor="trainerFilter" className="text-sm font-medium mb-2 block">
                     Filter by Trainer
@@ -1598,6 +1613,32 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                     Type at least 3 characters to search
                   </div>
                 )}
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-sm font-medium">
+                  Transfer Price *
+                </Label>
+                <RadioGroup
+                  value={transferPriceOption}
+                  onValueChange={(value) => setTransferPriceOption(value as "free" | "config")}
+                  className="flex flex-col gap-3"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="free" id="transfer-free" />
+                    <Label htmlFor="transfer-free" className="font-normal cursor-pointer">
+                      FREE (Rp 0)
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="config" id="transfer-config" />
+                    <Label htmlFor="transfer-config" className="font-normal cursor-pointer">
+                      Get from config (Rp {configTransferPrice.toLocaleString('id-ID')})
+                    </Label>
+                  </div>
+                </RadioGroup>
+                <div className="text-sm text-muted-foreground mt-1">
+                  Selected price: <span className="font-medium">Rp {(transferPriceOption === "free" ? 0 : configTransferPrice).toLocaleString('id-ID')}</span>
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="reason" className="text-sm font-medium">

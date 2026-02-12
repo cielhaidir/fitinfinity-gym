@@ -166,6 +166,7 @@ export const fcRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string(),
+        isActive: z.boolean().optional(),
         user: z.object({
           name: z.string().nullable(),
           email: z.string().nullable(),
@@ -183,7 +184,7 @@ export const fcRouter = createTRPCRouter({
       let error: Error | null = null;
 
       try {
-        const { id, user } = input;
+        const { id, user, isActive } = input;
 
         const fc = await ctx.db.fC.findUnique({
           where: { id },
@@ -202,6 +203,14 @@ export const fcRouter = createTRPCRouter({
           where: { id: fc.userId },
           data: user,
         });
+
+        // Update FC data if isActive is provided
+        if (isActive !== undefined) {
+          await ctx.db.fC.update({
+            where: { id },
+            data: { isActive },
+          });
+        }
 
         const updated = await ctx.db.fC.findUnique({
           where: { id },
