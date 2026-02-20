@@ -48,6 +48,8 @@ interface SalesSummary {
     gymMembershipRevenue: number;
     personalTrainerRevenue: number;
     groupTrainingRevenue: number;
+    transferRevenue: number;
+    freezeRevenue: number;
   };
   paymentMethodBreakdown: PaymentMethodBreakdown[];
   topSellingItems: TopSellingItem[];
@@ -89,6 +91,16 @@ export default function SalesReportPage() {
       endDate: endDate,
     }
   );
+
+  const { data: transferData } = api.salesReport.getTransferHistory.useQuery({
+    startDate,
+    endDate,
+  });
+
+  const { data: freezeData } = api.salesReport.getFreezeHistory.useQuery({
+    startDate,
+    endDate,
+  });
   
   console.log("Subscription Data:", subscriptionData);
   // Enhanced Excel export with multiple sheets
@@ -308,6 +320,43 @@ export default function SalesReportPage() {
       }
     }
 
+    // Transfer Sheet
+    if (transferData && transferData.length > 0) {
+      const transferSheetData = transferData.map((transfer: any) => ({
+        "Transfer ID": transfer.id,
+        "From Member": transfer.fromMemberName || "N/A",
+        "To Member": transfer.subscription?.member?.user?.name || "N/A",
+        "Package": transfer.subscription?.package?.name || "N/A",
+        "Amount": transfer.amount || 0,
+        "Transferred Points": transfer.transferredPoint || 0,
+        "Reason": transfer.reason || "N/A",
+        "Created At": format(new Date(transfer.createdAt), "yyyy-MM-dd HH:mm:ss"),
+      }));
+      const transferWorksheet = XLSX.utils.json_to_sheet(transferSheetData);
+      const transferCols = Object.keys(transferSheetData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
+      transferWorksheet['!cols'] = transferCols;
+      XLSX.utils.book_append_sheet(workbook, transferWorksheet, "Transfers");
+    }
+
+    // Freeze Sheet
+    if (freezeData && freezeData.length > 0) {
+      const freezeSheetData = freezeData.map((freeze: any) => ({
+        "Freeze ID": freeze.id,
+        "Member": freeze.memberName || "N/A",
+        "Email": freeze.memberEmail || "N/A",
+        "Packages Frozen": freeze.subscriptions?.map((s: any) => s.packageName).join(", ") || "N/A",
+        "Number of Packages": freeze.subscriptions?.length || 0,
+        "Freeze Days": freeze.freezeDays || 0,
+        "Price": freeze.price || 0,
+        "Performed By": freeze.performedBy?.name || "N/A",
+        "Performed At": format(new Date(freeze.performedAt), "yyyy-MM-dd HH:mm:ss"),
+      }));
+      const freezeWorksheet = XLSX.utils.json_to_sheet(freezeSheetData);
+      const freezeCols = Object.keys(freezeSheetData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
+      freezeWorksheet['!cols'] = freezeCols;
+      XLSX.utils.book_append_sheet(workbook, freezeWorksheet, "Freeze Operations");
+    }
+
     // Sheet 3: Summary
     if (salesSummary) {
       const summaryData = [
@@ -342,6 +391,8 @@ export default function SalesReportPage() {
             return total;
           }, 0) || 0
         ) },
+        { "Metric": "Transfer Revenue", "Value": formatRupiah(salesSummary.summary.transferRevenue) },
+        { "Metric": "Freeze Revenue", "Value": formatRupiah(salesSummary.summary.freezeRevenue) },
       ];
 
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
@@ -558,6 +609,28 @@ export default function SalesReportPage() {
                     return total;
                   }, 0) || 0
                 )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Transfer Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(salesSummary.summary.transferRevenue)}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Freeze Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(salesSummary.summary.freezeRevenue)}
               </div>
             </CardContent>
           </Card>

@@ -25,6 +25,8 @@ interface SalesSummary {
   gymMembershipRevenue: number;
   personalTrainerRevenue: number;
   groupTrainingRevenue: number;
+  transferRevenue: number;
+  freezeRevenue: number;
 }
 
 interface PaymentMethodBreakdown {
@@ -634,6 +636,49 @@ getRevenueBySales: protectedProcedure
         subscriptionTotal = subscriptionPayments.reduce((sum: number, payment: any) => sum + (payment.totalPayment || 0), 0);
       }
 
+      // Get transfer history (non-cancelled)
+      const transferHistory = await ctx.db.subscriptionTransferHistory.findMany({
+        where: {
+          createdAt: {
+            gte: start,
+            lte: end,
+          },
+          isCancelled: false,
+        },
+      });
+      const transferTotal = transferHistory.reduce((sum, t) => sum + t.amount, 0);
+
+      // Get freeze operations (FREEZE type only)
+      const freezeOperations = await ctx.db.freezeOperation.findMany({
+        where: {
+          performedAt: {
+            gte: start,
+            lte: end,
+          },
+          operationType: 'FREEZE',
+        },
+        select: {
+          price: true,
+          performedAt: true,
+          transactionFreezeId: true,
+        },
+      });
+
+      // Deduplicate freeze operations by transactionFreezeId to avoid double-counting
+      const seenTransactionFreezeIds = new Set<string>();
+      let freezeTotal = 0;
+      for (const f of freezeOperations) {
+        if (f.transactionFreezeId) {
+          if (!seenTransactionFreezeIds.has(f.transactionFreezeId)) {
+            seenTransactionFreezeIds.add(f.transactionFreezeId);
+            freezeTotal += f.price;
+          }
+        } else {
+          // Free freeze (no transaction) — price is 0, but add anyway
+          freezeTotal += f.price;
+        }
+      }
+
       // Calculate totals by package type
       let gymMembershipRevenue = 0;
       let personalTrainerRevenue = 0;
@@ -653,8 +698,8 @@ getRevenueBySales: protectedProcedure
       });
 
       // Calculate totals
-      const totalRevenue = posTotal + subscriptionTotal;
-      const totalTransactions = posSales.length + subscriptionPayments.length;
+      const totalRevenue = posTotal + subscriptionTotal + transferTotal + freezeTotal;
+      const totalTransactions = posSales.length + subscriptionPayments.length + transferHistory.length + freezeOperations.length;
       const averageTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
       // Payment method breakdown
@@ -699,6 +744,39 @@ getRevenueBySales: protectedProcedure
         });
       });
 
+      transferHistory.forEach((t: any) => {
+        const date = t.createdAt.toISOString().split('T')[0];
+        const current = dailyMap.get(date) || { revenue: 0, transactions: 0 };
+        dailyMap.set(date, {
+          revenue: current.revenue + t.amount,
+          transactions: current.transactions + 1,
+        });
+      });
+
+      // For freeze operations daily breakdown - deduplicate
+      const seenFreezeIdsForDaily = new Set<string>();
+      freezeOperations.forEach((f: any) => {
+        let shouldCount = false;
+        if (f.transactionFreezeId) {
+          if (!seenFreezeIdsForDaily.has(f.transactionFreezeId)) {
+            seenFreezeIdsForDaily.add(f.transactionFreezeId);
+            shouldCount = true;
+          }
+        } else {
+          shouldCount = true;
+        }
+
+        if (shouldCount) {
+          const date = f.performedAt.toISOString().split('T')[0];
+          const amount = f.price;
+          const current = dailyMap.get(date) || { revenue: 0, transactions: 0 };
+          dailyMap.set(date, {
+            revenue: current.revenue + amount,
+            transactions: current.transactions + 1,
+          });
+        }
+      });
+
       dailyMap.forEach((data, date) => {
         dailyBreakdown.push({ date, ...data });
       });
@@ -732,6 +810,8 @@ getRevenueBySales: protectedProcedure
           gymMembershipRevenue,
           personalTrainerRevenue,
           groupTrainingRevenue,
+          transferRevenue: transferTotal,
+          freezeRevenue: freezeTotal,
         },
         paymentMethodBreakdown,
         dailyBreakdown,
@@ -758,6 +838,108 @@ getRevenueBySales: protectedProcedure
           packageName: payment.subscription?.package?.name || 'Unknown',
         })),
       };
+    }),
+
+  getTransferHistory: protectedProcedure
+    .input(z.object({
+      startDate: z.date(),
+      endDate: z.date(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { startDate, endDate } = input;
+      return await ctx.db.subscriptionTransferHistory.findMany({
+        where: {
+          createdAt: {
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
+          },
+          isCancelled: false,
+        },
+        include: {
+          subscription: {
+            include: {
+              package: { select: { name: true, type: true } },
+              member: { include: { user: { select: { name: true, email: true } } } },
+            },
+          },
+          fromMember: {
+            include: { user: { select: { name: true, email: true } } },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }),
+
+  getFreezeHistory: protectedProcedure
+    .input(z.object({
+      startDate: z.date(),
+      endDate: z.date(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { startDate, endDate } = input;
+
+      const allOperations = await ctx.db.freezeOperation.findMany({
+        where: {
+          performedAt: {
+            gte: toGMT8StartOfDay(startDate),
+            lte: toGMT8EndOfDay(endDate),
+          },
+          operationType: 'FREEZE',
+        },
+        include: {
+          member: {
+            include: { user: { select: { name: true, email: true } } },
+          },
+          subscription: {
+            include: {
+              package: { select: { name: true, type: true } },
+            },
+          },
+          transactionFreeze: true,
+          performedBy: { select: { name: true } },
+        },
+        orderBy: { performedAt: 'desc' },
+      });
+
+      // Group by memberId + transactionFreezeId (for paid) or memberId + performedAt (for free)
+      const groupedMap = new Map<string, any>();
+
+      for (const operation of allOperations) {
+        let groupKey: string;
+        if (operation.transactionFreezeId) {
+          groupKey = `${operation.memberId}_${operation.transactionFreezeId}`;
+        } else {
+          const roundedTime = new Date(operation.performedAt);
+          roundedTime.setMilliseconds(0);
+          groupKey = `${operation.memberId}_FREEZE_${roundedTime.toISOString()}`;
+        }
+
+        if (!groupedMap.has(groupKey)) {
+          groupedMap.set(groupKey, {
+            id: groupKey,
+            memberId: operation.memberId,
+            memberName: operation.member.user?.name || 'Unknown',
+            memberEmail: operation.member.user?.email || '',
+            operationType: operation.operationType,
+            performedAt: operation.performedAt,
+            performedBy: operation.performedBy,
+            freezeDays: operation.freezeDays,
+            price: operation.price,
+            transactionFreeze: operation.transactionFreeze,
+            subscriptions: [],
+          });
+        }
+
+        groupedMap.get(groupKey)!.subscriptions.push({
+          id: operation.subscription.id,
+          packageName: operation.subscription.package.name,
+          packageType: operation.subscription.package.type,
+        });
+      }
+
+      return Array.from(groupedMap.values()).sort(
+        (a, b) => b.performedAt.getTime() - a.performedAt.getTime()
+      );
     }),
 
 });
