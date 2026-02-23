@@ -53,7 +53,7 @@ export default function FreezeHistoryPage() {
   const [limit, setLimit] = useState(10);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [operationType, setOperationType] = useState<"all" | "FREEZE" | "UNFREEZE">("all");
+  const [operationType, setOperationType] = useState<"all" | "FREEZE" | "UNFREEZE" | "CANCEL_FREEZE">("all");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedFreeze, setSelectedFreeze] = useState<any>(null);
   const [unfreezeDialogOpen, setUnfreezeDialogOpen] = useState(false);
@@ -69,7 +69,7 @@ export default function FreezeHistoryPage() {
       limit,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      operationType,
+      operationType: operationType as "all" | "FREEZE" | "UNFREEZE" | "CANCEL_FREEZE",
     },
     {
       enabled: !!session,
@@ -168,20 +168,20 @@ export default function FreezeHistoryPage() {
   const confirmUnfreeze = () => {
     if (!selectedSubscriptionToUnfreeze) return;
     
-    // Find the first frozen subscription from the subscriptions array
-    const frozenSubscription = selectedSubscriptionToUnfreeze.subscriptions?.find((sub: any) => sub.isFrozen);
+    // Use memberId from the grouped freeze record
+    const memberId = selectedSubscriptionToUnfreeze.memberId;
     
-    if (!frozenSubscription?.id) {
+    if (!memberId) {
       toast({
         title: "Error",
-        description: "No frozen subscription found",
+        description: "Member ID not found",
         variant: "destructive",
       });
       return;
     }
     
     unfreezeMutation.mutate({
-      subscriptionId: frozenSubscription.id,
+      memberId,
     });
   };
 
@@ -232,8 +232,12 @@ export default function FreezeHistoryPage() {
           <div className="min-w-[100px] flex justify-center">
             {operationType === "FREEZE" ? (
               <Badge variant="default" className="bg-blue-500">Freeze</Badge>
-            ) : (
+            ) : operationType === "UNFREEZE" ? (
               <Badge variant="default" className="bg-green-500">Unfreeze</Badge>
+            ) : operationType === "CANCEL_FREEZE" ? (
+              <Badge variant="outline" className="border-destructive text-destructive">Cancel Freeze</Badge>
+            ) : (
+              <Badge variant="default" className="bg-gray-500">{operationType}</Badge>
             )}
           </div>
         );
@@ -347,9 +351,14 @@ export default function FreezeHistoryPage() {
         // Check if any subscription is currently frozen
         const hasFrozenSubscription = freeze.subscriptions?.some((sub: any) => sub.isFrozen);
         
-        // Only show cancel button for FREEZE operations with freeze days
+        // Only show action buttons for FREEZE operations with freeze days that are still active
         if (!isFreezeOperation || !hasFreezeData) {
           return <div className="text-center text-xs text-muted-foreground">-</div>;
+        }
+
+        // If all subscriptions have been unfrozen/cancelled, show no actions
+        if (!hasFrozenSubscription) {
+          return <div className="text-center text-xs text-muted-foreground italic">-</div>;
         }
 
         return (
@@ -414,7 +423,7 @@ export default function FreezeHistoryPage() {
     setPage(1);
   };
 
-  const handleOperationTypeChange = (value: "all" | "FREEZE" | "UNFREEZE") => {
+  const handleOperationTypeChange = (value: "all" | "FREEZE" | "UNFREEZE" | "CANCEL_FREEZE") => {
     setOperationType(value);
     setPage(1);
   };
@@ -582,6 +591,7 @@ export default function FreezeHistoryPage() {
                       <SelectItem value="all">All</SelectItem>
                       <SelectItem value="FREEZE">Freeze</SelectItem>
                       <SelectItem value="UNFREEZE">Unfreeze</SelectItem>
+                      <SelectItem value="CANCEL_FREEZE">Cancel Freeze</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

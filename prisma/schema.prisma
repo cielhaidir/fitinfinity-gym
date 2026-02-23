@@ -119,6 +119,7 @@ enum FreezeMode {
 enum FreezeOperationType {
     FREEZE
     UNFREEZE
+    CANCEL_FREEZE
 }
 
 // Purchase and Adjustment Enums

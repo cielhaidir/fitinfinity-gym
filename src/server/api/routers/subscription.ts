@@ -1557,6 +1557,7 @@ export const subscriptionRouter = createTRPCRouter({
       freezePriceId: z.string().optional(),
       freezeDays: z.number().min(0).max(365).optional(),
       balanceAccountId: z.number().int().optional(),
+      freezeStartAt: z.string().datetime().optional(), // ISO date string for scheduled freeze start
     }))
     .mutation(async ({ ctx, input }) => {
       const startTime = Date.now();
@@ -1614,6 +1615,8 @@ export const subscriptionRouter = createTRPCRouter({
       }
 
       const now = new Date();
+      // Use provided freezeStartAt or fall back to now
+      const freezeStartAt = input.freezeStartAt ? new Date(input.freezeStartAt) : now;
 
       // Find all active, non-frozen subscriptions for this member that haven't expired
       // Validation guards (as per improvement plan):
@@ -1774,9 +1777,9 @@ export const subscriptionRouter = createTRPCRouter({
             });
           }
 
-          // Calculate remaining days from now until endDate
+          // Calculate remaining days from freezeStartAt until endDate
           // misalkan endate 30 januari, sekarang 8 januari, berarti remainingDays = 22
-          const remainingMillis = subscription.endDate.getTime() - now.getTime();
+          const remainingMillis = subscription.endDate.getTime() - freezeStartAt.getTime();
           const remainingDays = Math.max(0, Math.floor(remainingMillis / (1000 * 60 * 60 * 24)));
 
           // Determine freeze mode
@@ -1784,13 +1787,15 @@ export const subscriptionRouter = createTRPCRouter({
             ? "FIXED_DAYS"
             : "UNTIL_UNFREEZE";
 
+          // If freezeStartAt is in the future, mark as scheduled (not yet active freeze)
+          const isFutureFreeze = freezeStartAt > now;
 
           return ctx.db.subscription.update({
             where: { id: subscription.id },
             data: {
-              isFrozen: true,
+              isFrozen: !isFutureFreeze, // Only set frozen now if not a future-dated freeze
               // isActive: false, // Subscription becomes inactive while frozen
-              frozenAt: now,
+              frozenAt: freezeStartAt,
               freezeDays: actualFreezeDays > 0 ? actualFreezeDays : null,
               freezeMode: freezeMode,
               remainingDays: remainingDays,
@@ -1934,7 +1939,7 @@ export const subscriptionRouter = createTRPCRouter({
             });
           }
 
-          // Calculate how long subscription has been frozen
+           // Calculate how long subscription has been frozen
           // misalkan frozenAt 1 januari, sekarang 8 januari, berarti frozenDaysSoFar = 7
           const frozenMillis = now.getTime() - subscription.frozenAt.getTime();
           const frozenDaysSoFar = Math.ceil(frozenMillis / (1000 * 60 * 60 * 24));
@@ -1981,6 +1986,7 @@ export const subscriptionRouter = createTRPCRouter({
               freezeMode: null,
               remainingDays: null,
               endDate: newEndDate,
+              // endDate is intentionally NOT modified — it was never changed during freeze
             },
           });
         })
@@ -2888,23 +2894,28 @@ export const subscriptionRouter = createTRPCRouter({
           }
         : {};
 
-      // Get all freeze operations within the date range
-      const freezeOperations = await ctx.db.freezeOperation.findMany({
+      // Query TransactionFreeze directly — each record is one freeze payment batch.
+      // Exclude cancelled freezes: those whose FreezeOperations include a CANCEL_FREEZE.
+      const dateFilter2 = start && end
+        ? { createdAt: { gte: start, lte: end } }
+        : {};
+
+      const freezeTransactions = await ctx.db.transactionFreeze.findMany({
         where: {
-          operationType: "FREEZE",
-          ...dateFilter,
+          ...dateFilter2,
+          freezeOperations: {
+            none: {
+              operationType: "CANCEL_FREEZE",
+            },
+          },
         },
-        include: {
-          freezePrice: true,
-          transactionFreeze: true,
+        select: {
+          amount: true,
         },
       });
 
-      // Calculate total freeze count and revenue
-      const freezeCount = freezeOperations.length;
-      const totalRevenue = freezeOperations.reduce((sum, op) => {
-        return sum + (op.price || 0);
-      }, 0);
+      const freezeCount = freezeTransactions.length;
+      const totalRevenue = freezeTransactions.reduce((sum, t) => sum + t.amount, 0);
 
       return {
         freezeCount,
@@ -3375,7 +3386,7 @@ export const subscriptionRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(10),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
-        operationType: z.enum(["all", "FREEZE", "UNFREEZE"]).optional().default("all"),
+        operationType: z.enum(["all", "FREEZE", "UNFREEZE", "CANCEL_FREEZE"]).optional().default("all"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -3475,6 +3486,7 @@ export const subscriptionRouter = createTRPCRouter({
           id: operation.subscription.id,
           packageName: operation.subscription.package.name,
           packageType: operation.subscription.package.type,
+          isFrozen: operation.subscription.isFrozen,
         });
       }
 
@@ -3569,9 +3581,13 @@ export const subscriptionRouter = createTRPCRouter({
             continue; // Skip subscriptions without freeze data
           }
 
+          // Determine if the freeze is scheduled (future start) or already active
+          const isFutureFreeze = subscription.frozenAt && subscription.frozenAt > now && !subscription.isFrozen;
+
           // Calculate original end date by subtracting freeze days
+          // Only applicable if the freeze is ACTIVE (isFrozen: true) and endDate was already extended
           let originalEndDate = subscription.endDate;
-          if (originalEndDate && subscription.freezeDays && subscription.freezeDays > 0) {
+          if (!isFutureFreeze && originalEndDate && subscription.freezeDays && subscription.freezeDays > 0 && subscription.isFrozen) {
             originalEndDate = new Date(originalEndDate);
             originalEndDate.setDate(originalEndDate.getDate() - subscription.freezeDays);
           }
@@ -3586,8 +3602,8 @@ export const subscriptionRouter = createTRPCRouter({
               frozenAt: null,
               freezeMode: null,
               remainingDays: null,
-              // Restore original end date (before freeze extension)
-              ...(originalEndDate && { endDate: originalEndDate }),
+              // Restore original end date only if freeze was active (not future-scheduled)
+              // ...(!isFutureFreeze && originalEndDate && { endDate: originalEndDate }),
             },
           });
 
@@ -3601,41 +3617,28 @@ export const subscriptionRouter = createTRPCRouter({
           cancelledCount++;
         }
 
-        // Create a log entry for the cancellation (using FreezeOperation)
-        // We'll create an UNFREEZE operation to track this cancellation
-        const unfreezePrice = await tx.freezePrice.findFirst({
-          where: {
-            freezeDays: 0,
-            price: 0,
-          },
-        });
-
-        let freezePriceId = unfreezePrice?.id;
-        if (!freezePriceId) {
-          const createdUnfreezePrice = await tx.freezePrice.create({
-            data: {
-              freezeDays: 0,
-              price: 0,
-              isActive: true,
-            },
-          });
-          freezePriceId = createdUnfreezePrice.id;
-        }
-
-        // Log cancellation for each affected subscription
+        // Update the existing FREEZE FreezeOperation records to CANCEL_FREEZE
+        // instead of creating new records — so history shows a single updated entry
         for (const sub of affectedSubscriptions) {
-          await tx.freezeOperation.create({
-            data: {
+          // Find the most recent FREEZE operation for this subscription
+          const existingFreezeOp = await tx.freezeOperation.findFirst({
+            where: {
               subscriptionId: sub.id,
               memberId: input.memberId,
-              operationType: "UNFREEZE",
-              freezePriceId: freezePriceId,
-              price: 0,
-              transactionFreezeId: null,
-              freezeDays: 0,
-              performedById: ctx.session.user.id,
+              operationType: "FREEZE",
             },
+            orderBy: { performedAt: "desc" },
           });
+
+          if (existingFreezeOp) {
+            // Update the existing freeze operation to CANCEL_FREEZE
+            await tx.freezeOperation.update({
+              where: { id: existingFreezeOp.id },
+              data: {
+                operationType: "CANCEL_FREEZE",
+              },
+            });
+          }
         }
 
           return {

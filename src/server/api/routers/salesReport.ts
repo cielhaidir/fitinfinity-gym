@@ -648,36 +648,27 @@ getRevenueBySales: protectedProcedure
       });
       const transferTotal = transferHistory.reduce((sum, t) => sum + t.amount, 0);
 
-      // Get freeze operations (FREEZE type only)
-      const freezeOperations = await ctx.db.freezeOperation.findMany({
+      // Get freeze transactions directly (each TransactionFreeze = one freeze payment)
+      // Exclude cancelled freezes: those whose associated FreezeOperations include a CANCEL_FREEZE
+      const freezeTransactions = await ctx.db.transactionFreeze.findMany({
         where: {
-          performedAt: {
+          createdAt: {
             gte: start,
             lte: end,
           },
-          operationType: 'FREEZE',
+          // Only include transactions that have NO cancel freeze operation
+          freezeOperations: {
+            none: {
+              operationType: 'CANCEL_FREEZE',
+            },
+          },
         },
         select: {
-          price: true,
-          performedAt: true,
-          transactionFreezeId: true,
+          amount: true,
         },
       });
 
-      // Deduplicate freeze operations by transactionFreezeId to avoid double-counting
-      const seenTransactionFreezeIds = new Set<string>();
-      let freezeTotal = 0;
-      for (const f of freezeOperations) {
-        if (f.transactionFreezeId) {
-          if (!seenTransactionFreezeIds.has(f.transactionFreezeId)) {
-            seenTransactionFreezeIds.add(f.transactionFreezeId);
-            freezeTotal += f.price;
-          }
-        } else {
-          // Free freeze (no transaction) — price is 0, but add anyway
-          freezeTotal += f.price;
-        }
-      }
+      const freezeTotal = freezeTransactions.reduce((sum, t) => sum + t.amount, 0);
 
       // Calculate totals by package type
       let gymMembershipRevenue = 0;
@@ -699,7 +690,7 @@ getRevenueBySales: protectedProcedure
 
       // Calculate totals
       const totalRevenue = posTotal + subscriptionTotal + transferTotal + freezeTotal;
-      const totalTransactions = posSales.length + subscriptionPayments.length + transferHistory.length + freezeOperations.length;
+      const totalTransactions = posSales.length + subscriptionPayments.length + transferHistory.length + freezeTransactions.length;
       const averageTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
       // Payment method breakdown

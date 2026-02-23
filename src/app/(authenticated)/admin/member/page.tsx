@@ -87,6 +87,7 @@ export default function MemberPage() {
   const [selectedFreezeOption, setSelectedFreezeOption] = useState<string>("custom");
   const [selectedFreezePriceId, setSelectedFreezePriceId] = useState<string | null>(null);
   const [selectedBalanceAccountId, setSelectedBalanceAccountId] = useState<number | null>(null);
+  const [freezeStartAt, setFreezeStartAt] = useState<string>("");
 
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
@@ -412,12 +413,18 @@ export default function MemberPage() {
     }
 
     try {
+      // Resolve freezeStartAt: use provided value or leave undefined (backend defaults to now)
+      const freezeStartAtValue = freezeStartAt.trim()
+        ? new Date(freezeStartAt).toISOString()
+        : undefined;
+
       if (selectedFreezeOption === "custom") {
         // Free custom freeze - pass freezeDays directly
         const freezeDays = parseInt(freezeDaysInput);
         await freezeSubscriptionMutation.mutateAsync({
           memberId: selectedMemberForFreeze.id,
           freezeDays,
+          freezeStartAt: freezeStartAtValue,
         });
       } else {
         // Paid freeze - pass freezePriceId and balanceAccountId
@@ -425,6 +432,7 @@ export default function MemberPage() {
           memberId: selectedMemberForFreeze.id,
           freezePriceId: selectedFreezePriceId,
           balanceAccountId: selectedBalanceAccountId ?? undefined,
+          freezeStartAt: freezeStartAtValue,
         });
       }
     } catch (error) {
@@ -439,6 +447,7 @@ export default function MemberPage() {
     setSelectedFreezeOption("custom");
     setSelectedFreezePriceId(null);
     setSelectedBalanceAccountId(null);
+    setFreezeStartAt("");
   };
 
   const handleUnfreezeSubscription = async (member: Member) => {
@@ -700,6 +709,26 @@ export default function MemberPage() {
                 </div>
               </RadioGroup>
             )}
+
+            {/* Freeze Start At - date picker */}
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="freeze-start-at" className="text-sm font-medium">
+                Freeze Start Date <span className="text-muted-foreground text-xs">(optional, defaults to today)</span>
+              </Label>
+              <Input
+                id="freeze-start-at"
+                type="date"
+                value={freezeStartAt}
+                onChange={(e) => setFreezeStartAt(e.target.value)}
+                className="w-full"
+              />
+              {freezeStartAt && (
+                <p className="text-xs text-muted-foreground">
+                  Subscription will be marked as frozen starting{" "}
+                  <strong>{new Date(freezeStartAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</strong>
+                </p>
+              )}
+            </div>
 
             {/* Balance Account Selection - only show for paid freeze options */}
             {selectedFreezeOption !== "custom" && selectedFreezePriceId && (
