@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,9 @@ interface ActiveMembershipItem {
     endDate: Date | null;
     remainingSessions: number | null;
     isActive: boolean;
+    salesId: string | null;
+    salesType: string | null;
+    salesName: string | null;
     package: {
       id: string;
       name: string;
@@ -58,6 +61,7 @@ export default function ActiveMembershipReportPage() {
   const [tempDateFilterType, setTempDateFilterType] = useState<string>("payment");
   const [tempPackageType, setTempPackageType] = useState<string>("all");
   const [tempStatus, setTempStatus] = useState<string>("active");
+  const [tempSalesId, setTempSalesId] = useState<string>("all");
 
   // Applied filter states
   const [search, setSearch] = useState<string>("");
@@ -66,6 +70,7 @@ export default function ActiveMembershipReportPage() {
   const [dateFilterType, setDateFilterType] = useState<string>("payment");
   const [packageType, setPackageType] = useState<string>("all");
   const [status, setStatus] = useState<string>("active");
+  const [salesId, setSalesId] = useState<string>("all");
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -78,6 +83,9 @@ export default function ActiveMembershipReportPage() {
   // Detail view state
   const [selectedMembershipId, setSelectedMembershipId] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
+  // Fetch sales list for filter dropdown
+  const { data: salesList } = api.subs.getSalesList.useQuery();
 
   // Fetch active membership report
   const {
@@ -93,6 +101,7 @@ export default function ActiveMembershipReportPage() {
       packageType === "all"
         ? undefined
         : (packageType as "GYM_MEMBERSHIP" | "PERSONAL_TRAINER" | "GROUP_TRAINING"),
+    salesId: salesId === "all" ? undefined : salesId,
     search: search || undefined,
     page,
     pageSize,
@@ -117,6 +126,7 @@ export default function ActiveMembershipReportPage() {
     setDateFilterType(tempDateFilterType);
     setPackageType(tempPackageType);
     setStatus(tempStatus);
+    setSalesId(tempSalesId);
     setPage(1); // Reset to first page
     refetch();
   };
@@ -132,6 +142,7 @@ export default function ActiveMembershipReportPage() {
     setTempDateFilterType("payment");
     setTempPackageType("all");
     setTempStatus("active");
+    setTempSalesId("all");
 
     setSearch("");
     setStartDate(defaultStartDate);
@@ -139,6 +150,7 @@ export default function ActiveMembershipReportPage() {
     setDateFilterType("payment");
     setPackageType("all");
     setStatus("active");
+    setSalesId("all");
     setPage(1);
     refetch();
   };
@@ -185,7 +197,8 @@ export default function ActiveMembershipReportPage() {
         item.subscription?.package.type === "GROUP_TRAINING"
           ? item.subscription?.remainingSessions?.toString() || "0"
           : "-",
-      "Status": item.isActive ? "Active" : "Inactive",
+      "Sales": item.subscription?.salesName || "N/A",
+      "Status": item.subscription?.isActive ? "Active" : "Inactive",
       "Register Date": format(new Date(item.registerDate), "yyyy-MM-dd"),
     }));
 
@@ -423,75 +436,92 @@ export default function ActiveMembershipReportPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div>
-                  <Label>Search</Label>
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Name, email, RFID..."
-                      value={tempSearch}
-                      onChange={(e) => setTempSearch(e.target.value)}
-                      className="pl-8"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label>Filter Period By</Label>
-                  <Select value={tempDateFilterType} onValueChange={setTempDateFilterType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="payment">Payment Created Date</SelectItem>
-                      <SelectItem value="startDate">Subscription Start Date</SelectItem>
-                      <SelectItem value="endDate">Subscription End Date</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Start Date</Label>
-                  <Input
-                    type="date"
-                    value={tempStartDate ? format(tempStartDate, "yyyy-MM-dd") : ""}
-                    onChange={(e) => setTempStartDate(e.target.value ? new Date(e.target.value) : undefined)}
-                  />
-                </div>
-                <div>
-                  <Label>End Date</Label>
-                  <Input
-                    type="date"
-                    value={tempEndDate ? format(tempEndDate, "yyyy-MM-dd") : ""}
-                    onChange={(e) => setTempEndDate(e.target.value ? new Date(e.target.value) : undefined)}
-                  />
-                </div>
-                <div>
-                  <Label>Package Type</Label>
-                  <Select value={tempPackageType} onValueChange={setTempPackageType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="GYM_MEMBERSHIP">Gym Membership</SelectItem>
-                      <SelectItem value="PERSONAL_TRAINER">Personal Trainer</SelectItem>
-                      <SelectItem value="GROUP_TRAINING">Group Training</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Select value={tempStatus} onValueChange={setTempStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                 <div>
+                   <Label>Search</Label>
+                   <div className="relative">
+                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                     <Input
+                       placeholder="Name, email, RFID..."
+                       value={tempSearch}
+                       onChange={(e) => setTempSearch(e.target.value)}
+                       className="pl-8"
+                     />
+                   </div>
+                 </div>
+                 <div>
+                   <Label>Filter Period By</Label>
+                   <Select value={tempDateFilterType} onValueChange={setTempDateFilterType}>
+                     <SelectTrigger>
+                       <SelectValue />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="payment">Payment Created Date</SelectItem>
+                       <SelectItem value="startDate">Subscription Start Date</SelectItem>
+                       <SelectItem value="endDate">Subscription End Date</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div>
+                   <Label>Start Date</Label>
+                   <Input
+                     type="date"
+                     value={tempStartDate ? format(tempStartDate, "yyyy-MM-dd") : ""}
+                     onChange={(e) => setTempStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                   />
+                 </div>
+                 <div>
+                   <Label>End Date</Label>
+                   <Input
+                     type="date"
+                     value={tempEndDate ? format(tempEndDate, "yyyy-MM-dd") : ""}
+                     onChange={(e) => setTempEndDate(e.target.value ? new Date(e.target.value) : undefined)}
+                   />
+                 </div>
+                 <div>
+                   <Label>Package Type</Label>
+                   <Select value={tempPackageType} onValueChange={setTempPackageType}>
+                     <SelectTrigger>
+                       <SelectValue />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="all">All Types</SelectItem>
+                       <SelectItem value="GYM_MEMBERSHIP">Gym Membership</SelectItem>
+                       <SelectItem value="PERSONAL_TRAINER">Personal Trainer</SelectItem>
+                       <SelectItem value="GROUP_TRAINING">Group Training</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div>
+                   <Label>Sales</Label>
+                   <Select value={tempSalesId} onValueChange={setTempSalesId}>
+                     <SelectTrigger>
+                       <SelectValue placeholder="All Sales" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="all">All Sales</SelectItem>
+                       {salesList?.map((s) => (
+                         <SelectItem key={s.id} value={s.id}>
+                           {s.name}{" "}
+                           <span className="text-xs text-muted-foreground">({s.typeName})</span>
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div>
+                   <Label>Status</Label>
+                   <Select value={tempStatus} onValueChange={setTempStatus}>
+                     <SelectTrigger>
+                       <SelectValue />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="active">Active</SelectItem>
+                       <SelectItem value="inactive">Inactive</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={handleResetFilters}>
                   <X className="mr-2 h-4 w-4" />
@@ -538,6 +568,7 @@ export default function ActiveMembershipReportPage() {
                     <th className="text-left py-3 px-2">Phone</th>
                     <th className="text-left py-3 px-2">Package</th>
                     <th className="text-left py-3 px-2">Package Type</th>
+                    <th className="text-left py-3 px-2">Sales</th>
                     <th
                       className="text-left py-3 px-2 cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("startDate")}
@@ -558,7 +589,7 @@ export default function ActiveMembershipReportPage() {
                 <tbody>
                   {isLoadingReport ? (
                     <tr>
-                      <td colSpan={10} className="py-8 text-center">
+                      <td colSpan={11} className="py-8 text-center">
                         <Skeleton className="h-8 w-full" />
                       </td>
                     </tr>
@@ -601,6 +632,11 @@ export default function ActiveMembershipReportPage() {
                           </Badge>
                         </td>
                         <td className="py-3 px-2">
+                          <div className="text-sm">
+                            {item.subscription?.salesName || "-"}
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
                           {item.subscription
                             ? format(new Date(item.subscription.startDate), "MMM dd, yyyy")
                             : "N/A"}
@@ -617,8 +653,8 @@ export default function ActiveMembershipReportPage() {
                             : "-"}
                         </td>
                         <td className="text-center py-3 px-2">
-                          <Badge variant={item.isActive ? "default" : "destructive"}>
-                            {item.isActive ? "Active" : "Inactive"}
+                          <Badge variant={item.subscription?.isActive ? "default" : "destructive"}>
+                            {item.subscription?.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </td>
                         <td className="text-center py-3 px-2">
@@ -634,7 +670,7 @@ export default function ActiveMembershipReportPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={10} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={11} className="py-8 text-center text-muted-foreground">
                         No memberships found for the selected filters.
                       </td>
                     </tr>

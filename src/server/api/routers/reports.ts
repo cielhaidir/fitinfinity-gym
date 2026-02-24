@@ -42,6 +42,7 @@ export const reportsRouter = createTRPCRouter({
             .optional(),
           fcId: z.string().optional(),
           trainerId: z.string().optional(),
+          salesId: z.string().optional(),
           search: z.string().optional(),
           page: z.number().min(1).optional().default(1),
           pageSize: z.number().min(1).max(100).optional().default(25),
@@ -55,22 +56,19 @@ export const reportsRouter = createTRPCRouter({
         // Build where clause for memberships
         // A member is considered active if they have at least one active subscription
         const membershipWhere: any = {};
+
+        // Base subscription condition for active/inactive filter
+        const activeSubCondition = { isActive: true, deletedAt: null };
         
         // Only include memberships that have at least one active subscription
         if (input.isActive) {
           membershipWhere.subscriptions = {
-            some: {
-              isActive: true,
-              deletedAt: null,
-            },
+            some: activeSubCondition,
           };
         } else {
           // If filtering for inactive, show memberships without active subscriptions
           membershipWhere.subscriptions = {
-            none: {
-              isActive: true,
-              deletedAt: null,
-            },
+            none: activeSubCondition,
           };
         }
 
@@ -95,13 +93,17 @@ export const reportsRouter = createTRPCRouter({
             if (input.endDate) {
               dateFilter.lte = toGMT8EndOfDay(input.endDate);
             }
-            membershipWhere.subscriptions = {
-              some: {
-                isActive: true,
-                deletedAt: null,
-                startDate: dateFilter,
-              },
-            };
+            // Combine with active/inactive condition
+            if (input.isActive) {
+              membershipWhere.subscriptions = {
+                some: { ...activeSubCondition, startDate: dateFilter },
+              };
+            } else {
+              membershipWhere.subscriptions = {
+                none: activeSubCondition,
+                some: { deletedAt: null, startDate: dateFilter },
+              };
+            }
           } else if (input.dateFilterType === "endDate") {
             // Filter by subscription end date
             const dateFilter: any = {};
@@ -111,13 +113,17 @@ export const reportsRouter = createTRPCRouter({
             if (input.endDate) {
               dateFilter.lte = toGMT8EndOfDay(input.endDate);
             }
-            membershipWhere.subscriptions = {
-              some: {
-                isActive: true,
-                deletedAt: null,
-                endDate: dateFilter,
-              },
-            };
+            // Combine with active/inactive condition
+            if (input.isActive) {
+              membershipWhere.subscriptions = {
+                some: { ...activeSubCondition, endDate: dateFilter },
+              };
+            } else {
+              membershipWhere.subscriptions = {
+                none: activeSubCondition,
+                some: { deletedAt: null, endDate: dateFilter },
+              };
+            }
           }
         }
 
@@ -154,27 +160,50 @@ export const reportsRouter = createTRPCRouter({
           ];
         }
 
-        // Build subscription where clause if filtering by package type or trainer
-        let subscriptionWhere: any = {
-          isActive: true,
-          deletedAt: null,
-        };
+        // Build additional subscription filter conditions (packageType, trainerId, salesId)
+        const extraSubConditions: any = {};
+        if (input.packageType) {
+          extraSubConditions.package = { type: input.packageType };
+        }
+        if (input.trainerId) {
+          extraSubConditions.trainerId = input.trainerId;
+        }
+        if (input.salesId) {
+          extraSubConditions.salesId = input.salesId;
+        }
 
-        if (input.packageType || input.trainerId) {
-          if (input.packageType) {
-            subscriptionWhere.package = {
-              type: input.packageType,
+        if (Object.keys(extraSubConditions).length > 0) {
+          if (input.isActive) {
+            // Override subscriptions filter to require matching active subscriptions
+            membershipWhere.subscriptions = {
+              some: { ...activeSubCondition, ...extraSubConditions },
+            };
+          } else {
+            // For inactive: must have no active subs AND must have had a sub matching filters
+            membershipWhere.subscriptions = {
+              none: activeSubCondition,
+              some: { deletedAt: null, ...extraSubConditions },
             };
           }
-          if (input.trainerId) {
-            subscriptionWhere.trainerId = input.trainerId;
-          }
-
-          // Only include memberships that have matching subscriptions
-          membershipWhere.subscriptions = {
-            some: subscriptionWhere,
-          };
         }
+
+        // The include subscription where differs by active/inactive:
+        // - active: fetch the most recent active subscription
+        // - inactive: fetch the most recent subscription (any status)
+        const includeSubWhere: any = input.isActive
+          ? {
+              isActive: true,
+              deletedAt: null,
+              ...(input.packageType && { package: { type: input.packageType } }),
+              ...(input.trainerId && { trainerId: input.trainerId }),
+              ...(input.salesId && { salesId: input.salesId }),
+            }
+          : {
+              deletedAt: null,
+              ...(input.packageType && { package: { type: input.packageType } }),
+              ...(input.trainerId && { trainerId: input.trainerId }),
+              ...(input.salesId && { salesId: input.salesId }),
+            };
 
         // Fetch memberships with pagination
         const [items, totalCount] = await Promise.all([
@@ -200,14 +229,7 @@ export const reportsRouter = createTRPCRouter({
                 },
               },
               subscriptions: {
-                where: {
-                  isActive: true,
-                  deletedAt: null,
-                  ...(input.packageType && {
-                    package: { type: input.packageType },
-                  }),
-                  ...(input.trainerId && { trainerId: input.trainerId }),
-                },
+                where: includeSubWhere,
                 orderBy: {
                   startDate: "desc",
                 },
@@ -229,37 +251,81 @@ export const reportsRouter = createTRPCRouter({
           ctx.db.membership.count({ where: membershipWhere }),
         ]);
 
+        // Resolve sales person names for subscriptions
+        const subWithSales = items.map(m => m.subscriptions[0]);
+        const fcIds = [...new Set(
+          subWithSales
+            .filter(s => s?.salesType === "FC" && s?.salesId)
+            .map(s => s!.salesId!)
+        )];
+        const ptIds = [...new Set(
+          subWithSales
+            .filter(s => s?.salesType === "PersonalTrainer" && s?.salesId)
+            .map(s => s!.salesId!)
+        )];
+
+        const [fcList, ptList] = await Promise.all([
+          fcIds.length > 0
+            ? ctx.db.fC.findMany({
+                where: { id: { in: fcIds } },
+                select: { id: true, user: { select: { name: true } } },
+              })
+            : Promise.resolve([]),
+          ptIds.length > 0
+            ? ctx.db.personalTrainer.findMany({
+                where: { id: { in: ptIds } },
+                select: { id: true, user: { select: { name: true } } },
+              })
+            : Promise.resolve([]),
+        ]);
+
+        const fcMap = new Map(fcList.map(fc => [fc.id, fc.user?.name ?? null]));
+        const ptMap = new Map(ptList.map(pt => [pt.id, pt.user?.name ?? null]));
+
+        const getSalesName = (sub: { salesId?: string | null; salesType?: string | null } | undefined) => {
+          if (!sub?.salesId || !sub?.salesType) return null;
+          if (sub.salesType === "FC") return fcMap.get(sub.salesId) ?? null;
+          if (sub.salesType === "PersonalTrainer") return ptMap.get(sub.salesId) ?? null;
+          return null;
+        };
+
         // Transform the data to match the expected return type
-        const transformedItems = items.map((membership) => ({
-          membershipId: membership.id,
-          isActive: membership.isActive,
-          registerDate: membership.registerDate,
-          revokedAt: membership.revokedAt,
-          user: {
-            id: membership.user.id,
-            name: membership.user.name,
-            email: membership.user.email,
-            phone: membership.user.phone,
-            birthDate: membership.user.birthDate,
-            image: membership.user.image,
-          },
-          subscription: membership.subscriptions[0]
-            ? {
-                id: membership.subscriptions[0].id,
-                startDate: membership.subscriptions[0].startDate,
-                endDate: membership.subscriptions[0].endDate,
-                remainingSessions: membership.subscriptions[0].remainingSessions,
-                isActive: membership.subscriptions[0].isActive,
-                package: {
-                  id: membership.subscriptions[0].package.id,
-                  name: membership.subscriptions[0].package.name,
-                  type: membership.subscriptions[0].package.type,
-                  sessions: membership.subscriptions[0].package.sessions,
-                  day: membership.subscriptions[0].package.day,
-                },
-              }
-            : null,
-        }));
+        const transformedItems = items.map((membership) => {
+          const sub = membership.subscriptions[0];
+          return {
+            membershipId: membership.id,
+            isActive: membership.isActive,
+            registerDate: membership.registerDate,
+            revokedAt: membership.revokedAt,
+            user: {
+              id: membership.user.id,
+              name: membership.user.name,
+              email: membership.user.email,
+              phone: membership.user.phone,
+              birthDate: membership.user.birthDate,
+              image: membership.user.image,
+            },
+            subscription: sub
+              ? {
+                  id: sub.id,
+                  startDate: sub.startDate,
+                  endDate: sub.endDate,
+                  remainingSessions: sub.remainingSessions,
+                  isActive: sub.isActive,
+                  salesId: sub.salesId ?? null,
+                  salesType: sub.salesType ?? null,
+                  salesName: getSalesName(sub),
+                  package: {
+                    id: sub.package.id,
+                    name: sub.package.name,
+                    type: sub.package.type,
+                    sessions: sub.package.sessions,
+                    day: sub.package.day,
+                  },
+                }
+              : null,
+          };
+        });
 
         return {
           items: transformedItems,
