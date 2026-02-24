@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,9 @@ export default function SalesReportPage() {
   const [paymentMethod, setPaymentMethod] = useState<string>("all");
   const [includePos, setIncludePos] = useState(true);
   const [includeSubscriptions, setIncludeSubscriptions] = useState(true);
+  const [includeTransfer, setIncludeTransfer] = useState(true);
+  const [includeFreeze, setIncludeFreeze] = useState(true);
+  const [subscriptionTab, setSubscriptionTab] = useState<"ALL" | "GYM_MEMBERSHIP" | "PERSONAL_TRAINER" | "GROUP_TRAINING">("ALL");
 
   // Fetch sales summary
   const { data: salesSummary, isLoading: isLoadingSummary } = api.salesReport.getSalesSummary.useQuery({
@@ -92,15 +96,15 @@ export default function SalesReportPage() {
     }
   );
 
-  const { data: transferData } = api.salesReport.getTransferHistory.useQuery({
-    startDate,
-    endDate,
-  });
+  const { data: transferData } = api.salesReport.getTransferHistory.useQuery(
+    { startDate, endDate },
+    { enabled: includeTransfer }
+  );
 
-  const { data: freezeData } = api.salesReport.getFreezeHistory.useQuery({
-    startDate,
-    endDate,
-  });
+  const { data: freezeData } = api.salesReport.getFreezeHistory.useQuery(
+    { startDate, endDate },
+    { enabled: includeFreeze }
+  );
   
   console.log("Subscription Data:", subscriptionData);
   // Enhanced Excel export with multiple sheets
@@ -321,7 +325,7 @@ export default function SalesReportPage() {
     }
 
     // Transfer Sheet
-    if (transferData && transferData.length > 0) {
+    if (includeTransfer && transferData && transferData.length > 0) {
       const transferSheetData = transferData.map((transfer: any) => ({
         "Transfer ID": transfer.id,
         "From Member": transfer.fromMemberName || "N/A",
@@ -339,7 +343,7 @@ export default function SalesReportPage() {
     }
 
     // Freeze Sheet
-    if (freezeData && freezeData.length > 0) {
+    if (includeFreeze && freezeData && freezeData.length > 0) {
       const freezeSheetData = freezeData.map((freeze: any) => ({
         "Freeze ID": freeze.id,
         "Member": freeze.memberName || "N/A",
@@ -507,6 +511,26 @@ export default function SalesReportPage() {
                   className="h-4 w-4"
                 />
                 <Label htmlFor="include-subscriptions">Include Subscriptions</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="include-transfer"
+                  checked={includeTransfer}
+                  onChange={(e) => setIncludeTransfer(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="include-transfer">Include Transfer</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="include-freeze"
+                  checked={includeFreeze}
+                  onChange={(e) => setIncludeFreeze(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="include-freeze">Include Freeze</Label>
               </div>
             </div>
           </CardContent>
@@ -700,6 +724,210 @@ export default function SalesReportPage() {
                     <div className="text-lg font-bold">{formatRupiah(month.revenue)}</div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {includeSubscriptions && subscriptionData && subscriptionData.length > 0 && (() => {
+          const filteredSubscriptionData = subscriptionTab === "ALL"
+            ? subscriptionData
+            : subscriptionData.filter((payment: any) => payment.subscription?.package?.type === subscriptionTab);
+
+          const tabCounts = {
+            ALL: subscriptionData.length,
+            GYM_MEMBERSHIP: subscriptionData.filter((p: any) => p.subscription?.package?.type === "GYM_MEMBERSHIP").length,
+            PERSONAL_TRAINER: subscriptionData.filter((p: any) => p.subscription?.package?.type === "PERSONAL_TRAINER").length,
+            GROUP_TRAINING: subscriptionData.filter((p: any) => p.subscription?.package?.type === "GROUP_TRAINING").length,
+          };
+
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription Data ({subscriptionData.length} records)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Tabs */}
+                <div className="flex gap-2 mb-4 border-b pb-2">
+                  {([
+                    { key: "ALL", label: "All" },
+                    { key: "GYM_MEMBERSHIP", label: "Gym" },
+                    { key: "PERSONAL_TRAINER", label: "PT" },
+                    { key: "GROUP_TRAINING", label: "Group" },
+                  ] as const).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setSubscriptionTab(key)}
+                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        subscriptionTab === key
+                          ? key === "GYM_MEMBERSHIP"
+                            ? "bg-blue-600 text-white"
+                            : key === "PERSONAL_TRAINER"
+                            ? "bg-purple-600 text-white"
+                            : key === "GROUP_TRAINING"
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-800 text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {label}
+                      <span className="ml-1.5 text-xs opacity-75">({tabCounts[key]})</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Member Name</TableHead>
+                        <TableHead>Package</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Trainer</TableHead>
+                        <TableHead>Sales Person</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Payment Method</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Start Date</TableHead>
+                        <TableHead>End Date</TableHead>
+                        <TableHead>Paid At</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSubscriptionData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={12} className="text-center text-muted-foreground py-6">
+                            No records found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredSubscriptionData.map((payment: any) => {
+                          const subscription = payment.subscription;
+                          const member = subscription?.member;
+                          const user = member?.user;
+                          const fc = member?.fc;
+                          const trainer = subscription?.trainer;
+                          const type = subscription?.package?.type;
+                          return (
+                            <TableRow key={payment.id}>
+                              <TableCell className="text-xs">{payment.orderReference || "N/A"}</TableCell>
+                              <TableCell>{user?.name || "N/A"}</TableCell>
+                              <TableCell>{subscription?.package?.name || "N/A"}</TableCell>
+                              <TableCell>
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  type === "GYM_MEMBERSHIP" ? "bg-blue-100 text-blue-800" :
+                                  type === "PERSONAL_TRAINER" ? "bg-purple-100 text-purple-800" :
+                                  "bg-green-100 text-green-800"
+                                }`}>
+                                  {type === "GYM_MEMBERSHIP" ? "Gym" : type === "PERSONAL_TRAINER" ? "PT" : "Group"}
+                                </span>
+                              </TableCell>
+                              <TableCell>{trainer?.user?.name || "N/A"}</TableCell>
+                              <TableCell>{fc?.user?.name || "N/A"}</TableCell>
+                              <TableCell className="font-medium">{formatRupiah(payment.totalPayment || 0)}</TableCell>
+                              <TableCell>{payment.method || "Manual"}</TableCell>
+                              <TableCell>
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  payment.status === "SUCCESS" ? "bg-green-100 text-green-800" :
+                                  payment.status === "PENDING" ? "bg-yellow-100 text-yellow-800" :
+                                  "bg-red-100 text-red-800"
+                                }`}>
+                                  {payment.status}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs">{subscription?.startDate ? format(new Date(subscription.startDate), "yyyy-MM-dd") : "N/A"}</TableCell>
+                              <TableCell className="text-xs">{subscription?.endDate ? format(new Date(subscription.endDate), "yyyy-MM-dd") : "N/A"}</TableCell>
+                              <TableCell className="text-xs">{payment.paidAt ? format(new Date(payment.paidAt), "yyyy-MM-dd HH:mm") : "N/A"}</TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {includeTransfer && transferData && transferData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transfer Data ({transferData.length} records)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Transfer ID</TableHead>
+                      <TableHead>From Member</TableHead>
+                      <TableHead>To Member</TableHead>
+                      <TableHead>Package</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Transferred Points</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Created At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transferData.map((transfer: any) => (
+                      <TableRow key={transfer.id}>
+                        <TableCell className="text-xs font-mono">{transfer.id}</TableCell>
+                        <TableCell>{transfer.fromMemberName || "N/A"}</TableCell>
+                        <TableCell>{transfer.subscription?.member?.user?.name || "N/A"}</TableCell>
+                        <TableCell>{transfer.subscription?.package?.name || "N/A"}</TableCell>
+                        <TableCell className="font-medium">{formatRupiah(transfer.amount || 0)}</TableCell>
+                        <TableCell>{transfer.transferredPoint || 0}</TableCell>
+                        <TableCell className="text-xs">{transfer.reason || "N/A"}</TableCell>
+                        <TableCell className="text-xs">{format(new Date(transfer.createdAt), "yyyy-MM-dd HH:mm")}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {includeFreeze && freezeData && freezeData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Freeze Data ({freezeData.length} records)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Freeze ID</TableHead>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Packages Frozen</TableHead>
+                      <TableHead># Packages</TableHead>
+                      <TableHead>Freeze Days</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Performed By</TableHead>
+                      <TableHead>Performed At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {freezeData.map((freeze: any) => (
+                      <TableRow key={freeze.id}>
+                        <TableCell className="text-xs font-mono">{freeze.id}</TableCell>
+                        <TableCell>{freeze.memberName || "N/A"}</TableCell>
+                        <TableCell className="text-xs">{freeze.memberEmail || "N/A"}</TableCell>
+                        <TableCell className="text-xs">{freeze.subscriptions?.map((s: any) => s.packageName).join(", ") || "N/A"}</TableCell>
+                        <TableCell>{freeze.subscriptions?.length || 0}</TableCell>
+                        <TableCell>{freeze.freezeDays || 0} days</TableCell>
+                        <TableCell className="font-medium">{formatRupiah(freeze.price || 0)}</TableCell>
+                        <TableCell>{freeze.performedBy?.name || "N/A"}</TableCell>
+                        <TableCell className="text-xs">{format(new Date(freeze.performedAt), "yyyy-MM-dd HH:mm")}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

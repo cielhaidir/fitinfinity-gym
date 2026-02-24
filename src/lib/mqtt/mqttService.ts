@@ -485,9 +485,9 @@ class MQTTService extends EventEmitter {
 // Create singleton instance
 export const mqttService = new MQTTService();
 
-// Auto-connect when module is imported
-if (process.env.NODE_ENV !== 'test') {
-  mqttService.connect().catch(error => {
-    // console.error('Failed to connect to MQTT broker:', error);
-  });
-}
+// MQTT auto-connect disabled — service not in use
+// if (process.env.NODE_ENV !== 'test') {
+//   mqttService.connect().catch(error => {
+//     // console.error('Failed to connect to MQTT broker:', error);
+//   });
+// }
