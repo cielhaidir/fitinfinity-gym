@@ -1148,7 +1148,7 @@ export const paymentValidationRouter = createTRPCRouter({
       const defaultStart = new Date();
       defaultStart.setDate(now.getDate() - 30);
   
-      return ctx.db.payment.findMany({
+      const payments = await ctx.db.payment.findMany({
         where: {
           status: PaymentStatus.SUCCESS,
           createdAt: {
@@ -1162,7 +1162,12 @@ export const paymentValidationRouter = createTRPCRouter({
         },
         include: {
           subscription: {
-            include: {
+            select: {
+              id: true,
+              salesId: true,
+              salesType: true,
+              startDate: true,
+              endDate: true,
               member: {
                 include: {
                   user: true,
@@ -1200,6 +1205,45 @@ export const paymentValidationRouter = createTRPCRouter({
         orderBy: {
           createdAt: 'desc',
         },
+      });
+
+      // Collect unique salesIds to resolve names
+      const fcIds = [...new Set(payments
+        .filter(p => p.subscription?.salesType === 'FC' && p.subscription?.salesId)
+        .map(p => p.subscription!.salesId!))];
+      const ptIds = [...new Set(payments
+        .filter(p => p.subscription?.salesType === 'PersonalTrainer' && p.subscription?.salesId)
+        .map(p => p.subscription!.salesId!))];
+
+      const [fcList, ptList] = await Promise.all([
+        fcIds.length > 0 ? ctx.db.fC.findMany({
+          where: { id: { in: fcIds } },
+          select: { id: true, user: { select: { name: true } } },
+        }) : [],
+        ptIds.length > 0 ? ctx.db.personalTrainer.findMany({
+          where: { id: { in: ptIds } },
+          select: { id: true, user: { select: { name: true } } },
+        }) : [],
+      ]);
+
+      const fcMap = new Map(fcList.map((fc: any) => [fc.id, fc.user?.name || null]));
+      const ptMap = new Map(ptList.map((pt: any) => [pt.id, pt.user?.name || null]));
+
+      // Attach resolved salesPersonName to each payment
+      return payments.map(payment => {
+        const sub = payment.subscription;
+        let salesPersonName: string | null = null;
+        let salesPersonType: string | null = null;
+        if (sub?.salesId && sub?.salesType) {
+          if (sub.salesType === 'FC') {
+            salesPersonName = fcMap.get(sub.salesId) ?? null;
+            salesPersonType = 'FC';
+          } else if (sub.salesType === 'PersonalTrainer') {
+            salesPersonName = ptMap.get(sub.salesId) ?? null;
+            salesPersonType = 'PT';
+          }
+        }
+        return { ...payment, salesPersonName, salesPersonType };
       });
     }),
   
