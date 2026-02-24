@@ -665,6 +665,7 @@ getRevenueBySales: protectedProcedure
         },
         select: {
           amount: true,
+          createdAt: true,
         },
       });
 
@@ -744,28 +745,15 @@ getRevenueBySales: protectedProcedure
         });
       });
 
-      // For freeze operations daily breakdown - deduplicate
-      const seenFreezeIdsForDaily = new Set<string>();
-      freezeOperations.forEach((f: any) => {
-        let shouldCount = false;
-        if (f.transactionFreezeId) {
-          if (!seenFreezeIdsForDaily.has(f.transactionFreezeId)) {
-            seenFreezeIdsForDaily.add(f.transactionFreezeId);
-            shouldCount = true;
-          }
-        } else {
-          shouldCount = true;
-        }
-
-        if (shouldCount) {
-          const date = f.performedAt.toISOString().split('T')[0];
-          const amount = f.price;
-          const current = dailyMap.get(date) || { revenue: 0, transactions: 0 };
-          dailyMap.set(date, {
-            revenue: current.revenue + amount,
-            transactions: current.transactions + 1,
-          });
-        }
+      // For freeze transactions daily breakdown
+      freezeTransactions.forEach((f: any) => {
+        const date = f.createdAt.toISOString().split('T')[0];
+        const amount = f.amount;
+        const current = dailyMap.get(date) || { revenue: 0, transactions: 0 };
+        dailyMap.set(date, {
+          revenue: current.revenue + amount,
+          transactions: current.transactions + 1,
+        });
       });
 
       dailyMap.forEach((data, date) => {
