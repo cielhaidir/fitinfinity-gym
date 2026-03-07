@@ -1,5 +1,0 @@
-id, user_id, FC NAME
-cmc2pijjq000qfciwqh69gz28,cmbxkk4i9000ghkrvnxdnk0pd,EVI
-cmc9xd0010015lqj3qub4qbip,cmc9xcijl000xlqj3qg7mv0p8,RAHMAN
-cmh03tjq90003jbllttdy1d3h,cmbzwbxu4001fhkrv4pnm9b2l,AYU
-cmh03tsg00007jbll1jgsxrj8,cmbxklrld000nhkrvieqnjxor,INDAR

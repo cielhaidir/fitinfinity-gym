@@ -1,6 +1,0 @@
-id, userId, PT
-cmc9v0x0y000klqj3gm6jquk2,cmc9s40xk001vs3xr0o7mdft0,ADI
-cmc2pi2hf000mfciwv0654ypp,cmbxkm1er000uhkrvjstrdwu0,MIAN
-cmh4awpfu02cuh0rbqvv5dvgn,cmcbwm8ep0017ym6y9wpu3wlc,ARDI
-cmewvlhq500d4fh6g9l6te6uk,cmeimpqg1007o6wegnmh1cqe6,EGI
-cmewvlyrb00d9fh6ghbreee7d,cmeqhh5xw00166zsb0u7u2i5i,SRI
