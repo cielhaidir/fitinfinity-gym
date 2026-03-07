@@ -1,0 +1,79 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/fitinfinity
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      - name: Deploy to server
+        run: |
+          cd ${{ secrets.DEPLOY_PATH }}
+
+          # Write fresh .env from secret
+          echo "${{ secrets.PROD_ENV }}" > .env
+
+          # Pull the latest image
+          docker pull ${{ secrets.DOCKER_USERNAME }}/fitinfinity:latest
+
+          # Bring down old containers, bring up new ones
+          docker compose pull app
+          docker compose up -d --no-deps --force-recreate app
+
+          # Run database migrations
+          docker compose run --rm \
+            -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            app npx prisma migrate deploy
+
+          # Clean up dangling images
+          docker image prune -f
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          APP_URL="${{ secrets.APP_URL }}"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}/api/health" || true)
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "✅ Deployment successful — HTTP $HTTP_STATUS"
+          else
+            echo "⚠️  Health check returned HTTP $HTTP_STATUS (may still be starting)"
+          fi
