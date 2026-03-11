@@ -660,6 +660,118 @@ export const personalTrainerRouter = createTRPCRouter({
     },
   ),
 
+  /**
+   * Member statistics for PT dashboard
+   *
+   * - total: semua entitas unik (individual + group) yang pernah punya subscription ke PT ini
+   * - active: entitas unik dengan remainingSessions > 0, endDate >= sekarang, dan subscription isActive (untuk individual)
+   *           atau groupSubscription.status === 'ACTIVE' (untuk group) pada minimal satu subscription
+   * - inactive: total - active
+   *
+   * Key keunikan:
+   * - Individual: userId member
+   * - Group: id groupSubscription
+   */
+  getMemberStats: permissionProtectedProcedure(["list:trainers"]).query(
+    async ({ ctx }) => {
+      const personalTrainer = await ctx.db.personalTrainer.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          isActive: true,
+        },
+      });
+
+      if (!personalTrainer) {
+        return { total: 0, active: 0, inactive: 0 };
+      }
+
+      const now = new Date();
+
+      // Ambil semua subscription individual untuk trainer ini (tanpa filter sisa sesi/end date)
+      // dan exclude yang menjadi lead untuk group agar tidak double-count
+      const subscriptions = await ctx.db.subscription.findMany({
+        where: {
+          trainerId: personalTrainer.id,
+          deletedAt: null,
+          leadGroupSubscriptions: {
+            none: {},
+          },
+        },
+        include: {
+          member: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      // Ambil semua group subscription yang terkait trainer ini
+      const groupSubscriptions = await ctx.db.groupSubscription.findMany({
+        where: {
+          leadSubscription: {
+            trainerId: personalTrainer.id,
+          },
+        },
+        include: {
+          leadSubscription: true,
+        },
+      });
+
+      type StatEntry = { isActive: boolean };
+      const statsMap = new Map<string, StatEntry>();
+
+      // Individual: key = userId
+      for (const sub of subscriptions) {
+        const userId = sub.member.userId;
+        if (!userId) continue;
+
+        const key = `individual:${userId}`;
+        const entry = statsMap.get(key) ?? { isActive: false };
+
+        const isActiveNow =
+          !!sub.isActive &&
+          (sub.remainingSessions ?? 0) > 0 &&
+          !!sub.endDate &&
+          sub.endDate >= now;
+
+        if (isActiveNow) {
+          entry.isActive = true;
+        }
+
+        statsMap.set(key, entry);
+      }
+
+      // Group: key = groupSubscription.id
+      for (const gs of groupSubscriptions) {
+        const key = `group:${gs.id}`;
+        const entry = statsMap.get(key) ?? { isActive: false };
+
+        const lead = gs.leadSubscription;
+        const isActiveNow =
+          gs.status === "ACTIVE" &&
+          (lead.remainingSessions ?? 0) > 0 &&
+          !!lead.endDate &&
+          lead.endDate >= now;
+
+        if (isActiveNow) {
+          entry.isActive = true;
+        }
+
+        statsMap.set(key, entry);
+      }
+
+      const total = statsMap.size;
+      let active = 0;
+      for (const value of statsMap.values()) {
+        if (value.isActive) active += 1;
+      }
+      const inactive = total - active;
+
+      return { total, active, inactive };
+    },
+  ),
+
   updateMember: protectedProcedure
     .input(memberSchema)
     .mutation(async ({ ctx, input }) => {

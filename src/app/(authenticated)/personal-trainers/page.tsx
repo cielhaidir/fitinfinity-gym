@@ -98,11 +98,15 @@ export default function PTDashboardPage() {
       }
     );
 
-  // Hitung jumlah member aktif (dengan remaining sessions > 0)
-  const activeMembers =
-    members?.filter((member) => member.remainingSessions > 0).length ?? 0;
-  const totalMembers = members?.length ?? 0;
-  const inactiveMembers = totalMembers - activeMembers;
+  // Statistik member PT dari backend (sesuai definisi total/active/inactive)
+  const { data: memberStats } = api.personalTrainer.getMemberStats.useQuery(
+    undefined,
+    { enabled: !!session },
+  );
+
+  const totalMembers = memberStats?.total ?? 0;
+  const activeMembers = memberStats?.active ?? 0;
+  const inactiveMembers = memberStats ? memberStats.inactive : 0;
 
   // Group sessions by date
   const sessionsByDate: Record<string, any[]> = {};
