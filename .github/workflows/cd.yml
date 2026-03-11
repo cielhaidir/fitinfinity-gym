@@ -12,61 +12,29 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKER_USERNAME }}/fitinfinity
-          tags: |
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.prod
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            NODE_ENV=production
-
-      - name: Deploy to server
+      - name: Pull latest code
         run: |
-          cd ${{ secrets.DEPLOY_PATH }}
+          cd /development/fitinfinity
+          git pull
 
-          # Write fresh .env from secret
-          echo "${{ secrets.PROD_ENV }}" > .env
+      - name: Write .env
+        run: |
+          echo "${{ secrets.PROD_ENV }}" > /development/fitinfinity/.env
 
-          # Pull the latest image
-          docker pull ${{ secrets.DOCKER_USERNAME }}/fitinfinity:latest
+      - name: Build and restart containers
+        run: |
+          cd /development/fitinfinity
+          COMPOSE_PROJECT_NAME=fitinfinity-prod docker compose -f docker-compose.yml up -d --build
 
-          # Bring down old containers, bring up new ones
-          docker compose pull app
-          docker compose up -d --no-deps --force-recreate app
+      # - name: Run database migrations
+      #   run: |
+      #     cd /development/fitinfinity
+      #     COMPOSE_PROJECT_NAME=fitinfinity-prod docker compose -f docker-compose.yml run --rm \
+      #       -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+      #       app npx prisma migrate deploy
 
-          # Run database migrations
-          docker compose run --rm \
-            -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-            app npx prisma migrate deploy
-
-          # Clean up dangling images
-          docker image prune -f
+      - name: Clean up dangling images
+        run: docker image prune -f
 
       - name: Verify deployment
         run: |
