@@ -842,6 +842,23 @@ export const esp32Router = createTRPCRouter({
     }),
 
   /**
+   * Get count of members currently present at gym (checked in today, not yet checked out).
+   * For member dashboard: "berapa member yang masih check in dan belum check out sesuai tanggal hari ini".
+   */
+  getPresentMembersCount: protectedProcedure
+    .output(z.object({ count: z.number() }))
+    .query(async ({ ctx }) => {
+      const { startOfDay, endOfDay } = getGMT8DateBoundaries(new Date());
+      const count = await ctx.db.attendanceMember.count({
+        where: {
+          checkin: { gte: startOfDay, lte: endOfDay },
+          checkout: null,
+        },
+      });
+      return { count };
+    }),
+
+  /**
    * Get member's own check-in history
    * Returns: paginated check-in history for the current member
    */
