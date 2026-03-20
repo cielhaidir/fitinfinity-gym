@@ -21,17 +21,15 @@ jobs:
         run: |
           echo "${{ secrets.PROD_ENV }}" > /development/fitinfinity/.env
 
+      - name: Stop old containers
+        run: |
+          cd /development/fitinfinity
+          COMPOSE_PROJECT_NAME=fitinfinity-prod docker compose -f docker-compose.yml down
+
       - name: Build and restart containers
         run: |
           cd /development/fitinfinity
           COMPOSE_PROJECT_NAME=fitinfinity-prod docker compose -f docker-compose.yml up -d --build
-
-      # - name: Run database migrations
-      #   run: |
-      #     cd /development/fitinfinity
-      #     COMPOSE_PROJECT_NAME=fitinfinity-prod docker compose -f docker-compose.yml run --rm \
-      #       -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-      #       app npx prisma migrate deploy
 
       - name: Clean up dangling images
         run: docker image prune -f
