@@ -372,6 +372,12 @@ export const Menu: { navMain: MenuGroup[] } = {
         //     url: "/management/subscription",
         // },
         {
+          title: "Training History",
+          icon: Clock,
+          url: "/member/training-history",
+          requiredPermission: "menu:dashboard-member",
+        },
+        {
           title: "Payment History",
           icon: CreditCard,
           url: "/member/payment-history",
