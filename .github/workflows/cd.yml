@@ -14,8 +14,15 @@ jobs:
     steps:
       - name: Sync repo
         run: |
-          rm -rf /development/fitinfinity
-          git clone https://github.com/cielhaidir/fitinfinity-gym.git /development/fitinfinity
+          cd /development
+          if [ -d "fitinfinity/.git" ]; then
+            cd fitinfinity
+            git fetch origin
+            git reset --hard origin/main
+          else
+            rm -rf fitinfinity
+            git clone https://github.com/cielhaidir/fitinfinity-gym.git fitinfinity
+          fi
 
       - name: Pull latest code
         run: |
