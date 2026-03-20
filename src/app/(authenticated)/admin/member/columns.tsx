@@ -94,7 +94,7 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="PT" />
       ),
       cell: ({ row }) => {
-        const subscription = row.original.subscriptions.find(sub => sub.trainerId != null && !sub.deletedAt);
+        const subscription = row.original.subscriptions.find((sub: any) => sub.trainerId != null && !sub.deletedAt && sub.isActive);
         const pt = subscription?.trainer?.user.name;
         return (
           <div className="flex items-center justify-center">
@@ -121,8 +121,9 @@ export const createColumns = ({
       ),
       cell: ({ row }) => {
 
-        const subscription = row.original.subscriptions.find(sub => sub.trainerId == null && !sub.deletedAt);
-        const endDate = subscription?.endDate;
+        const gymSubs = row.original.subscriptions.filter((sub: any) => sub.trainerId == null && !sub.deletedAt && sub.endDate);
+        const latestSub = gymSubs.sort((a: any, b: any) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
+        const endDate = latestSub?.endDate;
         const now = new Date();
         let durationLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : "N/A";
         return (
@@ -138,7 +139,7 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="Sessions Left" />
       ),
       cell: ({ row }) => {
-            const subscription = row.original.subscriptions.find(sub => sub.trainerId != null && !sub.deletedAt);
+            const subscription = row.original.subscriptions.find((sub: any) => sub.trainerId != null && !sub.deletedAt && sub.isActive);
         const sessionLeft = subscription?.remainingSessions;
         return (
           <div className="w-[150px]">{sessionLeft ?? 0}</div>

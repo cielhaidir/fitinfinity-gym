@@ -76,7 +76,7 @@ export default function FinanceDashboardPage() {
     if (!imageUrl) {
       return;
     }
-    setSelectedImageUrl(imageUrl);
+    setSelectedImageUrl(imageUrl.replace(/\\/g, "/"));
     setIsImageModalOpen(true);
   };
 

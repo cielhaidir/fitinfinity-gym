@@ -80,7 +80,6 @@ export default function AdminPaymentValidationPage() {
       toast.success(
         `Payment accepted. Subscription ID: ${data.subscriptionId}`,
       );
-      void utils.paymentValidation.listWaiting.invalidate();
     },
     onError: (err) => {
       console.error("Error accepting payment:", err);
@@ -90,13 +89,15 @@ export default function AdminPaymentValidationPage() {
         toast.error("An unexpected error occurred while accepting payment");
       }
     },
+    onSettled: () => {
+      void utils.paymentValidation.listWaiting.invalidate();
+    },
   });
 
   // Mutation for declining payment
   const declineMutation = api.paymentValidation.decline.useMutation({
     onSuccess: () => {
       toast.success("Payment declined successfully.");
-      void utils.paymentValidation.listWaiting.invalidate();
     },
     onError: (err) => {
       console.error("Error declining payment:", err);
@@ -105,6 +106,9 @@ export default function AdminPaymentValidationPage() {
       } else {
         toast.error("An unexpected error occurred while declining payment");
       }
+    },
+    onSettled: () => {
+      void utils.paymentValidation.listWaiting.invalidate();
     },
   });
 
@@ -154,7 +158,7 @@ export default function AdminPaymentValidationPage() {
       toast.error("No payment proof available");
       return;
     }
-    setSelectedImageUrl(imageUrl);
+    setSelectedImageUrl(imageUrl.replace(/\\/g, "/"));
     setIsImageModalOpen(true);
   };
 

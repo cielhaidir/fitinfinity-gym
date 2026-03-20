@@ -11,20 +11,11 @@ import { siteConfig } from "@/lib/config/siteConfig"; // Add this import
 import { subscriptionsCreatedTotal } from "@/server/metrics"; // Add metrics import
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { applyPromosForSuccessfulPayment } from "@/server/utils/promoEngine";
+import { syncPtEndDates } from "@/server/utils/ptSubscriptionUtils";
 
-// Fungsi untuk mengupdate subscription yang sudah expired
-async function updateExpiredSubscriptions(ctx: any) {
-  const now = new Date();
-  await ctx.db.subscription.updateMany({
-    where: {
-      isActive: true,
-      endDate: { lt: now },
-    },
-    data: {
-      isActive: false,
-    },
-  });
-}
+// NOTE: updateExpiredSubscriptions logic has been moved to the cron job:
+// /api/cron/deactivate-expired-subscriptions (runs every 6 hours)
 
 export const subscriptionRouter = createTRPCRouter({
   // Get combined sales list (PersonalTrainer + FC)
@@ -212,13 +203,19 @@ export const subscriptionRouter = createTRPCRouter({
                 frozenAt: input.freezeAtStart ? input.startDate : null,
               }
             : {
-                trainerId: input.trainerId || null, // Ensure null is used if trainerId is undefined
+                trainerId: input.trainerId || null,
                 remainingSessions: input.duration,
-                endDate: new Date(
-                  new Date(input.startDate).setDate(
-                    new Date(input.startDate).getDate() + 30,
-                  ),
-                ),
+                endDate: packageDetails?.day
+                  ? new Date(
+                      new Date(input.startDate).setDate(
+                        new Date(input.startDate).getDate() + packageDetails.day,
+                      ),
+                    )
+                  : new Date(
+                      new Date(input.startDate).setDate(
+                        new Date(input.startDate).getDate() + 30,
+                      ),
+                    ),
               }),
         };
 
@@ -240,6 +237,17 @@ export const subscriptionRouter = createTRPCRouter({
             payments: true,
           },
         });
+
+        // Sync endDate of older PT/group subscriptions for same member+trainer
+        if (input.subsType !== "gym" && subscription.endDate && subscription.trainerId) {
+          await syncPtEndDates({
+            tx: ctx.db,
+            memberId: member.id,
+            trainerId: subscription.trainerId,
+            newSubscriptionId: subscription.id,
+            newEndDate: subscription.endDate,
+          });
+        }
 
         // Increment subscription creation metrics
         subscriptionsCreatedTotal.labels({
@@ -404,8 +412,11 @@ export const subscriptionRouter = createTRPCRouter({
         updatedAt: new Date(),
       };
 
+      const isTransitionToSuccess =
+        input.status === "SUCCESS" && payment.status !== "SUCCESS";
+
       // If status is SUCCESS and wasn't before, set the paidAt timestamp
-      if (input.status === "SUCCESS" && payment.status !== "SUCCESS") {
+      if (isTransitionToSuccess) {
         updateData.paidAt = new Date();
 
         // If subscription is available, also update the subscription status here
@@ -445,7 +456,7 @@ export const subscriptionRouter = createTRPCRouter({
       });
 
       // If payment is now successful, apply all relevant benefits
-      if (input.status === "SUCCESS" && payment.subscription) {
+      if (isTransitionToSuccess && payment.subscription) {
         // First, activate the membership
         await ctx.db.membership.update({
           where: { id: payment.subscription.memberId },
@@ -476,6 +487,14 @@ export const subscriptionRouter = createTRPCRouter({
             },
           });
         }
+
+        await ctx.db.$transaction(async (tx) => {
+          await applyPromosForSuccessfulPayment({
+            tx,
+            paymentId: updatedPayment.id,
+            subscriptionId: payment.subscription.id,
+          });
+        });
 
         // // Send email notifications if this is a new successful payment
         // if (updatedPayment.subscription.member?.user?.email) {
@@ -617,9 +636,6 @@ export const subscriptionRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
 
-      // Update expired subscriptions sebelum query
-      await updateExpiredSubscriptions(ctx);
-      
       // Dates are already converted to UTC in the frontend
       const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
       const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
@@ -824,9 +840,6 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Update expired subscriptions sebelum query
-      await updateExpiredSubscriptions(ctx);
-
       const whereClause: any = {
         // Exclude soft deleted subscriptions
         deletedAt: null,
@@ -919,9 +932,6 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Update expired subscriptions sebelum query
-      // await updateExpiredSubscriptions(ctx);
-
       const items = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
@@ -981,19 +991,10 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Update expired subscriptions before query
-      await updateExpiredSubscriptions(ctx);
-
       const items = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
           deletedAt: null, // Exclude soft deleted subscriptions
-          payments: {
-            some: {
-              status: "SUCCESS",
-              deletedAt: null, // Exclude soft deleted payments
-            }
-          }
         },
         skip: (input.page - 1) * input.limit,
         take: input.limit,
@@ -1010,7 +1011,6 @@ export const subscriptionRouter = createTRPCRouter({
           },
           payments: {
             where: {
-              status: "SUCCESS",
               deletedAt: null, // Exclude soft deleted payments
             },
             select: {
@@ -1022,7 +1022,7 @@ export const subscriptionRouter = createTRPCRouter({
               paidAt: true,
             },
             orderBy: { createdAt: "desc" },
-            take: 1, // Get only the latest successful payment
+            take: 1, // Get only the latest non-deleted payment
           },
           trainer: {
             include: {
@@ -1097,12 +1097,6 @@ export const subscriptionRouter = createTRPCRouter({
         where: {
           memberId: input.memberId,
           deletedAt: null, // Exclude soft deleted subscriptions
-          payments: {
-            some: {
-              status: "SUCCESS",
-              deletedAt: null, // Exclude soft deleted payments
-            }
-          }
         },
       });
 
@@ -1117,9 +1111,6 @@ export const subscriptionRouter = createTRPCRouter({
   getById: permissionProtectedProcedure(["show:subscription"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Update expired subscriptions sebelum query
-      // await updateExpiredSubscriptions(ctx);
-
       const subscription = await ctx.db.subscription.findUnique({
         where: { id: input.id },
         include: {
@@ -1295,22 +1286,43 @@ export const subscriptionRouter = createTRPCRouter({
           throw new Error("Package not found");
         }
 
+        const now = new Date();
+        const ptEndDate = packageData.day
+          ? new Date(new Date(now).setDate(now.getDate() + packageData.day))
+          : new Date(new Date(now).setDate(now.getDate() + 30));
+
         const subscription = await ctx.db.subscription.create({
           data: {
             memberId: member.id,
             packageId: packageData.id,
-            startDate: new Date(),
+            startDate: now,
             ...(packageData.type === "GYM_MEMBERSHIP"
               ? {
                   endDate: new Date(
-                    new Date().setDate(new Date().getDate() + input.duration),
+                    new Date(now).setDate(now.getDate() + input.duration),
                   ),
                 }
               : {
                   remainingSessions: input.duration,
+                  endDate: ptEndDate,
                 }),
           },
         });
+
+        // Sync endDate of older PT/group subscriptions for same member+trainer
+        if (
+          packageData.type !== "GYM_MEMBERSHIP" &&
+          subscription.endDate &&
+          subscription.trainerId
+        ) {
+          await syncPtEndDates({
+            tx: ctx.db,
+            memberId: member.id,
+            trainerId: subscription.trainerId,
+            newSubscriptionId: subscription.id,
+            newEndDate: subscription.endDate,
+          });
+        }
 
         // Increment subscription creation metrics for checkout
         subscriptionsCreatedTotal.labels({
@@ -1455,6 +1467,37 @@ export const subscriptionRouter = createTRPCRouter({
           where: { subscriptionId: input.id },
           data: { deletedAt: now },
         });
+
+        // Soft delete bonus subscriptions granted via promo when this subscription was the trigger
+        const promoRedemptions = await tx.promoRedemption.findMany({
+          where: { triggerSubscriptionId: input.id },
+          select: { id: true, bonusSubscriptionId: true },
+        });
+
+        if (promoRedemptions.length > 0) {
+          const bonusSubIds = promoRedemptions
+            .map((r) => r.bonusSubscriptionId)
+            .filter((id): id is string => id !== null);
+
+          if (bonusSubIds.length > 0) {
+            // Soft delete payments of bonus subscriptions
+            await tx.payment.updateMany({
+              where: { subscriptionId: { in: bonusSubIds }, deletedAt: null },
+              data: { deletedAt: now },
+            });
+
+            // Soft delete the bonus subscriptions themselves
+            await tx.subscription.updateMany({
+              where: { id: { in: bonusSubIds }, deletedAt: null },
+              data: { deletedAt: now, isActive: false },
+            });
+          }
+
+          // Delete the promo redemption records
+          await tx.promoRedemption.deleteMany({
+            where: { triggerSubscriptionId: input.id },
+          });
+        }
 
         // Soft delete the subscription
         const deletedSubscription = await tx.subscription.update({
@@ -2493,9 +2536,6 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Update expired subscriptions before query
-      await updateExpiredSubscriptions(ctx);
-
       // Dates are already converted to UTC in the frontend
       const start = input.startDate;
       const end = input.endDate;
@@ -3382,6 +3422,7 @@ export const subscriptionRouter = createTRPCRouter({
   listFreezeHistory: permissionProtectedProcedure(["list:subscription"])
     .input(
       z.object({
+        memberId: z.string().optional(),
         page: z.number().min(1).default(1),
         limit: z.number().min(1).max(100).default(10),
         startDate: z.date().optional(),
@@ -3390,8 +3431,48 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const hasManageMemberPermission =
+        ctx.permissions?.includes("manage:member") ||
+        ctx.permissions?.includes("list:member") ||
+        ctx.permissions?.includes("update:member");
+
+      let effectiveMemberId = input.memberId;
+
+      if (!hasManageMemberPermission) {
+        const ownMembership = await ctx.db.membership.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+          },
+          select: {
+            id: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        });
+
+        if (!ownMembership) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Membership not found for current user",
+          });
+        }
+
+        if (input.memberId && input.memberId !== ownMembership.id) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Not authorized to view freeze history for this member",
+          });
+        }
+
+        effectiveMemberId = ownMembership.id;
+      }
+
       // Build the where clause for freeze operations
       const whereClause: any = {
+        ...(effectiveMemberId && {
+          memberId: effectiveMemberId,
+        }),
         ...(input.operationType !== "all" && {
           operationType: input.operationType,
         }),
@@ -3486,7 +3567,12 @@ export const subscriptionRouter = createTRPCRouter({
           id: operation.subscription.id,
           packageName: operation.subscription.package.name,
           packageType: operation.subscription.package.type,
+          startDate: operation.subscription.startDate,
+          endDate: operation.subscription.endDate,
           isFrozen: operation.subscription.isFrozen,
+          frozenAt: operation.subscription.frozenAt,
+          freezeDays: operation.subscription.freezeDays,
+          freezeMode: operation.subscription.freezeMode,
         });
       }
 

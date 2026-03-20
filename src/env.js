@@ -20,7 +20,7 @@ export const env = createEnv({
     MINIO_PORT: z.number().default(9000),
     MINIO_SSL: z.string().default("false"),
     DATABASE_URL: z.string().url(),
-    // ALLOW_RBAC: z.boolean().default(true),
+    ALLOW_RBAC: z.coerce.boolean().default(true),
     // MQTT Configuration
     MQTT_HOST: z.string().default("localhost"),
     MQTT_PORT: z.string().default("1883"),
@@ -52,7 +52,6 @@ export const env = createEnv({
     // AUTH_DISCORD_SECRET: process.env.AUTH_DISCORD_SECRET,
     MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY,
     MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY,
-    MINIO_ENDPOINT: process.env.MINIO_ENDPOINT,
     MINIO_BUCKET: process.env.MINIO_BUCKET,
     MINIO_PORT: process.env.MINIO_PORT,
     MINIO_SSL: process.env.MINIO_SSL,

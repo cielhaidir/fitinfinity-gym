@@ -53,7 +53,7 @@ export default function PaymentHistoryPage() {
     if (!imageUrl) {
       return;
     }
-    setSelectedImageUrl(imageUrl);
+    setSelectedImageUrl(imageUrl.replace(/\\/g, "/"));
     setIsImageModalOpen(true);
   };
 

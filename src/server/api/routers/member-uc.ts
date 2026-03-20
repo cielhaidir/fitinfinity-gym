@@ -58,11 +58,12 @@ export const memberUcRouter = createTRPCRouter({
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
-          endDate: {
-            gte: now,
-          },
           deletedAt: null,
           isActive: true,
+          OR: [
+            { endDate: { gte: now } },
+            { endDate: null },
+          ],
         },
         include: {
           package: true,

@@ -110,6 +110,7 @@ export const AIBodyCompositionForm: React.FC = (): ReactNode => {
   const [showPreviews, setShowPreviews] = useState(true);
   const [aiData, setAiData] = useState<AIEnhancedData | null>(null);
 
+  const utils = api.useUtils();
   const processImageMutation = api.tracking.processImage.useMutation();
   const processMultipleImagesMutation = api.tracking.processMultipleImages.useMutation();
   const saveTrackingMutation = api.tracking.saveTracking.useMutation();

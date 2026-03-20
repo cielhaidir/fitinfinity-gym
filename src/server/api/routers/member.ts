@@ -9,19 +9,8 @@ import {
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
-// Fungsi untuk mengupdate subscription yang sudah expired
-async function updateExpiredSubscriptions(ctx: any) {
-  const now = new Date();
-  await ctx.db.subscription.updateMany({
-    where: {
-      isActive: true,
-      endDate: { lt: now },
-    },
-    data: {
-      isActive: false,
-    },
-  });
-}
+// NOTE: updateExpiredSubscriptions logic has been moved to the cron job:
+// /api/cron/deactivate-expired-subscriptions (runs every 6 hours)
 
 export const memberRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:member"])
@@ -178,9 +167,6 @@ export const memberRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Update expired subscriptions sebelum query
-      await updateExpiredSubscriptions(ctx);
-
       const whereClause = input.search
         ? input.searchColumn?.startsWith("user.")
           ? {
@@ -219,7 +205,6 @@ export const memberRouter = createTRPCRouter({
           },
           subscriptions: {
             where: {
-              isActive: true,
               deletedAt: null,
             },
             include: {
@@ -234,9 +219,8 @@ export const memberRouter = createTRPCRouter({
               },
             },
             orderBy: {
-              startDate: "desc", // Replace with a valid field from SubscriptionOrderByWithRelationInput
+              startDate: "desc",
             },
-            // take: 1,
           },
         },
       });
@@ -473,10 +457,6 @@ export const memberRouter = createTRPCRouter({
 
   getAllActive: permissionProtectedProcedure(["list:member"]).query(
     async ({ ctx }) => {
-      // Update expired subscriptions sebelum query
-      await updateExpiredSubscriptions(ctx);
-
-
       return await ctx.db.membership.findMany({
         orderBy: { createdAt: "desc" },
         include: {

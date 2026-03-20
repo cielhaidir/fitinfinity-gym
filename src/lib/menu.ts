@@ -152,7 +152,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           title: "Freeze Price",
           url: "/admin/freeze-price",
           icon: DollarSign,
-          requiredPermission: "list:subscription",
+          requiredPermission: "list:freeze-price",
         },
         // {
         //   title: "Import Subscriptions",
@@ -167,10 +167,16 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:reward",
         },
         {
+          title: "Promo Campaign",
+          url: "/management/promo",
+          icon: Gift,
+          requiredPermission: "menu:voucher",
+        },
+        {
             title: "Configuration",
             url: "/management/config",
             icon: Settings,
-            // requiredPermission: "manage:config"
+            requiredPermission: "menu:config"
         },
         {
           title: "Email Settings",

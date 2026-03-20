@@ -7,6 +7,7 @@ import {
 } from "@/server/api/trpc";
 import { memberSchema } from "@/app/(authenticated)/personal-trainers/member-list/schema";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { decrementSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
 
 export const personalTrainerRouter = createTRPCRouter({
   create: permissionProtectedProcedure(["create:trainers"])
@@ -340,17 +341,12 @@ export const personalTrainerRouter = createTRPCRouter({
               });
             }
           } else {
-            // For individual sessions, decrease remaining sessions from the member's subscription
-            await tx.subscription.updateMany({
-              where: {
-                memberId: input.memberId,
-                trainerId: trainer.id,
-              },
-              data: {
-                remainingSessions: {
-                  decrement: 1,
-                },
-              },
+            // For individual sessions, decrease remaining sessions using FIFO
+            // (oldest active subscription with remaining sessions > 0 gets decremented first)
+            await decrementSessionFIFO({
+              tx,
+              memberId: input.memberId,
+              trainerId: trainer.id,
             });
           }
 

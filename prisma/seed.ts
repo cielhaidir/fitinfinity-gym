@@ -266,6 +266,13 @@ async function main() {
     { name: "update:purchase-order" },
     { name: "delete:purchase-order" },
     { name: "receive:purchase-order" },
+
+    // Freeze Price Management (admin-only, separate from subscription permissions)
+    { name: "create:freeze-price" },
+    { name: "update:freeze-price" },
+    { name: "delete:freeze-price" },
+    { name: "list:freeze-price" },
+    { name: "show:freeze-price" },
   ];
 
   console.log("🌱 Seeding permissions...");

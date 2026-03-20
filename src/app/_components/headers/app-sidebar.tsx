@@ -10,8 +10,6 @@ import { useState, useCallback, useEffect } from "react";
 import { Menu as data } from "@/lib/menu";
 import { useRouter } from "next/navigation";
 import { useRBAC } from "@/hooks/useRBAC";
-// Import env to check ALLOW_RBAC setting
-import { env } from "@/env";
 
 import {
   Sidebar,

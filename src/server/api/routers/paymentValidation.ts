@@ -20,6 +20,8 @@ import { siteConfig } from "@/lib/config/siteConfig";
 import { start } from "repl";
 import { useRFIDCheckIn } from "@/app/_components/hooks/useRFIDCheckIn";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { applyPromosForSuccessfulPayment } from "@/server/utils/promoEngine";
+import { syncPtEndDates } from "@/server/utils/ptSubscriptionUtils";
 
 export const paymentValidationRouter = createTRPCRouter({
   uploadFile: permissionProtectedProcedure(["upload:payment"])
@@ -70,7 +72,7 @@ export const paymentValidationRouter = createTRPCRouter({
         // Construct the path relative to the public directory
         const relativeUploadDir = path.join("assets", "transaction", userId);
         const uploadDir = path.join(process.cwd(), "public", relativeUploadDir);
-        const filePath = path.join("/", relativeUploadDir, uniqueFilename); // Path to be stored in DB
+        const filePath = path.join("/", relativeUploadDir, uniqueFilename).replace(/\\/g, "/"); // Path to be stored in DB (normalize for URL)
 
         // Create directory if it doesn't exist
         await mkdir(uploadDir, { recursive: true });
@@ -272,6 +274,8 @@ export const paymentValidationRouter = createTRPCRouter({
         console.log("Input:", { id: input.id, balanceId: input.balanceId, paymentDate: input.paymentDate });
         
         // Use a transaction to ensure atomicity and prevent race conditions
+        // Timeout increased to 30s because this transaction does a lot of work
+        // (subscription creation, payment, promo application, points, etc.)
         result = await ctx.db.$transaction(async (prisma) => {
         console.log("Transaction started");
         
@@ -314,9 +318,26 @@ export const paymentValidationRouter = createTRPCRouter({
         // Check status inside transaction to prevent race conditions
         if (paymentValidation.paymentStatus !== PaymentValidationStatus.WAITING) {
           console.error("Payment validation not in WAITING state:", paymentValidation.paymentStatus);
+
+          // If already ACCEPTED, find the existing subscription and return it (idempotent)
+          if (paymentValidation.paymentStatus === PaymentValidationStatus.ACCEPTED) {
+            const existingSub = await prisma.subscription.findFirst({
+              where: {
+                memberId: paymentValidation.memberId,
+                packageId: paymentValidation.packageId,
+                trainerId: paymentValidation.trainerId,
+                deletedAt: null,
+              },
+              orderBy: { startDate: "desc" },
+            });
+            if (existingSub) {
+              return { success: true, subscriptionId: existingSub.id };
+            }
+          }
+
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Payment validation is not in WAITING state. It may have already been processed.",
+            message: `Payment sudah di-${paymentValidation.paymentStatus === "ACCEPTED" ? "accept" : "decline"} sebelumnya.`,
           });
         }
         
@@ -402,8 +423,11 @@ export const paymentValidationRouter = createTRPCRouter({
         const freezeDays = (paymentValidation.subsType === "gym" && paymentValidation.freezeDays)
           ? paymentValidation.freezeDays
           : 0;
+        // For PT/group packages: use package.day if set, otherwise default to 30 days
+        const dayDuration = packageDetails.day
+          ?? ((paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") ? 30 : 0);
         endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + (packageDetails.day ?? 0) + freezeDays);
+        endDate.setDate(startDate.getDate() + dayDuration + freezeDays);
 
         // Set remaining sessions for trainer and group packages
         if (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") {
@@ -487,6 +511,12 @@ export const paymentValidationRouter = createTRPCRouter({
             },
           });
           console.log("Payment record created:", { id: payment.id, status: payment.status, createdAt: payment.createdAt });
+
+          await applyPromosForSuccessfulPayment({
+            tx: prisma,
+            paymentId: payment.id,
+            subscriptionId: existingSubscription.id,
+          });
           
           // Award points if applicable
           if (
@@ -541,6 +571,21 @@ export const paymentValidationRouter = createTRPCRouter({
         });
 
         console.log("Subscription created:", { id: subscription.id });
+
+        // Sync endDate of older PT/group subscriptions for same member+trainer
+        if (
+          (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") &&
+          endDate &&
+          paymentValidation.trainerId
+        ) {
+          await syncPtEndDates({
+            tx: prisma,
+            memberId: paymentValidation.memberId,
+            trainerId: paymentValidation.trainerId,
+            newSubscriptionId: subscription.id,
+            newEndDate: endDate,
+          });
+        }
         
         // Activate the membership
         console.log("Activating membership...");
@@ -600,6 +645,12 @@ export const paymentValidationRouter = createTRPCRouter({
             createdAt: input.paymentDate ?? paymentValidation.createdAt,
             paidAt: new Date(), // Set paidAt to now (when admin accepted it)
           },
+        });
+
+        await applyPromosForSuccessfulPayment({
+          tx: prisma,
+          paymentId: payment.id,
+          subscriptionId: subscription.id,
         });
 
         console.log("Payment created:", { id: payment.id, status: payment.status, createdAt: payment.createdAt });
@@ -673,7 +724,7 @@ export const paymentValidationRouter = createTRPCRouter({
           console.log("Result:", { success: true, subscriptionId: subscription.id });
           
           return { success: true, subscriptionId: subscription.id };
-        });
+        }, { timeout: 30000 });
         success = true;
         return result;
       } catch (err) {
@@ -897,11 +948,12 @@ export const paymentValidationRouter = createTRPCRouter({
         }
       }
 
-      // Add status filter to payments query for online payments
+      // Add status filter to payments query for online & promo payments
       let paymentStatusFilter: any = {
-        NOT: {
-          orderReference: null, // Only get payments with order references (online)
-        },
+        OR: [
+          { NOT: { orderReference: null } }, // Online payments with order references
+          { method: "PROMO" }, // Bonus payments from promo campaigns (totalPayment=0)
+        ],
       };
       if (status) {
         paymentStatusFilter.status = status;
@@ -909,10 +961,16 @@ export const paymentValidationRouter = createTRPCRouter({
 
       // Fetch online payments through subscriptions
       const onlineSubscriptionsPromise = ctx.db.subscription.findMany({
-        where: onlineWhereCondition,
+        where: {
+          ...onlineWhereCondition,
+          deletedAt: null,
+        },
         include: {
           payments: {
-            where: paymentStatusFilter,
+            where: {
+            ...paymentStatusFilter,
+            deletedAt: null,
+          },
           },
           member: {
             include: {
@@ -966,13 +1024,56 @@ export const paymentValidationRouter = createTRPCRouter({
         })),
       );
 
+      // For accepted offline payments, look up the actual subscription IDs
+      const acceptedOffline = offlinePayments.filter(
+        (p) => p.paymentStatus === "ACCEPTED",
+      );
+      let subscriptionMap: Record<string, string> = {};
+      if (acceptedOffline.length > 0) {
+        const matchingSubs = await ctx.db.subscription.findMany({
+          where: {
+            deletedAt: null,
+            OR: acceptedOffline.map((p) => ({
+              memberId: p.memberId,
+              packageId: p.packageId,
+              ...(p.trainerId ? { trainerId: p.trainerId } : {}),
+              ...(p.startDate ? { startDate: new Date(p.startDate) } : {}),
+            })),
+          },
+          select: {
+            id: true,
+            memberId: true,
+            packageId: true,
+            trainerId: true,
+            startDate: true,
+            salesId: true,
+            salesType: true,
+          },
+        });
+        // Build a map: paymentValidation.id -> subscription.id
+        for (const pv of acceptedOffline) {
+          const match = matchingSubs.find(
+            (s) =>
+              s.memberId === pv.memberId &&
+              s.packageId === pv.packageId &&
+              (pv.trainerId ? s.trainerId === pv.trainerId : true) &&
+              (pv.startDate
+                ? new Date(s.startDate).getTime() ===
+                  new Date(pv.startDate).getTime()
+                : true),
+          );
+          if (match) {
+            subscriptionMap[pv.id] = match.id;
+          }
+        }
+      }
+
       // Transform offline payments to include subscription-like data
-      // For offline payments, we need to create a subscription record or handle differently
       const transformedOfflinePayments = offlinePayments.map((payment) => ({
         ...payment,
-        subscriptionId: payment.id, // Use payment validation ID as fallback
+        subscriptionId: subscriptionMap[payment.id] ?? null, // Real subscription ID or null
         isOnlinePayment: false,
-        salesId: null, // Offline payments don't have sales tracking yet
+        salesId: null,
         salesType: null,
       }));
       // Combine and sort both payment types
@@ -1060,13 +1161,16 @@ export const paymentValidationRouter = createTRPCRouter({
         const subscriptions = await ctx.db.subscription.findMany({
           where: {
             memberId: member.id,
+            deletedAt: null,
           },
           include: {
             payments: {
               where: {
-                NOT: {
-                  orderReference: null, // Only get payments with order references (online)
-                },
+                OR: [
+                  { NOT: { orderReference: null } }, // Online payments
+                  { method: "PROMO" }, // Bonus payments from promo campaigns
+                ],
+                deletedAt: null,
               },
             },
             member: {

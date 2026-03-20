@@ -73,6 +73,11 @@ enum DiscountType {
     CASH
 }
 
+enum PromoBenefitType {
+    BONUS_PT_SESSIONS
+    BONUS_PACKAGE
+}
+
 enum PaymentValidationStatus {
     WAITING
     ACCEPTED
@@ -149,6 +154,12 @@ enum PurchaseOrderItemStatus {
     PARTIALLY_RECEIVED // Some quantity received
     RECEIVED          // Full quantity received
     CANCELLED         // Item cancelled
+}
+
+enum BonusStartMode {
+    IMMEDIATE
+    AFTER_CURRENT
+    CUSTOM_DATE
 }
 
 model File {
@@ -314,6 +325,7 @@ model Membership {
     attendanceMembers AttendanceMember[] @relation("AttendanceMemberToMembership")
     transfersFrom     SubscriptionTransferHistory[]
     freezeOperations  FreezeOperation[]  @relation("FreezeOperationMember")
+    promoRedemptions  PromoRedemption[]
 }
 
 model Role {
@@ -391,6 +403,10 @@ model Subscription {
     
     // Transfer history
     transferHistory   SubscriptionTransferHistory[]
+    
+    // Promo relations
+    triggerPromoRedemptions PromoRedemption[] @relation("TriggerSubscriptionPromo")
+    bonusPromoRedemptions   PromoRedemption[] @relation("BonusSubscriptionPromo")
 }
 
 model Payment {
@@ -412,6 +428,7 @@ model Payment {
     updatedAt         DateTime         @default(now())
     freezeOperationId String?
     freezeOperation   FreezeOperation? @relation(fields: [freezeOperationId], references: [id])
+    promoRedemptions  PromoRedemption[]
 }
 
 model PersonalTrainer {
@@ -429,7 +446,6 @@ model PersonalTrainer {
     subscriptions Subscription[]
     sessions      TrainerSession[]
     paymentValidations PaymentValidation[]
-
 }
 
 enum MembershipStatus {
@@ -475,6 +491,10 @@ model Package {
     // Upgrade relations
     upgradeOldPackages UpgradePackage[] @relation("UpgradeOldPackage")
     upgradeNewPackages UpgradePackage[] @relation("UpgradeNewPackage")
+    
+    // Promo relations
+    triggerPromos PromoCampaign[] @relation("PromoTriggerPackage")
+    bonusPromos   PromoCampaign[] @relation("PromoBonusPackage")
 }
 
 enum PackageType {
@@ -539,6 +559,56 @@ model VoucherClaim {
     @@index([voucherId])
 }
 
+model PromoCampaign {
+    id               String           @id @default(cuid())
+    name             String
+    description      String?
+    isActive         Boolean          @default(true)
+    startDate        DateTime
+    endDate          DateTime?
+    triggerPackageId String
+    bonusType        PromoBenefitType @default(BONUS_PACKAGE)
+    bonusPtSessions  Int?             @default(0)
+    bonusPackageId   String?
+    bonusStartMode   BonusStartMode   @default(AFTER_CURRENT)
+    bonusCustomStartDate DateTime?
+    maxPerMember     Int?
+    createdAt        DateTime         @default(now())
+    updatedAt        DateTime         @updatedAt
+
+    triggerPackage   Package          @relation("PromoTriggerPackage", fields: [triggerPackageId], references: [id])
+    bonusPackage     Package?         @relation("PromoBonusPackage", fields: [bonusPackageId], references: [id])
+    redemptions      PromoRedemption[]
+
+    @@index([isActive, startDate, endDate])
+    @@index([triggerPackageId])
+    @@index([bonusPackageId])
+}
+
+model PromoRedemption {
+    id                    String        @id @default(cuid())
+    promoId               String
+    memberId              String
+    triggerSubscriptionId String
+    bonusSubscriptionId   String?
+    paymentId             String
+    bonusPtSessions       Int?           @default(0)
+    grantedAt             DateTime      @default(now())
+    note                  String?
+
+    promo                 PromoCampaign @relation(fields: [promoId], references: [id])
+    member                Membership    @relation(fields: [memberId], references: [id])
+    triggerSubscription   Subscription  @relation("TriggerSubscriptionPromo", fields: [triggerSubscriptionId], references: [id])
+    bonusSubscription     Subscription? @relation("BonusSubscriptionPromo", fields: [bonusSubscriptionId], references: [id])
+    payment               Payment       @relation(fields: [paymentId], references: [id])
+
+    @@unique([promoId, paymentId])
+    @@index([memberId, grantedAt])
+    @@index([triggerSubscriptionId])
+    @@index([bonusSubscriptionId])
+    @@index([paymentId])
+}
+
 model PaymentValidation {
     id             String                  @id @default(cuid())
     memberId       String
@@ -557,7 +627,7 @@ model PaymentValidation {
     freezeDays     Int?
     createdAt      DateTime                @default(now())
     updatedAt      DateTime                @updatedAt
-    balanceId      Int?                    
+    balanceId      Int?
     balanceAccount BalanceAccount?         @relation(fields: [balanceId], references: [id], onDelete: SetNull)
     salesId        String?                 // ID of the sales person (PersonalTrainer or FC)
     salesType      String?                 // Type: "PersonalTrainer" or "FC"

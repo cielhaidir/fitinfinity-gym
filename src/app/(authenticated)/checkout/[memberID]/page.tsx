@@ -4,7 +4,7 @@
 
 import { useState, use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, CreditCard, QrCode, Users } from "lucide-react";
+import { Check, CreditCard, QrCode, Users, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
@@ -122,6 +123,13 @@ export default function SubscriptionPage({
   
   // Cart state for multi-item checkout
   const [cart, setCart] = useState<CartItem[]>([]);
+
+  // Promo matching query - checks which promos apply to cart items
+  const cartPackageIds = cart.map((item) => item.packageId).filter(Boolean);
+  const { data: matchingPromos } = api.promo.getMatchingPromos.useQuery(
+    { packageIds: cartPackageIds },
+    { enabled: cartPackageIds.length > 0 },
+  );
 
   const selectedPackageDetails =
     subscriptionType === "gym"
@@ -1065,6 +1073,34 @@ export default function SubscriptionPage({
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Promo Campaign Banner */}
+                {matchingPromos && matchingPromos.length > 0 && (
+                  <div className="rounded-lg border border-[#BFFF00]/40 bg-[#BFFF00]/10 p-4 space-y-2">
+                    <h3 className="text-sm font-semibold flex items-center gap-2 text-[#BFFF00]">
+                      <Gift className="h-4 w-4" />
+                      Promo Campaign Aktif
+                    </h3>
+                    {matchingPromos.map((promo: any) => (
+                      <div key={promo.id} className="flex items-start justify-between gap-2 text-sm">
+                        <div>
+                          <p className="font-medium">{promo.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Beli <span className="font-medium">{promo.triggerPackage?.name}</span>
+                          </p>
+                        </div>
+                        <Badge className="bg-[#BFFF00] text-black text-xs whitespace-nowrap">
+                          GRATIS {promo.bonusPackage?.name}
+                          {promo.bonusPackage?.day ? ` (${promo.bonusPackage.day} hari)` : ""}
+                          {promo.bonusPackage?.sessions ? ` (${promo.bonusPackage.sessions} sesi)` : ""}
+                        </Badge>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">
+                      Bonus otomatis diberikan setelah pembayaran berhasil.
+                    </p>
                   </div>
                 )}
 

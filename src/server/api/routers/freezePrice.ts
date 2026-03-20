@@ -10,7 +10,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * List all freeze prices with optional filtering by isActive
    */
-  list: permissionProtectedProcedure(["list:subscription"])
+  list: permissionProtectedProcedure(["list:freeze-price"])
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -50,7 +50,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * Get all active freeze prices (for member selection)
    */
-  getActive: permissionProtectedProcedure(["list:subscription"])
+  getActive: permissionProtectedProcedure(["list:freeze-price"])
     .query(async ({ ctx }) => {
       return ctx.db.freezePrice.findMany({
         where: { isActive: true, price: { gt: 0 } },
@@ -61,7 +61,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * Get a single freeze price by ID
    */
-  getById: permissionProtectedProcedure(["show:subscription"])
+  getById: permissionProtectedProcedure(["show:freeze-price"])
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const freezePrice = await ctx.db.freezePrice.findUnique({
@@ -81,7 +81,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * Create a new freeze price (admin only)
    */
-  create: permissionProtectedProcedure(["create:subscription"])
+  create: permissionProtectedProcedure(["create:freeze-price"])
     .input(
       z.object({
         freezeDays: z.number().min(1).max(365),
@@ -141,7 +141,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * Update an existing freeze price (admin only)
    */
-  update: permissionProtectedProcedure(["update:subscription"])
+  update: permissionProtectedProcedure(["update:freeze-price"])
     .input(
       z.object({
         id: z.string(),
@@ -218,7 +218,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * Delete a freeze price (soft delete by setting isActive to false, or hard delete)
    */
-  delete: permissionProtectedProcedure(["delete:subscription"])
+  delete: permissionProtectedProcedure(["delete:freeze-price"])
     .input(
       z.object({
         id: z.string(),
@@ -294,7 +294,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * Get freeze operation history for a member
    */
-  getMemberFreezeHistory: permissionProtectedProcedure(["list:subscription"])
+  getMemberFreezeHistory: permissionProtectedProcedure(["list:freeze-price"])
     .input(
       z.object({
         memberId: z.string(),
@@ -336,7 +336,7 @@ export const freezePriceRouter = createTRPCRouter({
   /**
    * Get freeze operations statistics
    */
-  getStatistics: permissionProtectedProcedure(["list:subscription"])
+  getStatistics: permissionProtectedProcedure(["list:freeze-price"])
     .input(
       z.object({
         startDate: z.date().optional(),

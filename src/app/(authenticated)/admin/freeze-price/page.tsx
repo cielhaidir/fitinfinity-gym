@@ -207,7 +207,7 @@ export default function FreezePricePage() {
   });
 
   return (
-    <ProtectedRoute requiredPermissions={["list:subscription"]}>
+    <ProtectedRoute requiredPermissions={["list:freeze-price"]}>
       <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
         <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div className="space-y-1">

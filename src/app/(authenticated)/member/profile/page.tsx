@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from "date-fns";
-import { Camera, Package2, UserCog, Users, Calendar, Activity, TrendingUp, Clock, Download, QrCode } from "lucide-react";
+import { format, startOfWeek, endOfWeek, subWeeks, addWeeks, addDays } from "date-fns";
+import { Camera, Package2, UserCog, Users, Calendar, Activity, TrendingUp, Clock, Download, QrCode, Gift } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { ChangePasswordDialog } from "./change-password-dialog";
 import { DataTable } from "@/components/datatable/data-table";
@@ -73,15 +73,40 @@ export default function ProfilePage() {
     }
   );
 
+  const resolvedMemberId = memberId || profile?.membership?.id || "";
+
   // Get subscription history for current member
   const { data: subscriptionHistory, isLoading: isLoadingHistory } = api.subs.getSubscriptionHistory.useQuery(
     {
-      memberId: memberId || "",
+      memberId: resolvedMemberId,
       page: 1,
       limit: 10,
     },
     {
-      enabled: !!memberId,
+      enabled: !!resolvedMemberId,
+    }
+  );
+
+  const { data: promoRedemptions, isLoading: isLoadingPromoRedemptions } = api.promo.listMemberRedemptions.useQuery(
+    {
+      memberId: resolvedMemberId,
+      page: 1,
+      limit: 10,
+    },
+    {
+      enabled: !!resolvedMemberId,
+    }
+  );
+
+  const { data: memberFreezeHistory, isLoading: isLoadingFreezeHistory } = api.subs.listFreezeHistory.useQuery(
+    {
+      memberId: resolvedMemberId,
+      page: 1,
+      limit: 10,
+      operationType: "all",
+    },
+    {
+      enabled: !!resolvedMemberId,
     }
   );
 
@@ -455,12 +480,37 @@ export default function ProfilePage() {
               <div>
                 <span className="text-muted-foreground">Payment:</span>
                 <Badge
-                  variant="default"
-                  className="text-xs bg-green-600 hover:bg-green-700"
+                  variant={subscription.payments?.[0]?.status === "SUCCESS" ? "default" : "secondary"}
+                  className={subscription.payments?.[0]?.status === "SUCCESS" ? "text-xs bg-green-600 hover:bg-green-700" : "text-xs"}
                 >
-                  SUCCESS
+                  {subscription.payments?.[0]?.status ?? "NO PAYMENT"}
                 </Badge>
               </div>
+            </div>
+
+            <div className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm">
+              <p className="font-medium text-[#BFFF00]">Freeze Info</p>
+              {subscription.isFrozen || (subscription.frozenAt && new Date(subscription.frozenAt) > new Date()) ? (
+                <div className="mt-1 space-y-1 text-muted-foreground">
+                  <p>
+                    Status: <span className="font-medium text-foreground">{subscription.isFrozen ? "Frozen" : "Scheduled Freeze"}</span>
+                  </p>
+                  <p>
+                    Start: <span className="font-medium text-foreground">{subscription.frozenAt ? format(new Date(subscription.frozenAt), "dd MMM yyyy") : "N/A"}</span>
+                  </p>
+                  <p>
+                    End: <span className="font-medium text-foreground">
+                      {subscription.frozenAt && subscription.freezeDays
+                        ? format(addDays(new Date(subscription.frozenAt), subscription.freezeDays), "dd MMM yyyy")
+                        : subscription.freezeMode === "UNTIL_UNFREEZE"
+                          ? "Until unfreeze"
+                          : "N/A"}
+                    </span>
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-1 text-muted-foreground">No active freeze</p>
+              )}
             </div>
           </div>
         </Card>
@@ -540,6 +590,37 @@ export default function ProfilePage() {
           </div>
         ) : (
           <span className="text-muted-foreground text-sm">No sales</span>
+        );
+      },
+    },
+    {
+      id: "freezeInfo",
+      header: () => <span>Freeze</span>,
+      cell: ({ row }) => {
+        const sub = row.original;
+        const freezeStart = sub.frozenAt ? new Date(sub.frozenAt) : null;
+        const freezeEnd =
+          sub.frozenAt && sub.freezeDays
+            ? addDays(new Date(sub.frozenAt), sub.freezeDays)
+            : null;
+        const hasScheduledFreeze = !sub.isFrozen && freezeStart && freezeStart > new Date();
+
+        if (!sub.isFrozen && !hasScheduledFreeze) {
+          return <span className="text-xs text-muted-foreground">No active freeze</span>;
+        }
+
+        return (
+          <div className="text-xs leading-relaxed">
+            <p className="font-medium text-foreground">{sub.isFrozen ? "Frozen" : "Scheduled Freeze"}</p>
+            <p className="text-muted-foreground">
+              {freezeStart ? format(freezeStart, "dd MMM yyyy") : "N/A"} -{" "}
+              {freezeEnd
+                ? format(freezeEnd, "dd MMM yyyy")
+                : sub.freezeMode === "UNTIL_UNFREEZE"
+                  ? "Until unfreeze"
+                  : "N/A"}
+            </p>
+          </div>
         );
       },
     },
@@ -922,7 +1003,7 @@ export default function ProfilePage() {
               Subscription History
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Your subscription history with successful payments
+              Your full subscription history
             </p>
           </CardHeader>
           <CardContent className="p-3 md:p-6">
@@ -955,13 +1036,235 @@ export default function ProfilePage() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="text-center py-8 text-muted-foreground">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                   <Package2 className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-medium text-muted-foreground mb-2">No subscription history</h3>
                 <p className="text-sm text-muted-foreground max-w-sm">
-                  You haven't made any successful subscription purchases yet. Your subscription history will appear here once you complete a purchase.
+                  You don't have any subscriptions yet. Your subscription history will appear here once a subscription is created.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Promo Redemptions Section */}
+        <Card className="mx-auto max-w-4xl mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg md:text-xl font-semibold text-[#BFFF00] flex items-center gap-2">
+              <Gift className="h-5 w-5" />
+              Promo yang Didapat
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Daftar bonus promo yang diterima member ini
+            </p>
+          </CardHeader>
+          <CardContent className="p-3 md:p-6">
+            {isLoadingPromoRedemptions ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BFFF00] mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading promo redemptions...</p>
+                </div>
+              </div>
+            ) : promoRedemptions?.items && promoRedemptions.items.length > 0 ? (
+              <div className="space-y-3">
+                {promoRedemptions.items.map((redemption: any) => (
+                  <div key={redemption.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border p-3">
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm">
+                        {redemption.promo?.name ?? "Promo"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Trigger: {redemption.triggerSubscription?.package?.name ?? "-"}
+                      </p>
+                      {redemption.note && (
+                        <p className="text-xs text-muted-foreground italic">{redemption.note}</p>
+                      )}
+                    </div>
+                    <div className="text-right space-y-1">
+                      <Badge variant="default" className="bg-[#BFFF00] text-black text-xs">
+                        {redemption.bonusSubscription?.package?.name ?? "Bonus"}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        {redemption.grantedAt ? format(new Date(redemption.grantedAt), "dd MMM yyyy") : "-"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {promoRedemptions.total > promoRedemptions.items.length && (
+                  <p className="text-center text-xs text-muted-foreground pt-2">
+                    Menampilkan {promoRedemptions.items.length} dari {promoRedemptions.total} promo
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Gift className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm">Belum ada promo yang didapat</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mx-auto max-w-4xl mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg md:text-xl font-semibold text-[#BFFF00]">
+              Freeze History
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Daftar riwayat freeze untuk member ini
+            </p>
+          </CardHeader>
+          <CardContent className="p-3 md:p-6">
+            {isLoadingFreezeHistory ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BFFF00] mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading freeze history...</p>
+                </div>
+              </div>
+            ) : memberFreezeHistory?.items && memberFreezeHistory.items.length > 0 ? (
+              <>
+                <div className="md:hidden space-y-3">
+                  {memberFreezeHistory.items.map((freeze) => {
+                    const freezeStart = freeze.performedAt ? new Date(freeze.performedAt) : null;
+                    const freezeEnd =
+                      freeze.operationType === "FREEZE" && freezeStart && freeze.freezeDays
+                        ? addDays(freezeStart, freeze.freezeDays)
+                        : null;
+
+                    return (
+                      <Card key={freeze.id} className="p-4 border-l-4 border-l-[#BFFF00]">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center justify-between">
+                            <Badge
+                              variant={
+                                freeze.operationType === "FREEZE"
+                                  ? "default"
+                                  : freeze.operationType === "UNFREEZE"
+                                    ? "secondary"
+                                    : "outline"
+                              }
+                            >
+                              {freeze.operationType}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {freeze.performedAt ? format(new Date(freeze.performedAt), "dd MMM yyyy HH:mm") : "N/A"}
+                            </span>
+                          </div>
+                          <p>
+                            <span className="text-muted-foreground">Packages:</span>{" "}
+                            {freeze.subscriptions?.length ? (
+                              <div className="mt-1 space-y-1">
+                                {freeze.subscriptions.map((sub: any) => (
+                                  <div key={sub.id} className="text-xs">
+                                    <span className="font-medium text-foreground">{sub.packageName}</span>{" "}
+                                    <span className="text-muted-foreground">
+                                      (ID: {sub.id?.slice(0, 8)} | {sub.startDate ? format(new Date(sub.startDate), "dd MMM yyyy") : "N/A"} - {sub.endDate ? format(new Date(sub.endDate), "dd MMM yyyy") : "N/A"})
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : "N/A"}
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Freeze Start:</span>{" "}
+                            {freezeStart ? format(freezeStart, "dd MMM yyyy") : "N/A"}
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Freeze End:</span>{" "}
+                            {freezeEnd
+                              ? format(freezeEnd, "dd MMM yyyy")
+                              : freeze.operationType === "FREEZE" && freeze.freezeDays === 0
+                                ? "Until unfreeze"
+                                : "-"}
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Days:</span> {freeze.freezeDays ?? 0}
+                          </p>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                <div className="hidden md:block rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Operation</TableHead>
+                        <TableHead>Packages</TableHead>
+                        <TableHead>Freeze Start</TableHead>
+                        <TableHead>Freeze End</TableHead>
+                        <TableHead>Days</TableHead>
+                        <TableHead>Performed At</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {memberFreezeHistory.items.map((freeze) => {
+                        const freezeStart = freeze.performedAt ? new Date(freeze.performedAt) : null;
+                        const freezeEnd =
+                          freeze.operationType === "FREEZE" && freezeStart && freeze.freezeDays
+                            ? addDays(freezeStart, freeze.freezeDays)
+                            : null;
+
+                        return (
+                          <TableRow key={freeze.id}>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  freeze.operationType === "FREEZE"
+                                    ? "default"
+                                    : freeze.operationType === "UNFREEZE"
+                                      ? "secondary"
+                                      : "outline"
+                                }
+                              >
+                                {freeze.operationType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[320px]">
+                              {freeze.subscriptions?.length ? (
+                                <div className="space-y-1">
+                                  {freeze.subscriptions.map((sub: any) => (
+                                    <div key={sub.id} className="text-xs leading-relaxed">
+                                      <span className="font-medium">{sub.packageName}</span>{" "}
+                                      <span className="text-muted-foreground">
+                                        (ID: {sub.id?.slice(0, 8)} | {sub.startDate ? format(new Date(sub.startDate), "dd MMM yyyy") : "N/A"} - {sub.endDate ? format(new Date(sub.endDate), "dd MMM yyyy") : "N/A"})
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              {freezeStart ? format(freezeStart, "dd MMM yyyy") : "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              {freezeEnd
+                                ? format(freezeEnd, "dd MMM yyyy")
+                                : freeze.operationType === "FREEZE" && freeze.freezeDays === 0
+                                  ? "Until unfreeze"
+                                  : "-"}
+                            </TableCell>
+                            <TableCell>{freeze.freezeDays ?? 0}</TableCell>
+                            <TableCell>
+                              {freeze.performedAt ? format(new Date(freeze.performedAt), "dd MMM yyyy HH:mm") : "N/A"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">No freeze history</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  Belum ada riwayat freeze untuk member ini.
                 </p>
               </div>
             )}

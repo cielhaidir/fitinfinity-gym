@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/datatable/data-table";
-import { Receipt, Package, ExternalLink, CreditCard, FileText, Edit3, MoreHorizontal, Files, Trash2 } from "lucide-react";
+import { Receipt, Package, ExternalLink, CreditCard, FileText, Edit3, MoreHorizontal, Files, Trash2, Gift } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -93,7 +93,7 @@ export default function SubscriptionHistoryPage() {
     if (!imageUrl) {
       return;
     }
-    setSelectedImageUrl(imageUrl);
+    setSelectedImageUrl(imageUrl.replace(/\\/g, "/"));
     setIsImageModalOpen(true);
   };
 
@@ -388,15 +388,18 @@ export default function SubscriptionHistoryPage() {
       cell: ({ row }) => {
         const method = row.getValue("paymentMethod");
         const isOnline = row.original.isOnlinePayment;
+        const isPromo = (method as string) === "PROMO";
         return (
           <div className="flex items-center">
-            {isOnline ? (
+            {isPromo ? (
+              <Gift className="mr-1 h-4 w-4 text-[#BFFF00]" />
+            ) : isOnline ? (
               <CreditCard className="mr-1 h-4 w-4 text-blue-500" />
             ) : (
               <Receipt className="mr-1 h-4 w-4" />
             )}
             <span className="capitalize">
-              {(method as string) || (isOnline ? "Online Payment" : "Manual Payment")}
+              {isPromo ? "Bonus Promo" : (method as string) || (isOnline ? "Online Payment" : "Manual Payment")}
             </span>
           </div>
         );
@@ -480,7 +483,7 @@ export default function SubscriptionHistoryPage() {
                   View Proof
                 </DropdownMenuItem>
               )}
-              {hasPermission("delete:subscription") && (
+              {hasPermission("delete:subscription") && row.original.subscriptionId && (
                 <DropdownMenuItem 
                   onClick={() => openDeleteModal(row.original)}
                   className="text-red-600 focus:text-red-600"

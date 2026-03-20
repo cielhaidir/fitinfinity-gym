@@ -12,6 +12,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { decrementSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
 
 export const trainerSessionRouter = createTRPCRouter({
   // For management to create schedule with trainer selection
@@ -52,14 +53,16 @@ export const trainerSessionRouter = createTRPCRouter({
           });
         }
 
-        // Get the member's subscription with this trainer
+        // Get the member's oldest active subscription with remaining sessions (FIFO)
         const subscription = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
+            deletedAt: null,
+            remainingSessions: { gt: 0 },
           },
           orderBy: {
-            remainingSessions: "desc",
+            startDate: "asc",
           },
           include: {
             package: true,
@@ -69,17 +72,7 @@ export const trainerSessionRouter = createTRPCRouter({
         if (!subscription) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Member does not have a subscription with this trainer",
-          });
-        }
-
-        if (
-          !subscription.remainingSessions ||
-          subscription.remainingSessions <= 0
-        ) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Member tidak memiliki sisa sesi yang tersedia",
+            message: "Member tidak memiliki sisa sesi yang tersedia dengan trainer ini",
           });
         }
 
@@ -110,16 +103,11 @@ export const trainerSessionRouter = createTRPCRouter({
             },
           });
 
-          // Decrement remaining sessions
-          await tx.subscription.update({
-            where: {
-              id: subscription.id,
-            },
-            data: {
-              remainingSessions: {
-                decrement: 1,
-              },
-            },
+          // Decrement remaining sessions using FIFO (oldest active sub first)
+          await decrementSessionFIFO({
+            tx,
+            memberId: input.memberId,
+            trainerId: trainer.id,
           });
 
           return session;
@@ -185,14 +173,16 @@ export const trainerSessionRouter = createTRPCRouter({
 
         console.log("Found trainer:", trainer.id);
 
-        // Get the member's subscription
+        // Get the member's oldest active subscription with remaining sessions (FIFO)
         const subscription = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
+            deletedAt: null,
+            remainingSessions: { gt: 0 },
           },
           orderBy: {
-            remainingSessions: "desc",
+            startDate: "asc",
           },
           include: {
             package: true,
@@ -200,29 +190,19 @@ export const trainerSessionRouter = createTRPCRouter({
         });
 
         if (!subscription) {
-          console.log("No subscription found for member");
+          console.log("No subscription found for member with remaining sessions");
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Member does not have a subscription with this trainer",
+            message: "Member tidak memiliki sisa sesi yang tersedia dengan trainer ini",
           });
         }
 
-        console.log("Found subscription:", {
+        console.log("Found subscription (FIFO oldest):", {
           id: subscription.id,
           remainingSessions: subscription.remainingSessions,
+          startDate: subscription.startDate,
           endDate: subscription.endDate,
         });
-
-        if (
-          !subscription.remainingSessions ||
-          subscription.remainingSessions <= 0
-        ) {
-          console.log("No remaining sessions:", subscription.remainingSessions);
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Member tidak memiliki sisa sesi yang tersedia",
-          });
-        }
 
         // Validate attendance count against package maxUsers for group sessions
         if (input.isGroup && input.attendanceCount && subscription.package?.maxUsers) {
@@ -254,21 +234,16 @@ export const trainerSessionRouter = createTRPCRouter({
 
           console.log("Session created:", session.id);
 
-          // Decrement remaining sessions
-          const updatedSubscription = await tx.subscription.update({
-            where: {
-              id: subscription.id,
-            },
-            data: {
-              remainingSessions: {
-                decrement: 1,
-              },
-            },
+          // Decrement remaining sessions using FIFO (oldest active sub first)
+          const updatedSub = await decrementSessionFIFO({
+            tx,
+            memberId: input.memberId,
+            trainerId: trainer.id,
           });
 
-          console.log("Updated subscription:", {
-            id: updatedSubscription.id,
-            remainingSessions: updatedSubscription.remainingSessions,
+          console.log("Updated subscription (FIFO):", {
+            id: updatedSub.id,
+            remainingSessions: updatedSub.remainingSessions,
           });
 
           return session;
