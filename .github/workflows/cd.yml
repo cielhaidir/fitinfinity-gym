@@ -12,10 +12,11 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Force clean repo
+      - name: git fetch + reset
         run: |
-          rm -rf /development/fitinfinity/.git
-          git clone https://github.com/cielhaidir/fitinfinity-gym.git /development/fitinfinity
+          cd /development/fitinfinity
+          git fetch origin
+          git reset --hard origin/main
 
       - name: Pull latest code
         run: |
