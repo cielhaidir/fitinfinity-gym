@@ -12,10 +12,10 @@ jobs:
     runs-on: self-hosted
 
     steps:
-    - name: Force clean repo
-      run: |
-        rm -rf /development/fitinfinity/.git
-        git clone https://github.com/cielhaidir/fitinfinity-gym.git /development/fitinfinity
+      - name: Force clean repo
+        run: |
+          rm -rf /development/fitinfinity/.git
+          git clone https://github.com/cielhaidir/fitinfinity-gym.git /development/fitinfinity
 
       - name: Pull latest code
         run: |
