@@ -139,10 +139,10 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="Sessions Left" />
       ),
       cell: ({ row }) => {
-            const subscription = row.original.subscriptions.find((sub: any) => sub.trainerId != null && !sub.deletedAt && sub.isActive);
-        const sessionLeft = subscription?.remainingSessions;
+        const activePtSubs = row.original.subscriptions.filter((sub: any) => sub.trainerId != null && !sub.deletedAt && sub.isActive);
+        const sessionLeft = activePtSubs.reduce((total: number, sub: any) => total + (sub.remainingSessions ?? 0), 0);
         return (
-          <div className="w-[150px]">{sessionLeft ?? 0}</div>
+          <div className="w-[150px]">{sessionLeft}</div>
         )
       }
     },
