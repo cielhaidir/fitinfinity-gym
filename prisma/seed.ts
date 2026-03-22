@@ -240,7 +240,22 @@ async function main() {
     { name: "show:membership" },
     { name: "show:attedance" },
     
-    // Inventory & Purchase Reports
+    // Administration Menus
+    { name: "menu:class-attendance" },
+    { name: "menu:package-management" },
+    { name: "menu:personal-trainer-management" },
+
+    // Reports
+    { name: "report:member-attendance" },
+    { name: "report:active-membership" },
+    { name: "report:member-profile" },
+    { name: "report:pt-remaining-sessions" },
+    { name: "report:employees" },
+    { name: "report:class-member-report" },
+    { name: "report:pt" },
+    { name: "report:sales" },
+    { name: "report:commission" },
+    { name: "report:cash-bank" },
     { name: "report:inventory" },
     { name: "report:stock-movement" },
     { name: "report:purchase-order" },
@@ -266,6 +281,9 @@ async function main() {
     { name: "update:purchase-order" },
     { name: "delete:purchase-order" },
     { name: "receive:purchase-order" },
+
+    // System Logs
+    { name: "list:logs" },
 
     // Freeze Price Management (admin-only, separate from subscription permissions)
     { name: "create:freeze-price" },
