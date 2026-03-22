@@ -15,6 +15,24 @@ import { logApiMutation } from "@/server/utils/mutationLogger";
 export async function POST(request: NextRequest) {
   const runStart = Date.now();
 
+  // Helper: extract member & package summary from subscription records
+  const toDetail = (sub: any) => ({
+    subscriptionId: sub.id,
+    memberName: sub.member?.user?.name ?? "Unknown",
+    memberEmail: sub.member?.user?.email ?? "Unknown",
+    packageName: sub.package?.name ?? "Unknown",
+    packageType: sub.package?.type ?? "Unknown",
+    startDate: sub.startDate,
+    endDate: sub.endDate,
+    remainingSessions: sub.remainingSessions,
+  });
+
+  // Shared include for findMany queries
+  const detailInclude = {
+    member: { include: { user: { select: { name: true, email: true } } } },
+    package: { select: { name: true, type: true } },
+  };
+
   try {
     // Verify the request is from a legitimate cron job
     const authHeader = request.headers.get("authorization");
@@ -26,9 +44,16 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const results: Record<string, number> = {};
+    const details: Record<string, any[]> = {};
+
+    // Lookup the system admin user once — used as performedBy for freeze/unfreeze operations
+    const systemAdmin = await db.user.findUnique({
+      where: { email: "admin@fitinfinity.com" },
+      select: { id: true },
+    });
 
     // ── 1. Activate future-dated subscriptions whose startDate has arrived ──
-    const activated = await db.subscription.updateMany({
+    const toActivate = await db.subscription.findMany({
       where: {
         isActive: false,
         deletedAt: null,
@@ -39,24 +64,47 @@ export async function POST(request: NextRequest) {
           { endDate: { gte: now } },
         ],
       },
-      data: { isActive: true },
+      include: detailInclude,
     });
-    results.activated = activated.count;
+
+    if (toActivate.length > 0) {
+      await db.subscription.updateMany({
+        where: { id: { in: toActivate.map((s) => s.id) } },
+        data: { isActive: true },
+      });
+    }
+    results.activated = toActivate.length;
+    details.activated = toActivate.map((s) => ({
+      ...toDetail(s),
+      action: "isActive: false → true",
+    }));
 
     // ── 2. Deactivate expired subscriptions (skip frozen — their time is paused) ──
-    const deactivatedExpired = await db.subscription.updateMany({
+    const toDeactivateExpired = await db.subscription.findMany({
       where: {
         isActive: true,
         isFrozen: false,
         deletedAt: null,
         endDate: { lt: now },
       },
-      data: { isActive: false },
+      include: detailInclude,
     });
-    results.deactivatedExpired = deactivatedExpired.count;
+
+    if (toDeactivateExpired.length > 0) {
+      await db.subscription.updateMany({
+        where: { id: { in: toDeactivateExpired.map((s) => s.id) } },
+        data: { isActive: false },
+      });
+    }
+    results.deactivatedExpired = toDeactivateExpired.length;
+    details.deactivatedExpired = toDeactivateExpired.map((s) => ({
+      ...toDetail(s),
+      action: "isActive: true → false (expired)",
+      expiredAt: s.endDate,
+    }));
 
     // ── 3. Deactivate PT/Group subs with 0 remaining sessions ──
-    const deactivatedNoSessions = await db.subscription.updateMany({
+    const toDeactivateNoSessions = await db.subscription.findMany({
       where: {
         isActive: true,
         deletedAt: null,
@@ -65,12 +113,22 @@ export async function POST(request: NextRequest) {
           type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING"] },
         },
       },
-      data: { isActive: false },
+      include: detailInclude,
     });
-    results.deactivatedNoSessions = deactivatedNoSessions.count;
+
+    if (toDeactivateNoSessions.length > 0) {
+      await db.subscription.updateMany({
+        where: { id: { in: toDeactivateNoSessions.map((s) => s.id) } },
+        data: { isActive: false },
+      });
+    }
+    results.deactivatedNoSessions = toDeactivateNoSessions.length;
+    details.deactivatedNoSessions = toDeactivateNoSessions.map((s) => ({
+      ...toDetail(s),
+      action: "isActive: true → false (0 sessions)",
+    }));
 
     // ── 4. Auto-unfreeze FIXED_DAYS subscriptions when freeze period ends ──
-    // Find frozen subs where frozenAt + freezeDays <= now
     const frozenFixedDaySubs = await db.subscription.findMany({
       where: {
         isFrozen: true,
@@ -79,14 +137,7 @@ export async function POST(request: NextRequest) {
         frozenAt: { not: null },
         freezeDays: { gt: 0 },
       },
-      select: {
-        id: true,
-        frozenAt: true,
-        freezeDays: true,
-        remainingDays: true,
-        endDate: true,
-        memberId: true,
-      },
+      include: detailInclude,
     });
 
     // Filter subs whose freeze period has actually elapsed
@@ -98,14 +149,9 @@ export async function POST(request: NextRequest) {
     });
 
     let autoUnfrozenCount = 0;
+    const autoUnfreezeDetails: any[] = [];
 
     if (subsToUnfreeze.length > 0) {
-      // Lookup admin user + unfreezePrice once (outside loop)
-      const adminUser = await db.user.findFirst({
-        where: { roles: { some: { name: "Admin" } } },
-        select: { id: true },
-      });
-
       let unfreezePrice = await db.freezePrice.findFirst({
         where: { freezeDays: 0, price: 0 },
       });
@@ -116,7 +162,6 @@ export async function POST(request: NextRequest) {
       }
 
       for (const sub of subsToUnfreeze) {
-        // Calculate new endDate = now + remainingDays
         const remainingDays = sub.remainingDays ?? 0;
         const newEndDate = new Date(now);
         newEndDate.setDate(newEndDate.getDate() + remainingDays);
@@ -135,8 +180,7 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Create UNFREEZE operation for audit trail
-        if (adminUser) {
+        if (systemAdmin) {
           await db.freezeOperation.create({
             data: {
               subscriptionId: sub.id,
@@ -145,30 +189,78 @@ export async function POST(request: NextRequest) {
               freezePriceId: unfreezePrice.id,
               price: 0,
               freezeDays: 0,
-              performedById: adminUser.id,
+              performedById: systemAdmin.id,
             },
           });
         }
 
         autoUnfrozenCount++;
-        console.log(
-          `[CRON] Auto-unfroze subscription ${sub.id} (FIXED_DAYS expired). New endDate: ${newEndDate.toISOString()}`,
-        );
+        autoUnfreezeDetails.push({
+          ...toDetail(sub),
+          action: "isFrozen: true → false (FIXED_DAYS expired)",
+          performedBy: "admin@fitinfinity.com",
+          frozenAt: sub.frozenAt,
+          freezeDays: sub.freezeDays,
+          remainingDays,
+          newEndDate: newEndDate.toISOString(),
+        });
       }
     }
     results.autoUnfrozen = autoUnfrozenCount;
+    details.autoUnfrozen = autoUnfreezeDetails;
 
     // ── 5. Activate scheduled future freezes whose frozenAt has arrived ──
-    const scheduledFreezes = await db.subscription.updateMany({
+    const toActivateFreezes = await db.subscription.findMany({
       where: {
         isFrozen: false,
         deletedAt: null,
         frozenAt: { lte: now, not: null },
         freezeMode: { not: null },
       },
-      data: { isFrozen: true },
+      include: detailInclude,
     });
-    results.scheduledFreezesActivated = scheduledFreezes.count;
+
+    if (toActivateFreezes.length > 0) {
+      await db.subscription.updateMany({
+        where: { id: { in: toActivateFreezes.map((s) => s.id) } },
+        data: { isFrozen: true },
+      });
+
+      // Create FREEZE operation records for audit trail
+      if (systemAdmin) {
+        let freezePrice = await db.freezePrice.findFirst({
+          where: { isActive: true },
+          orderBy: { price: "asc" },
+        });
+        if (!freezePrice) {
+          freezePrice = await db.freezePrice.findFirst();
+        }
+
+        if (freezePrice) {
+          for (const sub of toActivateFreezes) {
+            await db.freezeOperation.create({
+              data: {
+                subscriptionId: sub.id,
+                memberId: sub.memberId,
+                operationType: "FREEZE",
+                freezePriceId: freezePrice.id,
+                price: 0,
+                freezeDays: sub.freezeDays ?? 0,
+                performedById: systemAdmin.id,
+              },
+            });
+          }
+        }
+      }
+    }
+    results.scheduledFreezesActivated = toActivateFreezes.length;
+    details.scheduledFreezesActivated = toActivateFreezes.map((s) => ({
+      ...toDetail(s),
+      action: "isFrozen: false → true (scheduled freeze)",
+      performedBy: "admin@fitinfinity.com",
+      frozenAt: s.frozenAt,
+      freezeMode: s.freezeMode,
+    }));
 
     // ── Summary ──
     const duration = Date.now() - runStart;
@@ -177,18 +269,19 @@ export async function POST(request: NextRequest) {
       timestamp: now.toISOString(),
       durationMs: duration,
       results,
+      details,
     };
 
     console.log(`[CRON] Subscription management completed in ${duration}ms:`, results);
 
-    // Persist to Logs table for audit trail
+    // Persist full details to Logs table for audit trail
     await logApiMutation({
       db,
       endpoint: "cron.subscriptionManagement",
       method: "POST",
-      userId: null,
+      userId: systemAdmin?.id ?? null,
       requestData: { trigger: "scheduled", schedule: "every 6 hours" },
-      responseData: results,
+      responseData: { results, details },
       success: true,
       duration,
     });
@@ -208,7 +301,7 @@ export async function POST(request: NextRequest) {
       success: false,
       errorMessage: error instanceof Error ? error.message : "Unknown error",
       duration,
-    }).catch(() => {}); // Don't let logging failure mask the original error
+    }).catch(() => {});
 
     return NextResponse.json(
       {

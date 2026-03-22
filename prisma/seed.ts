@@ -505,7 +505,7 @@ async function main() {
       create: { name: role.name },
     });
 
-    // Assign permissions to role
+    // Assign permissions to role (upsert ensures new permissions are always added)
     for (const permissionName of role.permissions) {
       const permission = await prisma.permission.findUnique({
         where: { name: permissionName },
@@ -525,6 +525,8 @@ async function main() {
             permissionId: permission.id,
           },
         });
+      } else {
+        console.warn(`⚠️ Permission "${permissionName}" not found for role "${role.name}"`);
       }
     }
   }
