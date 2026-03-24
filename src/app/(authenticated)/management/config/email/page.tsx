@@ -95,7 +95,7 @@ export default function EmailConfigPage() {
   const { data: templates, isLoading: isLoadingTemplates } =
     api.email.listTemplates.useQuery();
   return (
-       <ProtectedRoute requiredPermissions={["menu:configs"]}>
+       <ProtectedRoute requiredPermissions={["menu:config"]}>
     <div className="container mx-auto space-y-4 py-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Email Configuration</h1>

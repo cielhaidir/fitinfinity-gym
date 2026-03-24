@@ -100,7 +100,7 @@ export default function ConfigIndexPage() {
     configs?.filter((config) => config.category !== "site") ?? [];
 
   return (
-    <ProtectedRoute requiredPermissions={["menu:configs"]}>
+    <ProtectedRoute requiredPermissions={["menu:config"]}>
       <div className="container mx-auto py-6">
         <Card>
           <CardHeader>
