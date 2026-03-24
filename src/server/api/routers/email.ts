@@ -452,6 +452,9 @@ export const emailRouter = createTRPCRouter({
         const resetUrl = `${input.resetBaseUrl}?token=${resetToken}`;
 
         try {
+          console.log("[RESET PASSWORD] Sending email to:", user.email);
+          console.log("[RESET PASSWORD] Using template:", template.id, template.name);
+          
           await emailService.sendTemplateEmail({
             to: user.email ?? '',
             templateId: template.id,
@@ -468,14 +471,16 @@ export const emailRouter = createTRPCRouter({
             },
           });
 
+          console.log("[RESET PASSWORD] Email sent successfully to:", user.email);
           result = { success: true };
           success = true;
           return result;
         } catch (sendError) {
-          console.error("Failed to send password reset email:", sendError);
+          const errMsg = sendError instanceof Error ? sendError.message : String(sendError);
+          console.error("[RESET PASSWORD] Failed to send email:", errMsg, sendError);
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to send password reset email",
+            message: `Failed to send password reset email: ${errMsg}`,
           });
         }
       } catch (err) {

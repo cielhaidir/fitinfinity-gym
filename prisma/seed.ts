@@ -566,6 +566,52 @@ async function main() {
     },
   });
 
+  // Seed email templates
+  console.log("🌱 Seeding email templates...");
+  const passwordResetHtml = [
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>',
+    '<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,sans-serif;">',
+    '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">',
+    '<tr><td style="background:#1a1a1a;padding:30px;text-align:center;">',
+    '<img src="{{logoUrl}}" alt="FitInfinity" style="height:40px;" />',
+    '</td></tr>',
+    '<tr><td style="padding:40px 30px;">',
+    '<h1 style="color:#1a1a1a;font-size:24px;margin:0 0 20px;">Reset Your Password</h1>',
+    '<p style="color:#555;font-size:16px;line-height:1.6;">Hi {{name}},</p>',
+    '<p style="color:#555;font-size:16px;line-height:1.6;">We received a request to reset your password. Click the button below to set a new password:</p>',
+    '<div style="text-align:center;margin:30px 0;">',
+    '<a href="{{resetUrl}}" style="background:#BAD45E;color:#1a1a1a;padding:14px 40px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">Reset Password</a>',
+    '</div>',
+    '<p style="color:#555;font-size:14px;line-height:1.6;">This link will expire in <strong>{{expiryTime}} hours</strong>.</p>',
+    '<p style="color:#555;font-size:14px;line-height:1.6;">If you did not request a password reset, please ignore this email.</p>',
+    '<hr style="border:none;border-top:1px solid #eee;margin:30px 0;" />',
+    '<p style="color:#999;font-size:12px;">If the button above does not work, copy and paste this URL into your browser:</p>',
+    '<p style="color:#BAD45E;font-size:12px;word-break:break-all;">{{resetUrl}}</p>',
+    '</td></tr>',
+    '<tr><td style="background:#1a1a1a;padding:20px 30px;text-align:center;">',
+    '<p style="color:#888;font-size:12px;margin:0;">&copy; {{currentYear}} FitInfinity. All rights reserved.</p>',
+    '<p style="color:#888;font-size:12px;margin:5px 0 0;">{{address}}</p>',
+    '</td></tr></table></body></html>',
+  ].join('\n');
+
+  await prisma.emailTemplate.upsert({
+    where: { name: "Password Reset" },
+    update: {
+      htmlContent: passwordResetHtml,
+      subject: "Reset Your Password - FitInfinity",
+    },
+    create: {
+      name: "Password Reset",
+      type: "PASSWORD_RESET",
+      subject: "Reset Your Password - FitInfinity",
+      htmlContent: passwordResetHtml,
+      textContent: "Hi {{name}}, click this link to reset your password: {{resetUrl}} - This link expires in {{expiryTime}} hours.",
+      variables: ["name", "resetUrl", "email", "expiryTime", "supportEmail", "supportPhone", "logoUrl", "currentYear", "address"],
+      isActive: true,
+    },
+  });
+  console.log("✅ Email templates seeded!");
+
   console.log("✅ Seeding completed!");
   console.log("👤 Admin user created:");
   console.log("Email: admin@fitinfinity.com");
