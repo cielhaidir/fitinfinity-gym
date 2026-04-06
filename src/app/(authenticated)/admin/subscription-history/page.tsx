@@ -874,10 +874,12 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Sales
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleEditDates(row.original)}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Edit Dates
-                </DropdownMenuItem>
+                {hasPermission("edit:subscription-advanced") && (
+                  <DropdownMenuItem onClick={() => handleEditDates(row.original)}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Edit Dates
+                  </DropdownMenuItem>
+                )}
                 {isActive && (
                   <DropdownMenuItem onClick={() => handleTransferSubscription(row.original)}>
                     <ArrowRightLeft className="mr-2 h-4 w-4" />
@@ -890,13 +892,13 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                     Upgrade
                    </DropdownMenuItem>
                  )}
-                 {(row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
+                 {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
                    <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
                      <UserCheck className="mr-2 h-4 w-4" />
                      Edit Personal Trainer
                    </DropdownMenuItem>
                  )}
-                 {(row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
+                 {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
                    <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
                      <Clock className="mr-2 h-4 w-4" />
                      Edit Remaining Sessions

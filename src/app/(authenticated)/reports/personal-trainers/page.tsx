@@ -144,7 +144,7 @@ export default function PersonalTrainerReportPage() {
         "Trainer Name": item.trainerName,
         "Trainer Email": item.trainerEmail,
         "Total Hours": item.totalHours,
-        "Total Sessions": item.sessionCount,
+        "Total Sessions ": item.sessionCount,
       }));
       
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
@@ -197,7 +197,7 @@ export default function PersonalTrainerReportPage() {
       { "Metric": "Generated At", "Value": format(new Date(), "PPP p") },
       { "Metric": "Selected Trainer", "Value": selectedTrainer === "all" ? "All Trainers" : trainers?.find(t => t.id === selectedTrainer)?.user.name || "Unknown" },
       { "Metric": "Total Trainers", "Value": displayData.summary.length.toString() },
-      { "Metric": "Total Sessions", "Value": displayData.totalSessions.toString() },
+      { "Metric": "Total Sessions / Hour", "Value": displayData.totalSessions.toString() },
     ];
 
     const infoWorksheet = XLSX.utils.json_to_sheet(reportInfo);
@@ -327,7 +327,7 @@ export default function PersonalTrainerReportPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Sessions / Hour</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -375,7 +375,7 @@ export default function PersonalTrainerReportPage() {
                     <th className="text-left py-2">Trainer Name</th>
                     <th className="text-left py-2">Email</th>
                     <th className="text-right py-2">Total Hours</th>
-                    <th className="text-right py-2">Total Sessions</th>
+                    <th className="text-right py-2">Total Sessions / Hour</th>
                   </tr>
                 </thead>
                 <tbody>

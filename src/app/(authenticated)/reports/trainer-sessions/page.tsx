@@ -148,7 +148,7 @@ export default function TrainerSessionsReportPage() {
       { "Metric": "Generated At", "Value": format(new Date(), "PPP p") },
       { "Metric": "Selected Trainer", "Value": selectedTrainer === "all" ? "All Trainers" : trainers?.find(t => t.id === selectedTrainer)?.user.name || "Unknown" },
       { "Metric": "Selected Member", "Value": selectedMemberLabel },
-      { "Metric": "Total Sessions", "Value": reportData.totalSessions.toString() },
+      { "Metric": "Total Sessions / Hour", "Value": reportData.totalSessions.toString() },
       { "Metric": "Total Hours", "Value": reportData.totalHours.toFixed(2) },
     ];
 
@@ -279,7 +279,7 @@ export default function TrainerSessionsReportPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Sessions / Hour</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -393,7 +393,7 @@ export default function TrainerSessionsReportPage() {
             <div className="flex justify-between items-center">
               <div className="flex gap-8">
                 <div>
-                  <span className="text-sm text-muted-foreground">Total Sessions: </span>
+                  <span className="text-sm text-muted-foreground">Total Sessions / Hour: </span>
                   <span className="font-bold text-lg">{reportData?.totalSessions || 0}</span>
                 </div>
                 <div>

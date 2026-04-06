@@ -77,7 +77,15 @@ export default function UserPage() {
           roleIds: userData.roleIds,
         });
       } else {
-        await createUserMutation.mutateAsync(userData);
+        await createUserMutation.mutateAsync({
+          name: userData.name,
+          email: userData.email,
+          password: userData.password,
+          address: userData.address,
+          phone: userData.phone,
+          birthDate: userData.birthDate ? new Date(userData.birthDate) : undefined,
+          fcId: userData.fcId ?? null,
+        });
       }
       setIsSheetOpen(false);
       setIsEditMode(false);

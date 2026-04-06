@@ -285,6 +285,9 @@ async function main() {
     // System Logs
     { name: "list:logs" },
 
+    // Advanced subscription editing (admin-only)
+    { name: "edit:subscription-advanced" },
+
     // Freeze Price Management (admin-only, separate from subscription permissions)
     { name: "create:freeze-price" },
     { name: "update:freeze-price" },
@@ -469,48 +472,90 @@ async function main() {
     {
       name: "Customer Service",
       permissions: [
+        // Basic profile
         "show:user",
         "show:profile",
         "update:profile",
 
+        // Dashboard & navigation
         "menu:dashboard-admin",
-        "menu:payment",
         "menu:member",
+        "menu:subscription",
+        "menu:payment",
+        "menu:transaction",
         "menu:reward",
         "menu:pos-sale",
         "menu:pos-category",
         "menu:pos-item",
+        "menu:class-attendance",
 
+        // Member management (read + update)
         "list:member",
         "show:member",
         "update:member",
+        "show:membership",
+        "show:attedance",
 
-        "list:employees",
+        // Subscription (create, read, update — date edit & PT transfer restricted at UI level)
+        "create:subscription",
         "list:subscription",
+        "show:subscription",
+        "update:subscription",
 
+        // Freeze (uses update:subscription) + freeze price lookup
+        "list:freeze-price",
+        "show:freeze-price",
+
+        // POS (create, read, update)
         "list:pos-item",
         "show:pos-item",
         "create:pos-item",
         "update:pos-item",
-        "delete:pos-item",
-
         "list:pos-category",
         "show:pos-category",
         "create:pos-category",
         "update:pos-category",
-        "delete:pos-category",
-
         "list:pos-sale",
         "show:pos-sale",
         "create:pos-sale",
         "update:pos-sale",
-        "delete:pos-sale",
 
-        "list:balances",
-        "list:trainers",
+        // Class registration & attendance (create, read, update)
+        "list:classes",
+        "create:class-registration",
+        "create:classes",
+        "update:classes",
+
+        // Payment (read)
         "list:payment",
+        "show:payment",
+        "accept:payment",
+        "decline:payment",
+
+        // Supporting data (read only)
+        "list:trainers",
+        "show:trainers",
+        "list:packages",
+        "show:packages",
+        "list:balances",
         "list:reward",
-        
+        "list:voucher",
+        "list:employees",
+
+        // All reports (read only)
+        "report:member-attendance",
+        "report:active-membership",
+        "report:member-profile",
+        "report:pt-remaining-sessions",
+        "report:employees",
+        "report:class-member-report",
+        "report:pt",
+        "report:sales",
+        "report:commission",
+        "report:cash-bank",
+        "report:inventory",
+        "report:stock-movement",
+        "report:purchase-order",
       ],
     },
   ];
