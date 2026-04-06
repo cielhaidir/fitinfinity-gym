@@ -327,6 +327,7 @@ export default function SubscriptionHistoryPage() {
         const packageName = row.original.package?.name;
         const trainerName = row.original.trainer?.user?.name;
         const subsType = row.original.subsType;
+        const bonusSessions = row.original.package?.bonusSessions ?? 0;
         return (
           <div className="flex flex-col">
             <span className="font-medium">{packageName || "N/A"}</span>
@@ -335,9 +336,17 @@ export default function SubscriptionHistoryPage() {
                 Trainer: {trainerName}
               </span>
             )}
-            <Badge variant="outline" className="mt-1 w-fit">
-              {subsType === "gym" ? "Gym Membership" : "Personal Trainer"}
-            </Badge>
+            <div className="mt-1 flex flex-wrap gap-1">
+              <Badge variant="outline" className="w-fit">
+                {subsType === "gym" ? "Gym Membership" : "Personal Trainer"}
+              </Badge>
+              {subsType !== "gym" && bonusSessions > 0 && (
+                <Badge className="w-fit bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                  <Gift className="mr-1 h-3 w-3" />
+                  {bonusSessions} Bonus
+                </Badge>
+              )}
+            </div>
           </div>
         );
       },

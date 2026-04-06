@@ -106,24 +106,25 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
   const [editTrainerDialogOpen, setEditTrainerDialogOpen] = useState(false);
   const [selectedSubscriptionForTrainer, setSelectedSubscriptionForTrainer] = useState<any>(null);
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
-  
+
   // Edit Remaining Sessions functionality state
   const [editSessionsDialogOpen, setEditSessionsDialogOpen] = useState(false);
   const [selectedSubscriptionForSessions, setSelectedSubscriptionForSessions] = useState<any>(null);
   const [editRemainingSessions, setEditRemainingSessions] = useState<number>(0);
-  
+  const [editRemainingBonusSessions, setEditRemainingBonusSessions] = useState<number>(0);
+
   // Freeze Info functionality state
   const [freezeInfoDialogOpen, setFreezeInfoDialogOpen] = useState(false);
   const [selectedSubscriptionForFreezeInfo, setSelectedSubscriptionForFreezeInfo] = useState<any>(null);
-  
+
   // Delete functionality state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedSubscriptionForDelete, setSelectedSubscriptionForDelete] = useState<any>(null);
-  
+
   // Transfer History pagination state
   const [transferPage, setTransferPage] = useState(1);
   const [transferLimit, setTransferLimit] = useState(10);
-  
+
   const { toast } = useToast();
   const { hasPermission } = useRBAC();
 
@@ -133,13 +134,13 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     // Parse the date string as if it's in GMT+8
     const [year, month, day] = dateString.split('-').map(Number);
     if (!year || !month || !day) return undefined;
-    
+
     // Create date in GMT+8 timezone using UTC methods to avoid local timezone issues
     // Feb 1 00:00 GMT+8 = Jan 31 16:00 UTC
     const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
     // Subtract 8 hours to convert from GMT+8 to UTC
     utcDate.setUTCHours(utcDate.getUTCHours() - 8);
-    
+
     console.log(`[convertToGMT8Date] Input: ${dateString}, Output: ${utcDate.toISOString()}`);
     return utcDate;
   };
@@ -149,13 +150,13 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     // Parse the date string as if it's in GMT+8
     const [year, month, day] = dateString.split('-').map(Number);
     if (!year || !month || !day) return undefined;
-    
+
     // Create end of day in GMT+8 timezone using UTC methods
     // Feb 2 23:59:59.999 GMT+8 = Feb 2 15:59:59.999 UTC
     const utcDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
     // Subtract 8 hours to convert from GMT+8 to UTC
     utcDate.setUTCHours(utcDate.getUTCHours() - 8);
-    
+
     console.log(`[convertToGMT8EndDate] Input: ${dateString}, Output: ${utcDate.toISOString()}`);
     return utcDate;
   };
@@ -225,13 +226,14 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
 
   // Query for getting personal trainers for edit trainer functionality
   const { data: personalTrainers = [] } = api.personalTrainer.getActiveTrainers.useQuery();
-  
+
   // Query for getting transfer price from config
   const { data: configs = [] } = api.config.getAll.useQuery(undefined, {
     enabled: !!session,
   });
   const transferPriceConfig = configs.find((c) => c.key === "transfer_price");
   const configTransferPrice = transferPriceConfig ? parseFloat(transferPriceConfig.value) : 0;
+
   // Debounce user search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -383,6 +385,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       setEditSessionsDialogOpen(false);
       setSelectedSubscriptionForSessions(null);
       setEditRemainingSessions(0);
+      setEditRemainingBonusSessions(0);
       refetch();
     },
     onError: (error) => {
@@ -399,8 +402,8 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     if (!salesId || !salesType || !salesList) {
       return "Not assigned";
     }
-    
-    const salesperson = salesList.find(s => s.id === salesId);
+
+    const salesperson = salesList.find((s) => s.id === salesId);
     return salesperson ? salesperson.name : "Unknown";
   };
 
@@ -596,6 +599,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
   const handleEditSessions = (subscription: any) => {
     setSelectedSubscriptionForSessions(subscription);
     setEditRemainingSessions(subscription.remainingSessions || 0);
+    setEditRemainingBonusSessions(subscription.remainingBonusSessions || 0);
     setEditSessionsDialogOpen(true);
   };
 
@@ -615,6 +619,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       await updateRemainingSessionsMutation.mutateAsync({
         subscriptionId: selectedSubscriptionForSessions.id,
         remainingSessions: editRemainingSessions,
+        remainingBonusSessions: editRemainingBonusSessions,
       });
     } catch (error) {
       console.error("Failed to update remaining sessions:", error);
@@ -625,6 +630,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     setEditSessionsDialogOpen(false);
     setSelectedSubscriptionForSessions(null);
     setEditRemainingSessions(0);
+    setEditRemainingBonusSessions(0);
   };
 
   // Freeze Info functionality handlers
@@ -722,9 +728,13 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       ),
       cell: ({ row }) => {
         const remaining = row.original.remainingSessions;
+        const remainingBonus = row.original.remainingBonusSessions ?? 0;
         return (
-          <div className="text-center min-w-[70px]">
+          <div className="text-center min-w-[80px]">
             <span className="font-medium">{remaining ?? "N/A"}</span>
+            {remainingBonus > 0 && (
+              <div className="text-xs text-green-600 font-medium">🎁 +{remainingBonus} bonus</div>
+            )}
           </div>
         );
       },
@@ -1856,6 +1866,22 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                 />
                 <div className="text-xs text-muted-foreground">
                   Current remaining sessions: {selectedSubscriptionForSessions?.remainingSessions ?? "N/A"}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="remainingBonusSessions" className="text-sm font-medium">
+                  🎁 Remaining Bonus Sessions
+                </Label>
+                <Input
+                  id="remainingBonusSessions"
+                  type="number"
+                  min="0"
+                  value={editRemainingBonusSessions}
+                  onChange={(e) => setEditRemainingBonusSessions(parseInt(e.target.value) || 0)}
+                  className="w-full"
+                />
+                <div className="text-xs text-muted-foreground">
+                  Current remaining bonus sessions: {selectedSubscriptionForSessions?.remainingBonusSessions ?? 0}
                 </div>
               </div>
             </div>

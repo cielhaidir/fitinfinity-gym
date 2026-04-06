@@ -41,6 +41,7 @@ interface Member {
   name: string;
   membershipId: string;
   remainingSessions: number;
+  remainingBonusSessions: number;
   type: "individual" | "group";
   groupId?: string;
 }
@@ -93,6 +94,7 @@ export default function AppointmentForm({
             name: member.name,
             membershipId: member.membershipId,
             remainingSessions: member.remainingSessions,
+            remainingBonusSessions: (member as any).remainingBonusSessions ?? 0,
             type: member.type,
             groupId: member.groupId,
           });
@@ -108,6 +110,7 @@ export default function AppointmentForm({
               combined: existingMember.remainingSessions + member.remainingSessions
             });
             existingMember.remainingSessions += member.remainingSessions;
+            existingMember.remainingBonusSessions += (member as any).remainingBonusSessions ?? 0;
           } else {
             // If member doesn't exist, add new entry
             memberMap.set(member.name, {
@@ -115,6 +118,7 @@ export default function AppointmentForm({
               name: member.name,
               membershipId: member.membershipId,
               remainingSessions: member.remainingSessions,
+              remainingBonusSessions: (member as any).remainingBonusSessions ?? 0,
               type: member.type,
               groupId: member.groupId,
             });
@@ -347,7 +351,9 @@ export default function AppointmentForm({
             ) : (
               combinedMembers.map((member) => {
                 const stableValue = `${member.type}:${member.id}`;
-                const isDisabled = member.remainingSessions <= 0;
+                const bonusSessions = (member as any).remainingBonusSessions ?? 0;
+                const isDisabled = member.remainingSessions <= 0 && bonusSessions <= 0;
+                const bonusPart = bonusSessions > 0 ? ` + 🎁${bonusSessions} bonus` : "";
                 
                 return (
                   <SelectItem
@@ -359,7 +365,7 @@ export default function AppointmentForm({
                   >
                     <span className="notranslate" translate="no">
                       {member.type === "group" ? "🏃‍♂️ " : "👤 "}
-                      {member.name} ({member.remainingSessions} sesi tersisa)
+                      {member.name} ({member.remainingSessions} sesi tersisa{bonusPart})
                       {isDisabled && " - Tidak tersedia"}
                     </span>
                   </SelectItem>

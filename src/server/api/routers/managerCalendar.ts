@@ -441,33 +441,38 @@ export const managerCalendarRouter = createTRPCRouter({
           });
         }
 
-        // Find the subscription for this member with the same trainer
-        // This ensures we increment the correct PT subscription quota
-        const subscription = await db.subscription.findFirst({
-          where: {
-            memberId: session.memberId,
-            trainerId: session.trainerId,
-          },
-          orderBy: {
-            remainingSessions: "desc",
-          },
-        });
+        // Determine which subscription + counter to restore
+        // Prefer the stored subscriptionId on the session for accuracy
+        const targetSubId = session.subscriptionId ?? null;
+        let subscriptionId: string;
 
-        if (!subscription) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Subscription PT tidak ditemukan untuk member dan trainer ini",
+        if (targetSubId) {
+          subscriptionId = targetSubId;
+        } else {
+          // Fallback: find subscription by member + trainer
+          const subscription = await db.subscription.findFirst({
+            where: {
+              memberId: session.memberId,
+              trainerId: session.trainerId,
+            },
+            orderBy: { remainingSessions: "desc" },
           });
+
+          if (!subscription) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Subscription PT tidak ditemukan untuk member dan trainer ini",
+            });
+          }
+          subscriptionId = subscription.id;
         }
 
-        // Increment remaining sessions
+        // Restore to paid or bonus counter based on isBonusSession flag
         await db.subscription.update({
-          where: { id: subscription.id },
-          data: {
-            remainingSessions: {
-              increment: 1,
-            },
-          },
+          where: { id: subscriptionId },
+          data: session.isBonusSession
+            ? { remainingBonusSessions: { increment: 1 } }
+            : { remainingSessions: { increment: 1 } },
         });
 
         // Delete the trainer session

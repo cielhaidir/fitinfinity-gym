@@ -303,7 +303,34 @@ export const personalTrainerRouter = createTRPCRouter({
         }
 
         result = await ctx.db.$transaction(async (tx) => {
-          // Create the trainer session
+          let isBonusSession = false;
+          let fifoSubscriptionId: string | undefined;
+
+          // If it's a group session, decrease from lead subscription
+          if (input.isGroup && input.groupId) {
+            const groupSubscription = await tx.groupSubscription.findFirst({
+              where: { id: input.groupId },
+              include: { leadSubscription: true },
+            });
+
+            if (groupSubscription) {
+              await tx.subscription.update({
+                where: { id: groupSubscription.leadSubscriptionId },
+                data: { remainingSessions: { decrement: 1 } },
+              });
+              fifoSubscriptionId = groupSubscription.leadSubscriptionId;
+            }
+          } else {
+            // For individual sessions, use FIFO (expiry-first, paid before bonus)
+            const fifoResult = await decrementSessionFIFO({
+              tx,
+              memberId: input.memberId,
+              trainerId: trainer.id,
+            });
+            isBonusSession = fifoResult.isBonusSession;
+            fifoSubscriptionId = fifoResult.id;
+          }
+
           const session = await tx.trainerSession.create({
             data: {
               trainerId: trainer.id,
@@ -312,43 +339,10 @@ export const personalTrainerRouter = createTRPCRouter({
               startTime: input.startTime,
               endTime: input.endTime,
               description: input.description,
+              isBonusSession,
+              subscriptionId: fifoSubscriptionId,
             },
           });
-
-          // If it's a group session, we need to decrease the remaining sessions
-          // from the lead subscription
-          if (input.isGroup && input.groupId) {
-            const groupSubscription = await tx.groupSubscription.findFirst({
-              where: {
-                id: input.groupId,
-              },
-              include: {
-                leadSubscription: true,
-              },
-            });
-
-            if (groupSubscription) {
-              // Decrease remaining sessions from the lead subscription
-              await tx.subscription.update({
-                where: {
-                  id: groupSubscription.leadSubscriptionId,
-                },
-                data: {
-                  remainingSessions: {
-                    decrement: 1,
-                  },
-                },
-              });
-            }
-          } else {
-            // For individual sessions, decrease remaining sessions using FIFO
-            // (oldest active subscription with remaining sessions > 0 gets decremented first)
-            await decrementSessionFIFO({
-              tx,
-              memberId: input.memberId,
-              trainerId: trainer.id,
-            });
-          }
 
           return session;
         });
@@ -388,9 +382,10 @@ export const personalTrainerRouter = createTRPCRouter({
           trainerId: input.trainerId,
           isActive: true,
           deletedAt: null,
-          remainingSessions: {
-            gt: 0,
-          },
+          OR: [
+            { remainingSessions: { gt: 0 } },
+            { remainingBonusSessions: { gt: 0 } },
+          ],
           leadGroupSubscriptions: {
             none: {
               status: "ACTIVE",
@@ -429,9 +424,10 @@ export const personalTrainerRouter = createTRPCRouter({
         where: {
           leadSubscription: {
             trainerId: input.trainerId,
-            remainingSessions: {
-              gt: 0,
-            },
+            OR: [
+              { remainingSessions: { gt: 0 } },
+              { remainingBonusSessions: { gt: 0 } },
+            ],
           },
           status: "ACTIVE",
         },
@@ -475,6 +471,7 @@ export const personalTrainerRouter = createTRPCRouter({
         weight: subscription.member.user.weight ?? null,
         birthDate: subscription.member.user.birthDate?.toISOString() ?? null,
         remainingSessions: subscription.remainingSessions || 0,
+        remainingBonusSessions: subscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: subscription.endDate?.toISOString() || "",
         type: "individual" as const,
       }));
@@ -490,6 +487,7 @@ export const personalTrainerRouter = createTRPCRouter({
         weight: null,
         birthDate: null,
         remainingSessions: groupSubscription.leadSubscription.remainingSessions || 0,
+        remainingBonusSessions: groupSubscription.leadSubscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
         type: "group" as const,
         groupId: groupSubscription.id,
@@ -525,9 +523,10 @@ export const personalTrainerRouter = createTRPCRouter({
           trainerId: personalTrainer.id,
           isActive: true,
           deletedAt: null,
-          remainingSessions: {
-            gt: 0,
-          },
+          OR: [
+            { remainingSessions: { gt: 0 } },
+            { remainingBonusSessions: { gt: 0 } },
+          ],
           leadGroupSubscriptions: {
             none: {
               status: "ACTIVE",
@@ -566,9 +565,10 @@ export const personalTrainerRouter = createTRPCRouter({
         where: {
           leadSubscription: {
             trainerId: personalTrainer.id,
-            remainingSessions: {
-              gt: 0,
-            },
+            OR: [
+              { remainingSessions: { gt: 0 } },
+              { remainingBonusSessions: { gt: 0 } },
+            ],
           },
           status: "ACTIVE",
         },
@@ -631,6 +631,7 @@ export const personalTrainerRouter = createTRPCRouter({
         weight: subscription.member.user.weight ?? null,
         birthDate: subscription.member.user.birthDate?.toISOString() ?? null,
         remainingSessions: subscription.remainingSessions || 0,
+        remainingBonusSessions: subscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: subscription.endDate?.toISOString() || "",
         type: "individual",
       }));
@@ -646,6 +647,7 @@ export const personalTrainerRouter = createTRPCRouter({
         weight: null,
         birthDate: null,
         remainingSessions: groupSubscription.leadSubscription.remainingSessions || 0,
+        remainingBonusSessions: groupSubscription.leadSubscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
         type: "group",
         groupId: groupSubscription.id,

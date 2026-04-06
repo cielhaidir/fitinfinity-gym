@@ -43,6 +43,7 @@ export const memberCalendarRouter = createTRPCRouter({
           description: true,
           exerciseResult: true,
           status: true,
+          isBonusSession: true,
           trainer: {
             select: {
               user: {

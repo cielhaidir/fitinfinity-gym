@@ -19,6 +19,7 @@ import {
   ChevronRight,
   LogIn,
   LogOut,
+  Gift,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeID } from "date-fns/locale";
@@ -38,6 +39,22 @@ export default function TrainingHistoryPage() {
     api.memberCalendar.getAll.useQuery(undefined, {
       enabled: !!session?.user,
     });
+
+  // Get membership for active package query
+  const { data: membership } = api.member.getMembership.useQuery(undefined, {
+    enabled: !!session?.user?.id,
+  });
+
+  // Active PT subscriptions (for remaining bonus sessions)
+  const { data: activePackages } = api.memberUc.getActivePackage.useQuery(
+    { memberId: membership?.id ?? "" },
+    { enabled: !!membership?.id },
+  );
+
+  const activePtSub = activePackages?.find(
+    (s) => s.package.type === "PERSONAL_TRAINER",
+  );
+  const remainingBonusSessions = (activePtSub as any)?.remainingBonusSessions ?? 0;
 
   // Gym check-in data
   const { data: checkinData, isLoading: checkinLoading } =
@@ -68,6 +85,7 @@ export default function TrainingHistoryPage() {
   const totalPtSessions = ptSessions?.length ?? 0;
   const completedPtSessions =
     ptSessions?.filter((s) => s.status === "ENDED").length ?? 0;
+  const totalBonusSessions = ptSessions?.filter((s) => (s as any).isBonusSession).length ?? 0;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -130,7 +148,7 @@ export default function TrainingHistoryPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="mb-6 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3 sm:mb-8">
+        <div className="mb-6 grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4 sm:mb-8">
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -178,6 +196,23 @@ export default function TrainingHistoryPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Jadwal yang akan datang
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-yellow-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Sisa Sesi Bonus
+              </CardTitle>
+              <Gift className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold sm:text-2xl text-yellow-600">
+                {remainingBonusSessions}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {totalBonusSessions} sesi bonus digunakan
               </p>
             </CardContent>
           </Card>
@@ -395,7 +430,14 @@ export default function TrainingHistoryPage() {
                             )}
                           </div>
                         </div>
-                        <div>{getStatusBadge(s.status)}</div>
+                        <div className="flex flex-col items-end gap-1">
+                          {getStatusBadge(s.status)}
+                          {(s as any).isBonusSession && (
+                            <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs">
+                              <Gift className="mr-1 h-3 w-3" /> Bonus
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </CardContent>
@@ -459,7 +501,14 @@ export default function TrainingHistoryPage() {
                               )}
                             </div>
                           </div>
-                          <div>{getStatusBadge(s.status)}</div>
+                          <div className="flex flex-col items-end gap-1">
+                            {getStatusBadge(s.status)}
+                            {(s as any).isBonusSession && (
+                              <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs">
+                                <Gift className="mr-1 h-3 w-3" /> Bonus
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

@@ -28,6 +28,7 @@ interface Member {
   name: string;
   membershipId: string;
   remainingSessions: number;
+  remainingBonusSessions: number;
   type: "individual" | "group";
   groupId?: string;
 }
@@ -76,6 +77,7 @@ export default function ManagementAppointmentForm({
             name: member.name,
             membershipId: member.membershipId,
             remainingSessions: member.remainingSessions,
+            remainingBonusSessions: (member as any).remainingBonusSessions ?? 0,
             type: member.type,
             groupId: 'groupId' in member ? member.groupId : undefined,
           });
@@ -84,12 +86,14 @@ export default function ManagementAppointmentForm({
           const existingMember = memberMap.get(member.name);
           if (existingMember && existingMember.type === "individual") {
             existingMember.remainingSessions += member.remainingSessions;
+            existingMember.remainingBonusSessions += (member as any).remainingBonusSessions ?? 0;
           } else {
             memberMap.set(member.name, {
               id: member.id,
               name: member.name,
               membershipId: member.membershipId,
               remainingSessions: member.remainingSessions,
+              remainingBonusSessions: (member as any).remainingBonusSessions ?? 0,
               type: member.type,
             });
           }
@@ -106,7 +110,7 @@ export default function ManagementAppointmentForm({
 
   // Create stable value map for Select component
   const memberValueMap = React.useMemo(() => {
-    const map = new Map<string, { membershipId: string; type: string; remainingSessions: number; member: Member }>();
+    const map = new Map<string, { membershipId: string; type: string; remainingSessions: number; remainingBonusSessions: number; member: Member }>();
 
     combinedMembers.forEach((member) => {
       const stableValue = `${member.type}:${member.id}`;
@@ -114,6 +118,7 @@ export default function ManagementAppointmentForm({
         membershipId: member.membershipId,
         type: member.type,
         remainingSessions: member.remainingSessions,
+        remainingBonusSessions: member.remainingBonusSessions,
         member,
       });
     });
@@ -124,13 +129,14 @@ export default function ManagementAppointmentForm({
   // Convert members to combobox options
   const memberOptions: ComboboxOption[] = useMemo(() => {
     return combinedMembers
-      .filter((member) => member.remainingSessions > 0) // Only show members with available sessions
+      .filter((member) => member.remainingSessions > 0 || member.remainingBonusSessions > 0)
       .map((member) => {
         const stableValue = `${member.type}:${member.id}`;
         const icon = member.type === "group" ? "🏃‍♂️ " : "👤 ";
+        const bonusPart = member.remainingBonusSessions > 0 ? ` + 🎁${member.remainingBonusSessions} bonus` : "";
         return {
           value: stableValue,
-          label: `${icon}${member.name} (${member.remainingSessions} sesi tersisa)`,
+          label: `${icon}${member.name} (${member.remainingSessions} sesi tersisa${bonusPart})`,
         };
       });
   }, [combinedMembers]);
@@ -181,7 +187,7 @@ export default function ManagementAppointmentForm({
       return;
     }
 
-    if (selectedMemberData.remainingSessions <= 0) {
+    if (selectedMemberData.remainingSessions <= 0 && selectedMemberData.remainingBonusSessions <= 0) {
       toast.error("Member tidak memiliki sisa sesi yang tersedia");
       return;
     }

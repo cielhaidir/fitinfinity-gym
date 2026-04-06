@@ -371,6 +371,8 @@ model Subscription {
     startDate         DateTime
     endDate           DateTime?
     remainingSessions Int?
+    bonusSessions         Int              @default(0) // Total bonus sessions for this subscription
+    remainingBonusSessions Int             @default(0) // Remaining bonus sessions
     isActive          Boolean          @default(false)
     
     // Freeze state (existing)
@@ -475,6 +477,7 @@ model Package {
     isActive     Boolean        @default(true)
     type         PackageType
     sessions     Int? // only for PERSONAL_TRAINER type
+    bonusSessions Int @default(0) // Free/bonus sessions included with package
     day          Int? // only for GYM_MEMBERSHIP type
     
     // Group package fields
@@ -519,9 +522,11 @@ model TrainerSession {
     status      String   @default("NOT_YET")
     exerciseResult String? // Optional path to the uploaded exercise result file
     attendanceCount Int?    @default(1) // Number of attendees for group sessions
-    isGroup     Boolean  @default(false) // Whether this is a group session
-    groupId     String?  // Reference to group subscription if applicable
-    createdAt   DateTime @default(now())
+    isGroup        Boolean  @default(false) // Whether this is a group session
+    groupId        String?  // Reference to group subscription if applicable
+    isBonusSession Boolean  @default(false) // Whether this session consumed a bonus slot
+    subscriptionId String?  // Which subscription was decremented
+    createdAt      DateTime @default(now())
     updatedAt   DateTime @updatedAt
     trainer     PersonalTrainer @relation(fields: [trainerId], references: [id])
     member      Membership @relation(fields: [memberId], references: [id])

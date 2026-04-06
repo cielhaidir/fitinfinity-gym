@@ -30,6 +30,7 @@ interface SessionDetail {
   attendanceCount: number;
   description?: string | null;
   status?: string | null;
+  isBonusSession?: boolean;
 }
 
 export default function TrainerSessionsReportPage() {
@@ -132,6 +133,7 @@ export default function TrainerSessionsReportPage() {
       "Session Type": session.isGroup ? "Group" : "Individual",
       "Attendance Count": session.attendanceCount,
       "Status": session.status || "N/A",
+      "Session Category": session.isBonusSession ? "Bonus (Free)" : "Paid",
       "Description": session.description || "",
     }));
     
@@ -149,6 +151,8 @@ export default function TrainerSessionsReportPage() {
       { "Metric": "Selected Trainer", "Value": selectedTrainer === "all" ? "All Trainers" : trainers?.find(t => t.id === selectedTrainer)?.user.name || "Unknown" },
       { "Metric": "Selected Member", "Value": selectedMemberLabel },
       { "Metric": "Total Sessions / Hour", "Value": reportData.totalSessions.toString() },
+      { "Metric": "Paid Sessions", "Value": reportData.paidSessionCount.toString() },
+      { "Metric": "Bonus Sessions", "Value": reportData.bonusSessionCount.toString() },
       { "Metric": "Total Hours", "Value": reportData.totalHours.toFixed(2) },
     ];
 
@@ -276,16 +280,32 @@ export default function TrainerSessionsReportPage() {
         </Card>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sessions / Hour</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {reportData?.totalSessions || 0}
-              </div>
+              <div className="text-2xl font-bold">{reportData?.totalSessions || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paid Sessions</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{reportData?.paidSessionCount ?? reportData?.totalSessions ?? 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">🎁 Bonus Sessions</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{reportData?.bonusSessionCount ?? 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -294,9 +314,7 @@ export default function TrainerSessionsReportPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {(reportData?.totalHours || 0).toFixed(2)}
-              </div>
+              <div className="text-2xl font-bold">{(reportData?.totalHours || 0).toFixed(2)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -330,6 +348,7 @@ export default function TrainerSessionsReportPage() {
                     <th className="text-left py-2">Time</th>
                     <th className="text-right py-2">Duration</th>
                     <th className="text-left py-2">Type</th>
+                    <th className="text-left py-2">Category</th>
                     <th className="text-left py-2">Status</th>
                   </tr>
                 </thead>
@@ -360,6 +379,17 @@ export default function TrainerSessionsReportPage() {
                           </span>
                         </td>
                         <td className="py-2">
+                          {session.isBonusSession ? (
+                            <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+                              🎁 Bonus
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+                              Paid
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2">
                           <span className={`px-2 py-1 rounded text-xs ${
                             session.status === "ENDED"
                               ? "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
@@ -376,7 +406,7 @@ export default function TrainerSessionsReportPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="py-8 text-center text-muted-foreground">
                         No sessions found for the selected filters.
                       </td>
                     </tr>
@@ -393,11 +423,19 @@ export default function TrainerSessionsReportPage() {
             <div className="flex justify-between items-center">
               <div className="flex gap-8">
                 <div>
-                  <span className="text-sm text-muted-foreground">Total Sessions / Hour: </span>
+                  <span className="text-sm text-muted-foreground">Total: </span>
                   <span className="font-bold text-lg">{reportData?.totalSessions || 0}</span>
                 </div>
                 <div>
-                  <span className="text-sm text-muted-foreground">Total Hours: </span>
+                  <span className="text-sm text-muted-foreground">Paid: </span>
+                  <span className="font-bold text-lg">{reportData?.paidSessionCount ?? reportData?.totalSessions ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-sm text-muted-foreground">🎁 Bonus: </span>
+                  <span className="font-bold text-lg text-green-600">{reportData?.bonusSessionCount ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-sm text-muted-foreground">Hours: </span>
                   <span className="font-bold text-lg">{(reportData?.totalHours || 0).toFixed(2)}</span>
                 </div>
               </div>

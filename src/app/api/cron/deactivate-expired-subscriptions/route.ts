@@ -103,12 +103,13 @@ export async function POST(request: NextRequest) {
       expiredAt: s.endDate,
     }));
 
-    // ── 3. Deactivate PT/Group subs with 0 remaining sessions ──
+    // ── 3. Deactivate PT/Group subs with 0 remaining sessions (paid AND bonus) ──
     const toDeactivateNoSessions = await db.subscription.findMany({
       where: {
         isActive: true,
         deletedAt: null,
         remainingSessions: { lte: 0 },
+        remainingBonusSessions: { lte: 0 },
         package: {
           type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING"] },
         },

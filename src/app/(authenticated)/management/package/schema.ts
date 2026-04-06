@@ -14,6 +14,7 @@ export const PackageSchema = z.object({
     .default(0),
   type: PackageTypeEnum,
   sessions: z.number().nullable(),
+  bonusSessions: z.number().min(0).default(0),
   day: z.number().min(0, "Days must be greater than or equal to 0").nullable(),
   isActive: z.boolean().default(true),
   // Group package fields

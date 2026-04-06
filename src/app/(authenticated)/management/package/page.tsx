@@ -28,6 +28,7 @@ export default function PackagePage() {
     point: 0,
     type: "GYM_MEMBERSHIP",
     sessions: null,
+    bonusSessions: 0,
     day: null,
     isActive: true,
     maxUsers: null,
@@ -58,6 +59,7 @@ export default function PackagePage() {
     if (
       name === "day" ||
       name === "sessions" ||
+      name === "bonusSessions" ||
       name === "price" ||
       name === "point" ||
       name === "maxUsers"
@@ -110,6 +112,7 @@ export default function PackagePage() {
       if (packageData.type === "PERSONAL_TRAINER" || packageData.type === "GROUP_TRAINING") {
         typeSpecificData = {
           sessions: Number(packageData.sessions) || 0,
+          bonusSessions: Number(packageData.bonusSessions) || 0,
           day: Number(packageData.day) || 0,
         };
       } else {

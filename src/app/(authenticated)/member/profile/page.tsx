@@ -475,7 +475,12 @@ export default function ProfilePage() {
               </div>
               <div>
                 <span className="text-muted-foreground">Sessions:</span>
-                <p className="font-medium">{subscription.remainingSessions }</p>
+                <p className="font-medium">{subscription.remainingSessions ?? 0}</p>
+                {(subscription.bonusSessions ?? 0) > 0 && (
+                  <p className="text-xs text-[#BFFF00]">
+                    🎁 Bonus: {subscription.remainingBonusSessions ?? 0} remaining
+                  </p>
+                )}
               </div>
               <div>
                 <span className="text-muted-foreground">Payment:</span>
@@ -556,8 +561,18 @@ export default function ProfilePage() {
         <DataTableColumnHeader column={column} title="Sessions" />
       ),
       cell: ({ row }) => {
-        const remaining = row.original.remainingSessions;
-        return <span>{remaining ?? 0}</span>;
+        const sub = row.original;
+        const remaining = sub.remainingSessions ?? 0;
+        const remainingBonus = sub.remainingBonusSessions ?? 0;
+        const totalBonus = sub.bonusSessions ?? 0;
+        return (
+          <div>
+            <span>{remaining}</span>
+            {totalBonus > 0 && (
+              <p className="text-xs text-[#BFFF00]">🎁 Bonus: {remainingBonus}</p>
+            )}
+          </div>
+        );
       },
     },
     {

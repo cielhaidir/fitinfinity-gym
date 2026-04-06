@@ -53,20 +53,19 @@ export const trainerSessionRouter = createTRPCRouter({
           });
         }
 
-        // Get the member's oldest active subscription with remaining sessions (FIFO)
+        // Get the member's active subscription with sessions available (paid OR bonus)
         const subscription = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
             deletedAt: null,
-            remainingSessions: { gt: 0 },
+            OR: [
+              { remainingSessions: { gt: 0 } },
+              { remainingBonusSessions: { gt: 0 } },
+            ],
           },
-          orderBy: {
-            startDate: "asc",
-          },
-          include: {
-            package: true,
-          },
+          orderBy: { endDate: "asc" },
+          include: { package: true },
         });
 
         if (!subscription) {
@@ -88,6 +87,13 @@ export const trainerSessionRouter = createTRPCRouter({
 
         // Create the training session and decrement remaining sessions in a transaction
         result = await ctx.db.$transaction(async (tx) => {
+          // Decrement first to get isBonusSession + subscriptionId
+          const fifoResult = await decrementSessionFIFO({
+            tx,
+            memberId: input.memberId,
+            trainerId: trainer.id,
+          });
+
           // Create the session
           const session = await tx.trainerSession.create({
             data: {
@@ -100,14 +106,9 @@ export const trainerSessionRouter = createTRPCRouter({
               isGroup: input.isGroup || false,
               attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
               status: input.status || "NOT_YET",
+              isBonusSession: fifoResult.isBonusSession,
+              subscriptionId: fifoResult.id,
             },
-          });
-
-          // Decrement remaining sessions using FIFO (oldest active sub first)
-          await decrementSessionFIFO({
-            tx,
-            memberId: input.memberId,
-            trainerId: trainer.id,
           });
 
           return session;
@@ -173,20 +174,19 @@ export const trainerSessionRouter = createTRPCRouter({
 
         console.log("Found trainer:", trainer.id);
 
-        // Get the member's oldest active subscription with remaining sessions (FIFO)
+        // Get the member's active subscription with sessions available (paid OR bonus)
         const subscription = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
             deletedAt: null,
-            remainingSessions: { gt: 0 },
+            OR: [
+              { remainingSessions: { gt: 0 } },
+              { remainingBonusSessions: { gt: 0 } },
+            ],
           },
-          orderBy: {
-            startDate: "asc",
-          },
-          include: {
-            package: true,
-          },
+          orderBy: { endDate: "asc" },
+          include: { package: true },
         });
 
         if (!subscription) {
@@ -218,6 +218,19 @@ export const trainerSessionRouter = createTRPCRouter({
         result = await ctx.db.$transaction(async (tx) => {
           console.log("Starting transaction");
 
+          // Decrement first to get isBonusSession + subscriptionId
+          const fifoResult = await decrementSessionFIFO({
+            tx,
+            memberId: input.memberId,
+            trainerId: trainer.id,
+          });
+
+          console.log("Updated subscription (FIFO):", {
+            id: fifoResult.id,
+            remainingSessions: fifoResult.remainingSessions,
+            isBonusSession: fifoResult.isBonusSession,
+          });
+
           // Create the session
           const session = await tx.trainerSession.create({
             data: {
@@ -229,23 +242,12 @@ export const trainerSessionRouter = createTRPCRouter({
               description: input.description,
               isGroup: input.isGroup || false,
               attendanceCount: input.attendanceCount || (input.isGroup ? 1 : 1),
+              isBonusSession: fifoResult.isBonusSession,
+              subscriptionId: fifoResult.id,
             },
           });
 
           console.log("Session created:", session.id);
-
-          // Decrement remaining sessions using FIFO (oldest active sub first)
-          const updatedSub = await decrementSessionFIFO({
-            tx,
-            memberId: input.memberId,
-            trainerId: trainer.id,
-          });
-
-          console.log("Updated subscription (FIFO):", {
-            id: updatedSub.id,
-            remainingSessions: updatedSub.remainingSessions,
-          });
-
           return session;
         });
 
@@ -1061,12 +1063,16 @@ export const trainerSessionRouter = createTRPCRouter({
           attendanceCount: session.attendanceCount || 1,
           description: session.description,
           status: session.status,
+          isBonusSession: session.isBonusSession,
         };
       });
 
+      const bonusSessionCount = sessionDetails.filter(s => s.isBonusSession).length;
       return {
         sessions: sessionDetails,
         totalSessions: sessions.length,
+        paidSessionCount: sessions.length - bonusSessionCount,
+        bonusSessionCount,
         totalHours,
       };
     }),
@@ -1282,6 +1288,7 @@ export const trainerSessionRouter = createTRPCRouter({
           attendanceCount: session.attendanceCount || 1,
           hours,
           description: session.description,
+          isBonusSession: session.isBonusSession,
         });
       });
 
@@ -1293,6 +1300,7 @@ export const trainerSessionRouter = createTRPCRouter({
       if (input.trainerId && trainerSummaries.length > 0) {
         const trainerData = trainerSummaries[0];
         if (trainerData) {
+          const bonusCount = trainerData.sessions.filter((s: any) => s.isBonusSession).length;
           return {
             summary: {
               trainerId: trainerData.trainerId,
@@ -1300,6 +1308,8 @@ export const trainerSessionRouter = createTRPCRouter({
               trainerEmail: trainerData.trainerEmail,
               totalHours: trainerData.totalHours,
               sessionCount: trainerData.sessionCount,
+              paidSessionCount: trainerData.sessionCount - bonusCount,
+              bonusSessionCount: bonusCount,
             },
             sessions: trainerData.sessions,
           };
@@ -1314,6 +1324,8 @@ export const trainerSessionRouter = createTRPCRouter({
           trainerEmail: trainer.trainerEmail,
           totalHours: trainer.totalHours,
           sessionCount: trainer.sessionCount,
+          paidSessionCount: trainer.sessions.filter((s: any) => !s.isBonusSession).length,
+          bonusSessionCount: trainer.sessions.filter((s: any) => s.isBonusSession).length,
         })),
         totalConductHours: trainerSummaries.reduce((sum, trainer) => sum + trainer.totalHours, 0),
         totalSessions: trainerSummaries.reduce((sum, trainer) => sum + trainer.sessionCount, 0),

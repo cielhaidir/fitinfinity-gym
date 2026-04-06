@@ -205,6 +205,8 @@ export const subscriptionRouter = createTRPCRouter({
             : {
                 trainerId: input.trainerId || null,
                 remainingSessions: input.duration,
+                bonusSessions: packageDetails?.bonusSessions ?? 0,
+                remainingBonusSessions: packageDetails?.bonusSessions ?? 0,
                 endDate: packageDetails?.day
                   ? new Date(
                       new Date(input.startDate).setDate(
@@ -2670,6 +2672,7 @@ export const subscriptionRouter = createTRPCRouter({
       z.object({
         subscriptionId: z.string(),
         remainingSessions: z.number().min(0),
+        remainingBonusSessions: z.number().min(0).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2712,6 +2715,9 @@ export const subscriptionRouter = createTRPCRouter({
         where: { id: input.subscriptionId },
         data: {
           remainingSessions: input.remainingSessions,
+          ...(input.remainingBonusSessions !== undefined && {
+            remainingBonusSessions: input.remainingBonusSessions,
+          }),
         },
         include: {
           member: {

@@ -804,7 +804,7 @@ export const reportsRouter = createTRPCRouter({
 
   /**
    * PT Remaining Sessions Report
-   * 
+   *
    * Returns members with remaining PT sessions, grouped by trainer.
    * Useful for tracking PT package usage and scheduling.
    */
@@ -821,236 +821,190 @@ export const reportsRouter = createTRPCRouter({
         }),
       )
       .query(async ({ ctx, input }) => {
-        // Build where clause for subscriptions
-        const where: any = {
-          isActive: true,
-          deletedAt: null,
-          remainingSessions: {
-            gt: input.minRemaining ?? 0,
-          },
-          package: {
-            type: {
-              in: ["PERSONAL_TRAINER", "GROUP_TRAINING"],
-            },
+      const minRem = input.minRemaining ?? 0;
+      const where: any = {
+        isActive: true,
+        deletedAt: null,
+        OR: [
+          { remainingSessions: { gt: minRem } },
+          { remainingBonusSessions: { gt: minRem } },
+        ],
+        package: {
+          type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING"] },
+        },
+      };
+
+      if (input.trainerId) {
+        where.trainerId = input.trainerId;
+      } else {
+        where.trainerId = { not: null };
+      }
+
+      if (input.search) {
+        where.member = {
+          user: {
+            OR: [
+              { name: { contains: input.search, mode: "insensitive" as const } },
+              { phone: { contains: input.search, mode: "insensitive" as const } },
+            ],
           },
         };
+      }
 
-        // Filter by trainer
-        if (input.trainerId) {
-          where.trainerId = input.trainerId;
-        } else {
-          // Exclude subscriptions without a trainer
-          where.trainerId = { not: null };
-        }
-
-        // Add search filter on member name or phone
-        if (input.search) {
-          where.member = {
-            user: {
-              OR: [
-                {
-                  name: {
-                    contains: input.search,
-                    mode: "insensitive" as const,
-                  },
-                },
-                {
-                  phone: {
-                    contains: input.search,
-                    mode: "insensitive" as const,
-                  },
-                },
-              ],
+      const subscriptions = await ctx.db.subscription.findMany({
+        where,
+        include: {
+          member: {
+            include: {
+              user: { select: { id: true, name: true, phone: true } },
             },
-          };
-        }
+          },
+          trainer: {
+            include: {
+              user: { select: { id: true, name: true, phone: true } },
+            },
+          },
+          package: {
+            select: { id: true, name: true, sessions: true, bonusSessions: true },
+          },
+        },
+        orderBy: [
+          { trainerId: "asc" },
+          { remainingSessions: "desc" },
+        ],
+      });
 
-        // Fetch subscriptions with remaining sessions
-        const subscriptions = await ctx.db.subscription.findMany({
+      if (input.groupByTrainer) {
+        const trainerMap = new Map<
+          string,
+          {
+            trainerId: string;
+            trainerUser: { id: string; name: string | null; phone: string | null };
+            totalMembersWithRemaining: number;
+            members: Array<{
+              membershipId: string;
+              user: { id: string; name: string | null; phone: string | null };
+              subscriptionId: string;
+              package: { id: string; name: string; sessions: number | null; bonusSessions: number };
+              remainingSessions: number | null;
+              remainingBonusSessions: number;
+              startDate: Date;
+              endDate: Date | null;
+            }>;
+          }
+        >();
+
+        subscriptions.forEach((sub) => {
+          if (!sub.trainerId || !sub.trainer) return;
+
+          if (!trainerMap.has(sub.trainerId)) {
+            trainerMap.set(sub.trainerId, {
+              trainerId: sub.trainerId,
+              trainerUser: {
+                id: sub.trainer.user.id,
+                name: sub.trainer.user.name,
+                phone: sub.trainer.user.phone,
+              },
+              totalMembersWithRemaining: 0,
+              members: [],
+            });
+          }
+
+          const trainerData = trainerMap.get(sub.trainerId)!;
+          trainerData.totalMembersWithRemaining += 1;
+          trainerData.members.push({
+            membershipId: sub.memberId,
+            user: {
+              id: sub.member.user.id,
+              name: sub.member.user.name,
+              phone: sub.member.user.phone,
+            },
+            subscriptionId: sub.id,
+            package: {
+              id: sub.package.id,
+              name: sub.package.name,
+              sessions: sub.package.sessions,
+              bonusSessions: (sub.package as any).bonusSessions ?? 0,
+            },
+            remainingSessions: sub.remainingSessions,
+            remainingBonusSessions: (sub as any).remainingBonusSessions ?? 0,
+            startDate: sub.startDate,
+            endDate: sub.endDate,
+          });
+        });
+
+        const items = Array.from(trainerMap.values());
+        const skip = (input.page - 1) * input.pageSize;
+        const paginatedItems = items.slice(skip, skip + input.pageSize);
+
+        return {
+          items: paginatedItems,
+          totalCount: items.length,
+        };
+      } else {
+        const skip = (input.page - 1) * input.pageSize;
+        const totalCount = await ctx.db.subscription.count({ where });
+
+        const paginatedSubscriptions = await ctx.db.subscription.findMany({
           where,
+          skip,
+          take: input.pageSize,
           include: {
             member: {
               include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    phone: true,
-                  },
-                },
+                user: { select: { id: true, name: true, phone: true } },
               },
             },
             trainer: {
               include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    phone: true,
-                  },
-                },
+                user: { select: { id: true, name: true, phone: true } },
               },
             },
             package: {
-              select: {
-                id: true,
-                name: true,
-                sessions: true,
-              },
+              select: { id: true, name: true, sessions: true, bonusSessions: true },
             },
           },
-          orderBy: [
-            { trainerId: "asc" },
-            { remainingSessions: "desc" },
-          ],
+          orderBy: { remainingSessions: "desc" },
         });
 
-        if (input.groupByTrainer) {
-          // Group by trainer
-          const trainerMap = new Map<
-            string,
-            {
-              trainerId: string;
-              trainerUser: { id: string; name: string | null; phone: string | null };
-              totalMembersWithRemaining: number;
-              members: Array<{
-                membershipId: string;
-                user: { id: string; name: string | null; phone: string | null };
-                subscriptionId: string;
-                package: { id: string; name: string; sessions: number | null };
-                remainingSessions: number | null;
-                startDate: Date;
-                endDate: Date | null;
-              }>;
-            }
-          >();
-
-          subscriptions.forEach((sub) => {
-            if (!sub.trainerId || !sub.trainer) return;
-
-            if (!trainerMap.has(sub.trainerId)) {
-              trainerMap.set(sub.trainerId, {
-                trainerId: sub.trainerId,
-                trainerUser: {
-                  id: sub.trainer.user.id,
-                  name: sub.trainer.user.name,
-                  phone: sub.trainer.user.phone,
-                },
-                totalMembersWithRemaining: 0,
-                members: [],
-              });
-            }
-
-            const trainerData = trainerMap.get(sub.trainerId)!;
-            trainerData.totalMembersWithRemaining += 1;
-            trainerData.members.push({
-              membershipId: sub.memberId,
-              user: {
-                id: sub.member.user.id,
-                name: sub.member.user.name,
-                phone: sub.member.user.phone,
-              },
-              subscriptionId: sub.id,
-              package: {
-                id: sub.package.id,
-                name: sub.package.name,
-                sessions: sub.package.sessions,
-              },
-              remainingSessions: sub.remainingSessions,
-              startDate: sub.startDate,
-              endDate: sub.endDate,
-            });
-          });
-
-          const items = Array.from(trainerMap.values());
-          
-          // Apply pagination
-          const skip = (input.page - 1) * input.pageSize;
-          const paginatedItems = items.slice(skip, skip + input.pageSize);
-
-          return {
-            items: paginatedItems,
-            totalCount: items.length,
-          };
-        } else {
-          // Return flat list without grouping
-          const skip = (input.page - 1) * input.pageSize;
-          const totalCount = await ctx.db.subscription.count({ where });
-          
-          const paginatedSubscriptions = await ctx.db.subscription.findMany({
-            where,
-            skip,
-            take: input.pageSize,
-            include: {
-              member: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                      phone: true,
-                    },
-                  },
-                },
-              },
-              trainer: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                      phone: true,
-                    },
-                  },
-                },
-              },
-              package: {
-                select: {
-                  id: true,
-                  name: true,
-                  sessions: true,
-                },
-              },
+        const items = paginatedSubscriptions
+          .filter((sub) => sub.trainer)
+          .map((sub) => ({
+            trainerId: sub.trainerId!,
+            trainerUser: {
+              id: sub.trainer!.user.id,
+              name: sub.trainer!.user.name,
+              phone: sub.trainer!.user.phone,
             },
-            orderBy: { remainingSessions: "desc" },
-          });
-
-          const items = paginatedSubscriptions
-            .filter((sub) => sub.trainer)
-            .map((sub) => ({
-              trainerId: sub.trainerId!,
-              trainerUser: {
-                id: sub.trainer!.user.id,
-                name: sub.trainer!.user.name,
-                phone: sub.trainer!.user.phone,
-              },
-              totalMembersWithRemaining: 1,
-              members: [
-                {
-                  membershipId: sub.memberId,
-                  user: {
-                    id: sub.member.user.id,
-                    name: sub.member.user.name,
-                    phone: sub.member.user.phone,
-                  },
-                  subscriptionId: sub.id,
-                  package: {
-                    id: sub.package.id,
-                    name: sub.package.name,
-                    sessions: sub.package.sessions,
-                  },
-                  remainingSessions: sub.remainingSessions,
-                  startDate: sub.startDate,
-                  endDate: sub.endDate,
+            totalMembersWithRemaining: 1,
+            members: [
+              {
+                membershipId: sub.memberId,
+                user: {
+                  id: sub.member.user.id,
+                  name: sub.member.user.name,
+                  phone: sub.member.user.phone,
                 },
-              ],
-            }));
+                subscriptionId: sub.id,
+                package: {
+                  id: sub.package.id,
+                  name: sub.package.name,
+                  sessions: sub.package.sessions,
+                  bonusSessions: (sub.package as any).bonusSessions ?? 0,
+                },
+                remainingSessions: sub.remainingSessions,
+                remainingBonusSessions: (sub as any).remainingBonusSessions ?? 0,
+                startDate: sub.startDate,
+                endDate: sub.endDate,
+              },
+            ],
+          }));
 
-          return {
-            items,
-            totalCount,
-          };
-        }
-      }),
+        return {
+          items,
+          totalCount,
+        };
+      }
+    }),
   }),
 });

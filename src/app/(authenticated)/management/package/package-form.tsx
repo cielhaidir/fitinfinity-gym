@@ -191,6 +191,23 @@ export const PackageForm: React.FC<PackageFormProps> = ({
               />
             </div>
             <div>
+              <label htmlFor="bonusSessions" className="block text-sm font-medium">
+                Bonus Sessions (Free)
+              </label>
+              <Input
+                id="bonusSessions"
+                name="bonusSessions"
+                type="number"
+                placeholder="Number of free bonus sessions (e.g. 2)"
+                value={newPackage.bonusSessions ?? 0}
+                onChange={onInputChange}
+                min="0"
+              />
+              <p className="mt-1 text-sm text-muted-foreground">
+                Free sessions included with this package (used after paid sessions)
+              </p>
+            </div>
+            <div>
               <label htmlFor="day" className="block text-sm font-medium">
                 Validity Period (Days)
               </label>

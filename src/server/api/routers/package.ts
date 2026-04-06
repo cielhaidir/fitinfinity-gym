@@ -22,6 +22,7 @@ export const packageRouter = createTRPCRouter({
       point: z.number(),
       type: packageTypeSchema, // Use the proper enum schema
       sessions: z.number().nullish(),
+      bonusSessions: z.number().min(0).default(0),
       day: z.number().nullish(),
       isActive: z.boolean().optional(),
       // Group package fields
@@ -47,6 +48,7 @@ export const packageRouter = createTRPCRouter({
           point: input.point,
           type: input.type, // Now properly typed as PackageType
           sessions: input.sessions ?? null,
+          bonusSessions: input.bonusSessions ?? 0,
           day: input.day ?? null,
           isActive: input.isActive ?? true,
           maxUsers: input.maxUsers ?? null,
@@ -145,6 +147,7 @@ export const packageRouter = createTRPCRouter({
         point: z.number(),
         type: packageType,
         sessions: z.number().nullable(),
+        bonusSessions: z.number().min(0).default(0),
         day: z.number().nullable(),
         isActive: z.boolean(),
         // Group package fields
@@ -171,6 +174,7 @@ export const packageRouter = createTRPCRouter({
             point: data.point,
             type: data.type,
             sessions: data.sessions,
+            bonusSessions: data.bonusSessions ?? 0,
             day: data.day,
             isActive: data.isActive,
             maxUsers: data.maxUsers,

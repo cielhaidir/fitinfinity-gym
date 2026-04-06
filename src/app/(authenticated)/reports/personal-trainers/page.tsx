@@ -19,6 +19,8 @@ interface TrainerSummary {
   trainerEmail: string;
   totalHours: number;
   sessionCount: number;
+  paidSessionCount?: number;
+  bonusSessionCount?: number;
 }
 
 interface SessionDetail {
@@ -144,7 +146,9 @@ export default function PersonalTrainerReportPage() {
         "Trainer Name": item.trainerName,
         "Trainer Email": item.trainerEmail,
         "Total Hours": item.totalHours,
-        "Total Sessions ": item.sessionCount,
+        "Total Sessions": item.sessionCount,
+        "Paid Sessions": item.paidSessionCount ?? item.sessionCount,
+        "Bonus Sessions": item.bonusSessionCount ?? 0,
       }));
       
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
@@ -159,6 +163,8 @@ export default function PersonalTrainerReportPage() {
         "Trainer Email": item.trainerEmail,
         "Total Hours": item.totalHours,
         "Total Sessions": item.sessionCount,
+        "Paid Sessions": item.paidSessionCount ?? item.sessionCount,
+        "Bonus Sessions": item.bonusSessionCount ?? 0,
       }));
       
       const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
@@ -376,6 +382,8 @@ export default function PersonalTrainerReportPage() {
                     <th className="text-left py-2">Email</th>
                     <th className="text-right py-2">Total Hours</th>
                     <th className="text-right py-2">Total Sessions / Hour</th>
+                    <th className="text-right py-2">Paid Sessions</th>
+                    <th className="text-right py-2">Bonus Sessions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -385,6 +393,12 @@ export default function PersonalTrainerReportPage() {
                       <td className="py-2 text-sm text-gray-600">{item.trainerEmail}</td>
                       <td className="text-right py-2">{item.totalHours.toFixed(1)}</td>
                       <td className="text-right py-2">{item.sessionCount}</td>
+                      <td className="text-right py-2">{item.paidSessionCount ?? item.sessionCount}</td>
+                      <td className="text-right py-2">
+                        {(item.bonusSessionCount ?? 0) > 0 ? (
+                          <span className="text-yellow-600 font-medium">{item.bonusSessionCount} 🎁</span>
+                        ) : 0}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -123,7 +123,9 @@ export function ActivePackage() {
           
           if (isTrainer) {
             const remainingSessions = subscription.remainingSessions ?? 0;
+            const remainingBonusSessions = subscription.remainingBonusSessions ?? 0;
             const totalSessions = subscription.package.sessions ?? 0;
+            const totalBonusSessions = subscription.bonusSessions ?? 0;
             const usedSessions = totalSessions - remainingSessions;
             const sessionProgress = totalSessions > 0 ? (remainingSessions / totalSessions) * 100 : 0;
             
@@ -144,6 +146,11 @@ export function ActivePackage() {
                 <p className="text-sm text-muted-foreground">
                   {remainingSessions} of {totalSessions} Sessions Remaining
                 </p>
+                {totalBonusSessions > 0 && (
+                  <p className="text-xs text-[#BFFF00] mt-1">
+                    🎁 Bonus: {remainingBonusSessions} of {totalBonusSessions} free sessions remaining
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {usedSessions} Sessions Used
                 </p>

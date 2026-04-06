@@ -46,8 +46,10 @@ interface MemberWithSessions {
     id: string;
     name: string;
     sessions: number | null;
+    bonusSessions: number;
   };
   remainingSessions: number | null;
+  remainingBonusSessions: number;
   startDate: Date;
   endDate: Date | null;
 }
@@ -113,6 +115,7 @@ export default function PTRemainingSessionsReportPage() {
     let totalTrainers = 0;
     let totalMembers = 0;
     let totalRemaining = 0;
+    let totalBonusRemaining = 0;
 
     if (viewMode === "grouped") {
       reportData.items.forEach((trainer: TrainerData) => {
@@ -120,6 +123,10 @@ export default function PTRemainingSessionsReportPage() {
         totalMembers += trainer.members.length;
         totalRemaining += trainer.members.reduce(
           (sum, m) => sum + (m.remainingSessions || 0),
+          0
+        );
+        totalBonusRemaining += trainer.members.reduce(
+          (sum, m) => sum + (m.remainingBonusSessions || 0),
           0
         );
       });
@@ -130,6 +137,7 @@ export default function PTRemainingSessionsReportPage() {
         item.members.forEach((member) => {
           totalMembers += 1;
           totalRemaining += member.remainingSessions || 0;
+          totalBonusRemaining += member.remainingBonusSessions || 0;
         });
       });
       totalTrainers = trainerIds.size;
@@ -139,24 +147,25 @@ export default function PTRemainingSessionsReportPage() {
       totalTrainers,
       totalMembers,
       totalRemaining,
+      totalBonusRemaining,
       averagePerMember: totalMembers > 0 ? (totalRemaining / totalMembers).toFixed(1) : "0",
     };
   }, [reportData, viewMode]);
 
   // Determine member status
   const getMemberStatus = (member: MemberWithSessions): "active" | "ending-soon" | "expired" => {
-    const remaining = member.remainingSessions || 0;
+    const totalRemaining = (member.remainingSessions || 0) + (member.remainingBonusSessions || 0);
     const today = new Date();
     
     if (member.endDate && isBefore(new Date(member.endDate), today)) {
       return "expired";
     }
     
-    if (remaining === 0) {
+    if (totalRemaining === 0) {
       return "expired";
     }
     
-    if (remaining <= 5) {
+    if (totalRemaining <= 5) {
       return "ending-soon";
     }
     
@@ -260,18 +269,23 @@ export default function PTRemainingSessionsReportPage() {
           (sum, m) => sum + (m.remainingSessions || 0),
           0
         );
+        const totalBonusRemaining = trainer.members.reduce(
+          (sum, m) => sum + (m.remainingBonusSessions || 0),
+          0
+        );
         trainerSummaryData.push({
           "Trainer Name": trainer.trainerUser.name || "N/A",
           "Trainer Phone": trainer.trainerUser.phone || "N/A",
           "Total Members": trainer.members.length,
           "Total Remaining Sessions": totalRemaining,
+          "Total Bonus Sessions": totalBonusRemaining,
           "Average per Member": trainer.members.length > 0
             ? (totalRemaining / trainer.members.length).toFixed(1)
             : "0",
         });
       });
     } else {
-      const trainerMap = new Map<string, { name: string; phone: string; members: number; sessions: number }>();
+      const trainerMap = new Map<string, { name: string; phone: string; members: number; sessions: number; bonusSessions: number }>();
       reportData.items.forEach((item: TrainerData) => {
         if (!trainerMap.has(item.trainerId)) {
           trainerMap.set(item.trainerId, {
@@ -279,12 +293,14 @@ export default function PTRemainingSessionsReportPage() {
             phone: item.trainerUser.phone || "N/A",
             members: 0,
             sessions: 0,
+            bonusSessions: 0,
           });
         }
         const data = trainerMap.get(item.trainerId)!;
         item.members.forEach((member) => {
           data.members += 1;
           data.sessions += member.remainingSessions || 0;
+          data.bonusSessions += member.remainingBonusSessions || 0;
         });
       });
       
@@ -294,6 +310,7 @@ export default function PTRemainingSessionsReportPage() {
           "Trainer Phone": data.phone,
           "Total Members": data.members,
           "Total Remaining Sessions": data.sessions,
+          "Total Bonus Sessions": data.bonusSessions,
           "Average per Member": data.members > 0 ? (data.sessions / data.members).toFixed(1) : "0",
         });
       });
@@ -324,6 +341,7 @@ export default function PTRemainingSessionsReportPage() {
           "Package": member.package.name,
           "Package Sessions": member.package.sessions || "N/A",
           "Remaining Sessions": member.remainingSessions || 0,
+          "Remaining Bonus Sessions": member.remainingBonusSessions || 0,
           "Start Date": format(new Date(member.startDate), "yyyy-MM-dd"),
           "End Date": member.endDate
             ? format(new Date(member.endDate), "yyyy-MM-dd")
@@ -361,6 +379,7 @@ export default function PTRemainingSessionsReportPage() {
       { Metric: "Total Trainers", Value: summaryStats?.totalTrainers.toString() || "0" },
       { Metric: "Total Members", Value: summaryStats?.totalMembers.toString() || "0" },
       { Metric: "Total Remaining Sessions", Value: summaryStats?.totalRemaining.toString() || "0" },
+      { Metric: "Total Bonus Sessions", Value: summaryStats?.totalBonusRemaining.toString() || "0" },
       { Metric: "Average per Member", Value: summaryStats?.averagePerMember || "0" },
     ];
 
@@ -469,7 +488,7 @@ export default function PTRemainingSessionsReportPage() {
                     <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-300" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Sessions</p>
+                    <p className="text-sm text-muted-foreground">Paid Sessions Left</p>
                     <p className="text-2xl font-bold">{summaryStats.totalRemaining}</p>
                   </div>
                 </div>
@@ -483,8 +502,8 @@ export default function PTRemainingSessionsReportPage() {
                     <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-300" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Avg per Member</p>
-                    <p className="text-2xl font-bold">{summaryStats.averagePerMember}</p>
+                    <p className="text-sm text-muted-foreground">🎁 Bonus Sessions Left</p>
+                    <p className="text-2xl font-bold text-green-600">{summaryStats.totalBonusRemaining}</p>
                   </div>
                 </div>
               </CardContent>
@@ -666,9 +685,16 @@ export default function PTRemainingSessionsReportPage() {
                                   </div>
                                   <div className="text-center">
                                     <p className="text-xl md:text-2xl font-bold text-blue-600">{totalRemaining}</p>
-                                    <p className="text-xs text-muted-foreground">Sessions</p>
+                                    <p className="text-xs text-muted-foreground">Paid</p>
                                   </div>
-                              
+                                  {filteredMembers.reduce((s, m) => s + (m.remainingBonusSessions || 0), 0) > 0 && (
+                                    <div className="text-center">
+                                      <p className="text-xl md:text-2xl font-bold text-green-600">
+                                        {filteredMembers.reduce((s, m) => s + (m.remainingBonusSessions || 0), 0)}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">🎁 Bonus</p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </CardHeader>
@@ -684,7 +710,8 @@ export default function PTRemainingSessionsReportPage() {
                                       <th className="text-left py-3 px-2">Phone</th>
                                       <th className="text-left py-3 px-2">Package</th>
                                       <th className="text-center py-3 px-2">Pkg Sessions</th>
-                                      <th className="text-center py-3 px-2">Remaining</th>
+                                      <th className="text-center py-3 px-2">Paid Left</th>
+                                      <th className="text-center py-3 px-2">🎁 Bonus Left</th>
                                       <th className="text-left py-3 px-2">Start Date</th>
                                       <th className="text-left py-3 px-2">End Date</th>
                                       <th className="text-center py-3 px-2">Status</th>
@@ -727,6 +754,13 @@ export default function PTRemainingSessionsReportPage() {
                                                 {remaining}
                                               </span>
                                             </div>
+                                          </td>
+                                          <td className="text-center py-3 px-2">
+                                            {member.remainingBonusSessions > 0 ? (
+                                              <span className="font-medium text-green-600">{member.remainingBonusSessions}</span>
+                                            ) : (
+                                              <span className="text-muted-foreground">—</span>
+                                            )}
                                           </td>
                                           <td className="py-3 px-2">
                                             {format(new Date(member.startDate), "MMM dd, yyyy")}
@@ -880,12 +914,13 @@ export default function PTRemainingSessionsReportPage() {
                         onClick={() => handleSort("remaining")}
                       >
                         <div className="flex items-center justify-center gap-2">
-                          Remaining
+                          Paid Left
                           {sortBy === "remaining" && (
                             <span className="text-xs">{sortDir === "asc" ? "↑" : "↓"}</span>
                           )}
                         </div>
                       </th>
+                      <th className="text-center py-3 px-2">🎁 Bonus Left</th>
                       <th
                         className="text-left py-3 px-2 cursor-pointer hover:bg-muted/50"
                         onClick={() => handleSort("startDate")}
@@ -949,6 +984,13 @@ export default function PTRemainingSessionsReportPage() {
                                     {remaining}
                                   </span>
                                 </div>
+                              </td>
+                              <td className="text-center py-3 px-2">
+                                {member.remainingBonusSessions > 0 ? (
+                                  <span className="font-medium text-green-600">{member.remainingBonusSessions}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
                               </td>
                               <td className="py-3 px-2">
                                 {format(new Date(member.startDate), "MMM dd, yyyy")}
