@@ -150,7 +150,7 @@ const permissions = [
   // Voucher
   "list:voucher",
   "create:voucher",
-  "edit:voucher",
+  "update:voucher",
   "delete:voucher",
   "claim:voucher",
 
@@ -177,6 +177,7 @@ const permissions = [
 
   // PT Reports
   "report:pt",
+  "report:voucher",
 
   // Logs
   "list:logs",

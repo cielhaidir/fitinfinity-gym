@@ -280,6 +280,77 @@ export const voucherRouter = createTRPCRouter({
       }
     }),
 
+  getUsageReport: permissionProtectedProcedure(["report:voucher"])
+    .input(
+      z.object({
+        startDate: z.date(),
+        endDate: z.date(),
+        voucherId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const endOfDay = new Date(input.endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const claims = await ctx.db.voucherClaim.findMany({
+        where: {
+          claimedAt: { gte: input.startDate, lte: endOfDay },
+          ...(input.voucherId ? { voucherId: input.voucherId } : {}),
+        },
+        include: {
+          member: { select: { id: true, name: true, email: true } },
+          voucher: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              discountType: true,
+              amount: true,
+              referralCode: true,
+            },
+          },
+        },
+        orderBy: { claimedAt: "desc" },
+      });
+
+      const summaryMap = new Map<
+        string,
+        {
+          voucherId: string;
+          voucherName: string;
+          type: string;
+          discountType: string;
+          amount: number;
+          referralCode: string | null;
+          claimCount: number;
+        }
+      >();
+      for (const claim of claims) {
+        const key = claim.voucherId;
+        if (!summaryMap.has(key)) {
+          summaryMap.set(key, {
+            voucherId: claim.voucherId,
+            voucherName: claim.voucher.name,
+            type: claim.voucher.type,
+            discountType: claim.voucher.discountType,
+            amount: claim.voucher.amount,
+            referralCode: claim.voucher.referralCode,
+            claimCount: 0,
+          });
+        }
+        summaryMap.get(key)!.claimCount++;
+      }
+
+      return {
+        claims,
+        summary: Array.from(summaryMap.values()).sort(
+          (a, b) => b.claimCount - a.claimCount,
+        ),
+        totalClaims: claims.length,
+        uniqueVouchers: summaryMap.size,
+      };
+    }),
+
   getAll: permissionProtectedProcedure(["list:voucher"]).query(
     async ({ ctx }) => {
       return ctx.db.voucher.findMany({
@@ -292,7 +363,7 @@ export const voucherRouter = createTRPCRouter({
     .input(
       z.object({
         name: z.string().min(1, "Name is required"),
-        maxClaim: z.number().min(1, "Max claim must be at least 1"),
+        maxClaim: z.number().min(0, "Max claim tidak boleh negatif"),
         type: z.enum(["REFERRAL", "GENERAL"]),
         discountType: z.enum(["PERCENT", "CASH"]),
         referralCode: z.string().optional(),
@@ -300,7 +371,10 @@ export const voucherRouter = createTRPCRouter({
         minimumPurchase: z.number().min(0).optional(),
         allowStack: z.boolean().optional(),
         expiryDate: z.date().nullable().optional(),
-      }),
+      }).refine(
+        (data) => data.type !== "REFERRAL" || (!!data.referralCode && data.referralCode.trim().length > 0),
+        { message: "Kode referral harus diisi untuk voucher tipe REFERRAL", path: ["referralCode"] },
+      ),
     )
     .mutation(async ({ ctx, input }) => {
       const startTime = Date.now();
@@ -343,7 +417,7 @@ export const voucherRouter = createTRPCRouter({
       z.object({
         id: z.string(),
         name: z.string().min(1, "Name is required"),
-        maxClaim: z.number().min(1, "Max claim must be at least 1"),
+        maxClaim: z.number().min(0, "Max claim tidak boleh negatif"),
         type: z.enum(["REFERRAL", "GENERAL"]),
         discountType: z.enum(["PERCENT", "CASH"]),
         referralCode: z.string().optional(),
@@ -352,7 +426,10 @@ export const voucherRouter = createTRPCRouter({
         allowStack: z.boolean().optional(),
         isActive: z.boolean(),
         expiryDate: z.date().nullable().optional(),
-      }),
+      }).refine(
+        (data) => data.type !== "REFERRAL" || (!!data.referralCode && data.referralCode.trim().length > 0),
+        { message: "Kode referral harus diisi untuk voucher tipe REFERRAL", path: ["referralCode"] },
+      ),
     )
     .mutation(async ({ ctx, input }) => {
       const startTime = Date.now();

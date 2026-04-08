@@ -566,6 +566,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "report:commission",
         },
         {
+          title: "Voucher Usage Report",
+          url: "/reports/voucher-usage",
+          icon: Gift,
+          requiredPermission: "report:voucher",
+        },
+        {
           title: "Cash Bank Report",
           url: "/finance/cash-bank-report",
           icon: HandCoins,

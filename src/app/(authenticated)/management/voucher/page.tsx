@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
@@ -31,26 +31,29 @@ export default function VoucherPage() {
   const [searchColumn, setSearchColumn] = useState<string>("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [activeFilter, setActiveFilter] = useState<"active" | "inactive" | "all">("active");
 
-  const { data: vouchers = { items: [], total: 0, page: 1, limit: 10 }, isLoading } =
-    api.voucher.list.useQuery({
-      type: undefined,
-      isActive: undefined,
-    });
+  const { data: vouchers = [], isLoading } =
+    api.voucher.getAll.useQuery();
+
+  const filteredVouchers = useMemo(() => {
+    if (!Array.isArray(vouchers)) return [];
+    if (activeFilter === "active") return vouchers.filter((v) => v.isActive);
+    if (activeFilter === "inactive") return vouchers.filter((v) => !v.isActive);
+    return vouchers;
+  }, [vouchers, activeFilter]);
 
   // Transform the data to match the expected format
   const transformedData = {
-    items: Array.isArray(vouchers) ? vouchers : [],
-    total: Array.isArray(vouchers) ? vouchers.length : 0,
+    items: filteredVouchers,
+    total: filteredVouchers.length,
     page,
     limit,
   };
 
-  console.log("Vouchers data:", vouchers);
-
   const createVoucherMutation = api.voucher.create.useMutation({
     onSuccess: () => {
-      void utils.voucher.list.invalidate();
+      void utils.voucher.getAll.invalidate();
       setIsSheetOpen(false);
       setIsEditMode(false);
       setSelectedVoucher(null);
@@ -69,16 +72,16 @@ export default function VoucherPage() {
 
   const updateVoucherMutation = api.voucher.update.useMutation({
     onSuccess: () => {
-      void utils.voucher.list.invalidate();
+      void utils.voucher.getAll.invalidate();
       setIsSheetOpen(false);
       setIsEditMode(false);
       setSelectedVoucher(null);
     },
   });
 
-  const deleteVoucherMutation = api.voucher.remove.useMutation({
+  const deleteVoucherMutation = api.voucher.delete.useMutation({
     onSuccess: () => {
-      void utils.voucher.list.invalidate();
+      void utils.voucher.getAll.invalidate();
     },
   });
 
@@ -104,22 +107,26 @@ export default function VoucherPage() {
     }
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (name: string, value: string | boolean) => {
+    const booleanFields = ["allowStack", "isActive"];
+    const coerced = booleanFields.includes(name)
+      ? (typeof value === "boolean" ? value : value === "true")
+      : value;
     if (isEditMode && selectedVoucher) {
-      setSelectedVoucher((prev) => ({
-        ...prev!,
-        [name]: name === "allowStack" ? value === "true" : value,
-      }));
+      setSelectedVoucher((prev) => ({ ...prev!, [name]: coerced }));
     } else {
-      setNewVoucher((prev) => ({
-        ...prev,
-        [name]: name === "allowStack" ? value === "true" : value,
-      }));
+      setNewVoucher((prev) => ({ ...prev, [name]: coerced }));
     }
   };
 
   const handleCreateOrUpdateVoucher = async () => {
     try {
+      const currentVoucher = isEditMode ? selectedVoucher : newVoucher;
+      if (currentVoucher?.type === "REFERRAL" && !currentVoucher?.referralCode?.trim()) {
+        toast.error("Kode referral harus diisi untuk voucher tipe REFERRAL");
+        return;
+      }
+
       let operation;
 
       if (isEditMode && selectedVoucher) {
@@ -128,12 +135,12 @@ export default function VoucherPage() {
           name: selectedVoucher.name,
           maxClaim: Number(selectedVoucher.maxClaim),
           type: selectedVoucher.type,
-          discountType: selectedVoucher.discountType,
+          discountType: selectedVoucher.discountType as "PERCENT" | "CASH",
           referralCode: selectedVoucher.referralCode ?? undefined,
           amount: Number(selectedVoucher.amount),
           minimumPurchase: Number(selectedVoucher.minimumPurchase) || undefined,
-          allowStack: selectedVoucher.allowStack,
-          isActive: selectedVoucher.isActive,
+          allowStack: selectedVoucher.allowStack === true || (selectedVoucher.allowStack as any) === "true",
+          isActive: selectedVoucher.isActive === true || (selectedVoucher.isActive as any) === "true",
           expiryDate: selectedVoucher.expiryDate ?? undefined,
         });
       } else {
@@ -214,11 +221,45 @@ export default function VoucherPage() {
                 Manage your vouchers and promotional codes here
               </p>
             </div>
-            <SheetTrigger asChild>
-              <Button className="w-full bg-infinity md:w-auto">
-                <Plus className="mr-2 h-4 w-4" /> Add Voucher
-              </Button>
-            </SheetTrigger>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-md border border-border overflow-hidden">
+                <button
+                  onClick={() => setActiveFilter("active")}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    activeFilter === "active"
+                      ? "bg-green-600 text-white"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Aktif
+                </button>
+                <button
+                  onClick={() => setActiveFilter("inactive")}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors border-x border-border ${
+                    activeFilter === "inactive"
+                      ? "bg-red-600 text-white"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Tidak Aktif
+                </button>
+                <button
+                  onClick={() => setActiveFilter("all")}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    activeFilter === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  Semua
+                </button>
+              </div>
+              <SheetTrigger asChild>
+                <Button className="w-full bg-infinity md:w-auto">
+                  <Plus className="mr-2 h-4 w-4" /> Add Voucher
+                </Button>
+              </SheetTrigger>
+            </div>
           </div>
           <div className="rounded-md">
             <DataTable

@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/trpc/react";
 import { format, differenceInYears } from "date-fns";
-import { FileSpreadsheet, Filter, Search, X, Eye, FileText } from "lucide-react";
+import { FileSpreadsheet, Filter, Search, X, Eye, FileText, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as XLSX from "xlsx-js-style";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
@@ -33,6 +33,9 @@ export default function MemberProfileReportPage() {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [status, setStatus] = useState<string>("all");
+
+  // Sorting state
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -57,6 +60,8 @@ export default function MemberProfileReportPage() {
         : (status as "ACTIVE" | "EXPIRED" | "REVOKED"),
     page,
     pageSize,
+    sortBy: sortOrder ? "point" : "registerDate",
+    sortOrder: sortOrder ?? "desc",
   });
 
   // Fetch member detail
@@ -86,6 +91,12 @@ export default function MemberProfileReportPage() {
     { enabled: false } // Only fetch when export button is clicked
   );
 
+  // Toggle point sort
+  const handlePointSort = () => {
+    setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+    setPage(1);
+  };
+
   // Apply filters handler
   const handleApplyFilters = () => {
     setSearch(tempSearch);
@@ -106,6 +117,7 @@ export default function MemberProfileReportPage() {
     setStartDate(undefined);
     setEndDate(undefined);
     setStatus("all");
+    setSortOrder(null);
     setPage(1);
     refetch();
   };
@@ -455,7 +467,21 @@ export default function MemberProfileReportPage() {
                     <TableHead>Birth Date</TableHead>
                     <TableHead>Register Date</TableHead>
                     <TableHead>Gender</TableHead>
-                    <TableHead>Points</TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none hover:bg-muted/50"
+                      onClick={handlePointSort}
+                    >
+                      <div className="flex items-center gap-1">
+                        Points
+                        {sortOrder === "desc" ? (
+                          <ChevronDown className="h-4 w-4 text-primary" />
+                        ) : sortOrder === "asc" ? (
+                          <ChevronUp className="h-4 w-4 text-primary" />
+                        ) : (
+                          <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>

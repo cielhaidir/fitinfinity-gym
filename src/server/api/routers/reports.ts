@@ -336,20 +336,7 @@ export const reportsRouter = createTRPCRouter({
       }),
   }),
 
-  /**
-   * Member Profile Report
-   * 
-   * Provides detailed member profiles including:
-   * - Member search functionality
-   * - Individual member profile with full history
-   * - Subscription history
-   * - Trainer sessions summary
-   * - Attendance summary
-   */
   memberProfile: createTRPCRouter({
-    /**
-     * Search for members
-     */
     search: permissionProtectedProcedure(["report:member-profile"])
       .input(
         z.object({
@@ -359,59 +346,30 @@ export const reportsRouter = createTRPCRouter({
           status: z.enum(["ACTIVE", "EXPIRED", "REVOKED"]).optional(),
           page: z.number().min(1).optional().default(1),
           pageSize: z.number().min(1).max(100).optional().default(25),
+          sortBy: z.enum(["point", "registerDate"]).optional().default("registerDate"),
+          sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
         }),
       )
       .query(async ({ ctx, input }) => {
         const skip = (input.page - 1) * input.pageSize;
 
-        // Build where clause
-        // Only show users who have the "Member" role
-    const where: any = {
-  user: {
-    roles: {
-      some: { name: "Member" },         // minimal harus punya role Member
-      every: { name: "Member" },        // semua role yg dimiliki harus Member
-    },
-  },
-};
+        const where: any = {
+          user: {
+            roles: {
+              some: { name: "Member" },
+            },
+          },
+        };
 
-        // Search filter
         if (input.search) {
           where.OR = [
-            {
-              user: {
-                name: {
-                  contains: input.search,
-                  mode: "insensitive" as const,
-                },
-              },
-            },
-            {
-              user: {
-                email: {
-                  contains: input.search,
-                  mode: "insensitive" as const,
-                },
-              },
-            },
-            {
-              user: {
-                phone: {
-                  contains: input.search,
-                  mode: "insensitive" as const,
-                },
-              },
-            },
-            {
-              rfidNumber: {
-                contains: input.search,
-                mode: "insensitive" as const,
-              },
-            },
+            { user: { name: { contains: input.search, mode: "insensitive" as const } } },
+            { user: { email: { contains: input.search, mode: "insensitive" as const } } },
+            { user: { phone: { contains: input.search, mode: "insensitive" as const } } },
+            { rfidNumber: { contains: input.search, mode: "insensitive" as const } },
           ];
         }
 
-        // Date range filter (convert to GMT+8)
         if (input.enrollmentFrom || input.enrollmentTo) {
           where.registerDate = {};
           if (input.enrollmentFrom) {
@@ -422,14 +380,8 @@ export const reportsRouter = createTRPCRouter({
           }
         }
 
-        // Status filter
         if (input.status === "ACTIVE") {
-          where.subscriptions = {
-            some: {
-              isActive: true,
-              deletedAt: null,
-            },
-          };
+          where.subscriptions = { some: { isActive: true, deletedAt: null } };
         } else if (input.status === "EXPIRED") {
           where.isActive = false;
           where.revokedAt = null;
@@ -442,7 +394,9 @@ export const reportsRouter = createTRPCRouter({
             where,
             skip,
             take: input.pageSize,
-            orderBy: { registerDate: "desc" },
+            orderBy: input.sortBy === "point"
+              ? { user: { point: input.sortOrder } }
+              : { registerDate: input.sortOrder },
             include: {
               user: {
                 select: {
@@ -462,25 +416,23 @@ export const reportsRouter = createTRPCRouter({
           ctx.db.membership.count({ where }),
         ]);
 
-        const transformedItems = items.map((membership) => ({
-          membershipId: membership.id,
-          user: {
-            id: membership.user.id,
-            name: membership.user.name,
-            email: membership.user.email,
-            phone: membership.user.phone,
-            birthDate: membership.user.birthDate,
-            gender: membership.user.gender,
-            address: membership.user.address,
-            image: membership.user.image,
-            point: membership.user.point,
-          },
-          registerDate: membership.registerDate,
-          isActive: membership.isActive,
-        }));
-
         return {
-          items: transformedItems,
+          items: items.map((membership) => ({
+            membershipId: membership.id,
+            user: {
+              id: membership.user.id,
+              name: membership.user.name,
+              email: membership.user.email,
+              phone: membership.user.phone,
+              birthDate: membership.user.birthDate,
+              gender: membership.user.gender,
+              address: membership.user.address,
+              image: membership.user.image,
+              point: membership.user.point,
+            },
+            registerDate: membership.registerDate,
+            isActive: membership.isActive,
+          })),
           totalCount,
         };
       }),

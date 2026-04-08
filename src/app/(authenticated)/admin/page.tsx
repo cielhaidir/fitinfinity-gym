@@ -10,15 +10,19 @@ import { Input } from "@/components/ui/input";
 
 const DashboardPage: React.FC = () => {
   // Get current month date range
+  const toLocalDateString = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
   const getCurrentMonthDates = (): { start: string; end: string } => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const startStr = firstDay.toISOString().split('T')[0] as string;
-    const endStr = lastDay.toISOString().split('T')[0] as string;
     return {
-      start: startStr,
-      end: endStr
+      start: toLocalDateString(firstDay),
+      end: toLocalDateString(now),
     };
   };
 

@@ -34,7 +34,7 @@ import { toast } from "sonner";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nama voucher harus diisi"),
-  maxClaim: z.number().min(1, "Max klaim harus lebih dari 0"),
+  maxClaim: z.number().min(0, "Max klaim tidak boleh negatif"),
   type: z.enum(["REFERRAL", "GENERAL"]),
   discountType: z.enum(["PERCENT", "CASH"]),
   referralCode: z.string().optional(),
