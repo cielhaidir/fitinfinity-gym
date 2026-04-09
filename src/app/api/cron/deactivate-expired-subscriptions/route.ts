@@ -43,6 +43,17 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
+
+    // Use start of today in WIB (UTC+8) as the expiry cutoff.
+    // This ensures a subscription with endDate "April 10" stays active
+    // for the full April 10 WIB day and is only deactivated when April 11
+    // WIB begins (= April 10 16:00:00 UTC).
+    const nowInWIB = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const startOfTodayWIB = new Date(
+      Date.UTC(nowInWIB.getUTCFullYear(), nowInWIB.getUTCMonth(), nowInWIB.getUTCDate()) -
+        8 * 60 * 60 * 1000,
+    );
+
     const results: Record<string, number> = {};
     const details: Record<string, any[]> = {};
 
@@ -61,7 +72,7 @@ export async function POST(request: NextRequest) {
         startDate: { lte: now },
         OR: [
           { endDate: null },
-          { endDate: { gte: now } },
+          { endDate: { gte: startOfTodayWIB } },
         ],
       },
       include: detailInclude,
@@ -85,7 +96,7 @@ export async function POST(request: NextRequest) {
         isActive: true,
         isFrozen: false,
         deletedAt: null,
-        endDate: { lt: now },
+        endDate: { lt: startOfTodayWIB },
       },
       include: detailInclude,
     });

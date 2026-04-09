@@ -55,9 +55,12 @@ export default function AdminSubscriptionHistoryPage() {
 const sevenDaysAgo = new Date();
 sevenDaysAgo.setDate(today.getDate() - 7);
 
-const formatDate = (date: Date): string =>
-  date.toISOString().split("T")[0] ?? "";
-
+const formatDate = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -173,8 +176,8 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       packageId: filterPackageId !== "all" ? filterPackageId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
-      startDate: new Date(filterStartDate),
-      endDate: new Date(filterEndDate),
+      startDate: filterStartDate ? new Date(filterStartDate) : undefined,
+      endDate: filterEndDate ? new Date(filterEndDate) : undefined,
     },
     {
       enabled: !!session,
@@ -790,8 +793,8 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
           </div>
         );
       },
-        },
-        {
+    },
+    {
       id: "payment",
       accessorKey: "payments",
       header: ({ column }) => (
@@ -802,14 +805,14 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
         const totalPayment = payments?.[0]?.totalPayment;
         return (
           <div className="min-w-[100px]">
-        <span className="text-sm font-medium">
-          {totalPayment != null ? `Rp ${totalPayment.toLocaleString('id-ID')}` : "N/A"}
-        </span>
+            <span className="text-sm font-medium">
+              {totalPayment != null ? `Rp ${totalPayment.toLocaleString('id-ID')}` : "N/A"}
+            </span>
           </div>
         );
       },
-        },
-        {
+    },
+    {
       id: "paymentCreated",
       accessorKey: "payments",
       header: ({ column }) => (
@@ -822,11 +825,11 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
 
         if (!paidAt) {
           return (
-               <div className="min-w-[100px]">
-         <span className="text-xs ">
-            "N/a"
-            </span>
-          </div>
+            <div className="min-w-[100px]">
+              <span className="text-xs ">
+                "N/a"
+              </span>
+            </div>
           );
         }
         // Convert UTC to GMT+8 by adding 8 hours
@@ -840,8 +843,8 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
           </div>
         );
       },
-        },
-        {
+    },
+    {
       accessorKey: "isActive",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Status" />
@@ -900,36 +903,36 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                   <DropdownMenuItem onClick={() => handleUpgradeSubscription(row.original)}>
                     <TrendingUp className="mr-2 h-4 w-4" />
                     Upgrade
-                   </DropdownMenuItem>
-                 )}
-                 {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
-                   <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
-                     <UserCheck className="mr-2 h-4 w-4" />
-                     Edit Personal Trainer
-                   </DropdownMenuItem>
-                 )}
-                 {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
-                   <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
-                     <Clock className="mr-2 h-4 w-4" />
-                     Edit Remaining Sessions
-                   </DropdownMenuItem>
-                 )}
-                 {row.original.freezeAtStart && (
-                   <DropdownMenuItem onClick={() => handleViewFreezeInfo(row.original)}>
-                     <Clock className="mr-2 h-4 w-4" />
-                     View Freeze Info
-                   </DropdownMenuItem>
-                 )}
-                 {hasPermission("delete:subscription") && (
-                   <DropdownMenuItem
-                     onClick={() => handleDeleteSubscription(row.original)}
-                     className="text-red-600 focus:text-red-600"
-                   >
-                     <Trash2 className="mr-2 h-4 w-4" />
-                     Delete
-                   </DropdownMenuItem>
-                 )}
-               </DropdownMenuContent>
+                  </DropdownMenuItem>
+                )}
+                {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
+                  <DropdownMenuItem onClick={() => handleEditTrainer(row.original)}>
+                    <UserCheck className="mr-2 h-4 w-4" />
+                    Edit Personal Trainer
+                  </DropdownMenuItem>
+                )}
+                {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
+                  <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
+                    <Clock className="mr-2 h-4 w-4" />
+                    Edit Remaining Sessions
+                  </DropdownMenuItem>
+                )}
+                {row.original.freezeAtStart && (
+                  <DropdownMenuItem onClick={() => handleViewFreezeInfo(row.original)}>
+                    <Clock className="mr-2 h-4 w-4" />
+                    View Freeze Info
+                  </DropdownMenuItem>
+                )}
+                {hasPermission("delete:subscription") && (
+                  <DropdownMenuItem
+                    onClick={() => handleDeleteSubscription(row.original)}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
             </DropdownMenu>
           </div>
         );
@@ -1171,8 +1174,8 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       packageId: filterPackageId !== "all" ? filterPackageId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
-      startDate: convertToGMT8Date(filterStartDate),
-      endDate: convertToGMT8EndDate(filterEndDate),
+      startDate: filterStartDate ? new Date(filterStartDate) : undefined,
+      endDate: filterEndDate ? new Date(filterEndDate) : undefined,
     },
     {
       enabled: shouldExport,
@@ -1186,7 +1189,6 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       setShouldExport(false);
     }
   }, [shouldExport, exportData, isExporting]);
-
 
   // Export function - trigger data fetch
   const handleExportCSV = () => {
