@@ -549,6 +549,29 @@ export const trainerSessionRouter = createTRPCRouter({
       }
     }),
 
+  updateOwnStatus: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        status: z.enum(["ENDED", "NOT_YET", "CANCELED", "ONGOING"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.trainerSession.findFirst({
+        where: { id: input.id, trainer: { userId: ctx.session.user.id } },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Sesi tidak ditemukan atau Anda tidak memiliki akses",
+        });
+      }
+      return ctx.db.trainerSession.update({
+        where: { id: input.id },
+        data: { status: input.status },
+      });
+    }),
+
   update: permissionProtectedProcedure(["edit:session"])
     .input(
       z.object({

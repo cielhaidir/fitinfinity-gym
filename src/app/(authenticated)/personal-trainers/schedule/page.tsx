@@ -23,6 +23,9 @@ export default function JadwalPTPage() {
       enabled: !!session?.user,
     });
 
+  // For background auto-status updates (no edit:session permission needed)
+  const updateOwnStatus = api.trainerSession.updateOwnStatus.useMutation();
+
   // FIX: Remove onSuccess from here to prevent infinite loops.
   // Toasts and invalidation will be handled in the functions that call the mutation.
   const updateSession = api.trainerSession.update.useMutation({
@@ -225,11 +228,8 @@ export default function JadwalPTPage() {
         const isOngoing = now >= startTime && now <= endTime;
         const newStatus = isOngoing ? "ONGOING" : "ENDED";
 
-        return updateSession.mutateAsync({
+        return updateOwnStatus.mutateAsync({
           id: session.id,
-          date: new Date(session.date),
-          startTime: startTime,
-          endTime: endTime,
           status: newStatus,
         });
       }),
