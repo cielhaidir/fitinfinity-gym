@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -52,7 +53,7 @@ export const packageRouter = createTRPCRouter({
           day: input.day ?? null,
           isActive: input.isActive ?? true,
           maxUsers: input.maxUsers ?? null,
-          isGroupPackage: input.isGroupPackage ?? false,
+          isGroupPackage: input.type === "GROUP_TRAINING" ? true : (input.isGroupPackage ?? false),
           groupPriceType: input.groupPriceType ?? null,
         },
       });
@@ -178,7 +179,7 @@ export const packageRouter = createTRPCRouter({
             day: data.day,
             isActive: data.isActive,
             maxUsers: data.maxUsers,
-            isGroupPackage: data.isGroupPackage,
+            isGroupPackage: data.type === "GROUP_TRAINING" ? true : data.isGroupPackage,
             groupPriceType: data.groupPriceType,
           },
         });
@@ -316,7 +317,7 @@ export const packageRouter = createTRPCRouter({
               packageId: input.packageId,
               totalMembers: 1,
               maxMembers: groupPackage.maxUsers ?? 4,
-              status: "PENDING"
+              status: "ACTIVE"
             }
           });
 
@@ -458,10 +459,10 @@ export const packageRouter = createTRPCRouter({
           throw new Error("User is not a member");
         }
 
-        // Get group subscription details
+        // Get group subscription details (include leadSubscription to copy trainerId)
         const groupSubscription = await ctx.db.groupSubscription.findUnique({
           where: { id: input.groupSubscriptionId },
-          include: { package: true }
+          include: { package: true, leadSubscription: true }
         });
 
         if (!groupSubscription) {
@@ -472,13 +473,17 @@ export const packageRouter = createTRPCRouter({
           throw new Error("Group is full");
         }
 
+        const newTotalMembers = groupSubscription.totalMembers + 1;
+
         result = await ctx.db.$transaction(async (tx) => {
-          // Create member subscription
+          // Create member subscription (copy trainerId from leader so FIFO decrement works)
           const memberSubscription = await tx.subscription.create({
             data: {
               memberId: member.id,
               packageId: groupSubscription.packageId,
-              startDate: new Date(),
+              trainerId: groupSubscription.leadSubscription.trainerId,
+              startDate: groupSubscription.leadSubscription.startDate,
+              endDate: groupSubscription.leadSubscription.endDate,
               remainingSessions: groupSubscription.package.sessions,
               isActive: true
             }
@@ -493,10 +498,13 @@ export const packageRouter = createTRPCRouter({
             }
           });
 
-          // Update group member count
+          // Update group member count; activate group if now full
           await tx.groupSubscription.update({
             where: { id: groupSubscription.id },
-            data: { totalMembers: { increment: 1 } }
+            data: {
+              totalMembers: newTotalMembers,
+              ...(newTotalMembers >= groupSubscription.maxMembers && { status: "ACTIVE" }),
+            }
           });
 
           return memberSubscription;
@@ -764,11 +772,20 @@ export const packageRouter = createTRPCRouter({
 
             // Create subscription and add to group
             await ctx.db.$transaction(async (tx) => {
+              // Re-read current totalMembers inside transaction
+              const currentGroup = await tx.groupSubscription.findUnique({
+                where: { id: input.groupSubscriptionId },
+                select: { totalMembers: true, maxMembers: true },
+              });
+              const newTotal = (currentGroup?.totalMembers ?? groupSubscription.totalMembers) + 1;
+
               const memberSubscription = await tx.subscription.create({
                 data: {
                   memberId: memberId,
                   packageId: groupSubscription.packageId,
-                  startDate: new Date(),
+                  trainerId: groupSubscription.leadSubscription.trainerId,
+                  startDate: groupSubscription.leadSubscription.startDate,
+                  endDate: groupSubscription.leadSubscription.endDate,
                   remainingSessions: groupSubscription.package?.sessions,
                   isActive: true
                 }
@@ -784,7 +801,10 @@ export const packageRouter = createTRPCRouter({
 
               await tx.groupSubscription.update({
                 where: { id: input.groupSubscriptionId },
-                data: { totalMembers: { increment: 1 } }
+                data: {
+                  totalMembers: newTotal,
+                  ...(newTotal >= groupSubscription.maxMembers && { status: "ACTIVE" }),
+                }
               });
 
               // Increase points for the user who invited the member
@@ -907,6 +927,55 @@ export const packageRouter = createTRPCRouter({
             }
           }
         }
+      });
+
+      return groupSubscription;
+    }),
+
+  createGroupForExistingSubscription: permissionProtectedProcedure(["edit:subscription-advanced"])
+    .input(z.object({ subscriptionId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const subscription = await ctx.db.subscription.findUnique({
+        where: { id: input.subscriptionId },
+        include: {
+          package: true,
+          member: { include: { user: true } },
+        },
+      });
+
+      if (!subscription) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Subscription not found" });
+      }
+
+      if (subscription.package.type !== "GROUP_TRAINING") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Package is not GROUP_TRAINING type" });
+      }
+
+      const existing = await ctx.db.groupMember.findFirst({
+        where: { subscriptionId: subscription.id },
+      });
+
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "GroupSubscription already exists for this subscription" });
+      }
+
+      const groupSubscription = await ctx.db.groupSubscription.create({
+        data: {
+          groupName: `${subscription.member?.user?.name || "Member"}'s Group`,
+          leadSubscriptionId: subscription.id,
+          packageId: subscription.packageId,
+          totalMembers: 1,
+          maxMembers: subscription.package.maxUsers ?? 4,
+          status: "ACTIVE",
+        },
+      });
+
+      await ctx.db.groupMember.create({
+        data: {
+          groupSubscriptionId: groupSubscription.id,
+          subscriptionId: subscription.id,
+          status: "ACTIVE",
+        },
       });
 
       return groupSubscription;

@@ -400,6 +400,27 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     },
   });
 
+  const createGroupForSubsMutation = api.package.createGroupForExistingSubscription.useMutation({
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Group subscription created. You can now add partner in Group Management.",
+      });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create group subscription",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateGroupForSubs = (subscriptionId: string) => {
+    createGroupForSubsMutation.mutate({ subscriptionId });
+  };
+
   // Helper function to get sales person name
   const getSalesPersonName = (salesId: string | null, salesType: string | null) => {
     if (!salesId || !salesType || !salesList) {
@@ -921,6 +942,15 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                   <DropdownMenuItem onClick={() => handleViewFreezeInfo(row.original)}>
                     <Clock className="mr-2 h-4 w-4" />
                     View Freeze Info
+                  </DropdownMenuItem>
+                )}
+                {hasPermission("edit:subscription-advanced") && row.original.package?.type === "GROUP_TRAINING" && (
+                  <DropdownMenuItem
+                    onClick={() => handleCreateGroupForSubs(row.original.id)}
+                    disabled={createGroupForSubsMutation.isPending}
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    Create Group Slot
                   </DropdownMenuItem>
                 )}
                 {hasPermission("delete:subscription") && (

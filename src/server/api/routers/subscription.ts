@@ -498,6 +498,34 @@ export const subscriptionRouter = createTRPCRouter({
           });
         });
 
+        // If it's a group package, create GroupSubscription + GroupMember if not already exists
+        if (packageDetails?.type === "GROUP_TRAINING") {
+          const existingGroupMember = await ctx.db.groupMember.findFirst({
+            where: { subscriptionId: payment.subscription.id },
+          });
+
+          if (!existingGroupMember) {
+            const groupSubscription = await ctx.db.groupSubscription.create({
+              data: {
+                groupName: `${membership?.user?.name || "Member"}'s Group`,
+                leadSubscriptionId: payment.subscription.id,
+                packageId: payment.subscription.packageId,
+                totalMembers: 1,
+                maxMembers: packageDetails.maxUsers ?? 4,
+                status: "ACTIVE",
+              },
+            });
+
+            await ctx.db.groupMember.create({
+              data: {
+                groupSubscriptionId: groupSubscription.id,
+                subscriptionId: payment.subscription.id,
+                status: "ACTIVE",
+              },
+            });
+          }
+        }
+
         // // Send email notifications if this is a new successful payment
         // if (updatedPayment.subscription.member?.user?.email) {
         //   // Send payment receipt email

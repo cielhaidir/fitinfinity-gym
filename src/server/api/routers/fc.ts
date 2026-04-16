@@ -174,7 +174,7 @@ export const fcRouter = createTRPCRouter({
           phone: z.string().nullable(),
           birthDate: z.date().nullable(),
           idNumber: z.string().nullable(),
-        }),
+        }).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -198,11 +198,16 @@ export const fcRouter = createTRPCRouter({
           });
         }
 
-        // Update user data
-        await ctx.db.user.update({
-          where: { id: fc.userId },
-          data: user,
-        });
+        // Only update user data if provided and at least one field is non-null
+        if (user) {
+          const hasUserUpdate = Object.values(user).some((v) => v !== null);
+          if (hasUserUpdate) {
+            await ctx.db.user.update({
+              where: { id: fc.userId },
+              data: user,
+            });
+          }
+        }
 
         // Update FC data if isActive is provided
         if (isActive !== undefined) {

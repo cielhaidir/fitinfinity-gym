@@ -60,8 +60,12 @@ export function DataTableToolbar<TData>({
             <Input
               placeholder="Search..."
               onChange={(event) => {
-                console.log("TOOLBAR SEARCH:", { value: event.target.value, selectedColumn });
-                onSearch?.(event.target.value, selectedColumn);
+                const value = event.target.value;
+                if (onSearch) {
+                  onSearch(value, selectedColumn);
+                } else {
+                  table.getColumn(selectedColumn)?.setFilterValue(value);
+                }
               }}
               className="h-8 flex-1 min-w-0"
             />

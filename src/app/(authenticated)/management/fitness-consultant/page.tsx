@@ -285,14 +285,6 @@ export default function FCPage() {
       const promise = updateFCMutation.mutateAsync({
         id,
         isActive: !currentStatus,
-        user: {
-          name: null,
-          email: null,
-          address: null,
-          phone: null,
-          birthDate: null,
-          idNumber: null,
-        },
       });
 
       toast.promise(promise, {

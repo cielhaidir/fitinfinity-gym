@@ -94,6 +94,32 @@ export const trainerSessionRouter = createTRPCRouter({
             trainerId: trainer.id,
           });
 
+          // If group session, also decrement all other active group members
+          if (input.isGroup) {
+            const groupMember = await tx.groupMember.findFirst({
+              where: { subscriptionId: fifoResult.id, status: "ACTIVE" },
+              include: {
+                groupSubscription: {
+                  include: {
+                    groupMembers: {
+                      where: { status: "ACTIVE", subscriptionId: { not: fifoResult.id } },
+                      include: { subscription: { select: { memberId: true } } },
+                    },
+                  },
+                },
+              },
+            });
+            if (groupMember) {
+              for (const other of groupMember.groupSubscription.groupMembers) {
+                await decrementSessionFIFO({
+                  tx,
+                  memberId: other.subscription.memberId,
+                  trainerId: trainer.id,
+                });
+              }
+            }
+          }
+
           // Create the session
           const session = await tx.trainerSession.create({
             data: {
@@ -230,6 +256,32 @@ export const trainerSessionRouter = createTRPCRouter({
             remainingSessions: fifoResult.remainingSessions,
             isBonusSession: fifoResult.isBonusSession,
           });
+
+          // If group session, also decrement all other active group members
+          if (input.isGroup) {
+            const groupMember = await tx.groupMember.findFirst({
+              where: { subscriptionId: fifoResult.id, status: "ACTIVE" },
+              include: {
+                groupSubscription: {
+                  include: {
+                    groupMembers: {
+                      where: { status: "ACTIVE", subscriptionId: { not: fifoResult.id } },
+                      include: { subscription: { select: { memberId: true } } },
+                    },
+                  },
+                },
+              },
+            });
+            if (groupMember) {
+              for (const other of groupMember.groupSubscription.groupMembers) {
+                await decrementSessionFIFO({
+                  tx,
+                  memberId: other.subscription.memberId,
+                  trainerId: trainer.id,
+                });
+              }
+            }
+          }
 
           // Create the session
           const session = await tx.trainerSession.create({

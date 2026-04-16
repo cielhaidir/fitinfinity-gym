@@ -171,16 +171,16 @@ getRevenueBySales: protectedProcedure
 
     const fcList = await ctx.db.fC.findMany({
       where: { id: { in: fcIds } },
-      select: { id: true, user: { select: { name: true } } },
+      select: { id: true, user: { select: { name: true, email: true } } },
     });
 
     const ptList = await ctx.db.personalTrainer.findMany({
       where: { id: { in: ptIds } },
-      select: { id: true, user: { select: { name: true } } },
+      select: { id: true, user: { select: { name: true, email: true } } },
     });
 
-    const fcMap = new Map(fcList.map(fc => [fc.id, fc.user?.name || 'Unknown FC']));
-    const ptMap = new Map(ptList.map(pt => [pt.id, pt.user?.name || 'Unknown PT']));
+    const fcMap = new Map(fcList.map(fc => [fc.id, fc.user?.name || fc.user?.email || 'Unknown FC']));
+    const ptMap = new Map(ptList.map(pt => [pt.id, pt.user?.name || pt.user?.email || 'Unknown PT']));
 
     // Hitung summary per sales
     const salesSummaryMap = new Map<string, { salesName: string; salesType: string; totalRevenue: number }>();
