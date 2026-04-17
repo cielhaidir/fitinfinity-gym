@@ -111,11 +111,15 @@ export const trainerSessionRouter = createTRPCRouter({
             });
             if (groupMember) {
               for (const other of groupMember.groupSubscription.groupMembers) {
-                await decrementSessionFIFO({
-                  tx,
-                  memberId: other.subscription.memberId,
-                  trainerId: trainer.id,
-                });
+                try {
+                  await decrementSessionFIFO({
+                    tx,
+                    memberId: other.subscription.memberId,
+                    trainerId: trainer.id,
+                  });
+                } catch (err) {
+                  console.warn(`[createSchedule] Skipped decrement for group partner memberId=${other.subscription.memberId}: ${err instanceof Error ? err.message : err}`);
+                }
               }
             }
           }
@@ -274,11 +278,15 @@ export const trainerSessionRouter = createTRPCRouter({
             });
             if (groupMember) {
               for (const other of groupMember.groupSubscription.groupMembers) {
-                await decrementSessionFIFO({
-                  tx,
-                  memberId: other.subscription.memberId,
-                  trainerId: trainer.id,
-                });
+                try {
+                  await decrementSessionFIFO({
+                    tx,
+                    memberId: other.subscription.memberId,
+                    trainerId: trainer.id,
+                  });
+                } catch (err) {
+                  console.warn(`[createSchedule] Skipped decrement for group partner memberId=${other.subscription.memberId}: ${err instanceof Error ? err.message : err}`);
+                }
               }
             }
           }
