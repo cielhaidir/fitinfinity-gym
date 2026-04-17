@@ -725,15 +725,30 @@ export const packageRouter = createTRPCRouter({
           }
         });
 
-        if (
-    !groupSubscription ||
-    (
-      groupSubscription.leadSubscription.member.userId !== user.id &&
-      !user.permissions?.includes("manage:group")
-    )
-  ) {
-    throw new Error("Only the group leader or a user with 'manage:group' permission can invite members");
-  }
+        if (!groupSubscription) {
+          throw new Error("Group not found");
+        }
+
+        // Query user permissions from DB (protectedProcedure does not populate permissions)
+        const userWithRoles = await ctx.db.user.findUnique({
+          where: { id: user.id },
+          include: {
+            roles: {
+              include: {
+                permissions: { include: { permission: true } }
+              }
+            }
+          }
+        });
+        const userPermissions = userWithRoles?.roles.flatMap(role =>
+          role.permissions.map(p => p.permission.name)
+        ) ?? [];
+        const hasManageGroups = userPermissions.includes("manage:groups");
+
+        const isGroupLeader = groupSubscription.leadSubscription.member.userId === user.id;
+        if (!isGroupLeader && !hasManageGroups) {
+          throw new Error("Only the group leader or a user with 'manage:groups' permission can invite members");
+        }
 
         // Check if group has space
         const availableSpots = groupSubscription.maxMembers - groupSubscription.totalMembers;
