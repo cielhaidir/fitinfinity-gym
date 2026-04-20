@@ -110,6 +110,33 @@ export default function AdminGroupManagementPage() {
 
   const inviteMembersMutation = api.package.inviteToGroup.useMutation();
   const kickMemberMutation = api.package.kickMember.useMutation();
+  const syncSessionsMutation = api.package.syncGroupSessions.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Synced ${data.syncedCount} member subscription(s) across ${data.groupCount} group(s)`);
+      refetchGroups();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+  const cleanupOrphanMutation = api.package.cleanupOrphanSubscriptions.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Cleaned up ${data.cleanedCount} orphan subscription(s)`);
+      refetchGroups();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+  const deduplicateMutation = api.package.deduplicateSubscriptions.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Deduplicated ${data.deduplicatedCount} subscription(s) across ${data.groupsAffected} group(s)`);
+      refetchGroups();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 
   const handleInviteMembers = async (memberIds: string[]) => {
     try {
@@ -294,6 +321,40 @@ export default function AdminGroupManagementPage() {
             <p className="text-muted-foreground">
               Manage all training groups and memberships across the system
             </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => syncSessionsMutation.mutate()}
+              disabled={syncSessionsMutation.isPending}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              {syncSessionsMutation.isPending ? "Syncing..." : "Sync Sessions"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (confirm("Soft-delete semua subscription orphan (inactive, no sessions, bukan bagian group aktif)?")) {
+                  cleanupOrphanMutation.mutate();
+                }
+              }}
+              disabled={cleanupOrphanMutation.isPending}
+            >
+              <UserMinus className="mr-2 h-4 w-4" />
+              {cleanupOrphanMutation.isPending ? "Cleaning..." : "Cleanup Orphan Subs"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (confirm("Hapus subscription duplikat (memberId + packageId + startDate hari sama)? Yang terbaik akan disimpan.")) {
+                  deduplicateMutation.mutate();
+                }
+              }}
+              disabled={deduplicateMutation.isPending}
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              {deduplicateMutation.isPending ? "Deduplicating..." : "Deduplicate Subs"}
+            </Button>
           </div>
         </div>
 

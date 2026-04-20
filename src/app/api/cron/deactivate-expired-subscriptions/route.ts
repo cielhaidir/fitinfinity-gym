@@ -274,6 +274,40 @@ export async function POST(request: NextRequest) {
       freezeMode: s.freezeMode,
     }));
 
+    // ── 6. Sync group member sessions to match leader ──
+    const activeGroups = await db.groupSubscription.findMany({
+      where: { status: "ACTIVE" },
+      include: {
+        leadSubscription: {
+          select: { id: true, remainingSessions: true, remainingBonusSessions: true, endDate: true },
+        },
+        groupMembers: {
+          where: { status: "ACTIVE" },
+          select: { subscriptionId: true },
+        },
+      },
+    });
+
+    let groupSessionsSynced = 0;
+    for (const group of activeGroups) {
+      const partnerSubIds = group.groupMembers
+        .filter(gm => gm.subscriptionId !== group.leadSubscriptionId)
+        .map(gm => gm.subscriptionId);
+      if (partnerSubIds.length > 0) {
+        const r = await db.subscription.updateMany({
+          where: { id: { in: partnerSubIds } },
+          data: {
+            remainingSessions: group.leadSubscription.remainingSessions,
+            remainingBonusSessions: group.leadSubscription.remainingBonusSessions,
+            endDate: group.leadSubscription.endDate,
+          },
+        });
+        groupSessionsSynced += r.count;
+      }
+    }
+    results.groupSessionsSynced = groupSessionsSynced;
+    console.log(`[CRON] Synced ${groupSessionsSynced} group member subscription(s) across ${activeGroups.length} group(s)`);
+
     // ── Summary ──
     const duration = Date.now() - runStart;
     const summary = {
@@ -339,6 +373,7 @@ export async function GET() {
       "3. Deactivate PT/Group subs with 0 sessions",
       "4. Auto-unfreeze FIXED_DAYS when freeze period ends",
       "5. Activate scheduled future freezes",
+      "6. Sync group member sessions to match leader",
     ],
     headers: {
       Authorization: "Bearer YOUR_CRON_SECRET_TOKEN",

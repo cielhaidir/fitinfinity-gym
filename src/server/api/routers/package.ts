@@ -652,10 +652,10 @@ export const packageRouter = createTRPCRouter({
               data: { status: "REMOVED" }
             });
     
-            // Deactivate the subscription
+            // Deactivate AND soft-delete the subscription so it doesn't accumulate as duplicates
             await tx.subscription.update({
               where: { id: groupMember.subscriptionId },
-              data: { isActive: false }
+              data: { isActive: false, deletedAt: new Date() }
             });
     
             // Update group member count
@@ -772,7 +772,7 @@ export const packageRouter = createTRPCRouter({
               continue;
             }
 
-            // Check if already in group
+            // Check if already in group (only block if ACTIVE)
             const existingMember = await ctx.db.groupMember.findFirst({
               where: {
                 groupSubscriptionId: input.groupSubscriptionId,
@@ -780,12 +780,12 @@ export const packageRouter = createTRPCRouter({
               }
             });
 
-            if (existingMember) {
+            if (existingMember && existingMember.status === "ACTIVE") {
               inviteResults.push({ memberId, success: false, error: "Already in group" });
               continue;
             }
 
-            // Create subscription and add to group
+            // Create subscription and add to group (or re-add if previously removed)
             await ctx.db.$transaction(async (tx) => {
               // Re-read current totalMembers inside transaction
               const currentGroup = await tx.groupSubscription.findUnique({
@@ -794,25 +794,71 @@ export const packageRouter = createTRPCRouter({
               });
               const newTotal = (currentGroup?.totalMembers ?? groupSubscription.totalMembers) + 1;
 
-              const memberSubscription = await tx.subscription.create({
-                data: {
+              // Read the leader's current remaining sessions so the member matches
+              const currentLeadSub = await tx.subscription.findUnique({
+                where: { id: groupSubscription.leadSubscriptionId },
+                select: { remainingSessions: true, remainingBonusSessions: true },
+              });
+
+              // Try to reuse an existing non-deleted subscription for the same member+package+trainer
+              // to avoid creating duplicate subscription rows.
+              const reusable = await tx.subscription.findFirst({
+                where: {
                   memberId: memberId,
                   packageId: groupSubscription.packageId,
                   trainerId: groupSubscription.leadSubscription.trainerId,
-                  startDate: groupSubscription.leadSubscription.startDate,
-                  endDate: groupSubscription.leadSubscription.endDate,
-                  remainingSessions: groupSubscription.package?.sessions,
-                  isActive: true
-                }
+                  deletedAt: null,
+                  // Not already an ACTIVE member of ANY group
+                  groupMembers: { none: { status: "ACTIVE" } },
+                },
+                orderBy: { startDate: "desc" },
               });
 
-              await tx.groupMember.create({
-                data: {
-                  groupSubscriptionId: input.groupSubscriptionId,
-                  subscriptionId: memberSubscription.id,
-                  status: "ACTIVE"
-                }
-              });
+              let memberSubscription;
+              if (reusable) {
+                memberSubscription = await tx.subscription.update({
+                  where: { id: reusable.id },
+                  data: {
+                    startDate: groupSubscription.leadSubscription.startDate,
+                    endDate: groupSubscription.leadSubscription.endDate,
+                    remainingSessions: currentLeadSub?.remainingSessions ?? groupSubscription.package?.sessions,
+                    remainingBonusSessions: currentLeadSub?.remainingBonusSessions ?? 0,
+                    isActive: true,
+                  },
+                });
+              } else {
+                memberSubscription = await tx.subscription.create({
+                  data: {
+                    memberId: memberId,
+                    packageId: groupSubscription.packageId,
+                    trainerId: groupSubscription.leadSubscription.trainerId,
+                    startDate: groupSubscription.leadSubscription.startDate,
+                    endDate: groupSubscription.leadSubscription.endDate,
+                    remainingSessions: currentLeadSub?.remainingSessions ?? groupSubscription.package?.sessions,
+                    remainingBonusSessions: currentLeadSub?.remainingBonusSessions ?? 0,
+                    isActive: true,
+                  },
+                });
+              }
+
+              if (existingMember && existingMember.status === "REMOVED") {
+                // Re-activate the existing group member record with new subscription
+                await tx.groupMember.update({
+                  where: { id: existingMember.id },
+                  data: {
+                    subscriptionId: memberSubscription.id,
+                    status: "ACTIVE"
+                  }
+                });
+              } else {
+                await tx.groupMember.create({
+                  data: {
+                    groupSubscriptionId: input.groupSubscriptionId,
+                    subscriptionId: memberSubscription.id,
+                    status: "ACTIVE"
+                  }
+                });
+              }
 
               await tx.groupSubscription.update({
                 where: { id: input.groupSubscriptionId },
@@ -869,9 +915,9 @@ export const packageRouter = createTRPCRouter({
       search: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      // Get existing group members
+      // Get existing ACTIVE group members (REMOVED members should be available to re-add)
       const existingMembers = await ctx.db.groupMember.findMany({
-        where: { groupSubscriptionId: input.groupSubscriptionId },
+        where: { groupSubscriptionId: input.groupSubscriptionId, status: "ACTIVE" },
         include: { subscription: true }
       });
 
@@ -994,5 +1040,163 @@ export const packageRouter = createTRPCRouter({
       });
 
       return groupSubscription;
+    }),
+
+  // Sync all group member subscriptions to match their leader's remaining sessions
+  syncGroupSessions: permissionProtectedProcedure(["manage:groups"])
+    .mutation(async ({ ctx }) => {
+      const activeGroups = await ctx.db.groupSubscription.findMany({
+        where: { status: "ACTIVE" },
+        include: {
+          leadSubscription: {
+            select: { id: true, remainingSessions: true, remainingBonusSessions: true, endDate: true },
+          },
+          groupMembers: {
+            where: { status: "ACTIVE" },
+            select: { subscriptionId: true },
+          },
+        },
+      });
+
+      let totalSynced = 0;
+
+      for (const group of activeGroups) {
+        const partnerSubIds = group.groupMembers
+          .filter(gm => gm.subscriptionId !== group.leadSubscriptionId)
+          .map(gm => gm.subscriptionId);
+
+        if (partnerSubIds.length > 0) {
+          const result = await ctx.db.subscription.updateMany({
+            where: { id: { in: partnerSubIds } },
+            data: {
+              remainingSessions: group.leadSubscription.remainingSessions,
+              remainingBonusSessions: group.leadSubscription.remainingBonusSessions,
+              endDate: group.leadSubscription.endDate,
+            },
+          });
+          totalSynced += result.count;
+        }
+      }
+
+      console.log(`[syncGroupSessions] Synced ${totalSynced} group member subscription(s) across ${activeGroups.length} group(s)`);
+      return { syncedCount: totalSynced, groupCount: activeGroups.length };
+    }),
+
+  // Cleanup duplicate / orphan subscriptions.
+  // Soft-deletes subscriptions that are:
+  //  - not already deleted
+  //  - inactive (isActive = false)
+  //  - NOT attached to any ACTIVE GroupMember record
+  //  - NOT a lead subscription of an ACTIVE GroupSubscription
+  //  - have no remaining sessions (paid + bonus = 0) OR are already expired
+  cleanupOrphanSubscriptions: permissionProtectedProcedure(["manage:groups"])
+    .mutation(async ({ ctx }) => {
+      const now = new Date();
+      const orphans = await ctx.db.subscription.findMany({
+        where: {
+          deletedAt: null,
+          isActive: false,
+          groupMembers: { none: { status: "ACTIVE" } },
+          leadGroupSubscriptions: { none: { status: "ACTIVE" } },
+          OR: [
+            {
+              AND: [
+                { OR: [{ remainingSessions: null }, { remainingSessions: { lte: 0 } }] },
+                { remainingBonusSessions: { lte: 0 } },
+              ],
+            },
+            { endDate: { lt: now } },
+          ],
+        },
+        select: { id: true, memberId: true, packageId: true },
+      });
+
+      if (orphans.length === 0) {
+        return { cleanedCount: 0 };
+      }
+
+      const result = await ctx.db.subscription.updateMany({
+        where: { id: { in: orphans.map(o => o.id) } },
+        data: { deletedAt: now },
+      });
+
+      console.log(`[cleanupOrphanSubscriptions] Soft-deleted ${result.count} orphan subscription(s)`);
+      return { cleanedCount: result.count };
+    }),
+
+  // Deduplicate subscriptions: for each (memberId + packageId + startDate day),
+  // keep only the best subscription and soft-delete the rest.
+  deduplicateSubscriptions: permissionProtectedProcedure(["manage:groups"])
+    .mutation(async ({ ctx }) => {
+      const now = new Date();
+
+      // Fetch all non-deleted subscriptions with relations needed for priority
+      const allSubs = await ctx.db.subscription.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          memberId: true,
+          packageId: true,
+          startDate: true,
+          isActive: true,
+          remainingSessions: true,
+          remainingBonusSessions: true,
+          groupMembers: { where: { status: "ACTIVE" }, select: { id: true } },
+          leadGroupSubscriptions: { where: { status: "ACTIVE" }, select: { id: true } },
+        },
+        orderBy: { startDate: "asc" },
+      });
+
+      // Group by memberId + packageId + startDate(day-level)
+      const groups = new Map<string, typeof allSubs>();
+      for (const sub of allSubs) {
+        const dayKey = sub.startDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
+        const key = `${sub.memberId}|${sub.packageId}|${dayKey}`;
+        const arr = groups.get(key) ?? [];
+        arr.push(sub);
+        groups.set(key, arr);
+      }
+
+      const toDelete: string[] = [];
+
+      for (const [, subs] of groups) {
+        if (subs.length <= 1) continue;
+
+        // Sort: best first
+        // 1) linked to active group → top
+        // 2) isActive = true → top
+        // 3) most remaining sessions → top
+        subs.sort((a, b) => {
+          const aLinked = a.groupMembers.length > 0 || a.leadGroupSubscriptions.length > 0 ? 1 : 0;
+          const bLinked = b.groupMembers.length > 0 || b.leadGroupSubscriptions.length > 0 ? 1 : 0;
+          if (bLinked !== aLinked) return bLinked - aLinked;
+
+          const aActive = a.isActive ? 1 : 0;
+          const bActive = b.isActive ? 1 : 0;
+          if (bActive !== aActive) return bActive - aActive;
+
+          const aSessions = (a.remainingSessions ?? 0) + (a.remainingBonusSessions ?? 0);
+          const bSessions = (b.remainingSessions ?? 0) + (b.remainingBonusSessions ?? 0);
+          return bSessions - aSessions;
+        });
+
+        // Keep index 0, soft-delete the rest
+        for (let i = 1; i < subs.length; i++) {
+          toDelete.push(subs[i]!.id);
+        }
+      }
+
+      if (toDelete.length === 0) {
+        return { deduplicatedCount: 0, groupsAffected: 0 };
+      }
+
+      const result = await ctx.db.subscription.updateMany({
+        where: { id: { in: toDelete } },
+        data: { deletedAt: now, isActive: false },
+      });
+
+      const groupsAffected = [...groups.values()].filter(g => g.length > 1).length;
+      console.log(`[deduplicateSubscriptions] Soft-deleted ${result.count} duplicate subscription(s) across ${groupsAffected} group(s)`);
+      return { deduplicatedCount: result.count, groupsAffected };
     }),
 });

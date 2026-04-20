@@ -221,6 +221,37 @@ export const subscriptionRouter = createTRPCRouter({
               }),
         };
 
+        // Idempotency guard: if a subscription with identical
+        // member+package+trainer+startDate already exists (not deleted), return it
+        // instead of creating a duplicate. This protects against double-click / retry.
+        // Real extensions use a different startDate so they are not blocked.
+        const existingDuplicate = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: member.id,
+            packageId: input.packageId,
+            trainerId: input.trainerId || null,
+            startDate: input.startDate,
+            deletedAt: null,
+          },
+          include: {
+            member: {
+              select: {
+                id: true,
+                userId: true,
+                user: { select: { name: true } },
+              },
+            },
+            package: true,
+            payments: true,
+          },
+        });
+        if (existingDuplicate) {
+          console.warn(`[subscription.create] Idempotent hit - returning existing subscription ${existingDuplicate.id}`);
+          success = true;
+          result = existingDuplicate;
+          return existingDuplicate;
+        }
+
         const subscription = await ctx.db.subscription.create({
           data: data,
           include: {

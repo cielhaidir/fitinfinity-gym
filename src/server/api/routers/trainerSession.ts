@@ -94,7 +94,7 @@ export const trainerSessionRouter = createTRPCRouter({
             trainerId: trainer.id,
           });
 
-          // If group session, also decrement all other active group members
+          // If group session, sync all other active group members' sessions to match the leader
           if (input.isGroup) {
             const groupMember = await tx.groupMember.findFirst({
               where: { subscriptionId: fifoResult.id, status: "ACTIVE" },
@@ -103,23 +103,22 @@ export const trainerSessionRouter = createTRPCRouter({
                   include: {
                     groupMembers: {
                       where: { status: "ACTIVE", subscriptionId: { not: fifoResult.id } },
-                      include: { subscription: { select: { memberId: true } } },
                     },
                   },
                 },
               },
             });
             if (groupMember) {
-              for (const other of groupMember.groupSubscription.groupMembers) {
-                try {
-                  await decrementSessionFIFO({
-                    tx,
-                    memberId: other.subscription.memberId,
-                    trainerId: trainer.id,
-                  });
-                } catch (err) {
-                  console.warn(`[createSchedule] Skipped decrement for group partner memberId=${other.subscription.memberId}: ${err instanceof Error ? err.message : err}`);
-                }
+              // Sync partner subscriptions to match leader's remaining sessions
+              const partnerSubIds = groupMember.groupSubscription.groupMembers.map(gm => gm.subscriptionId);
+              if (partnerSubIds.length > 0) {
+                await tx.subscription.updateMany({
+                  where: { id: { in: partnerSubIds } },
+                  data: {
+                    remainingSessions: fifoResult.remainingSessions,
+                    remainingBonusSessions: fifoResult.remainingBonusSessions,
+                  },
+                });
               }
             }
           }
@@ -261,7 +260,7 @@ export const trainerSessionRouter = createTRPCRouter({
             isBonusSession: fifoResult.isBonusSession,
           });
 
-          // If group session, also decrement all other active group members
+          // If group session, sync all other active group members' sessions to match the leader
           if (input.isGroup) {
             const groupMember = await tx.groupMember.findFirst({
               where: { subscriptionId: fifoResult.id, status: "ACTIVE" },
@@ -270,23 +269,22 @@ export const trainerSessionRouter = createTRPCRouter({
                   include: {
                     groupMembers: {
                       where: { status: "ACTIVE", subscriptionId: { not: fifoResult.id } },
-                      include: { subscription: { select: { memberId: true } } },
                     },
                   },
                 },
               },
             });
             if (groupMember) {
-              for (const other of groupMember.groupSubscription.groupMembers) {
-                try {
-                  await decrementSessionFIFO({
-                    tx,
-                    memberId: other.subscription.memberId,
-                    trainerId: trainer.id,
-                  });
-                } catch (err) {
-                  console.warn(`[createSchedule] Skipped decrement for group partner memberId=${other.subscription.memberId}: ${err instanceof Error ? err.message : err}`);
-                }
+              // Sync partner subscriptions to match leader's remaining sessions
+              const partnerSubIds = groupMember.groupSubscription.groupMembers.map(gm => gm.subscriptionId);
+              if (partnerSubIds.length > 0) {
+                await tx.subscription.updateMany({
+                  where: { id: { in: partnerSubIds } },
+                  data: {
+                    remainingSessions: fifoResult.remainingSessions,
+                    remainingBonusSessions: fifoResult.remainingBonusSessions,
+                  },
+                });
               }
             }
           }

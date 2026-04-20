@@ -195,6 +195,7 @@ export default function POSPage() {
     setNotes(sale.notes || "");
     setTax(sale.tax);
     setDiscount(sale.discount);
+    setActiveTab("pos");
     setIsEditDialogOpen(true);
   };
 

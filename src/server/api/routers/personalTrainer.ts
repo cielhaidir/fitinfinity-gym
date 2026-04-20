@@ -377,6 +377,7 @@ export const personalTrainerRouter = createTRPCRouter({
 
       // Get all individual subscriptions for this personal trainer
       // Exclude subscriptions that are lead subscriptions for groups
+      // AND exclude subscriptions that belong to group members (non-leaders)
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           trainerId: input.trainerId,
@@ -387,6 +388,11 @@ export const personalTrainerRouter = createTRPCRouter({
             { remainingBonusSessions: { gt: 0 } },
           ],
           leadGroupSubscriptions: {
+            none: {
+              status: "ACTIVE",
+            },
+          },
+          groupMembers: {
             none: {
               status: "ACTIVE",
             },
@@ -451,6 +457,16 @@ export const personalTrainerRouter = createTRPCRouter({
               },
             },
           },
+          groupMembers: {
+            where: { status: "ACTIVE" },
+            include: {
+              subscription: {
+                include: {
+                  member: { include: { user: { select: { name: true } } } },
+                },
+              },
+            },
+          },
           package: {
             select: {
               type: true,
@@ -491,6 +507,9 @@ export const personalTrainerRouter = createTRPCRouter({
         subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
         type: "group" as const,
         groupId: groupSubscription.id,
+        groupMemberNames: groupSubscription.groupMembers
+          .map(gm => gm.subscription.member.user.name || "Unknown")
+          .filter(name => name !== (groupSubscription.leadSubscription.member.user.name || "")),
       }));
 
       // Combine both individual and group members
@@ -518,6 +537,7 @@ export const personalTrainerRouter = createTRPCRouter({
 
       // Get all individual subscriptions for this personal trainer
       // Exclude subscriptions that are lead subscriptions for groups
+      // AND exclude subscriptions that belong to group members (non-leaders)
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           trainerId: personalTrainer.id,
@@ -528,6 +548,11 @@ export const personalTrainerRouter = createTRPCRouter({
             { remainingBonusSessions: { gt: 0 } },
           ],
           leadGroupSubscriptions: {
+            none: {
+              status: "ACTIVE",
+            },
+          },
+          groupMembers: {
             none: {
               status: "ACTIVE",
             },
@@ -592,13 +617,22 @@ export const personalTrainerRouter = createTRPCRouter({
               },
             },
           },
+          groupMembers: {
+            where: { status: "ACTIVE" },
+            include: {
+              subscription: {
+                include: {
+                  member: { include: { user: { select: { name: true } } } },
+                },
+              },
+            },
+          },
           package: {
             select: {
               type: true,
               sessions: true,
             },
           },
-          // group: true, // Include group to access group name
         },
       });
 
@@ -651,6 +685,9 @@ export const personalTrainerRouter = createTRPCRouter({
         subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
         type: "group",
         groupId: groupSubscription.id,
+        groupMemberNames: groupSubscription.groupMembers
+          .map(gm => gm.subscription.member.user.name || "Unknown")
+          .filter(name => name !== (groupSubscription.leadSubscription.member.user.name || "")),
       }));
 
       // Combine both individual and group members

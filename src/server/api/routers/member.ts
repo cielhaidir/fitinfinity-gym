@@ -217,6 +217,14 @@ export const memberRouter = createTRPCRouter({
                   },
                 },
               },
+              groupMembers: {
+                where: { status: "ACTIVE" },
+                select: { id: true, groupSubscriptionId: true },
+              },
+              leadGroupSubscriptions: {
+                where: { status: "ACTIVE" },
+                select: { id: true },
+              },
             },
             orderBy: {
               startDate: "desc",

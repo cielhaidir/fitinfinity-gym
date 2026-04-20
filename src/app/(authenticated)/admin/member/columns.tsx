@@ -121,8 +121,12 @@ export const createColumns = ({
       ),
       cell: ({ row }) => {
 
-        const gymSubs = row.original.subscriptions.filter((sub: any) => sub.trainerId == null && !sub.deletedAt && sub.endDate);
-        const latestSub = gymSubs.sort((a: any, b: any) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
+        const isNonLeaderGroupMember = (sub: any) =>
+          sub.groupMembers?.length > 0 && (!sub.leadGroupSubscriptions || sub.leadGroupSubscriptions.length === 0);
+        const activeSubs = row.original.subscriptions.filter((sub: any) =>
+          !sub.deletedAt && sub.endDate && sub.isActive && !isNonLeaderGroupMember(sub)
+        );
+        const latestSub = activeSubs.sort((a: any, b: any) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
         const endDate = latestSub?.endDate;
         const now = new Date();
         let durationLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : "N/A";
@@ -139,7 +143,11 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="Sessions Left" />
       ),
       cell: ({ row }) => {
-        const activePtSubs = row.original.subscriptions.filter((sub: any) => sub.trainerId != null && !sub.deletedAt && sub.isActive);
+        const isNonLeaderGroupMember = (sub: any) =>
+          sub.groupMembers?.length > 0 && (!sub.leadGroupSubscriptions || sub.leadGroupSubscriptions.length === 0);
+        const activePtSubs = row.original.subscriptions.filter((sub: any) =>
+          sub.trainerId != null && !sub.deletedAt && sub.isActive && !isNonLeaderGroupMember(sub)
+        );
         const sessionLeft = activePtSubs.reduce((total: number, sub: any) => total + (sub.remainingSessions ?? 0), 0);
         return (
           <div className="w-[150px]">{sessionLeft}</div>

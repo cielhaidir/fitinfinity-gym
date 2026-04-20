@@ -468,12 +468,40 @@ export const managerCalendarRouter = createTRPCRouter({
         }
 
         // Restore to paid or bonus counter based on isBonusSession flag
-        await db.subscription.update({
+        const updatedSub = await db.subscription.update({
           where: { id: subscriptionId },
           data: session.isBonusSession
             ? { remainingBonusSessions: { increment: 1 } }
             : { remainingSessions: { increment: 1 } },
         });
+
+        // If group/pair session, sync all group members' sessions to match the leader
+        if (session.isGroup) {
+          const groupMember = await db.groupMember.findFirst({
+            where: { subscriptionId: subscriptionId, status: "ACTIVE" },
+            include: {
+              groupSubscription: {
+                include: {
+                  groupMembers: {
+                    where: { status: "ACTIVE", subscriptionId: { not: subscriptionId } },
+                  },
+                },
+              },
+            },
+          });
+          if (groupMember) {
+            const partnerSubIds = groupMember.groupSubscription.groupMembers.map(gm => gm.subscriptionId);
+            if (partnerSubIds.length > 0) {
+              await db.subscription.updateMany({
+                where: { id: { in: partnerSubIds } },
+                data: {
+                  remainingSessions: updatedSub.remainingSessions,
+                  remainingBonusSessions: updatedSub.remainingBonusSessions,
+                },
+              });
+            }
+          }
+        }
 
         // Delete the trainer session
         await db.trainerSession.delete({

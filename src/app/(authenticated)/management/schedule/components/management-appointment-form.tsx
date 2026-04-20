@@ -31,6 +31,7 @@ interface Member {
   remainingBonusSessions: number;
   type: "individual" | "group";
   groupId?: string;
+  groupMemberNames?: string[];
 }
 
 export default function ManagementAppointmentForm({
@@ -80,6 +81,7 @@ export default function ManagementAppointmentForm({
             remainingBonusSessions: (member as any).remainingBonusSessions ?? 0,
             type: member.type,
             groupId: 'groupId' in member ? member.groupId : undefined,
+            groupMemberNames: (member as any).groupMemberNames ?? [],
           });
         } else {
           // For individual members, combine by name
@@ -338,6 +340,24 @@ export default function ManagementAppointmentForm({
           />
         )}
       </div>
+
+      {/* Group Member Info */}
+      {memberValueMap.get(selectedMemberId)?.type === "group" && (
+        <div className="rounded-md border border-border bg-muted/50 p-3 space-y-1">
+          <p className="text-sm font-medium text-muted-foreground">Anggota Group:</p>
+          <div className="flex flex-wrap gap-1">
+            {((memberValueMap.get(selectedMemberId)?.member as any)?.groupMemberNames ?? []).length > 0 ? (
+              ((memberValueMap.get(selectedMemberId)?.member as any)?.groupMemberNames as string[]).map((name: string, i: number) => (
+                <span key={i} className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  {name}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">Belum ada anggota selain leader</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {memberValueMap.get(selectedMemberId)?.type === "group" && (
         <div className="space-y-2">
