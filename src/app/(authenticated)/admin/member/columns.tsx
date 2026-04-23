@@ -171,8 +171,19 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="Active" />
       ),
       cell: ({ row }) => {
-        const activeSubscription = Array.isArray(row.original.subscriptions) && row.original.subscriptions.find((sub) => {
-          const now = new Date();
+        const subs = Array.isArray(row.original.subscriptions) ? row.original.subscriptions : [];
+        const now = new Date();
+
+        // 1. Check for currently frozen subscriptions (isFrozen = true)
+        const frozenSub = subs.find((sub: any) => sub.isFrozen && !sub.deletedAt);
+
+        // 2. Check for scheduled future freeze (frozenAt in the future, not yet active)
+        const scheduledFreezeSub = !frozenSub && subs.find((sub: any) =>
+          !sub.deletedAt && sub.frozenAt && new Date(sub.frozenAt) > now && !sub.isFrozen
+        );
+
+        // 3. Check for active subscriptions
+        const activeSub = subs.find((sub: any) => {
           const isNotExpired = sub.endDate ? new Date(sub.endDate) > now : true;
           return sub.isActive && isNotExpired && !sub.deletedAt;
         });
@@ -180,14 +191,15 @@ export const createColumns = ({
         let status = "Inactive";
         let variant: "default" | "secondary" | "destructive" = "destructive";
 
-        if (activeSubscription) {
-          if (activeSubscription.isFrozen) {
-            status = "Frozen";
-            variant = "secondary";
-          } else {
-            status = "Active";
-            variant = "default";
-          }
+        if (frozenSub) {
+          status = "Frozen";
+          variant = "secondary";
+        } else if (scheduledFreezeSub) {
+          status = "Freeze Scheduled";
+          variant = "secondary";
+        } else if (activeSub) {
+          status = "Active";
+          variant = "default";
         }
 
         return (

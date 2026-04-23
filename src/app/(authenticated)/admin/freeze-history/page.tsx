@@ -346,18 +346,19 @@ export default function FreezeHistoryPage() {
       cell: ({ row }) => {
         const freeze = row.original;
         const isFreezeOperation = freeze.operationType === "FREEZE";
-        const hasFreezeData = freeze.freezeDays && freeze.freezeDays > 0;
         
-        // Check if any subscription is currently frozen
-        const hasFrozenSubscription = freeze.subscriptions?.some((sub: any) => sub.isFrozen);
+        // Check if any subscription is currently frozen OR has a scheduled future freeze
+        const hasActiveFreeze = freeze.subscriptions?.some(
+          (sub: any) => sub.isFrozen || sub.frozenAt || sub.freezeMode
+        );
         
-        // Only show action buttons for FREEZE operations with freeze days that are still active
-        if (!isFreezeOperation || !hasFreezeData) {
+        // Only show action buttons for FREEZE operations that are still active
+        if (!isFreezeOperation) {
           return <div className="text-center text-xs text-muted-foreground">-</div>;
         }
 
-        // If all subscriptions have been unfrozen/cancelled, show no actions
-        if (!hasFrozenSubscription) {
+        // If all subscriptions have been fully unfrozen/cancelled (no freeze data remaining), show no actions
+        if (!hasActiveFreeze) {
           return <div className="text-center text-xs text-muted-foreground italic">-</div>;
         }
 
