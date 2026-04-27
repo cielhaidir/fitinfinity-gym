@@ -58,6 +58,7 @@ export const trainerSessionRouter = createTRPCRouter({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
+            isActive: true,
             deletedAt: null,
             OR: [
               { remainingSessions: { gt: 0 } },
@@ -208,6 +209,7 @@ export const trainerSessionRouter = createTRPCRouter({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
+            isActive: true,
             deletedAt: null,
             OR: [
               { remainingSessions: { gt: 0 } },

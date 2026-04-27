@@ -94,6 +94,7 @@ export async function decrementSessionFIFO(params: {
     where: {
       memberId,
       trainerId,
+      isActive: true,
       deletedAt: null,
       remainingSessions: { gt: 0 },
     },
@@ -118,6 +119,7 @@ export async function decrementSessionFIFO(params: {
     where: {
       memberId,
       trainerId,
+      isActive: true,
       deletedAt: null,
       remainingBonusSessions: { gt: 0 },
     },

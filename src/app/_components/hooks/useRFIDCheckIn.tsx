@@ -19,6 +19,7 @@ interface RFIDContextType {
   selectedMemberForCheckIn: Member | null;
   openCheckInModal: (member: Member) => void;
   closeCheckInModal: () => void;
+  queueLength: number;
 }
 
 const RFIDContext = createContext<RFIDContextType | undefined>(undefined);
@@ -36,9 +37,10 @@ interface RFIDProviderProps {
 }
 
 export function RFIDProvider({ children }: RFIDProviderProps) {
-  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
-  const [selectedMemberForCheckIn, setSelectedMemberForCheckIn] = useState<Member | null>(null);
-  
+  const [checkInQueue, setCheckInQueue] = useState<Member[]>([]);
+  const isCheckInModalOpen = checkInQueue.length > 0;
+  const selectedMemberForCheckIn = checkInQueue[0] ?? null;
+
   // RFID scanner state
   const [rfidBuffer, setRfidBuffer] = useState<string>("");
   const [lastScanTime, setLastScanTime] = useState<number>(0);
@@ -47,7 +49,7 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
   // Use dedicated RFID lookup hook (only called when needed)
   const [currentRFID, setCurrentRFID] = useState<string | null>(null);
   const [currentMembershipId, setCurrentMembershipId] = useState<string | null>(null);
-  
+
   const { data: foundMemberByRFID, isLoading: isSearchingRFID } = api.member.findByRFID.useQuery(
     { rfidNumber: currentRFID! },
     {
@@ -77,13 +79,23 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
     setCurrentMembershipId(normalizedId);
   }, []);
 
+  // Helper to add member to queue (avoid duplicates by id)
+  const enqueueMember = useCallback((member: Member) => {
+    setCheckInQueue(prev => {
+      if (prev.some(m => m.id === member.id)) {
+        toast.info(`${member.user.name} sudah ada di antrian check-in`);
+        return prev;
+      }
+      return [...prev, member];
+    });
+  }, []);
+
   // Handle the RFID API response
   useEffect(() => {
     if (currentRFID && !isSearchingRFID) {
       if (foundMemberByRFID) {
-        console.log("Member found by RFID, opening modal:", foundMemberByRFID);
-        setSelectedMemberForCheckIn(foundMemberByRFID);
-        setIsCheckInModalOpen(true);
+        console.log("Member found by RFID, adding to queue:", foundMemberByRFID);
+        enqueueMember(foundMemberByRFID);
         toast.success(`Member found: ${foundMemberByRFID.user.name}`);
       } else {
         console.log("Member not found for RFID:", currentRFID);
@@ -92,15 +104,14 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
       // Reset the search
       setCurrentRFID(null);
     }
-  }, [currentRFID, foundMemberByRFID, isSearchingRFID]);
+  }, [currentRFID, foundMemberByRFID, isSearchingRFID, enqueueMember]);
 
   // Handle the membership ID API response
   useEffect(() => {
     if (currentMembershipId && !isSearchingMembershipId) {
       if (foundMemberByMembershipId) {
-        console.log("Member found by membership ID, opening modal:", foundMemberByMembershipId);
-        setSelectedMemberForCheckIn(foundMemberByMembershipId);
-        setIsCheckInModalOpen(true);
+        console.log("Member found by membership ID, adding to queue:", foundMemberByMembershipId);
+        enqueueMember(foundMemberByMembershipId);
         toast.success(`Member found: ${foundMemberByMembershipId.user.name}`);
       } else {
         console.log("Member not found for membership ID:", currentMembershipId);
@@ -109,7 +120,7 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
       // Reset the search
       setCurrentMembershipId(null);
     }
-  }, [currentMembershipId, foundMemberByMembershipId, isSearchingMembershipId]);
+  }, [currentMembershipId, foundMemberByMembershipId, isSearchingMembershipId, enqueueMember]);
 
   const handleRFIDScan = useCallback((rfidNumber: string) => {
     console.log("Processing RFID scan:", rfidNumber);
@@ -119,12 +130,12 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
   const processRFIDBuffer = useCallback(() => {
     const trimmedBuffer = rfidBuffer.trim();
     console.log("Processing buffer:", trimmedBuffer, "Length:", trimmedBuffer.length);
-    
+
     // Check if buffer contains exactly 10 digits (RFID format)
     const isRFID = /^\d{10}$/.test(trimmedBuffer);
     // Check if buffer contains alphanumeric string longer than 10 chars (membership ID format)
     const isMembershipId = /^[a-z0-9]{20,}$/i.test(trimmedBuffer);
-    
+
     if (isRFID) {
       console.log("Valid RFID detected:", trimmedBuffer);
       handleRFIDScan(trimmedBuffer);
@@ -134,26 +145,26 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
     } else {
       console.log("Invalid scan format:", trimmedBuffer);
     }
-    
+
     // Clear buffer after processing
     setRfidBuffer("");
   }, [rfidBuffer, handleRFIDScan, findMemberByMembershipId]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     const now = Date.now();
-    
+
     // If too much time has passed since last keystroke, reset buffer
     if (now - lastScanTime > 100) {
       setRfidBuffer("");
     }
-    
+
     setLastScanTime(now);
-    
+
     // Clear existing timeout
     if (rfidTimeoutRef.current) {
       clearTimeout(rfidTimeoutRef.current);
     }
-    
+
     if (event.key === "Enter") {
       console.log("Enter pressed, buffer:", rfidBuffer);
       // Process the buffer when Enter is pressed
@@ -166,7 +177,7 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
         // Limit buffer to reasonable length to prevent overflow
         return newBuffer.length > 50 ? newBuffer.slice(-50) : newBuffer;
       });
-      
+
       // Set timeout to clear buffer if no Enter is received
       rfidTimeoutRef.current = setTimeout(() => {
         console.log("Buffer timeout, clearing");
@@ -178,7 +189,7 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
   // Add global keyboard event listener
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
-    
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       if (rfidTimeoutRef.current) {
@@ -188,13 +199,12 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
   }, [handleKeyDown]);
 
   const openCheckInModal = useCallback((member: Member) => {
-    setSelectedMemberForCheckIn(member);
-    setIsCheckInModalOpen(true);
-  }, []);
+    enqueueMember(member);
+  }, [enqueueMember]);
 
   const closeCheckInModal = useCallback(() => {
-    setIsCheckInModalOpen(false);
-    setSelectedMemberForCheckIn(null);
+    // Remove the first item (current), next in queue auto-becomes current
+    setCheckInQueue(prev => prev.slice(1));
   }, []);
 
   const value = {
@@ -202,6 +212,7 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
     selectedMemberForCheckIn,
     openCheckInModal,
     closeCheckInModal,
+    queueLength: checkInQueue.length,
   };
 
   // Show loading state when searching

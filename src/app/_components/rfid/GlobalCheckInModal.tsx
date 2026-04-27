@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,10 +38,16 @@ function formatFacilityDescription(lokerNumber: string, handuk: string): string 
 }
 
 export function GlobalCheckInModal() {
-  const { isCheckInModalOpen, selectedMemberForCheckIn, closeCheckInModal } = useRFIDCheckIn();
+  const { isCheckInModalOpen, selectedMemberForCheckIn, closeCheckInModal, queueLength } = useRFIDCheckIn();
   
   const [lokerNumber, setLokerNumber] = useState<string>("");
   const [handukSelection, setHandukSelection] = useState<string>("None");
+
+  // Reset form fields when the current member changes (next in queue)
+  useEffect(() => {
+    setLokerNumber("");
+    setHandukSelection("None");
+  }, [selectedMemberForCheckIn?.id]);
 
   const manualCheckInMutation = api.esp32.manualCheckIn.useMutation({
     onSuccess: () => {
@@ -75,10 +81,17 @@ export function GlobalCheckInModal() {
   };
 
   return (
-    <Dialog open={isCheckInModalOpen} onOpenChange={closeCheckInModal}>
+    <Dialog open={isCheckInModalOpen} onOpenChange={handleCancel}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Member Check-in</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Member Check-in
+            {queueLength > 1 && (
+              <span className="inline-flex items-center rounded-full bg-orange-500 px-2.5 py-0.5 text-xs font-medium text-white">
+                +{queueLength - 1} antrian
+              </span>
+            )}
+          </DialogTitle>
           {selectedMemberForCheckIn && (
             <div className="flex items-center gap-4 py-4">
               <Avatar className="h-20 w-20 border-2 border-[#BFFF00]">
