@@ -109,7 +109,7 @@ export default function PackagePage() {
       // Add type-specific fields
       let typeSpecificData: any = {};
       
-      if (packageData.type === "PERSONAL_TRAINER" || packageData.type === "GROUP_TRAINING") {
+      if (packageData.type === "PERSONAL_TRAINER" || packageData.type === "GROUP_TRAINING" || packageData.type === "CLASS_SESSION") {
         typeSpecificData = {
           sessions: Number(packageData.sessions) || 0,
           bonusSessions: Number(packageData.bonusSessions) || 0,
