@@ -31,6 +31,8 @@ interface SessionDetail {
   description?: string | null;
   status?: string | null;
   isBonusSession?: boolean;
+  isSynced?: boolean;
+  checkinTime?: Date | null;
 }
 
 export default function TrainerSessionsReportPage() {
@@ -41,11 +43,27 @@ export default function TrainerSessionsReportPage() {
   const [tempSelectedMember, setTempSelectedMember] = useState<string>("all");
   const [selectedMemberLabel, setSelectedMemberLabel] = useState<string>("All Members");
   
+  // Client-side filters
+  const [syncFilter, setSyncFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
   // Applied filter states
   const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 30));
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [selectedTrainer, setSelectedTrainer] = useState<string>("all");
   const [selectedMember, setSelectedMember] = useState<string>("all");
+
+  // Status update mutation
+  const utils = api.useUtils();
+  const updateStatusMutation = api.trainerSession.updateStatusFromReport.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const handleStatusChange = (sessionId: string, newStatus: string) => {
+    updateStatusMutation.mutate({ id: sessionId, status: newStatus as "ENDED" | "NOT_YET" | "CANCELED" | "ONGOING" });
+  };
 
   // Fetch trainer sessions report
   const { data: reportData, isLoading: isLoadingReport, refetch } = api.trainerSession.getTrainerSessionsReport.useQuery({
@@ -58,8 +76,7 @@ export default function TrainerSessionsReportPage() {
   // Fetch trainers for dropdown
   const { data: trainers } = api.personalTrainer.listWithUsers.useQuery();
 
-  // Get tRPC context for search mutation
-  const utils = api.useUtils();
+  // Get tRPC context for search
 
   // Load members async - only when search query has 3+ characters
   const loadMemberOptions = useCallback(async (inputValue: string): Promise<ComboboxOption[]> => {
@@ -113,6 +130,8 @@ export default function TrainerSessionsReportPage() {
     setEndDate(defaultEndDate);
     setSelectedTrainer("all");
     setSelectedMember("all");
+    setSyncFilter("all");
+    setStatusFilter("all");
     refetch();
   };
 
@@ -133,6 +152,8 @@ export default function TrainerSessionsReportPage() {
       "Session Type": session.isGroup ? "Group" : "Individual",
       "Attendance Count": session.attendanceCount,
       "Status": session.status || "N/A",
+      "Sync": session.isSynced ? "Synced" : "No Check-in",
+      "Check-in Time": session.checkinTime ? format(new Date(session.checkinTime), "HH:mm") : "N/A",
       "Session Category": session.isBonusSession ? "Bonus (Free)" : "Paid",
       "Description": session.description || "",
     }));
@@ -259,6 +280,34 @@ export default function TrainerSessionsReportPage() {
                     defaultOptions={[{ value: "all", label: "All Members" }]}
                   />
                 </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="NOT_YET">Not Yet</SelectItem>
+                      <SelectItem value="ONGOING">Ongoing</SelectItem>
+                      <SelectItem value="ENDED">Ended</SelectItem>
+                      <SelectItem value="CANCELED">Canceled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Sync</Label>
+                  <Select value={syncFilter} onValueChange={setSyncFilter}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="synced">Synced (Check-in)</SelectItem>
+                      <SelectItem value="no-checkin">No Check-in</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button
@@ -350,11 +399,18 @@ export default function TrainerSessionsReportPage() {
                     <th className="text-left py-2">Type</th>
                     <th className="text-left py-2">Category</th>
                     <th className="text-left py-2">Status</th>
+                    <th className="text-left py-2">Sync</th>
+                    <th className="text-left py-2">Description</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData?.sessions && reportData.sessions.length > 0 ? (
-                    reportData.sessions.map((session: SessionDetail) => (
+                  {(() => {
+                    let filtered = reportData?.sessions || [];
+                    if (syncFilter === "synced") filtered = filtered.filter((s: SessionDetail) => s.isSynced);
+                    if (syncFilter === "no-checkin") filtered = filtered.filter((s: SessionDetail) => !s.isSynced);
+                    if (statusFilter !== "all") filtered = filtered.filter((s: SessionDetail) => (s.status || "NOT_YET") === statusFilter);
+                    return filtered.length > 0 ? (
+                    filtered.map((session: SessionDetail) => (
                       <tr key={session.id} className="border-b hover:bg-muted/50">
                         <td className="py-2">{format(new Date(session.date), "MMM d, yyyy")}</td>
                         <td className="py-2">
@@ -390,27 +446,53 @@ export default function TrainerSessionsReportPage() {
                           )}
                         </td>
                         <td className="py-2">
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            session.status === "ENDED"
-                              ? "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
-                              : session.status === "ONGOING"
-                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                              : session.status === "CANCELED"
-                              ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                          }`}>
-                            {session.status || "NOT_YET"}
-                          </span>
+                          <Select
+                            value={session.status || "NOT_YET"}
+                            onValueChange={(value) => handleStatusChange(session.id, value)}
+                          >
+                            <SelectTrigger className="h-7 w-28 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="NOT_YET">
+                                <span className="text-blue-600">Not Yet</span>
+                              </SelectItem>
+                              <SelectItem value="ONGOING">
+                                <span className="text-yellow-600">Ongoing</span>
+                              </SelectItem>
+                              <SelectItem value="ENDED">
+                                <span className="text-gray-600">Ended</span>
+                              </SelectItem>
+                              <SelectItem value="CANCELED">
+                                <span className="text-red-600">Canceled</span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="py-2">
+                          {session.isSynced ? (
+                            <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" title={session.checkinTime ? `Check-in: ${format(new Date(session.checkinTime), "HH:mm")}` : ""}>
+                              ✅ {session.checkinTime ? format(new Date(session.checkinTime), "HH:mm") : ""}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
+                              ❌ No Check-in
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 text-sm text-muted-foreground max-w-[200px] truncate" title={session.description || ""}>
+                          {session.description || "-"}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={10} className="py-8 text-center text-muted-foreground">
                         No sessions found for the selected filters.
                       </td>
                     </tr>
-                  )}
+                  );
+                  })()}
                 </tbody>
               </table>
             </div>

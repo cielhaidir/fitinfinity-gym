@@ -632,6 +632,57 @@ export const trainerSessionRouter = createTRPCRouter({
       });
     }),
 
+  checkMemberCheckin: protectedProcedure
+    .input(
+      z.object({
+        memberId: z.string(),
+        date: z.date(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const dayStart = new Date(input.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const checkin = await ctx.db.attendanceMember.findFirst({
+        where: {
+          memberId: input.memberId,
+          checkin: { gte: dayStart, lt: dayEnd },
+        },
+        select: { checkin: true },
+        orderBy: { checkin: "desc" },
+      });
+
+      return {
+        hasCheckedIn: !!checkin,
+        checkinTime: checkin?.checkin ?? null,
+      };
+    }),
+
+  updateStatusFromReport: permissionProtectedProcedure(["report:pt"])
+    .input(
+      z.object({
+        id: z.string(),
+        status: z.enum(["ENDED", "NOT_YET", "CANCELED", "ONGOING"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.trainerSession.findUnique({
+        where: { id: input.id },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session not found",
+        });
+      }
+      return ctx.db.trainerSession.update({
+        where: { id: input.id },
+        data: { status: input.status },
+      });
+    }),
+
   update: permissionProtectedProcedure(["edit:session"])
     .input(
       z.object({
@@ -1120,6 +1171,30 @@ export const trainerSessionRouter = createTRPCRouter({
         },
       });
 
+      // Batch-fetch all member attendance records in the date range for sync check
+      const memberIds = [...new Set(sessions.map(s => s.memberId))];
+      const attendanceRecords = await ctx.db.attendanceMember.findMany({
+        where: {
+          memberId: { in: memberIds },
+          checkin: {
+            gte: dateFilter.gte,
+            lte: dateFilter.lte,
+          },
+        },
+        select: {
+          memberId: true,
+          checkin: true,
+        },
+      });
+
+      // Build a lookup: memberId -> checkin times sorted ascending
+      const attendanceMap = new Map<string, Date[]>();
+      for (const att of attendanceRecords) {
+        const arr = attendanceMap.get(att.memberId) || [];
+        arr.push(new Date(att.checkin));
+        attendanceMap.set(att.memberId, arr);
+      }
+
       // Calculate totals
       let totalHours = 0;
       const sessionDetails = sessions.map(session => {
@@ -1129,6 +1204,15 @@ export const trainerSessionRouter = createTRPCRouter({
         const durationHours = durationMs / 3600000; // Convert ms to hours
 
         totalHours += durationHours;
+
+        // Sync check: member has attendance on same date with checkin <= startTime
+        const sessionDate = new Date(session.date);
+        const dayStart = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
+        const dayEnd = new Date(dayStart.getTime() + 86400000); // +1 day
+        const memberCheckins = attendanceMap.get(session.memberId) || [];
+        const matchingCheckin = memberCheckins.find(
+          c => c >= dayStart && c < dayEnd && c <= startTime
+        );
 
         return {
           id: session.id,
@@ -1147,6 +1231,8 @@ export const trainerSessionRouter = createTRPCRouter({
           description: session.description,
           status: session.status,
           isBonusSession: session.isBonusSession,
+          isSynced: !!matchingCheckin,
+          checkinTime: matchingCheckin || null,
         };
       });
 

@@ -208,6 +208,14 @@ export const memberRouter = createTRPCRouter({
               deletedAt: null,
             },
             include: {
+              package: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  sessions: true,
+                },
+              },
               trainer: {
                 include: {
                   user: {

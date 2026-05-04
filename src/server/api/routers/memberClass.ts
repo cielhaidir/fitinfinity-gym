@@ -1,10 +1,13 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   protectedProcedure,
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { decrementClassSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 export const memberClassRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:classes"])
@@ -841,5 +844,331 @@ export const memberClassRouter = createTRPCRouter({
           duration: Date.now() - startTime,
         });
       }
+    }),
+
+  // ─── Class Session Check-in Endpoints ─────────────────────────────
+
+  /**
+   * Determine check-in mode for a member after QR scan.
+   * Returns gym, class, gym_class (both), or none.
+   */
+  getCheckInMode: protectedProcedure
+    .input(z.object({ memberId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // 1. Check for active GYM_MEMBERSHIP
+      const gymSub = await ctx.db.subscription.findFirst({
+        where: {
+          memberId: input.memberId,
+          isActive: true,
+          deletedAt: null,
+          package: { type: "GYM_MEMBERSHIP" },
+        },
+        select: { id: true },
+      });
+
+      // 2. Check for active CLASS_SESSION with remaining sessions
+      const classSub = await ctx.db.subscription.findFirst({
+        where: {
+          memberId: input.memberId,
+          isActive: true,
+          deletedAt: null,
+          package: { type: "CLASS_SESSION" },
+          OR: [
+            { remainingSessions: { gt: 0 } },
+            { remainingBonusSessions: { gt: 0 } },
+          ],
+        },
+        select: {
+          id: true,
+          remainingSessions: true,
+          remainingBonusSessions: true,
+          package: { select: { name: true } },
+        },
+      });
+
+      if (gymSub && classSub) {
+        return {
+          mode: "gym_class" as const,
+          subscription: classSub,
+        };
+      }
+
+      if (gymSub) {
+        return { mode: "gym" as const };
+      }
+
+      if (classSub) {
+        return {
+          mode: "class" as const,
+          subscription: classSub,
+        };
+      }
+
+      return { mode: "none" as const };
+    }),
+
+  /**
+   * Get classes available today for class session check-in.
+   */
+  getAvailableClassesToday: protectedProcedure
+    .input(z.object({ memberId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Server runs in UTC; shift to GMT+8 so the helper gets the correct local date
+      const now = new Date();
+      const gmt8Now = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+      const startOfDay = toGMT8StartOfDay(gmt8Now);
+      const endOfDay = toGMT8EndOfDay(gmt8Now);
+
+      const classes = await ctx.db.class.findMany({
+        where: {
+          schedule: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        include: {
+          classType: true,
+          registeredMembers: {
+            select: { id: true, memberId: true, attended: true },
+          },
+        },
+        orderBy: { schedule: "asc" },
+      });
+
+      return classes.map((cls) => ({
+        id: cls.id,
+        name: cls.name,
+        classType: cls.classType?.name || null,
+        instructorName: cls.instructorName,
+        schedule: cls.schedule,
+        duration: cls.duration,
+        limit: cls.limit,
+        registeredCount: cls.registeredMembers.length,
+        isFull: cls.limit ? cls.registeredMembers.length >= cls.limit : false,
+        isAlreadyRegistered: cls.registeredMembers.some(
+          (m) => m.memberId === input.memberId,
+        ),
+        isAlreadyAttended: cls.registeredMembers.some(
+          (m) => m.memberId === input.memberId && m.attended,
+        ),
+      }));
+    }),
+
+  /**
+   * Class session check-in: pick a class today → decrement session → register + mark attended.
+   */
+  classCheckIn: protectedProcedure
+    .input(
+      z.object({
+        memberId: z.string(),
+        classId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+
+      try {
+        // Verify class exists and is today
+        const cls = await ctx.db.class.findUnique({
+          where: { id: input.classId },
+          include: {
+            registeredMembers: { select: { memberId: true } },
+          },
+        });
+
+        if (!cls) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Class not found" });
+        }
+
+        // Check class is not full
+        if (cls.limit && cls.registeredMembers.length >= cls.limit) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Class is full" });
+        }
+
+        // Check member not already registered for this class
+        const alreadyRegistered = cls.registeredMembers.some(
+          (m) => m.memberId === input.memberId,
+        );
+        if (alreadyRegistered) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Member sudah terdaftar di class ini",
+          });
+        }
+
+        // Transaction: decrement session + register + mark attended
+        result = await ctx.db.$transaction(async (tx) => {
+          const fifoResult = await decrementClassSessionFIFO({
+            tx,
+            memberId: input.memberId,
+          });
+
+          const classMember = await tx.classMember.create({
+            data: {
+              classId: input.classId,
+              memberId: input.memberId,
+              subscriptionId: fifoResult.id,
+              attended: true,
+              attendedAt: new Date(),
+            },
+          });
+
+          return {
+            classMember,
+            subscriptionId: fifoResult.id,
+            remainingSessions: fifoResult.remainingSessions,
+            remainingBonusSessions: fifoResult.remainingBonusSessions,
+            isBonusSession: fifoResult.isBonusSession,
+          };
+        });
+
+        success = true;
+        return result;
+      } catch (error: any) {
+        success = false;
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error.message || "Failed to check in to class",
+        });
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "memberClass.classCheckIn",
+          method: "POST",
+          userId: ctx.session.user.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: success ? null : "Failed to class check-in",
+          duration: Date.now() - startTime,
+        });
+      }
+    }),
+
+  /**
+   * Stats for admin dashboard: active class session subscriptions count & total revenue.
+   */
+  getClassSessionStats: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
+      const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
+
+      // Count active class session subscriptions
+      const activeCount = await ctx.db.subscription.count({
+        where: {
+          isActive: true,
+          deletedAt: null,
+          package: { type: "CLASS_SESSION" },
+        },
+      });
+
+      // Total revenue from CLASS_SESSION payments
+      const revenueResult = await ctx.db.payment.aggregate({
+        where: {
+          deletedAt: null,
+          status: "SUCCESS",
+          subscription: {
+            deletedAt: null,
+            package: { type: "CLASS_SESSION" },
+          },
+          ...(start && end
+            ? { createdAt: { gte: start, lte: end } }
+            : {}),
+        },
+        _sum: { totalPayment: true },
+        _count: true,
+      });
+
+      return {
+        activeSubscriptions: activeCount,
+        totalRevenue: revenueResult._sum.totalPayment || 0,
+        totalTransactions: revenueResult._count,
+      };
+    }),
+
+  /**
+   * Report: class session usage per member.
+   */
+  getClassSessionReport: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
+      const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
+
+      // Get all CLASS_SESSION subscriptions
+      const subscriptions = await ctx.db.subscription.findMany({
+        where: {
+          deletedAt: null,
+          package: { type: "CLASS_SESSION" },
+        },
+        include: {
+          member: {
+            include: { user: { select: { name: true, email: true } } },
+          },
+          package: { select: { name: true, sessions: true, bonusSessions: true } },
+          classMembers: {
+            where: {
+              attended: true,
+              ...(start && end
+                ? { attendedAt: { gte: start, lte: end } }
+                : {}),
+            },
+            include: {
+              class: {
+                select: { name: true, schedule: true, instructorName: true },
+              },
+            },
+            orderBy: { attendedAt: "desc" },
+          },
+        },
+        orderBy: { startDate: "desc" },
+      });
+
+      return subscriptions.map((sub) => {
+        const totalPaid = sub.package.sessions || 0;
+        const totalBonus = sub.bonusSessions || 0;
+        const remainPaid = sub.remainingSessions || 0;
+        const remainBonus = sub.remainingBonusSessions || 0;
+        const totalAll = totalPaid + totalBonus;
+        const remainAll = remainPaid + remainBonus;
+        const usedAll = Math.max(0, totalAll - remainAll);
+
+        return {
+        subscriptionId: sub.id,
+        memberName: sub.member.user?.name || "Unknown",
+        memberEmail: sub.member.user?.email || "",
+        memberId: sub.memberId,
+        packageName: sub.package.name,
+        totalSessions: totalAll,
+        usedSessions: usedAll,
+        remainingSessions: remainAll,
+        isActive: sub.isActive,
+        startDate: sub.startDate,
+        endDate: sub.endDate,
+        classHistory: sub.classMembers.map((cm) => ({
+          className: cm.class.name,
+          instructor: cm.class.instructorName,
+          schedule: cm.class.schedule,
+          attendedAt: cm.attendedAt,
+        })),
+      };
+      });
     }),
 });

@@ -154,6 +154,24 @@ export const createColumns = ({
         )
       }
     },
+    {
+      accessorKey: "classSessionLeft",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Class Sessions" />
+      ),
+      cell: ({ row }) => {
+        const activeClassSubs = row.original.subscriptions.filter((sub: any) =>
+          sub.package?.type === "CLASS_SESSION" && !sub.deletedAt && sub.isActive
+        );
+        if (activeClassSubs.length === 0) {
+          return <div className="w-[120px] text-muted-foreground">-</div>;
+        }
+        const totalRemaining = activeClassSubs.reduce((total: number, sub: any) => total + (sub.remainingSessions ?? 0), 0);
+        return (
+          <div className="w-[120px]">{totalRemaining}</div>
+        );
+      }
+    },
     // {
     //   accessorKey: "registerDate",
     //   header: ({ column }) => (

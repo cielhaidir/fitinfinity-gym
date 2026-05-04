@@ -1,5 +1,5 @@
 /**
- * PT Subscription Utilities
+ * PT & Class Subscription Utilities
  *
  * 1. syncPtEndDates – When a new PT/Group subscription is created, extend
  *    the endDate of all older active PT subscriptions for the same
@@ -7,6 +7,9 @@
  *
  * 2. decrementSessionFIFO – When a trainer records a session, decrement
  *    the oldest active subscription first (FIFO).
+ *
+ * 3. decrementClassSessionFIFO – When a member checks into a class via
+ *    QR scan, decrement the oldest active CLASS_SESSION subscription (FIFO).
  */
 
 import { type Prisma, type PrismaClient } from "@prisma/client";
@@ -140,4 +143,83 @@ export async function decrementSessionFIFO(params: {
   }
 
   throw new Error("Member tidak memiliki sisa sesi yang tersedia (paid maupun bonus)");
+}
+
+// ─── 3. Class Session FIFO Decrement ─────────────────────────────────
+
+/**
+ * Decrement one session from the CLASS_SESSION subscription with the
+ * **earliest endDate** (expiry-first FIFO) for a given member.
+ *
+ * Unlike PT FIFO, this filters by package type CLASS_SESSION and does
+ * not require a trainerId.
+ *
+ * Priority within a subscription: paid sessions first, then bonus sessions.
+ *
+ * @returns updated subscription id, new session counts, and whether a bonus
+ *   slot was consumed.
+ * @throws if no CLASS_SESSION subscription with available sessions is found
+ */
+export async function decrementClassSessionFIFO(params: {
+  tx: Tx;
+  memberId: string;
+}): Promise<{
+  id: string;
+  remainingSessions: number | null;
+  remainingBonusSessions: number;
+  isBonusSession: boolean;
+}> {
+  const { tx, memberId } = params;
+
+  // Find the CLASS_SESSION subscription expiring soonest that still has paid sessions
+  const subWithPaid = await tx.subscription.findFirst({
+    where: {
+      memberId,
+      isActive: true,
+      deletedAt: null,
+      remainingSessions: { gt: 0 },
+      package: { type: "CLASS_SESSION" },
+    },
+    orderBy: { endDate: "asc" },
+    select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+  });
+
+  if (subWithPaid) {
+    const updated = await tx.subscription.update({
+      where: { id: subWithPaid.id },
+      data: { remainingSessions: { decrement: 1 } },
+      select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+    });
+    console.log(
+      `[ClassFIFO] Paid session decremented from subscription ${updated.id}, remaining paid: ${updated.remainingSessions}, bonus: ${updated.remainingBonusSessions}`,
+    );
+    return { ...updated, remainingBonusSessions: updated.remainingBonusSessions ?? 0, isBonusSession: false };
+  }
+
+  // No paid sessions left — try bonus sessions (same expiry-first order)
+  const subWithBonus = await tx.subscription.findFirst({
+    where: {
+      memberId,
+      isActive: true,
+      deletedAt: null,
+      remainingBonusSessions: { gt: 0 },
+      package: { type: "CLASS_SESSION" },
+    },
+    orderBy: { endDate: "asc" },
+    select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+  });
+
+  if (subWithBonus) {
+    const updated = await tx.subscription.update({
+      where: { id: subWithBonus.id },
+      data: { remainingBonusSessions: { decrement: 1 } },
+      select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+    });
+    console.log(
+      `[ClassFIFO] Bonus session decremented from subscription ${updated.id}, remaining paid: ${updated.remainingSessions}, bonus: ${updated.remainingBonusSessions}`,
+    );
+    return { ...updated, remainingBonusSessions: updated.remainingBonusSessions ?? 0, isBonusSession: true };
+  }
+
+  throw new Error("Member tidak memiliki sisa sesi class yang tersedia (paid maupun bonus)");
 }

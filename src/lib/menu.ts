@@ -31,7 +31,7 @@ import {
   Snowflake,
   ArrowRightLeft,
 } from "lucide-react";
-import { type LucideIcon, HandCoins } from "lucide-react";
+import { type LucideIcon, HandCoins, BookOpen } from "lucide-react";
 
 interface MenuItem {
   title: string;
@@ -276,22 +276,10 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:class-attendance",
         },
         {
-          title: "Package Management",
-          url: "/admin/package-management",
-          icon: Package,
-          requiredPermission: "menu:package-management",
-        },
-        {
           title: "Group Management",
           url: "/admin/group-management",
           icon: Users,
           requiredPermission: "menu:group-management",
-        },
-        {
-          title: "Personal Trainer Management",
-          url: "/admin/personal-trainer-management",
-          icon: Contact,
-          requiredPermission: "menu:personal-trainer-management",
         },
         {
           title: "Reward",
@@ -540,6 +528,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/reports/class-member-report",
           icon: BarChart3,
           requiredPermission: "report:class-member-report",
+        },
+        {
+          title: "Class Session Report",
+          url: "/reports/class-session-report",
+          icon: BookOpen,
+          requiredPermission: "report:class-session",
         },
         {
           title: "Personal Trainer Report",

@@ -36,6 +36,12 @@ export const memberSchema = z.object({
       remainingSessions: z.number().nullable(),
       trainerId: z.string().nullable(),
       deletedAt: z.date().nullable(),
+      package: z.object({
+        id: z.string(),
+        name: z.string(),
+        type: z.string(),
+        sessions: z.number().nullable(),
+      }).nullable(),
       trainer: z
         .object({
           id: z.string(),

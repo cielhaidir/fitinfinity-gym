@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PackageTypeEnum = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER", "GROUP_TRAINING"]);
+export const PackageTypeEnum = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER", "GROUP_TRAINING", "CLASS_SESSION"]);
 export const GroupPriceTypeEnum = z.enum(["TOTAL", "PER_PERSON"]);
 
 export const PackageSchema = z.object({

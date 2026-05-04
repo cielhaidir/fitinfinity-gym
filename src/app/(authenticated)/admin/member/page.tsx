@@ -3,7 +3,7 @@
 import type React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Loader2, Clock, Users, CheckCircle2, XCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
@@ -36,6 +36,9 @@ import { MemberForm } from "./member-form";
 import { MemberNewMemberForm } from "./member-new-member-form";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 
 function generateRandomPassword(length = 10) {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -88,6 +91,7 @@ export default function MemberPage() {
   const [selectedFreezePriceId, setSelectedFreezePriceId] = useState<string | null>(null);
   const [selectedBalanceAccountId, setSelectedBalanceAccountId] = useState<number | null>(null);
   const [freezeStartAt, setFreezeStartAt] = useState<string>("");
+  const [selectedClassIdForCheckIn, setSelectedClassIdForCheckIn] = useState<string | null>(null);
 
   const isSelectingForSubscription =
     searchParams.get("action") === "select-for-subscription";
@@ -123,20 +127,19 @@ export default function MemberPage() {
   console.log("Member data:", member);
 
 
-  const manualCheckInMutation = api.esp32.manualCheckIn.useMutation({
-    onSuccess: () => {
-      toast.success("Member checked in successfully");
-      setIsCheckInModalOpen(false);
-      setFacilityDescription("");
-      setLokerSelection("None");
-      setLokerNumber("");
-      setHandukSelection("None");
-      setSelectedMemberForCheckIn(null);
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+  const manualCheckInMutation = api.esp32.manualCheckIn.useMutation();
+  const classCheckInMutation = api.memberClass.classCheckIn.useMutation();
+
+  // Check-in mode & available classes for the selected member
+  const { data: checkInMode } = api.memberClass.getCheckInMode.useQuery(
+    { memberId: selectedMemberForCheckIn?.id ?? "" },
+    { enabled: !!selectedMemberForCheckIn?.id && isCheckInModalOpen },
+  );
+  const { data: availableClasses, isLoading: isLoadingClasses } = api.memberClass.getAvailableClassesToday.useQuery(
+    { memberId: selectedMemberForCheckIn?.id ?? "" },
+    { enabled: !!selectedMemberForCheckIn?.id && isCheckInModalOpen && (checkInMode?.mode === "class" || checkInMode?.mode === "gym_class") },
+  );
+  const showClassSelection = checkInMode?.mode === "class" || checkInMode?.mode === "gym_class";
 
   const updateMemberMutation = api.member.update.useMutation({
     onSuccess: () => {
@@ -464,13 +467,29 @@ export default function MemberPage() {
     const formattedDescription = formatFacilityDescription(lokerSelection, lokerNumber, handukSelection);
 
     try {
-      await manualCheckInMutation.mutateAsync({
-        memberId: selectedMemberForCheckIn.id,
-        facilityDescription: formattedDescription || undefined,
-        // timestamp: new Date(),
-      });
-    } catch (error) {
-      console.error("Error during manual check-in:", error);
+      // 1. Gym attendance check-in (skip if class-only member)
+      if (checkInMode?.mode !== "class") {
+        await manualCheckInMutation.mutateAsync({
+          memberId: selectedMemberForCheckIn.id,
+          facilityDescription: formattedDescription || undefined,
+        });
+      }
+      // 2. Class check-in if a class is selected
+      if (selectedClassIdForCheckIn) {
+        const result = await classCheckInMutation.mutateAsync({
+          memberId: selectedMemberForCheckIn.id,
+          classId: selectedClassIdForCheckIn,
+        });
+        const remaining = (result.remainingSessions || 0) + result.remainingBonusSessions;
+        toast.success(`Check-in berhasil! Sisa sesi class: ${remaining}`);
+      } else {
+        toast.success("Member checked in successfully");
+      }
+      handleCancelCheckIn();
+      utils.member.list.invalidate();
+    } catch (error: any) {
+      toast.error(error?.message || "Check-in gagal");
+      console.error("Error during check-in:", error);
     }
   };
 
@@ -481,6 +500,7 @@ export default function MemberPage() {
     setLokerNumber("");
     setHandukSelection("None");
     setSelectedMemberForCheckIn(null);
+    setSelectedClassIdForCheckIn(null);
   };
 
 
@@ -830,76 +850,151 @@ export default function MemberPage() {
               {selectedMemberForCheckIn && (
                 <>
                   Check in <strong>{selectedMemberForCheckIn.user.name}</strong> manually.
-                  Please specify which facility they are using (optional).
+                  {showClassSelection && checkInMode?.subscription && (
+                    <span className="block mt-1 text-xs">
+                      {checkInMode.subscription.package.name} — Sisa: {(checkInMode.subscription.remainingSessions || 0) + (checkInMode.subscription.remainingBonusSessions || 0)} sesi
+                    </span>
+                  )}
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">
-                Facility Usage
-              </label>
-              <div className="space-y-3">
-                <div className="grid gap-2">
-                  <label htmlFor="loker" className="text-sm">
-                    Loker
-                  </label>
-                  <Select value={lokerSelection} onValueChange={setLokerSelection}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select loker option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="None">None</SelectItem>
-                      <SelectItem value="Number">Number</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {lokerSelection === "Number" && (
-                    <Input
-                      type="number"
-                      placeholder="Enter loker number"
-                      value={lokerNumber}
-                      onChange={(e) => setLokerNumber(e.target.value)}
-                      className="mt-2"
-                      min="1"
-                    />
-                  )}
-                </div>
-                <div className="grid gap-2">
-                  <label htmlFor="handuk" className="text-sm">
-                    Handuk
-                  </label>
-                  <Select value={handukSelection} onValueChange={setHandukSelection}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select handuk option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="None">None</SelectItem>
-                      <SelectItem value="Besar">Besar</SelectItem>
-                      <SelectItem value="Kecil">Kecil</SelectItem>
-                      <SelectItem value="Keduanya">Keduanya</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {/* Facility (only for gym / gym_class modes) */}
+            {checkInMode?.mode !== "class" && (
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  Facility Usage
+                </label>
+                <div className="space-y-3">
+                  <div className="grid gap-2">
+                    <label htmlFor="loker" className="text-sm">
+                      Loker
+                    </label>
+                    <Select value={lokerSelection} onValueChange={setLokerSelection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select loker option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Number">Number</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {lokerSelection === "Number" && (
+                      <Input
+                        type="number"
+                        placeholder="Enter loker number"
+                        value={lokerNumber}
+                        onChange={(e) => setLokerNumber(e.target.value)}
+                        className="mt-2"
+                        min="1"
+                      />
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="handuk" className="text-sm">
+                      Handuk
+                    </label>
+                    <Select value={handukSelection} onValueChange={setHandukSelection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select handuk option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Besar">Besar</SelectItem>
+                        <SelectItem value="Kecil">Kecil</SelectItem>
+                        <SelectItem value="Keduanya">Keduanya</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Class Selection */}
+            {showClassSelection && (
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  {checkInMode?.mode === "class" ? "Pilih Class Hari Ini" : "Pilih Class Hari Ini (Opsional)"}
+                </label>
+                {isLoadingClasses ? (
+                  <div className="flex items-center py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">Memuat class...</span>
+                  </div>
+                ) : !availableClasses || availableClasses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Tidak ada class hari ini.</p>
+                ) : (
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    {availableClasses.map((cls) => {
+                      const isSelected = selectedClassIdForCheckIn === cls.id;
+                      const isDisabled = cls.isFull || cls.isAlreadyAttended;
+                      return (
+                        <button
+                          key={cls.id}
+                          onClick={() => !isDisabled && setSelectedClassIdForCheckIn(isSelected ? null : cls.id)}
+                          disabled={isDisabled}
+                          className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                            isSelected
+                              ? "border-[#BFFF00] bg-[#BFFF00]/10"
+                              : isDisabled
+                              ? "border-muted bg-muted/30 opacity-60 cursor-not-allowed"
+                              : "border-border hover:border-[#BFFF00]/50 hover:bg-accent"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm capitalize">{cls.name}</span>
+                                {cls.classType && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">{cls.classType}</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{format(new Date(cls.schedule), "HH:mm", { locale: localeId })}</span>
+                                <span>{cls.duration} menit</span>
+                                <span className="flex items-center gap-1"><Users className="h-3 w-3" />{cls.registeredCount}/{cls.limit ?? "∞"}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">Instruktur: {cls.instructorName}</p>
+                            </div>
+                            <div className="ml-2">
+                              {cls.isAlreadyAttended ? (
+                                <Badge variant="default" className="bg-green-600 text-[10px]">Sudah hadir</Badge>
+                              ) : cls.isFull ? (
+                                <Badge variant="destructive" className="text-[10px]">Penuh</Badge>
+                              ) : isSelected ? (
+                                <CheckCircle2 className="h-5 w-5 text-[#BFFF00]" />
+                              ) : null}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
               onClick={handleCancelCheckIn}
-              disabled={manualCheckInMutation.isPending}
+              disabled={manualCheckInMutation.isPending || classCheckInMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleConfirmCheckIn}
-              disabled={manualCheckInMutation.isPending}
+              disabled={manualCheckInMutation.isPending || classCheckInMutation.isPending || (checkInMode?.mode === "class" && !selectedClassIdForCheckIn)}
               className="bg-infinity"
             >
-              {manualCheckInMutation.isPending ? "Checking in..." : "Check In"}
+              {(manualCheckInMutation.isPending || classCheckInMutation.isPending)
+                ? "Checking in..."
+                : selectedClassIdForCheckIn
+                ? "Check In + Class"
+                : "Check In"}
             </Button>
           </DialogFooter>
         </DialogContent>

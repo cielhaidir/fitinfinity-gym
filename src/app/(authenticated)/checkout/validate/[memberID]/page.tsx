@@ -96,7 +96,7 @@ function CheckoutValidateContent() {
         name: packageName,
         price: parseFloat(packagePrice),
         trainerId: trainerId || undefined,
-        sessions: packageType === "trainer" || packageType === "group" ? parseInt(sessions) : undefined,
+        sessions: packageType === "trainer" || packageType === "group" || packageType === "class" ? parseInt(sessions) : undefined,
         day: packageType === "gym" ? parseInt(duration) : undefined,
       }];
     }

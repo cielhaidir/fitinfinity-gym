@@ -286,12 +286,16 @@ model ClassType {
 }
 
 model ClassMember {
-    id       String     @id @default(cuid())
-    classId  String
-    memberId String
-    class    Class      @relation(fields: [classId], references: [id])
-    member   Membership @relation(fields: [memberId], references: [id])
-    joinedAt DateTime   @default(now())
+    id              String        @id @default(cuid())
+    classId         String
+    memberId        String
+    subscriptionId  String?
+    class           Class         @relation(fields: [classId], references: [id])
+    member          Membership    @relation(fields: [memberId], references: [id])
+    subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+    joinedAt        DateTime      @default(now())
+    attended        Boolean       @default(false)
+    attendedAt      DateTime?
 }
 
 model ClassWaitingList {
@@ -406,6 +410,9 @@ model Subscription {
     // Transfer history
     transferHistory   SubscriptionTransferHistory[]
     
+    // Class session relations
+    classMembers      ClassMember[]
+    
     // Promo relations
     triggerPromoRedemptions PromoRedemption[] @relation("TriggerSubscriptionPromo")
     bonusPromoRedemptions   PromoRedemption[] @relation("BonusSubscriptionPromo")
@@ -504,6 +511,7 @@ enum PackageType {
     GYM_MEMBERSHIP
     PERSONAL_TRAINER
     GROUP_TRAINING
+    CLASS_SESSION
 }
 
 enum GroupPriceType {

@@ -25,6 +25,7 @@ interface SalesSummary {
   gymMembershipRevenue: number;
   personalTrainerRevenue: number;
   groupTrainingRevenue: number;
+  classSessionRevenue: number;
   transferRevenue: number;
   freezeRevenue: number;
 }
@@ -675,6 +676,7 @@ getRevenueBySales: protectedProcedure
       let gymMembershipRevenue = 0;
       let personalTrainerRevenue = 0;
       let groupTrainingRevenue = 0;
+      let classSessionRevenue = 0;
 
       subscriptionPayments.forEach((payment: any) => {
         const packageType = payment.subscription?.package?.type;
@@ -686,6 +688,8 @@ getRevenueBySales: protectedProcedure
           personalTrainerRevenue += amount;
         } else if (packageType === 'GROUP_TRAINING') {
           groupTrainingRevenue += amount;
+        } else if (packageType === 'CLASS_SESSION') {
+          classSessionRevenue += amount;
         }
       });
 
@@ -789,6 +793,7 @@ getRevenueBySales: protectedProcedure
           gymMembershipRevenue,
           personalTrainerRevenue,
           groupTrainingRevenue,
+          classSessionRevenue,
           transferRevenue: transferTotal,
           freezeRevenue: freezeTotal,
         },

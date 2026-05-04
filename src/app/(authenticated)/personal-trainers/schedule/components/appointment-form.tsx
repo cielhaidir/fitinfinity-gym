@@ -16,7 +16,17 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Calendar, Clock, X } from "lucide-react";
+import { Calendar, Clock, X, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Add global error handler for PWA debugging
 if (typeof window !== 'undefined') {
@@ -58,6 +68,8 @@ export default function AppointmentForm({
   const [duration, setDuration] = useState("60"); // Default 60 minutes
   const [formattedDate, setFormattedDate] = useState("");
   const [attendanceCount, setAttendanceCount] = useState("1");
+  const [status, setStatus] = useState<"NOT_YET" | "ONGOING" | "ENDED" | "CANCELED">("NOT_YET");
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const { data: members, isLoading: isMembersLoading } =
     api.personalTrainer.getMembers.useQuery(undefined, {
@@ -175,6 +187,18 @@ export default function AppointmentForm({
     return map;
   }, [combinedMembers]);
 
+  // Check if selected member has checked in today
+  const selectedMemberData = memberValueMap.get(selectedMemberId);
+  const { data: checkinStatus } = api.trainerSession.checkMemberCheckin.useQuery(
+    {
+      memberId: selectedMemberData?.membershipId ?? "",
+      date: selectedDate ?? new Date(),
+    },
+    {
+      enabled: !!selectedMemberData?.membershipId && !!selectedDate,
+    },
+  );
+
   const utils = api.useUtils();
 
   const createSession = api.trainerSession.create.useMutation({
@@ -210,23 +234,37 @@ export default function AppointmentForm({
     }
 
     // Get member data using stable value lookup
-    const selectedMemberData = memberValueMap.get(selectedMemberId);
+    const memberData = memberValueMap.get(selectedMemberId);
     
     console.log('📝 [DEBUG] Form submit - member lookup:', {
       selectedMemberId,
-      foundData: selectedMemberData,
+      foundData: memberData,
       mapSize: memberValueMap.size
     });
     
-    if (!selectedMemberData) {
+    if (!memberData) {
       toast.error("Data member tidak valid - silakan pilih member lagi");
       return;
     }
 
-    if (selectedMemberData.remainingSessions <= 0) {
+    if (memberData.remainingSessions <= 0) {
       toast.error("Member tidak memiliki sisa sesi yang tersedia");
       return;
     }
+
+    // If member hasn't checked in, show confirmation dialog
+    if (checkinStatus && !checkinStatus.hasCheckedIn) {
+      setShowConfirm(true);
+      return;
+    }
+
+    doSubmit();
+  };
+
+  const doSubmit = () => {
+    if (!selectedDate) return;
+    const memberData = memberValueMap.get(selectedMemberId);
+    if (!memberData) return;
 
     const [hours = 0, minutes = 0] = time.split(":").map(Number);
     const startTime = new Date(selectedDate);
@@ -235,8 +273,7 @@ export default function AppointmentForm({
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
 
-    // Validate attendance count for group sessions
-    const isGroupSession = selectedMemberData.type === "group";
+    const isGroupSession = memberData.type === "group";
     const attendanceCountNum = parseInt(attendanceCount);
     
     if (isGroupSession && (!attendanceCount || attendanceCountNum < 1 || attendanceCountNum > 50)) {
@@ -245,13 +282,14 @@ export default function AppointmentForm({
     }
 
     createSession.mutate({
-      memberId: selectedMemberData.membershipId,
+      memberId: memberData.membershipId,
       date: selectedDate,
       startTime: startTime,
       endTime: endTime,
       description: description,
       isGroup: isGroupSession,
       attendanceCount: isGroupSession ? attendanceCountNum : 1,
+      status,
     });
   };
 
@@ -378,6 +416,27 @@ export default function AppointmentForm({
         </Select>
       </div>
 
+      {/* Check-in Warning */}
+      {selectedMemberId && checkinStatus && !checkinStatus.hasCheckedIn && (
+        <div className="flex items-start gap-2 rounded-md border border-yellow-300 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-950">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
+          <div className="text-sm text-yellow-800 dark:text-yellow-200">
+            <p className="font-medium">Member belum check-in!</p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400">
+              Member ini belum melakukan check-in pada tanggal {selectedDate ? format(selectedDate, "d MMMM yyyy") : "-"}. Pastikan member sudah hadir di gym.
+            </p>
+          </div>
+        </div>
+      )}
+      {selectedMemberId && checkinStatus?.hasCheckedIn && checkinStatus.checkinTime && (
+        <div className="flex items-start gap-2 rounded-md border border-green-300 bg-green-50 p-3 dark:border-green-700 dark:bg-green-950">
+          <span className="mt-0.5 shrink-0 text-sm">✅</span>
+          <p className="text-sm text-green-800 dark:text-green-200">
+            Member sudah check-in pukul <span className="font-medium">{format(new Date(checkinStatus.checkinTime), "HH:mm")}</span>
+          </p>
+        </div>
+      )}
+
       {/* Group Member Info */}
       {memberValueMap.get(selectedMemberId)?.type === "group" && (
         <div className="rounded-md border border-border bg-muted/50 p-3 space-y-1">
@@ -418,6 +477,22 @@ export default function AppointmentForm({
       )}
 
       <div className="space-y-2">
+        <Label htmlFor="status" className="text-muted-foreground">
+          Status
+        </Label>
+        <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Pilih status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="NOT_YET">Not Yet</SelectItem>
+            <SelectItem value="ONGOING">Ongoing</SelectItem>
+            <SelectItem value="ENDED">Ended</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="description" className="text-muted-foreground">
           Deskripsi
         </Label>
@@ -437,6 +512,34 @@ export default function AppointmentForm({
       >
         {createSession.isPending ? "Menyimpan..." : "Simpan Jadwal"}
       </Button>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Member Belum Check-in
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Member ini belum melakukan check-in pada tanggal{" "}
+              <span className="font-medium">{selectedDate ? format(selectedDate, "d MMMM yyyy") : "-"}</span>.
+              Apakah Anda yakin ingin tetap membuat jadwal sesi latihan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowConfirm(false);
+                doSubmit();
+              }}
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              Tetap Lanjutkan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

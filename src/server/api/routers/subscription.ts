@@ -128,7 +128,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(), // ID of the sales person
         salesType: z.enum(["PersonalTrainer", "FC"]).optional(), // Type of sales person
         duration: z.number(),
-        subsType: z.enum(["gym", "trainer", "group"]),
+        subsType: z.enum(["gym", "trainer", "group", "class"]),
         paymentMethod: z.string(),
         totalPayment: z.number(),
         status: z
@@ -2759,10 +2759,10 @@ export const subscriptionRouter = createTRPCRouter({
       }
 
       // Check if the package is a personal trainer package
-      if (subscription.package.type !== "PERSONAL_TRAINER" && subscription.package.type !== "GROUP_TRAINING") {
+      if (subscription.package.type !== "PERSONAL_TRAINER" && subscription.package.type !== "GROUP_TRAINING" && subscription.package.type !== "CLASS_SESSION") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Only personal trainer packages have remaining sessions",
+          message: "Only session-based packages have remaining sessions",
         });
       }
 
@@ -3142,6 +3142,7 @@ export const subscriptionRouter = createTRPCRouter({
         MEMBERSHIP: { count: 0, revenue: 0 },
         PERSONAL_TRAINER: { count: 0, revenue: 0 },
         GROUP_TRAINER: { count: 0, revenue: 0 },
+        CLASS_SESSION: { count: 0, revenue: 0 },
       };
 
       for (const sub of subscriptionsInRange) {
@@ -3157,6 +3158,9 @@ export const subscriptionRouter = createTRPCRouter({
         } else if (packageType === "GROUP_TRAINING") {
           subscriptionTypeBreakdown.GROUP_TRAINER.count++;
           subscriptionTypeBreakdown.GROUP_TRAINER.revenue += revenue;
+        } else if (packageType === "CLASS_SESSION") {
+          subscriptionTypeBreakdown.CLASS_SESSION.count++;
+          subscriptionTypeBreakdown.CLASS_SESSION.revenue += revenue;
         }
       }
 

@@ -49,6 +49,7 @@ interface SalesSummary {
     gymMembershipRevenue: number;
     personalTrainerRevenue: number;
     groupTrainingRevenue: number;
+    classSessionRevenue: number;
     transferRevenue: number;
     freezeRevenue: number;
   };
@@ -66,7 +67,7 @@ export default function SalesReportPage() {
   const [includeSubscriptions, setIncludeSubscriptions] = useState(true);
   const [includeTransfer, setIncludeTransfer] = useState(true);
   const [includeFreeze, setIncludeFreeze] = useState(true);
-  const [salesTab, setSalesTab] = useState<"ALL" | "GYM_MEMBERSHIP" | "PERSONAL_TRAINER" | "GROUP_TRAINING">("ALL");
+  const [salesTab, setSalesTab] = useState<"ALL" | "GYM_MEMBERSHIP" | "PERSONAL_TRAINER" | "GROUP_TRAINING" | "CLASS_SESSION">("ALL");
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
 
   // Fetch sales summary
@@ -155,8 +156,6 @@ export default function SalesReportPage() {
     if (includeSubscriptions ) {
 
 
-
-
       const subscriptionSheetData = subscriptionData?.map((payment: any) => {
         const subscription = payment.subscription;
         const member = subscription?.member;
@@ -168,7 +167,7 @@ export default function SalesReportPage() {
           "Member Name": user?.name || "N/A",
           "Email": user?.email || "N/A",
           "Package": subscription?.package?.name || "N/A",
-          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : subscription?.package?.type === "PERSONAL_TRAINER" ? "Personal Trainer" : "Group Training",
+          "Type": subscription?.package?.type === "GYM_MEMBERSHIP" ? "Gym Membership" : subscription?.package?.type === "PERSONAL_TRAINER" ? "Personal Trainer" : subscription?.package?.type === "GROUP_TRAINING" ? "Group Training" : "Class Session",
           "Trainer": trainer?.user?.name || "N/A",
           "Sales Person": payment.salesPersonName || "N/A",
           "Amount": payment.totalPayment || 0,
@@ -209,6 +208,13 @@ export default function SalesReportPage() {
 
       const groupTrainingRevenue = subscriptionData?.reduce((total, payment) => {
         if (payment.subscription?.package?.type === "GROUP_TRAINING") {
+          return total + (payment.totalPayment || 0);
+        }
+        return total;
+      }, 0) || 0;
+
+      const classSessionRevenue = subscriptionData?.reduce((total, payment) => {
+        if (payment.subscription?.package?.type === "CLASS_SESSION") {
           return total + (payment.totalPayment || 0);
         }
         return total;
@@ -321,6 +327,42 @@ export default function SalesReportPage() {
         gtWorksheet['!cols'] = gtCols;
         XLSX.utils.book_append_sheet(workbook, gtWorksheet, "Group Training");
       }
+
+      // Sheet: Class Session
+      const classSessionData = subscriptionData?.filter(
+        (payment: any) => payment.subscription?.package?.type === "CLASS_SESSION"
+      ).map((payment: any) => {
+        const subscription = payment.subscription;
+        const member = subscription?.member;
+        const user = member?.user;
+        const trainer = subscription?.trainer;
+      
+        return {
+          "Payment ID": payment.id,
+          "Member Name": user?.name || "N/A",
+          "Email": user?.email || "N/A",
+          "Package": subscription?.package?.name || "N/A",
+          "Type": "Class Session",
+          "Trainer": trainer?.user?.name || "N/A",
+          "Sales Person": payment.salesPersonName || "N/A",
+          "Amount": payment.totalPayment || 0,
+          "Payment Method": payment.method || "Manual Payment",
+          "Status": payment.status,
+          "Start Date": subscription?.startDate ? format(new Date(subscription.startDate), "yyyy-MM-dd") : "N/A",
+          "End Date": subscription?.endDate ? format(new Date(subscription.endDate), "yyyy-MM-dd") : "N/A",
+          "Paid At": payment.paidAt ? format(new Date(payment.paidAt), "yyyy-MM-dd HH:mm:ss") : "N/A",
+          "Created At": format(new Date(payment.createdAt), "yyyy-MM-dd HH:mm:ss"),
+        };
+      });
+
+      if (classSessionData && classSessionData.length > 0) {
+        const csWorksheet = XLSX.utils.json_to_sheet(classSessionData);
+        const csCols = Object.keys(classSessionData[0] || {}).map(key => ({
+          wch: Math.max(key.length, 15)
+        }));
+        csWorksheet['!cols'] = csCols;
+        XLSX.utils.book_append_sheet(workbook, csWorksheet, "Class Session");
+      }
     }
 
     // Transfer Sheet
@@ -389,6 +431,14 @@ export default function SalesReportPage() {
         { "Metric": "Group Training Revenue", "Value": formatRupiah(
           subscriptionData?.reduce((total, payment) => {
             if (payment.subscription?.package?.type === "GROUP_TRAINING") {
+              return total + (payment.totalPayment || 0);
+            }
+            return total;
+          }, 0) || 0
+        ) },
+        { "Metric": "Class Session Revenue", "Value": formatRupiah(
+          subscriptionData?.reduce((total, payment) => {
+            if (payment.subscription?.package?.type === "CLASS_SESSION") {
               return total + (payment.totalPayment || 0);
             }
             return total;
@@ -637,6 +687,24 @@ export default function SalesReportPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Class Session Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(
+                  subscriptionData?.reduce((total, payment) => {
+                    if (payment.subscription?.package?.type === "CLASS_SESSION") {
+                      return total + (payment.totalPayment || 0);
+                    }
+                    return total;
+                  }, 0) || 0
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Transfer Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -757,6 +825,7 @@ export default function SalesReportPage() {
                 { key: "GYM_MEMBERSHIP", label: "Gym", count: filteredBySpSubscriptionData?.filter((p: any) => p.subscription?.package?.type === "GYM_MEMBERSHIP").length ?? 0, color: "bg-blue-600" },
                 { key: "PERSONAL_TRAINER", label: "PT", count: filteredBySpSubscriptionData?.filter((p: any) => p.subscription?.package?.type === "PERSONAL_TRAINER").length ?? 0, color: "bg-purple-600" },
                 { key: "GROUP_TRAINING", label: "Group", count: filteredBySpSubscriptionData?.filter((p: any) => p.subscription?.package?.type === "GROUP_TRAINING").length ?? 0, color: "bg-green-600" },
+                { key: "CLASS_SESSION", label: "Class", count: filteredBySpSubscriptionData?.filter((p: any) => p.subscription?.package?.type === "CLASS_SESSION").length ?? 0, color: "bg-teal-600" },
               ] as const).map(({ key, label, count, color }) => (
                 <button
                   key={key}
@@ -812,9 +881,10 @@ export default function SalesReportPage() {
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               type === "GYM_MEMBERSHIP" ? "bg-blue-100 text-blue-800" :
                               type === "PERSONAL_TRAINER" ? "bg-purple-100 text-purple-800" :
+                              type === "CLASS_SESSION" ? "bg-teal-100 text-teal-800" :
                               "bg-green-100 text-green-800"
                             }`}>
-                              {type === "GYM_MEMBERSHIP" ? "Gym" : type === "PERSONAL_TRAINER" ? "PT" : "Group"}
+                              {type === "GYM_MEMBERSHIP" ? "Gym" : type === "PERSONAL_TRAINER" ? "PT" : type === "CLASS_SESSION" ? "Class" : "Group"}
                             </span>
                           </TableCell>
                           <TableCell>{trainer?.user?.name || "N/A"}</TableCell>

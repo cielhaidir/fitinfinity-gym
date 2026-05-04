@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound, ArrowLeftRight } from "lucide-react";
+import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound, ArrowLeftRight, BookOpen } from "lucide-react";
 import { api } from "@/trpc/react";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -253,7 +253,7 @@ const DashboardPage: React.FC = () => {
         {/* Subscription Type Breakdown */}
         <div>
           <h3 className="mb-4 text-lg font-semibold">Subscription Sales by Type</h3>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="p-6">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-indigo-500/20 p-3">
@@ -300,6 +300,23 @@ const DashboardPage: React.FC = () => {
                   </h2>
                   <p className="text-sm font-medium text-amber-600">
                     {statsLoading ? "..." : formatRupiah(dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.revenue ?? 0)}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full bg-teal-500/20 p-3">
+                  <BookOpen className="h-6 w-6 text-teal-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">Class Session</p>
+                  <h2 className="text-2xl font-bold">
+                    {statsLoading ? "..." : dashboardStats?.subscriptionTypeBreakdown.CLASS_SESSION.count ?? 0}
+                  </h2>
+                  <p className="text-sm font-medium text-teal-600">
+                    {statsLoading ? "..." : formatRupiah(dashboardStats?.subscriptionTypeBreakdown.CLASS_SESSION.revenue ?? 0)}
                   </p>
                 </div>
               </div>
@@ -357,14 +374,16 @@ const DashboardPage: React.FC = () => {
                   {statsLoading ? "..." : formatRupiah(
                     (dashboardStats?.subscriptionTypeBreakdown.MEMBERSHIP.revenue ?? 0) +
                     (dashboardStats?.subscriptionTypeBreakdown.PERSONAL_TRAINER.revenue ?? 0) +
-                    (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.revenue ?? 0)
+                    (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.revenue ?? 0) +
+                    (dashboardStats?.subscriptionTypeBreakdown.CLASS_SESSION.revenue ?? 0)
                   )}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   Total Subscriptions: {statsLoading ? "..." :
                     (dashboardStats?.subscriptionTypeBreakdown.MEMBERSHIP.count ?? 0) +
                     (dashboardStats?.subscriptionTypeBreakdown.PERSONAL_TRAINER.count ?? 0) +
-                    (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.count ?? 0)
+                    (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.count ?? 0) +
+                    (dashboardStats?.subscriptionTypeBreakdown.CLASS_SESSION.count ?? 0)
                   }
                 </p>
               </div>

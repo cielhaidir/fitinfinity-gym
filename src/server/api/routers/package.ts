@@ -9,7 +9,7 @@ import {
 import { PackageType } from '@prisma/client';
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 
-const packageType = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER", "GROUP_TRAINING"]);
+const packageType = z.enum(["GYM_MEMBERSHIP", "PERSONAL_TRAINER", "GROUP_TRAINING", "CLASS_SESSION"]);
 const groupPriceType = z.enum(["TOTAL", "PER_PERSON"]);
 
 const packageTypeSchema = z.nativeEnum(PackageType);

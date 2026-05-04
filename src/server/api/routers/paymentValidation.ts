@@ -425,12 +425,12 @@ export const paymentValidationRouter = createTRPCRouter({
           : 0;
         // For PT/group packages: use package.day if set, otherwise default to 30 days
         const dayDuration = packageDetails.day
-          ?? ((paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") ? 30 : 0);
+          ?? ((paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group" || paymentValidation.subsType === "class") ? 30 : 0);
         endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + dayDuration + freezeDays);
 
         // Set remaining sessions for trainer and group packages
-        if (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group") {
+        if (paymentValidation.subsType === "trainer" || paymentValidation.subsType === "group" || paymentValidation.subsType === "class") {
           remainingSessions =
             paymentValidation.sessions ?? paymentValidation.duration;
         }

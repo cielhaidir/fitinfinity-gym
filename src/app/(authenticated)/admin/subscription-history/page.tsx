@@ -932,7 +932,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                     Edit Personal Trainer
                   </DropdownMenuItem>
                 )}
-                {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING") && (
+                {hasPermission("edit:subscription-advanced") && (row.original.package?.type === "PERSONAL_TRAINER" || row.original.package?.type === "GROUP_TRAINING" || row.original.package?.type === "CLASS_SESSION") && (
                   <DropdownMenuItem onClick={() => handleEditSessions(row.original)}>
                     <Clock className="mr-2 h-4 w-4" />
                     Edit Remaining Sessions

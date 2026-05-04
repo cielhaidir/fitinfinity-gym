@@ -154,6 +154,9 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                 <SelectItem value="GROUP_TRAINING">
                   Group Training
                 </SelectItem>
+                <SelectItem value="CLASS_SESSION">
+                  Class Session
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -175,7 +178,7 @@ export const PackageForm: React.FC<PackageFormProps> = ({
           </div>
         )}
 
-        {(newPackage.type === "PERSONAL_TRAINER" || newPackage.type === "GROUP_TRAINING") && (
+        {(newPackage.type === "PERSONAL_TRAINER" || newPackage.type === "GROUP_TRAINING" || newPackage.type === "CLASS_SESSION") && (
           <>
             <div>
               <label htmlFor="sessions" className="block text-sm font-medium">

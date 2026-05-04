@@ -157,6 +157,51 @@ export function ActivePackage() {
               </div>
             );
           }
+
+          const isGroup = subscription.package.type === "GROUP_TRAINING";
+          const isClass = subscription.package.type === "CLASS_SESSION";
+          
+          if (isGroup || isClass) {
+            const remainingSessions = subscription.remainingSessions ?? 0;
+            const remainingBonusSessions = subscription.remainingBonusSessions ?? 0;
+            const totalSessions = subscription.package.sessions ?? 0;
+            const totalBonusSessions = subscription.bonusSessions ?? 0;
+            const usedSessions = totalSessions - remainingSessions;
+            const sessionProgress = totalSessions > 0 ? (remainingSessions / totalSessions) * 100 : 0;
+
+            return (
+              <div key={subscription.id} className="border-b border-border pb-4 last:border-b-0">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium">{subscription.package.name}</p>
+                  <span className={cn(
+                    "text-xs px-2 py-1 rounded-full",
+                    isClass
+                      ? "bg-teal-100 text-teal-800"
+                      : "bg-purple-100 text-purple-800"
+                  )}>
+                    {isClass ? "Class" : "Group"}
+                  </span>
+                </div>
+                {subscription.trainer && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Trainer: {subscription.trainer.user.name}
+                  </p>
+                )}
+                <Progress value={sessionProgress} className="my-2" />
+                <p className="text-sm text-muted-foreground">
+                  {remainingSessions} of {totalSessions} Sessions Remaining
+                </p>
+                {totalBonusSessions > 0 && (
+                  <p className="text-xs text-[#BFFF00] mt-1">
+                    🎁 Bonus: {remainingBonusSessions} of {totalBonusSessions} free sessions remaining
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {usedSessions} Sessions Used
+                </p>
+              </div>
+            );
+          }
           
           return null;
         })}

@@ -35,7 +35,7 @@ import { VoucherModal } from "./voucherModal";
 
 // Cart item type for multi-item checkout
 interface CartItem {
-  type: "gym" | "trainer" | "group";
+  type: "gym" | "trainer" | "group" | "class";
   packageId: string;
   trainerId?: string;
   name: string;
@@ -62,6 +62,9 @@ export default function SubscriptionPage({
   const { data: groupPackages } = api.package.listByType.useQuery({
     type: "GROUP_TRAINING",
   });
+  const { data: classPackages } = api.package.listByType.useQuery({
+    type: "CLASS_SESSION",
+  });
   const { data: trainers } = api.personalTrainer.listAllActive.useQuery();
   const { data: salesList } = api.subs.getSalesList.useQuery();
 
@@ -86,12 +89,12 @@ export default function SubscriptionPage({
 
   const hasActiveGymMembership = true;
 
-  const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer" | "group">(
+  const [subscriptionType, setSubscriptionType] = useState<"gym" | "trainer" | "group" | "class">(
     "gym",
   );
   // Reset subscription type to gym if no active membership and currently on trainer
   useEffect(() => {
-    if (!hasActiveGymMembership && (subscriptionType === "trainer" || subscriptionType === "group")) {
+    if (!hasActiveGymMembership && (subscriptionType === "trainer" || subscriptionType === "group" || subscriptionType === "class")) {
       setSubscriptionType("gym");
       setSelectedPackage("");
       setSelectedTrainer("");
@@ -136,6 +139,8 @@ export default function SubscriptionPage({
       ? gymPackages?.find((p) => p.id === selectedPackage)
       : subscriptionType === "trainer"
       ? trainerPackages?.find((p) => p.id === selectedPackage)
+      : subscriptionType === "class"
+      ? classPackages?.find((p) => p.id === selectedPackage)
       : groupPackages?.find((p) => p.id === selectedPackage);
 
   // Cart helper functions
@@ -352,7 +357,7 @@ export default function SubscriptionPage({
         // Apply discount to cart items: amount = amount - discount
         const discountedCartItems = cart.map(item => ({
           id: item.packageId,
-          name: `${item.name} (${item.type === "gym" ? "Gym" : item.type === "trainer" ? "PT" : "Group"})`,
+          name: `${item.name} (${item.type === "gym" ? "Gym" : item.type === "trainer" ? "PT" : item.type === "class" ? "Class" : "Group"})`,
           price: Math.round(item.price * discountFactor), // Original amount - discount
           quantity: 1,
           sku: generateSKU(item.name),
@@ -580,15 +585,15 @@ export default function SubscriptionPage({
                   defaultValue="gym"
                   onValueChange={(value) => {
                     // Only allow switching to trainer/group if member has active gym membership
-                    if ((value === "trainer" || value === "group") && !hasActiveGymMembership) {
+                    if ((value === "trainer" || value === "group" || value === "class") && !hasActiveGymMembership) {
                       return;
                     }
-                    setSubscriptionType(value as "gym" | "trainer" | "group");
+                    setSubscriptionType(value as "gym" | "trainer" | "group" | "class");
                     setSelectedPackage("");
                     setSelectedTrainer("");
                   }}
                 >
-           <TabsList className={`grid w-full ${hasActiveGymMembership ? 'grid-cols-3' : 'grid-cols-1'}`}>
+           <TabsList className={`grid w-full ${hasActiveGymMembership ? 'grid-cols-4' : 'grid-cols-1'}`}>
   <TabsTrigger value="gym">
     <span className="hidden sm:inline">Gym Membership</span>
     <span className="sm:hidden">Gym</span>
@@ -603,6 +608,12 @@ export default function SubscriptionPage({
     <TabsTrigger value="group">
       <span className="hidden sm:inline">Group Training</span>
       <span className="sm:hidden">Group</span>
+    </TabsTrigger>
+  )}
+  {hasActiveGymMembership && (
+    <TabsTrigger value="class">
+      <span className="hidden sm:inline">Class Session</span>
+      <span className="sm:hidden">Class</span>
     </TabsTrigger>
   )}
 </TabsList>
@@ -752,7 +763,7 @@ export default function SubscriptionPage({
                                   trainerId: selectedTrainer,
                                   name: selectedPackageDetails.name,
                                   price: selectedPackageDetails.price,
-                                  sessions: selectedPackageDetails.sessions || undefined,
+                                  sessions: selectedPackageDetails.sessions ?? undefined,
                                 });
                               }}
                               className="mt-4 w-full"
@@ -854,7 +865,7 @@ export default function SubscriptionPage({
                                   trainerId: selectedTrainer,
                                   name: selectedPackageDetails.name,
                                   price: selectedPackageDetails.price,
-                                  sessions: selectedPackageDetails.sessions || undefined,
+                                  sessions: selectedPackageDetails.sessions ?? undefined,
                                 });
                               }}
                               className="mt-4 w-full"
@@ -865,6 +876,66 @@ export default function SubscriptionPage({
                           )}
                         </div>
                       )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="class" className="pt-6">
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="mb-3 text-lg font-medium">
+                          Select Class Session Package
+                        </h3>
+                        <RadioGroup
+                          value={selectedPackage}
+                          onValueChange={setSelectedPackage}
+                        >
+                          <div className="grid grid-cols-1 gap-4">
+                            {classPackages?.map((pkg) => (
+                              <div
+                                key={pkg.id}
+                                className="flex items-center space-x-2"
+                              >
+                                <RadioGroupItem value={pkg.id} id={pkg.id} />
+                                <Label
+                                  htmlFor={pkg.id}
+                                  className="flex flex-1 justify-between items-start"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {pkg.name} ({pkg.sessions} sessions)
+                                    </span>
+                                    {pkg.description && (
+                                      <span className="text-sm text-muted-foreground mt-1">
+                                        {pkg.description}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="font-semibold">
+                                    Rp {pkg.price.toLocaleString("id-ID")}
+                                  </span>
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </RadioGroup>
+                        
+                        {selectedPackage && selectedPackageDetails && (
+                          <Button
+                            onClick={() => {
+                              addToCart({
+                                type: "class",
+                                packageId: selectedPackage,
+                                name: selectedPackageDetails.name,
+                                price: selectedPackageDetails.price,
+                                sessions: selectedPackageDetails.sessions ?? undefined,
+                              });
+                            }}
+                            className="mt-4 w-full"
+                            variant="outline"
+                          >
+                            Add to Order
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </TabsContent>
                 </Tabs>

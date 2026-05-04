@@ -229,6 +229,7 @@ async function main() {
     { name: "menu:member-list-pt" },
     { name: "menu:manage-fc" },
     { name: "member:profile" },
+    { name: "member:body-composition" },
     
     { name: "menu:groups" },
     { name: "menu:group-management" },
@@ -252,6 +253,7 @@ async function main() {
     { name: "report:pt-remaining-sessions" },
     { name: "report:employees" },
     { name: "report:class-member-report" },
+    { name: "report:class-session" },
     { name: "report:pt" },
     { name: "report:sales" },
     { name: "report:commission" },
@@ -388,7 +390,8 @@ async function main() {
         "upload:payment",
         "update:profile",
         "checkout:subscription",
-        "create:class-registration"
+        "create:class-registration",
+        "member:body-composition"
       ],
     },
     {
@@ -550,6 +553,7 @@ async function main() {
         "report:pt-remaining-sessions",
         "report:employees",
         "report:class-member-report",
+        "report:class-session",
         "report:pt",
         "report:sales",
         "report:commission",
@@ -558,6 +562,7 @@ async function main() {
         "report:inventory",
         "report:stock-movement",
         "report:purchase-order",
+        "member:body-composition",
       ],
     },
   ];

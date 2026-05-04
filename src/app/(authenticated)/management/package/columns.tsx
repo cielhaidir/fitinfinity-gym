@@ -80,6 +80,8 @@ export const createColumns = ({
         typeLabel = "Gym Membership";
       } else if (type === "GROUP_TRAINING") {
         typeLabel = "Group Training";
+      } else if (type === "CLASS_SESSION") {
+        typeLabel = "Class Session";
       }
       
       return (
@@ -119,7 +121,7 @@ export const createColumns = ({
       const type = row.getValue("type");
       if (type === PackageType.GYM_MEMBERSHIP) {
         return <div className="w-[150px]">{row.original.day ?? "0"} Days</div>;
-      } else if (type === "PERSONAL_TRAINER" || type === "GROUP_TRAINING") {
+      } else if (type === "PERSONAL_TRAINER" || type === "GROUP_TRAINING" || type === "CLASS_SESSION") {
         return (
           <div className="w-[200px]">
             <div>{row.original.sessions ?? "0"} Sessions</div>
