@@ -556,8 +556,9 @@ getRevenueBySales: protectedProcedure
       const { startDate, endDate, paymentMethod, includePos, includeSubscriptions } = input;
 
       // Default to last 30 days if no dates provided (convert to GMT+8)
-      const start = startDate ? toGMT8StartOfDay(startDate) : toGMT8StartOfDay(subDays(new Date(), 30));
-      const end = endDate ? toGMT8EndOfDay(endDate) : toGMT8EndOfDay(new Date());
+      const gmt8Now = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
+      const start = startDate ? toGMT8StartOfDay(startDate) : toGMT8StartOfDay(subDays(gmt8Now, 30));
+      const end = endDate ? toGMT8EndOfDay(endDate) : toGMT8EndOfDay(gmt8Now);
 
       let posSales: any[] = [];
       let subscriptionPayments: any[] = [];

@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         remainingSessions: { lte: 0 },
         remainingBonusSessions: { lte: 0 },
         package: {
-          type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING"] },
+          type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING", "CLASS_SESSION"] },
         },
       },
       include: detailInclude,

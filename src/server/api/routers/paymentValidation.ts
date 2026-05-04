@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { emailService } from "@/lib/email/emailService";
 import { format } from "date-fns";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -1249,15 +1250,19 @@ export const paymentValidationRouter = createTRPCRouter({
       const { startDate, endDate } = input;
   
       const now = new Date();
-      const defaultStart = new Date();
-      defaultStart.setDate(now.getDate() - 30);
+      const gmt8Now = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+      const defaultStart = new Date(gmt8Now);
+      defaultStart.setDate(defaultStart.getDate() - 30);
+  
+      const start = toGMT8StartOfDay(startDate || defaultStart);
+      const end = toGMT8EndOfDay(endDate || gmt8Now);
   
       const payments = await ctx.db.payment.findMany({
         where: {
           status: PaymentStatus.SUCCESS,
           createdAt: {
-            gte: startDate || defaultStart,
-            lte: endDate || now,
+            gte: start,
+            lte: end,
           },
           deletedAt: null,
           subscription: {
