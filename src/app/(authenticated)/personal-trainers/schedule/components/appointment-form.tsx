@@ -258,6 +258,18 @@ export default function AppointmentForm({
       return;
     }
 
+    // If member checked in AFTER the session start time, also warn
+    if (checkinStatus?.hasCheckedIn && checkinStatus.checkinTime) {
+      const [h = 0, m = 0] = time.split(":").map(Number);
+      const sessionStart = new Date(selectedDate);
+      sessionStart.setHours(h, m, 0, 0);
+      const checkinDate = new Date(checkinStatus.checkinTime);
+      if (checkinDate > sessionStart) {
+        setShowConfirm(true);
+        return;
+      }
+    }
+
     doSubmit();
   };
 
@@ -428,14 +440,34 @@ export default function AppointmentForm({
           </div>
         </div>
       )}
-      {selectedMemberId && checkinStatus?.hasCheckedIn && checkinStatus.checkinTime && (
-        <div className="flex items-start gap-2 rounded-md border border-green-300 bg-green-50 p-3 dark:border-green-700 dark:bg-green-950">
-          <span className="mt-0.5 shrink-0 text-sm">✅</span>
-          <p className="text-sm text-green-800 dark:text-green-200">
-            Member sudah check-in pukul <span className="font-medium">{format(new Date(checkinStatus.checkinTime), "HH:mm")}</span>
-          </p>
-        </div>
-      )}
+      {selectedMemberId && checkinStatus?.hasCheckedIn && checkinStatus.checkinTime && (() => {
+        const [h = 0, m = 0] = time.split(":").map(Number);
+        const sessionStart = new Date(selectedDate!);
+        sessionStart.setHours(h, m, 0, 0);
+        const checkinDate = new Date(checkinStatus.checkinTime);
+        const isCheckinAfterSession = checkinDate > sessionStart;
+        if (isCheckinAfterSession) {
+          return (
+            <div className="flex items-start gap-2 rounded-md border border-orange-300 bg-orange-50 p-3 dark:border-orange-700 dark:bg-orange-950">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" />
+              <div className="text-sm text-orange-800 dark:text-orange-200">
+                <p className="font-medium">Check-in setelah sesi dimulai!</p>
+                <p className="text-xs text-orange-600 dark:text-orange-400">
+                  Member check-in pukul {format(checkinDate, "HH:mm")} tetapi sesi dimulai pukul {time}. Member belum hadir saat sesi dimulai.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="flex items-start gap-2 rounded-md border border-green-300 bg-green-50 p-3 dark:border-green-700 dark:bg-green-950">
+            <span className="mt-0.5 shrink-0 text-sm">✅</span>
+            <p className="text-sm text-green-800 dark:text-green-200">
+              Member sudah check-in pukul <span className="font-medium">{format(checkinDate, "HH:mm")}</span>
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Group Member Info */}
       {memberValueMap.get(selectedMemberId)?.type === "group" && (
@@ -518,12 +550,21 @@ export default function AppointmentForm({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              Member Belum Check-in
+              {checkinStatus?.hasCheckedIn ? "Check-in Setelah Sesi Dimulai" : "Member Belum Check-in"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Member ini belum melakukan check-in pada tanggal{" "}
-              <span className="font-medium">{selectedDate ? format(selectedDate, "d MMMM yyyy") : "-"}</span>.
-              Apakah Anda yakin ingin tetap membuat jadwal sesi latihan?
+              {checkinStatus?.hasCheckedIn && checkinStatus.checkinTime ? (
+                <>
+                  Member check-in pukul <span className="font-medium">{format(new Date(checkinStatus.checkinTime), "HH:mm")}</span> tetapi sesi dimulai pukul <span className="font-medium">{time}</span>.
+                  Member belum hadir saat sesi dimulai. Apakah Anda yakin ingin tetap membuat jadwal sesi latihan?
+                </>
+              ) : (
+                <>
+                  Member ini belum melakukan check-in pada tanggal{" "}
+                  <span className="font-medium">{selectedDate ? format(selectedDate, "d MMMM yyyy") : "-"}</span>.
+                  Apakah Anda yakin ingin tetap membuat jadwal sesi latihan?
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

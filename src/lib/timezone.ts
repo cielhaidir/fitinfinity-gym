@@ -51,3 +51,28 @@ export function toGMT8EndOfDay(date: Date): Date {
   
   return result;
 }
+
+/**
+ * Get GMT+8 day boundaries (00:00:00 GMT+8 to next day 00:00:00 GMT+8) for any
+ * arbitrary timestamp. Unlike toGMT8StartOfDay/toGMT8EndOfDay, this does NOT
+ * assume the input's UTC date components equal the GMT+8 date — it first
+ * converts to GMT+8 to extract the correct calendar date.
+ *
+ * @returns dayStart (inclusive) and dayEnd (exclusive), both in UTC for DB queries.
+ */
+export function getGMT8DayBoundaries(date: Date): { dayStart: Date; dayEnd: Date } {
+  const offset = 8 * 60 * 60 * 1000; // 8 hours in ms
+
+  // Shift to GMT+8 so we can extract the correct date components
+  const gmt8Time = new Date(date.getTime() + offset);
+  const year = gmt8Time.getUTCFullYear();
+  const month = gmt8Time.getUTCMonth();
+  const day = gmt8Time.getUTCDate();
+
+  // Midnight GMT+8 expressed in UTC
+  const dayStart = new Date(Date.UTC(year, month, day) - offset);
+  // Next day midnight GMT+8 expressed in UTC
+  const dayEnd = new Date(dayStart.getTime() + 86400000);
+
+  return { dayStart, dayEnd };
+}

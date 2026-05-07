@@ -10,7 +10,7 @@ import { db } from "@/server/db";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
+import { toGMT8StartOfDay, toGMT8EndOfDay, getGMT8DayBoundaries } from "@/lib/timezone";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 import { decrementSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
 
@@ -640,10 +640,7 @@ export const trainerSessionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const dayStart = new Date(input.date);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      const { dayStart, dayEnd } = getGMT8DayBoundaries(input.date);
 
       const checkin = await ctx.db.attendanceMember.findFirst({
         where: {
@@ -1206,9 +1203,7 @@ export const trainerSessionRouter = createTRPCRouter({
         totalHours += durationHours;
 
         // Sync check: member has attendance on same date with checkin <= startTime
-        const sessionDate = new Date(session.date);
-        const dayStart = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
-        const dayEnd = new Date(dayStart.getTime() + 86400000); // +1 day
+        const { dayStart, dayEnd } = getGMT8DayBoundaries(new Date(session.date));
         const memberCheckins = attendanceMap.get(session.memberId) || [];
         const matchingCheckin = memberCheckins.find(
           c => c >= dayStart && c < dayEnd && c <= startTime
