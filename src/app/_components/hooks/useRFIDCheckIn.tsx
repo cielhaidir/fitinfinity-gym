@@ -11,6 +11,7 @@ interface Member {
   user: {
     name: string | null;
     email: string | null;
+    image?: string | null;
   };
 }
 
@@ -19,6 +20,8 @@ interface RFIDContextType {
   selectedMemberForCheckIn: Member | null;
   openCheckInModal: (member: Member) => void;
   closeCheckInModal: () => void;
+  removeMemberFromQueue: (memberId: string) => void;
+  checkInQueue: Member[];
   queueLength: number;
 }
 
@@ -207,11 +210,17 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
     setCheckInQueue(prev => prev.slice(1));
   }, []);
 
+  const removeMemberFromQueue = useCallback((memberId: string) => {
+    setCheckInQueue(prev => prev.filter(m => m.id !== memberId));
+  }, []);
+
   const value = {
     isCheckInModalOpen,
     selectedMemberForCheckIn,
     openCheckInModal,
     closeCheckInModal,
+    removeMemberFromQueue,
+    checkInQueue,
     queueLength: checkInQueue.length,
   };
 
@@ -221,13 +230,11 @@ export function RFIDProvider({ children }: RFIDProviderProps) {
   return (
     <RFIDContext.Provider value={value}>
       {children}
-      {/* Loading overlay when searching for member */}
+      {/* Loading toast when searching for member — non-blocking */}
       {isSearching && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-4 rounded-lg bg-background p-8 shadow-lg">
-            <Loader2 className="h-12 w-12 animate-spin text-[#BFFF00]" />
-            <p className="text-lg font-medium">Searching for member...</p>
-          </div>
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg bg-background border border-border p-4 shadow-lg">
+          <Loader2 className="h-5 w-5 animate-spin text-[#BFFF00]" />
+          <p className="text-sm font-medium">Searching for member...</p>
         </div>
       )}
     </RFIDContext.Provider>
