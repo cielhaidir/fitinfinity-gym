@@ -40,11 +40,11 @@ export default function POSPage() {
   // Summary tab states
   const [summaryDateFrom, setSummaryDateFrom] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split('T')[0] || "";
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
   const [summaryDateTo, setSummaryDateTo] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split('T')[0] || "";
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
   const [summaryPaymentMethod, setSummaryPaymentMethod] = useState<string>("all");
 
@@ -63,7 +63,7 @@ export default function POSPage() {
   
   // Summary data queries
   const { data: summaryData, refetch: refetchSummary } = api.posSale.getSalesReport.useQuery({
-    dateFrom: summaryDateFrom ? new Date(summaryDateFrom) : new Date(),
+    dateFrom: summaryDateFrom ? new Date(summaryDateFrom + 'T00:00:00') : new Date(),
     dateTo: summaryDateTo ? new Date(summaryDateTo + 'T23:59:59') : new Date(),
   });
   const createSaleMutation = api.posSale.create.useMutation();
@@ -815,7 +815,8 @@ export default function POSPage() {
                     </Button>
                     <Button
                       onClick={() => {
-                        const today = new Date().toISOString().split('T')[0] || "";
+                        const now = new Date();
+                        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                         setSummaryDateFrom(today);
                         setSummaryDateTo(today);
                         setSummaryPaymentMethod("all");
