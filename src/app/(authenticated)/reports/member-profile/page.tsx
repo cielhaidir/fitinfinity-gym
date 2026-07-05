@@ -27,15 +27,28 @@ export default function MemberProfileReportPage() {
   const [tempStartDate, setTempStartDate] = useState<Date | undefined>();
   const [tempEndDate, setTempEndDate] = useState<Date | undefined>();
   const [tempStatus, setTempStatus] = useState<string>("all");
+  const [tempGender, setTempGender] = useState<string>("all");
+  const [tempAgeMin, setTempAgeMin] = useState<string>("");
+  const [tempAgeMax, setTempAgeMax] = useState<string>("");
+  const [tempMembershipFrom, setTempMembershipFrom] = useState<Date | undefined>();
+  const [tempMembershipTo, setTempMembershipTo] = useState<Date | undefined>();
+  const [tempMembershipPackageId, setTempMembershipPackageId] = useState<string>("all");
 
   // Applied filter states
   const [search, setSearch] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [status, setStatus] = useState<string>("all");
+  const [gender, setGender] = useState<string>("all");
+  const [ageMin, setAgeMin] = useState<number | undefined>();
+  const [ageMax, setAgeMax] = useState<number | undefined>();
+  const [membershipFrom, setMembershipFrom] = useState<Date | undefined>();
+  const [membershipTo, setMembershipTo] = useState<Date | undefined>();
+  const [membershipPackageId, setMembershipPackageId] = useState<string | undefined>();
 
   // Sorting state
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
+  const [ageSortOrder, setAgeSortOrder] = useState<"asc" | "desc" | null>(null);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -58,11 +71,20 @@ export default function MemberProfileReportPage() {
       status === "all"
         ? undefined
         : (status as "ACTIVE" | "EXPIRED" | "REVOKED"),
+    gender: gender === "all" ? undefined : gender,
+    ageMin,
+    ageMax,
+    membershipFrom,
+    membershipTo,
+    membershipPackageId,
     page,
     pageSize,
-    sortBy: sortOrder ? "point" : "registerDate",
-    sortOrder: sortOrder ?? "desc",
+    sortBy: ageSortOrder ? "birthDate" : sortOrder ? "point" : "registerDate",
+    sortOrder: (ageSortOrder ?? sortOrder) ?? "desc",
   });
+
+  // Fetch GYM_MEMBERSHIP packages for filter dropdown
+  const { data: gymPackages } = api.package.listByType.useQuery({ type: "GYM_MEMBERSHIP" });
 
   // Fetch member detail
   const {
@@ -87,13 +109,27 @@ export default function MemberProfileReportPage() {
         status === "all"
           ? undefined
           : (status as "ACTIVE" | "EXPIRED" | "REVOKED"),
+      gender: gender === "all" ? undefined : gender,
+      ageMin,
+      ageMax,
+      membershipFrom,
+      membershipTo,
+      membershipPackageId,
     },
     { enabled: false } // Only fetch when export button is clicked
   );
 
   // Toggle point sort
   const handlePointSort = () => {
+    setAgeSortOrder(null);
     setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+    setPage(1);
+  };
+
+  // Toggle age sort
+  const handleAgeSort = () => {
+    setSortOrder(null);
+    setAgeSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
     setPage(1);
   };
 
@@ -103,6 +139,12 @@ export default function MemberProfileReportPage() {
     setStartDate(tempStartDate);
     setEndDate(tempEndDate);
     setStatus(tempStatus);
+    setGender(tempGender);
+    setAgeMin(tempAgeMin !== "" ? parseInt(tempAgeMin, 10) : undefined);
+    setAgeMax(tempAgeMax !== "" ? parseInt(tempAgeMax, 10) : undefined);
+    setMembershipFrom(tempMembershipFrom);
+    setMembershipTo(tempMembershipTo);
+    setMembershipPackageId(tempMembershipPackageId !== "all" ? tempMembershipPackageId : undefined);
     setPage(1);
     refetch();
   };
@@ -113,11 +155,24 @@ export default function MemberProfileReportPage() {
     setTempStartDate(undefined);
     setTempEndDate(undefined);
     setTempStatus("all");
+    setTempGender("all");
+    setTempAgeMin("");
+    setTempAgeMax("");
+    setTempMembershipFrom(undefined);
+    setTempMembershipTo(undefined);
+    setTempMembershipPackageId("all");
     setSearch("");
     setStartDate(undefined);
     setEndDate(undefined);
     setStatus("all");
+    setGender("all");
+    setAgeMin(undefined);
+    setAgeMax(undefined);
+    setMembershipFrom(undefined);
+    setMembershipTo(undefined);
+    setMembershipPackageId(undefined);
     setSortOrder(null);
+    setAgeSortOrder(null);
     setPage(1);
     refetch();
   };
@@ -157,6 +212,12 @@ export default function MemberProfileReportPage() {
       "Birth Date": item.birthDate
         ? format(new Date(item.birthDate), "yyyy-MM-dd")
         : "N/A",
+      "Age": item.birthDate
+        ? differenceInYears(new Date(), new Date(item.birthDate)).toString()
+        : "N/A",
+      "Last Membership": item.lastMembershipName ?? "N/A",
+      "Membership Start": item.lastMembershipStart ? format(new Date(item.lastMembershipStart), "yyyy-MM-dd") : "N/A",
+      "Membership End": item.lastMembershipEnd ? format(new Date(item.lastMembershipEnd), "yyyy-MM-dd") : "N/A",
       "Register Date": format(new Date(item.registerDate), "yyyy-MM-dd"),
       "Gender": item.gender || "N/A",
       "Points": item.point?.toString() || "0",
@@ -186,6 +247,16 @@ export default function MemberProfileReportPage() {
       {
         Metric: "Status Filter",
         Value: status === "all" ? "All" : status,
+      },
+      {
+        Metric: "Gender Filter",
+        Value: gender === "all" ? "All" : gender,
+      },
+      {
+        Metric: "Age Range",
+        Value: ageMin !== undefined || ageMax !== undefined
+          ? `${ageMin ?? ""} - ${ageMax ?? ""} years`
+          : "All",
       },
       {
         Metric: "Total Members",
@@ -274,9 +345,12 @@ export default function MemberProfileReportPage() {
         "Start Date": format(new Date(sub.startDate), "yyyy-MM-dd"),
         "End Date": sub.endDate ? format(new Date(sub.endDate), "yyyy-MM-dd") : "No Expiry",
         "Remaining Sessions": sub.remainingSessions?.toString() || "N/A",
-        "Status": sub.isActive ? "Active" : "Inactive",
-        "Frozen": sub.isFrozen ? "Yes" : "No",
+        "Status": sub.deletedAt ? "Cancelled" : sub.isActive ? "Active" : "Inactive",
+        "Frozen": !sub.deletedAt && sub.isFrozen ? "Yes" : "No",
         "Trainer": sub.trainer?.name || "N/A",
+        "Sales": sub.salesName
+          ? `${sub.salesName}${sub.salesType === "FC" ? " (FC)" : sub.salesType === "PersonalTrainer" ? " (PT)" : ""}`
+          : "N/A",
         "Payment Amount": sub.payment?.totalPayment?.toString() || "N/A",
       }));
 
@@ -429,6 +503,71 @@ export default function MemberProfileReportPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label>Gender</Label>
+                  <Select value={tempGender} onValueChange={setTempGender}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Gender</SelectItem>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Min Age</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 18"
+                    value={tempAgeMin}
+                    onChange={(e) => setTempAgeMin(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Max Age</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 60"
+                    value={tempAgeMax}
+                    onChange={(e) => setTempAgeMax(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Membership From</Label>
+                  <Input
+                    type="date"
+                    value={tempMembershipFrom ? format(tempMembershipFrom, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setTempMembershipFrom(e.target.value ? new Date(e.target.value) : undefined)}
+                  />
+                </div>
+                <div>
+                  <Label>Membership To</Label>
+                  <Input
+                    type="date"
+                    value={tempMembershipTo ? format(tempMembershipTo, "yyyy-MM-dd") : ""}
+                    onChange={(e) => setTempMembershipTo(e.target.value ? new Date(e.target.value) : undefined)}
+                  />
+                </div>
+                <div>
+                  <Label>Membership Package</Label>
+                  <Select value={tempMembershipPackageId} onValueChange={setTempMembershipPackageId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Packages" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Packages</SelectItem>
+                      {gymPackages?.map((pkg) => (
+                        <SelectItem key={pkg.id} value={pkg.id}>
+                          {pkg.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={handleResetFilters}>
@@ -465,6 +604,22 @@ export default function MemberProfileReportPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Birth Date</TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none hover:bg-muted/50"
+                      onClick={handleAgeSort}
+                    >
+                      <div className="flex items-center gap-1">
+                        Age
+                        {ageSortOrder === "desc" ? (
+                          <ChevronDown className="h-4 w-4 text-primary" />
+                        ) : ageSortOrder === "asc" ? (
+                          <ChevronUp className="h-4 w-4 text-primary" />
+                        ) : (
+                          <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead>Last Membership</TableHead>
                     <TableHead>Register Date</TableHead>
                     <TableHead>Gender</TableHead>
                     <TableHead
@@ -473,9 +628,9 @@ export default function MemberProfileReportPage() {
                     >
                       <div className="flex items-center gap-1">
                         Points
-                        {sortOrder === "desc" ? (
+                        {sortOrder === "desc" && !ageSortOrder ? (
                           <ChevronDown className="h-4 w-4 text-primary" />
-                        ) : sortOrder === "asc" ? (
+                        ) : sortOrder === "asc" && !ageSortOrder ? (
                           <ChevronUp className="h-4 w-4 text-primary" />
                         ) : (
                           <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
@@ -489,7 +644,7 @@ export default function MemberProfileReportPage() {
                 <TableBody>
                   {isLoadingList ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-8 text-center">
+                      <TableCell colSpan={11} className="py-8 text-center">
                         <Skeleton className="h-8 w-full" />
                       </TableCell>
                     </TableRow>
@@ -511,6 +666,27 @@ export default function MemberProfileReportPage() {
                           {item.user.birthDate
                             ? format(new Date(item.user.birthDate), "MMM dd, yyyy")
                             : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {calculateAge(item.user.birthDate) !== null
+                            ? `${calculateAge(item.user.birthDate)} yr`
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {item.lastMembership ? (
+                            <div className="text-sm">
+                              <div className="font-medium">{item.lastMembership.name}</div>
+                              <div className="text-muted-foreground">
+                                {format(new Date(item.lastMembership.startDate), "dd MMM yyyy")}
+                                {" – "}
+                                {item.lastMembership.endDate
+                                  ? format(new Date(item.lastMembership.endDate), "dd MMM yyyy")
+                                  : "∞"}
+                              </div>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
                         </TableCell>
                         <TableCell>
                           {format(new Date(item.registerDate), "MMM dd, yyyy")}
@@ -535,7 +711,7 @@ export default function MemberProfileReportPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
                         No members found for the selected filters.
                       </TableCell>
                     </TableRow>
@@ -768,6 +944,7 @@ export default function MemberProfileReportPage() {
                                   <TableHead>Remaining Sessions</TableHead>
                                   <TableHead>Status</TableHead>
                                   <TableHead>Trainer</TableHead>
+                                  <TableHead>Sales</TableHead>
                                   <TableHead>Payment</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -806,16 +983,27 @@ export default function MemberProfileReportPage() {
                                       {sub.remainingSessions ?? "-"}
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant={sub.isActive ? "default" : "destructive"}>
-                                        {sub.isActive ? "Active" : "Inactive"}
-                                      </Badge>
-                                      {sub.isFrozen && (
+                                      {sub.deletedAt ? (
+                                        <Badge variant="secondary" className="bg-gray-500 text-white">
+                                          Cancelled
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant={sub.isActive ? "default" : "destructive"}>
+                                          {sub.isActive ? "Active" : "Inactive"}
+                                        </Badge>
+                                      )}
+                                      {!sub.deletedAt && sub.isFrozen && (
                                         <Badge variant="outline" className="ml-1">
                                           Frozen
                                         </Badge>
                                       )}
                                     </TableCell>
                                     <TableCell>{sub.trainer?.name || "-"}</TableCell>
+                                    <TableCell>
+                                      {sub.salesName
+                                        ? `${sub.salesName}${sub.salesType === "FC" ? " (FC)" : sub.salesType === "PersonalTrainer" ? " (PT)" : ""}`
+                                        : "-"}
+                                    </TableCell>
                                     <TableCell>
                                       {sub.payment
                                         ? `Rp ${sub.payment.totalPayment.toLocaleString()}`

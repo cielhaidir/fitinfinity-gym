@@ -14,10 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from "date-fns";
 import { toast } from "sonner";
-import { Pencil, Download, Calendar } from "lucide-react";
+import { Pencil, Download, Calendar, Search, Trophy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -65,6 +67,73 @@ export default function MemberAttendanceReportPage() {
 
   const facilityFilter = formatFacilityDescription(lokerSelection, lokerNumber, handukSelection);
   
+  // Rekap Kehadiran states
+  const [recapStartDate, setRecapStartDate] = useState<string>("");
+  const [recapEndDate, setRecapEndDate] = useState<string>("");
+  const [recapSearch, setRecapSearch] = useState<string>("");
+  const [recapTempSearch, setRecapTempSearch] = useState<string>("");
+  const [recapAppliedStart, setRecapAppliedStart] = useState<Date | undefined>();
+  const [recapAppliedEnd, setRecapAppliedEnd] = useState<Date | undefined>();
+  const [recapPage, setRecapPage] = useState<number>(1);
+  const recapPageSize = 25;
+
+  const {
+    data: recapData,
+    isLoading: isLoadingRecap,
+    refetch: refetchRecap,
+  } = api.reports.attendanceSummary.useQuery({
+    startDate: recapAppliedStart,
+    endDate: recapAppliedEnd,
+    search: recapSearch || undefined,
+    page: recapPage,
+    pageSize: recapPageSize,
+  });
+
+  const handleApplyRecap = () => {
+    setRecapAppliedStart(recapStartDate ? new Date(recapStartDate) : undefined);
+    setRecapAppliedEnd(recapEndDate ? new Date(recapEndDate) : undefined);
+    setRecapSearch(recapTempSearch);
+    setRecapPage(1);
+  };
+
+  const handleClearRecap = () => {
+    setRecapStartDate("");
+    setRecapEndDate("");
+    setRecapTempSearch("");
+    setRecapSearch("");
+    setRecapAppliedStart(undefined);
+    setRecapAppliedEnd(undefined);
+    setRecapPage(1);
+  };
+
+  const handleDownloadRecap = () => {
+    if (!recapData?.items || recapData.items.length === 0) {
+      toast.error("No data to download");
+      return;
+    }
+    const headers = ["Rank", "Member Name", "Email", "Phone", "Total Check-ins"];
+    const csvContent = [
+      headers.join(","),
+      ...recapData.items.map((item) =>
+        [
+          item.rank,
+          item.memberName ?? "",
+          item.memberEmail ?? "",
+          item.memberPhone ?? "",
+          item.totalCheckins,
+        ].join(",")
+      ),
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.setAttribute("href", URL.createObjectURL(blob));
+    link.setAttribute("download", `rekap-kehadiran-${format(new Date(), "yyyy-MM-dd")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const { data, isLoading, error, refetch } = api.esp32.getMemberCheckinLogs.useQuery({
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -181,6 +250,183 @@ export default function MemberAttendanceReportPage() {
             </p>
           </div>
         </div>
+
+        <Tabs defaultValue="log">
+          <TabsList className="mb-4">
+            <TabsTrigger value="log">Detail Log</TabsTrigger>
+            <TabsTrigger value="rekap">Rekap Kehadiran</TabsTrigger>
+          </TabsList>
+
+          {/* ── REKAP KEHADIRAN TAB ── */}
+          <TabsContent value="rekap" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Filter Rekap Kehadiran</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <Label>Start Date</Label>
+                    <Input
+                      type="date"
+                      value={recapStartDate}
+                      onChange={(e) => setRecapStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>End Date</Label>
+                    <Input
+                      type="date"
+                      value={recapEndDate}
+                      onChange={(e) => setRecapEndDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Cari Member</Label>
+                    <Input
+                      placeholder="Nama member..."
+                      value={recapTempSearch}
+                      onChange={(e) => setRecapTempSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyRecap()}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleApplyRecap}>
+                    <Search className="w-4 h-4 mr-2" />
+                    Terapkan Filter
+                  </Button>
+                  <Button variant="outline" onClick={handleClearRecap}>
+                    Clear
+                  </Button>
+                  <Button variant="secondary" onClick={handleDownloadRecap}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download CSV
+                  </Button>
+                </div>
+                {(recapAppliedStart || recapAppliedEnd) && (
+                  <p className="text-sm text-muted-foreground mt-3">
+                    Periode:{" "}
+                    {recapAppliedStart ? format(recapAppliedStart, "dd MMM yyyy") : "—"}
+                    {" s/d "}
+                    {recapAppliedEnd ? format(recapAppliedEnd, "dd MMM yyyy") : "—"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-yellow-500" />
+                    Total Kehadiran per Member
+                  </CardTitle>
+                  {recapData && (
+                    <span className="text-sm text-muted-foreground">
+                      {recapData.totalCount} member ditemukan
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingRecap ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-16">Rank</TableHead>
+                            <TableHead>Nama Member</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Phone</TableHead>
+                            <TableHead className="text-center">Total Kehadiran</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {recapData?.items && recapData.items.length > 0 ? (
+                            recapData.items.map((item) => (
+                              <TableRow key={item.memberId}>
+                                <TableCell>
+                                  {item.rank <= 3 ? (
+                                    <Badge
+                                      className={
+                                        item.rank === 1
+                                          ? "bg-yellow-400 text-yellow-900"
+                                          : item.rank === 2
+                                          ? "bg-gray-300 text-gray-800"
+                                          : "bg-orange-400 text-orange-900"
+                                      }
+                                    >
+                                      #{item.rank}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">#{item.rank}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {item.memberName ?? "-"}
+                                </TableCell>
+                                <TableCell>{item.memberEmail ?? "-"}</TableCell>
+                                <TableCell>{item.memberPhone ?? "-"}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant="outline" className="text-base font-bold px-3 py-1">
+                                    {item.totalCheckins}x
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                Tidak ada data kehadiran untuk filter yang dipilih.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Pagination */}
+                    {recapData && recapData.totalCount > recapPageSize && (
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="text-sm text-muted-foreground">
+                          Menampilkan {((recapPage - 1) * recapPageSize) + 1}–
+                          {Math.min(recapPage * recapPageSize, recapData.totalCount)} dari{" "}
+                          {recapData.totalCount}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={recapPage === 1}
+                            onClick={() => setRecapPage((p) => p - 1)}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={recapPage * recapPageSize >= recapData.totalCount}
+                            onClick={() => setRecapPage((p) => p + 1)}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── DETAIL LOG TAB ── */}
+          <TabsContent value="log" className="space-y-6">
 
         {/* Filters Section */}
         <Card>
@@ -502,6 +748,8 @@ export default function MemberAttendanceReportPage() {
             </div>
           </DialogContent>
         </Dialog>
+          </TabsContent>
+        </Tabs>
       </div>
     </ProtectedRoute>
   );

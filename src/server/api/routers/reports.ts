@@ -344,9 +344,15 @@ export const reportsRouter = createTRPCRouter({
           enrollmentFrom: z.date().optional(),
           enrollmentTo: z.date().optional(),
           status: z.enum(["ACTIVE", "EXPIRED", "REVOKED"]).optional(),
+          gender: z.string().optional(),
+          ageMin: z.number().min(0).optional(),
+          ageMax: z.number().min(0).optional(),
+          membershipFrom: z.date().optional(),
+          membershipTo: z.date().optional(),
+          membershipPackageId: z.string().optional(),
           page: z.number().min(1).optional().default(1),
           pageSize: z.number().min(1).max(100).optional().default(25),
-          sortBy: z.enum(["point", "registerDate"]).optional().default("registerDate"),
+          sortBy: z.enum(["point", "registerDate", "birthDate"]).optional().default("registerDate"),
           sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
         }),
       )
@@ -380,13 +386,50 @@ export const reportsRouter = createTRPCRouter({
           }
         }
 
+        // Combined subscription filter (ACTIVE status + membership date range)
+        const subFilter: any = {};
         if (input.status === "ACTIVE") {
-          where.subscriptions = { some: { isActive: true, deletedAt: null } };
-        } else if (input.status === "EXPIRED") {
+          subFilter.isActive = true;
+          subFilter.deletedAt = null;
+        }
+        if (input.membershipFrom || input.membershipTo) {
+          subFilter.deletedAt = null;
+          subFilter.startDate = {};
+          if (input.membershipFrom) subFilter.startDate.gte = toGMT8StartOfDay(input.membershipFrom);
+          if (input.membershipTo) subFilter.startDate.lte = toGMT8EndOfDay(input.membershipTo);
+        }
+        if (input.membershipPackageId) {
+          subFilter.packageId = input.membershipPackageId;
+          subFilter.deletedAt = null;
+        }
+        if (Object.keys(subFilter).length > 0) {
+          where.subscriptions = { some: subFilter };
+        }
+        if (input.status === "EXPIRED") {
           where.isActive = false;
           where.revokedAt = null;
         } else if (input.status === "REVOKED") {
           where.revokedAt = { not: null };
+        }
+
+        if (input.gender) {
+          where.user.gender = input.gender;
+        }
+
+        if (input.ageMin !== undefined || input.ageMax !== undefined) {
+          if (!where.user.birthDate) where.user.birthDate = {};
+          const now = new Date();
+          if (input.ageMin !== undefined) {
+            const maxBirthDate = new Date(now);
+            maxBirthDate.setFullYear(maxBirthDate.getFullYear() - input.ageMin);
+            where.user.birthDate.lte = maxBirthDate;
+          }
+          if (input.ageMax !== undefined) {
+            const minBirthDate = new Date(now);
+            minBirthDate.setFullYear(minBirthDate.getFullYear() - (input.ageMax + 1));
+            minBirthDate.setDate(minBirthDate.getDate() + 1);
+            where.user.birthDate.gte = minBirthDate;
+          }
         }
 
         const [items, totalCount] = await Promise.all([
@@ -396,7 +439,9 @@ export const reportsRouter = createTRPCRouter({
             take: input.pageSize,
             orderBy: input.sortBy === "point"
               ? { user: { point: input.sortOrder } }
-              : { registerDate: input.sortOrder },
+              : input.sortBy === "birthDate"
+                ? { user: { birthDate: input.sortOrder === "asc" ? "desc" : "asc" } }
+                : { registerDate: input.sortOrder },
             include: {
               user: {
                 select: {
@@ -409,6 +454,18 @@ export const reportsRouter = createTRPCRouter({
                   address: true,
                   image: true,
                   point: true,
+                },
+              },
+              subscriptions: {
+                where: { deletedAt: null },
+                orderBy: { startDate: "desc" as const },
+                take: 20,
+                select: {
+                  id: true,
+                  isActive: true,
+                  startDate: true,
+                  endDate: true,
+                  package: { select: { name: true, type: true } },
                 },
               },
             },
@@ -431,7 +488,15 @@ export const reportsRouter = createTRPCRouter({
               point: membership.user.point,
             },
             registerDate: membership.registerDate,
-            isActive: membership.isActive,
+            isActive: membership.subscriptions.some((s) => s.isActive),
+            lastMembership: (() => {
+              const gym = membership.subscriptions.find(
+                (s) => s.package.type === "GYM_MEMBERSHIP"
+              );
+              return gym
+                ? { name: gym.package.name, startDate: gym.startDate, endDate: gym.endDate, isActive: gym.isActive }
+                : null;
+            })(),
           })),
           totalCount,
         };
@@ -447,6 +512,12 @@ export const reportsRouter = createTRPCRouter({
           enrollmentFrom: z.date().optional(),
           enrollmentTo: z.date().optional(),
           status: z.enum(["ACTIVE", "EXPIRED", "REVOKED"]).optional(),
+          gender: z.string().optional(),
+          ageMin: z.number().min(0).optional(),
+          ageMax: z.number().min(0).optional(),
+          membershipFrom: z.date().optional(),
+          membershipTo: z.date().optional(),
+          membershipPackageId: z.string().optional(),
         }),
       )
       .query(async ({ ctx, input }) => {
@@ -508,15 +579,52 @@ export const reportsRouter = createTRPCRouter({
           }
         }
 
-        // Status filter
+        // Combined subscription filter (ACTIVE status + membership date range)
+        const subFilterExport: any = {};
         if (input.status === "ACTIVE") {
-          where.isActive = true;
-          where.revokedAt = null;
-        } else if (input.status === "EXPIRED") {
+          subFilterExport.isActive = true;
+          subFilterExport.deletedAt = null;
+        }
+        if (input.membershipFrom || input.membershipTo) {
+          subFilterExport.deletedAt = null;
+          subFilterExport.startDate = {};
+          if (input.membershipFrom) subFilterExport.startDate.gte = toGMT8StartOfDay(input.membershipFrom);
+          if (input.membershipTo) subFilterExport.startDate.lte = toGMT8EndOfDay(input.membershipTo);
+        }
+        if (input.membershipPackageId) {
+          subFilterExport.packageId = input.membershipPackageId;
+          subFilterExport.deletedAt = null;
+        }
+        if (Object.keys(subFilterExport).length > 0) {
+          where.subscriptions = { some: subFilterExport };
+        }
+        if (input.status === "EXPIRED") {
           where.isActive = false;
           where.revokedAt = null;
         } else if (input.status === "REVOKED") {
           where.revokedAt = { not: null };
+        }
+
+        // Gender filter
+        if (input.gender) {
+          where.user.gender = input.gender;
+        }
+
+        // Age filter (convert age range to birthDate range)
+        if (input.ageMin !== undefined || input.ageMax !== undefined) {
+          if (!where.user.birthDate) where.user.birthDate = {};
+          const now = new Date();
+          if (input.ageMin !== undefined) {
+            const maxBirthDate = new Date(now);
+            maxBirthDate.setFullYear(maxBirthDate.getFullYear() - input.ageMin);
+            where.user.birthDate.lte = maxBirthDate;
+          }
+          if (input.ageMax !== undefined) {
+            const minBirthDate = new Date(now);
+            minBirthDate.setFullYear(minBirthDate.getFullYear() - (input.ageMax + 1));
+            minBirthDate.setDate(minBirthDate.getDate() + 1);
+            where.user.birthDate.gte = minBirthDate;
+          }
         }
 
         // Fetch ALL members without pagination
@@ -535,6 +643,18 @@ export const reportsRouter = createTRPCRouter({
                 point: true,
               },
             },
+            subscriptions: {
+              where: { deletedAt: null },
+              orderBy: { startDate: "desc" as const },
+              take: 20,
+              select: {
+                id: true,
+                isActive: true,
+                startDate: true,
+                endDate: true,
+                package: { select: { name: true, type: true } },
+              },
+            },
           },
         });
 
@@ -547,7 +667,19 @@ export const reportsRouter = createTRPCRouter({
           registerDate: membership.registerDate,
           gender: membership.user.gender,
           point: membership.user.point,
-          isActive: membership.isActive,
+          isActive: membership.subscriptions.some((s) => s.isActive),
+          lastMembershipName: (() => {
+            const gym = membership.subscriptions.find((s) => s.package.type === "GYM_MEMBERSHIP");
+            return gym?.package.name ?? null;
+          })(),
+          lastMembershipStart: (() => {
+            const gym = membership.subscriptions.find((s) => s.package.type === "GYM_MEMBERSHIP");
+            return gym?.startDate ?? null;
+          })(),
+          lastMembershipEnd: (() => {
+            const gym = membership.subscriptions.find((s) => s.package.type === "GYM_MEMBERSHIP");
+            return gym?.endDate ?? null;
+          })(),
         }));
       }),
 
@@ -601,11 +733,10 @@ export const reportsRouter = createTRPCRouter({
           });
         }
 
-        // Fetch subscription history
+        // Fetch subscription history (include soft-deleted for full history)
         const subscriptions = await ctx.db.subscription.findMany({
           where: {
             memberId: input.membershipId,
-            deletedAt: null,
           },
           orderBy: { startDate: "desc" },
           include: {
@@ -645,6 +776,32 @@ export const reportsRouter = createTRPCRouter({
             },
           },
         });
+
+        // Batch-resolve sales person names from salesId + salesType
+        const fcSalesIds = [...new Set(subscriptions
+          .filter((s) => s.salesType === "FC" && s.salesId)
+          .map((s) => s.salesId!))];
+        const ptSalesIds = [...new Set(subscriptions
+          .filter((s) => s.salesType === "PersonalTrainer" && s.salesId)
+          .map((s) => s.salesId!))];
+
+        const [fcSalesList, ptSalesList] = await Promise.all([
+          fcSalesIds.length > 0
+            ? ctx.db.fC.findMany({
+                where: { id: { in: fcSalesIds } },
+                select: { id: true, user: { select: { name: true } } },
+              })
+            : Promise.resolve([]),
+          ptSalesIds.length > 0
+            ? ctx.db.personalTrainer.findMany({
+                where: { id: { in: ptSalesIds } },
+                select: { id: true, user: { select: { name: true } } },
+              })
+            : Promise.resolve([]),
+        ]);
+
+        const fcSalesMap = new Map(fcSalesList.map((fc) => [fc.id, fc.user?.name ?? "Unknown"]));
+        const ptSalesMap = new Map(ptSalesList.map((pt) => [pt.id, pt.user?.name ?? "Unknown"]));
 
         // Fetch trainer sessions summary
         const trainerSessions = await ctx.db.trainerSession.findMany({
@@ -704,7 +861,7 @@ export const reportsRouter = createTRPCRouter({
           membership: {
             id: membership.id,
             registerDate: membership.registerDate,
-            isActive: membership.isActive,
+            isActive: subscriptions.some((sub) => sub.isActive && !sub.deletedAt),
             revokedAt: membership.revokedAt,
             rfidNumber: membership.rfidNumber,
             user: membership.user,
@@ -723,6 +880,7 @@ export const reportsRouter = createTRPCRouter({
             remainingSessions: sub.remainingSessions,
             isActive: sub.isActive,
             isFrozen: sub.isFrozen,
+            deletedAt: sub.deletedAt,
             package: sub.package,
             trainer: sub.trainer
               ? {
@@ -731,6 +889,14 @@ export const reportsRouter = createTRPCRouter({
                   email: sub.trainer.user?.email || "",
                 }
               : null,
+            salesName: sub.salesId
+              ? sub.salesType === "FC"
+                ? (fcSalesMap.get(sub.salesId) ?? null)
+                : sub.salesType === "PersonalTrainer"
+                  ? (ptSalesMap.get(sub.salesId) ?? null)
+                  : null
+              : null,
+            salesType: sub.salesType ?? null,
             payment: sub.payments[0] || null,
           })),
           trainerSessionsSummary: sessionsSummary,
@@ -959,4 +1125,81 @@ export const reportsRouter = createTRPCRouter({
       }
     }),
   }),
+
+  /**
+   * Attendance Summary Report
+   * Returns total check-ins per member for a given period, sorted by most attended.
+   */
+  attendanceSummary: permissionProtectedProcedure(["report:member-attendance"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        search: z.string().optional(),
+        page: z.number().min(1).optional().default(1),
+        pageSize: z.number().min(1).max(100).optional().default(25),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // If search is provided, first resolve matching memberIds
+      let memberIdFilter: string[] | undefined;
+      if (input.search) {
+        const matchingMembers = await ctx.db.membership.findMany({
+          where: {
+            user: {
+              name: { contains: input.search, mode: "insensitive" },
+            },
+          },
+          select: { id: true },
+        });
+        memberIdFilter = matchingMembers.map((m) => m.id);
+        if (memberIdFilter.length === 0) {
+          return { items: [], totalCount: 0 };
+        }
+      }
+
+      // Build where clause for groupBy
+      const where: any = {};
+      if (memberIdFilter) where.memberId = { in: memberIdFilter };
+      if (input.startDate || input.endDate) {
+        where.checkin = {};
+        if (input.startDate) where.checkin.gte = toGMT8StartOfDay(input.startDate);
+        if (input.endDate) where.checkin.lte = toGMT8EndOfDay(input.endDate);
+      }
+
+      // Group by memberId, count check-ins, sort desc
+      const grouped = await ctx.db.attendanceMember.groupBy({
+        by: ["memberId"],
+        where: Object.keys(where).length > 0 ? where : undefined,
+        _count: { id: true },
+        orderBy: { _count: { id: "desc" } },
+      });
+
+      const totalCount = grouped.length;
+      const pageItems = grouped.slice(
+        (input.page - 1) * input.pageSize,
+        input.page * input.pageSize,
+      );
+      const memberIds = pageItems.map((g) => g.memberId);
+
+      // Fetch member + user info
+      const members = await ctx.db.membership.findMany({
+        where: { id: { in: memberIds } },
+        include: {
+          user: { select: { name: true, email: true, phone: true } },
+        },
+      });
+      const memberMap = new Map(members.map((m) => [m.id, m]));
+
+      const items = pageItems.map((g, i) => ({
+        rank: (input.page - 1) * input.pageSize + i + 1,
+        memberId: g.memberId,
+        memberName: memberMap.get(g.memberId)?.user.name ?? null,
+        memberEmail: memberMap.get(g.memberId)?.user.email ?? null,
+        memberPhone: memberMap.get(g.memberId)?.user.phone ?? null,
+        totalCheckins: g._count.id,
+      }));
+
+      return { items, totalCount };
+    }),
 });

@@ -52,8 +52,6 @@ export default function AdminSubscriptionHistoryPage() {
   const router = useRouter();
 
   const today = new Date();
-const sevenDaysAgo = new Date();
-sevenDaysAgo.setDate(today.getDate() - 7);
 
 const formatDate = (date: Date): string => {
   const y = date.getFullYear();
@@ -61,6 +59,9 @@ const formatDate = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 };
+
+const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -72,10 +73,10 @@ const formatDate = (date: Date): string => {
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [filterDateType, setFilterDateType] = useState<"payment" | "startDate" | "endDate" | "createdAt">("payment");
 const [filterStartDate, setFilterStartDate] = useState<string>(
-  formatDate(sevenDaysAgo)
+  formatDate(firstDayOfMonth)
 );
 const [filterEndDate, setFilterEndDate] = useState<string>(
-  formatDate(today)
+  formatDate(lastDayOfMonth)
 );
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
