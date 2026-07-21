@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { DataTable } from "@/components/datatable/data-table";
@@ -32,6 +33,7 @@ export default function ClassPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filter, setFilter] = useState<"all" | "past" | "upcoming">("upcoming");
 
   const utils = api.useUtils();
 
@@ -41,6 +43,7 @@ export default function ClassPage() {
       page,
       limit: pageSize,
       search,
+      filter,
     },
     {
       staleTime: 5000,
@@ -243,7 +246,7 @@ export default function ClassPage() {
   return (
     <ProtectedRoute requiredPermissions={["menu:manage-classes"]}>
       <div className="container mx-auto min-h-screen bg-background p-4 md:p-8">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+      <div className="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">Classes</h2>
           <p className="text-muted-foreground">
@@ -256,6 +259,19 @@ export default function ClassPage() {
         >
           <Plus className="mr-2 h-4 w-4" /> Add Class
         </Button>
+      </div>
+
+      <div className="mb-4">
+        <ToggleGroup
+          type="single"
+          value={filter}
+          onValueChange={(v) => { if (v) { setFilter(v as "all" | "past" | "upcoming"); setPage(1); } }}
+          className="justify-start"
+        >
+          <ToggleGroupItem value="upcoming" className="text-sm">Coming Soon</ToggleGroupItem>
+          <ToggleGroupItem value="past" className="text-sm">Past</ToggleGroupItem>
+          <ToggleGroupItem value="all" className="text-sm">All</ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       <div className="rounded-md">

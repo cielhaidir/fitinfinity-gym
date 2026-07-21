@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Membership Aktif Kembali – FitInfinity</title>
+  <style>
+    @media only screen and (max-width: 480px) {
+      .email-wrapper  { padding: 16px 8px !important; }
+      .email-header   { padding: 28px 20px 24px !important; }
+      .email-h1       { font-size: 22px !important; }
+      .email-name     { font-size: 18px !important; }
+      .email-body     { padding: 24px 20px !important; }
+      .email-footer   { padding: 16px 20px !important; }
+      .info-cell      { display: block !important; width: 100% !important; padding-bottom: 12px !important; text-align: left !important; }
+      .cta-btn        { font-size: 13px !important; padding: 14px 24px !important; letter-spacing: 1px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#000000;font-family:'Segoe UI',Arial,sans-serif;-webkit-text-size-adjust:100%;mso-text-size-adjust:100%;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         class="email-wrapper" style="background-color:#000000;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+               style="max-width:600px;width:100%;background-color:#0d0d0d;border-radius:4px;
+                      overflow:hidden;border:1px solid #1f1f1f;">
+
+          <!-- ── Header ── -->
+          <tr>
+            <td class="email-header"
+                style="background-color:#000000;padding:36px 40px 28px;text-align:center;
+                       border-bottom:3px solid #C9D953;">
+              {{#if logoUrl}}
+              <img src="{{logoUrl}}" alt="FitInfinity" width="140"
+                   style="display:block;margin:0 auto 20px;max-width:140px;height:auto;object-fit:contain;" />
+              {{else}}
+              <div style="font-size:22px;font-weight:900;color:#C9D953;letter-spacing:3px;
+                          text-transform:uppercase;margin-bottom:20px;">
+                FIT<span style="color:#ffffff;">INFINITY</span>
+              </div>
+              {{/if}}
+
+              <!-- Status badge -->
+              <div style="display:inline-block;background:#C9D953;color:#000000;
+                          font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+                          padding:5px 14px;border-radius:2px;margin-bottom:18px;">
+                &#10003; MEMBERSHIP AKTIF KEMBALI
+              </div>
+
+              <h1 class="email-h1"
+                  style="margin:0;color:#ffffff;font-size:28px;font-weight:900;line-height:1.3;
+                         text-transform:uppercase;letter-spacing:1px;word-break:break-word;">
+                SELAMAT DATANG<br/>
+                <span style="color:#C9D953;font-style:italic;">KEMBALI!</span>
+              </h1>
+              <p class="email-name"
+                 style="margin:10px 0 0;color:#ffffff;font-size:20px;font-weight:700;
+                        letter-spacing:0.5px;word-break:break-word;">
+                {{memberName}}
+              </p>
+              <p style="margin:8px 0 0;color:#999999;font-size:13px;">
+                Membership kamu sudah aktif dan siap digunakan.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ── Body ── -->
+          <tr>
+            <td class="email-body" style="padding:32px 40px;">
+
+              <p style="margin:0 0 24px;color:#cccccc;font-size:15px;line-height:1.8;word-break:break-word;">
+                Hei <strong style="color:#ffffff;">{{memberName}}</strong>,<br/>
+                Masa freeze membership kamu di <strong style="color:#C9D953;">FitInfinity Gym</strong>
+                telah berakhir. Membership kamu kini <strong style="color:#C9D953;">aktif kembali</strong>
+                — saatnya kembali ke gym dan lanjutkan perjalananmu!
+              </p>
+
+              <!-- Info card -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="background-color:#111111;border:1px solid #222222;border-left:4px solid #C9D953;
+                            border-radius:2px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <!-- Active notice -->
+                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                           style="margin-bottom:16px;">
+                      <tr>
+                        <td style="background-color:#C9D95312;border:1px solid #C9D95338;
+                                   border-radius:2px;padding:12px 14px;">
+                          <p style="margin:0;color:#C9D953;font-size:13px;font-weight:700;
+                                    text-transform:uppercase;letter-spacing:0.5px;">
+                            &#9889; Aktif kembali per {{unfreezedAt}}
+                          </p>
+                          <p style="margin:3px 0 0;color:#888888;font-size:12px;line-height:1.5;">
+                            Masa aktif diperpanjang otomatis sesuai durasi freeze
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                    <div style="height:1px;background:#222222;margin:0 0 16px;"></div>
+                    <!-- Package rows -->
+                    {{packagesHtml}}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="margin-bottom:24px;">
+                <tr>
+                  <td align="center">
+                    <a href="#" class="cta-btn"
+                       style="display:inline-block;background-color:#C9D953;color:#000000;
+                              font-size:14px;font-weight:900;text-decoration:none;text-transform:uppercase;
+                              letter-spacing:1.5px;padding:15px 36px;border-radius:2px;
+                              mso-padding-alt:15px 36px;word-break:normal;">
+                      MULAI LATIHAN SEKARANG &#8594;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <div style="height:1px;background:#1e1e1e;margin:4px 0 20px;"></div>
+
+              <!-- Contact -->
+              <p style="margin:0;color:#666666;font-size:12px;line-height:1.9;text-align:center;
+                        word-break:break-word;">
+                Ada pertanyaan? Hubungi kami:<br/>
+                <a href="mailto:{{supportEmail}}"
+                   style="color:#C9D953;text-decoration:none;font-weight:600;">{{supportEmail}}</a>
+                &nbsp;&middot;&nbsp;
+                <span style="color:#888888;">{{supportPhone}}</span>
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- ── Footer ── -->
+          <tr>
+            <td class="email-footer"
+                style="background:#000000;padding:18px 40px;text-align:center;border-top:1px solid #1a1a1a;">
+              <p style="margin:0 0 5px;color:#444444;font-size:10px;line-height:1.6;word-break:break-word;">
+                Email ini dikirim ke <span style="color:#666666;">{{memberEmail}}</span>
+                karena kamu adalah member FitInfinity Gym.
+              </p>
+              <p style="margin:0;color:#333333;font-size:10px;word-break:break-word;">
+                &copy; {{currentYear}} FitInfinity Gym &nbsp;&middot;&nbsp; {{address}}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

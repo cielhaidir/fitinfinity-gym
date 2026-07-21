@@ -8,6 +8,7 @@ export interface Class {
   price: number;
   registeredMembers?: ClassMember[];
   waitingList?: ClassWaitingList[];
+  visitRegistrationCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

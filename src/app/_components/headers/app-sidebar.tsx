@@ -10,6 +10,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Menu as data } from "@/lib/menu";
 import { useRouter } from "next/navigation";
 import { useRBAC } from "@/hooks/useRBAC";
+import { api } from "@/trpc/react";
 
 import {
   Sidebar,
@@ -43,6 +44,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [open, setOpen] = useState(false);
   const { hasPermission } = useRBAC();
   const { isMobile, setOpenMobile } = useSidebar();
+
+  const { data: packageData } = api.member.getActivePackageTypes.useQuery(undefined, {
+    retry: false,
+    staleTime: 60_000,
+  });
+  const activePackageTypes = packageData?.packageTypes ?? [];
 
   // Add this new useEffect to close mobile menu on route change
   useEffect(() => {
@@ -83,10 +90,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         }
 
         // If the item has a permission requirement, check if user has it
-        if (item.requiredPermission) {
-          return hasPermission(item.requiredPermission);
+        if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
+          return false;
         }
-        // If no permission specified, show the item
+        // Package-type visibility rules (only applied when member has active subscriptions)
+        if (activePackageTypes.length > 0 || item.showForPackageTypes) {
+          if (item.showForPackageTypes && !item.showForPackageTypes.some((t) => activePackageTypes.includes(t))) {
+            return false;
+          }
+        }
+        if (item.hideForPackageTypes && item.hideForPackageTypes.some((t) => activePackageTypes.includes(t))) {
+          return false;
+        }
         return true;
       }),
     }))

@@ -279,6 +279,22 @@ export const memberRouter = createTRPCRouter({
       });
     }),
 
+  /** Accepts either membership ID or user ID — for checkout page */
+  getByAnyId: permissionProtectedProcedure(["show:member"])
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const byMembershipId = await ctx.db.membership.findUnique({
+        where: { id: input.id },
+        include: { user: { select: { name: true, email: true, phone: true } } },
+      });
+      if (byMembershipId) return byMembershipId;
+
+      return ctx.db.membership.findFirst({
+        where: { userId: input.id },
+        include: { user: { select: { name: true, email: true, phone: true } } },
+      });
+    }),
+
   update: permissionProtectedProcedure(["update:member"])
     .input(
       z.object({
@@ -431,6 +447,22 @@ export const memberRouter = createTRPCRouter({
           }
         },
       });
+    },
+  ),
+
+  getActivePackageTypes: permissionProtectedProcedure(["show:member"]).query(
+    async ({ ctx }) => {
+      const membership = await ctx.db.membership.findFirst({
+        where: { userId: ctx.session.user.id },
+        include: {
+          subscriptions: {
+            where: { isActive: true, deletedAt: null },
+            include: { package: { select: { type: true } } },
+          },
+        },
+      });
+      const types = membership?.subscriptions.map((s) => s.package.type) ?? [];
+      return { packageTypes: [...new Set(types)] };
     },
   ),
 

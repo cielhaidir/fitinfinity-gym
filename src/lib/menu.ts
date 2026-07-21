@@ -31,13 +31,15 @@ import {
   Snowflake,
   ArrowRightLeft,
 } from "lucide-react";
-import { type LucideIcon, HandCoins, BookOpen } from "lucide-react";
+import { type LucideIcon, HandCoins, BookOpen, Ticket, Building2 } from "lucide-react";
 
 interface MenuItem {
   title: string;
   url: string;
   icon?: LucideIcon;
   requiredPermission?: string;
+  showForPackageTypes?: string[];
+  hideForPackageTypes?: string[];
 }
 
 interface MenuGroup {
@@ -179,6 +181,12 @@ export const Menu: { navMain: MenuGroup[] } = {
             requiredPermission: "menu:config"
         },
         {
+          title: "Corporate",
+          url: "/management/corporate",
+          icon: Building2,
+          requiredPermission: "manage:corporate",
+        },
+        {
           title: "Email Settings",
           url: "/management/config/email",
           icon: Mail,
@@ -282,6 +290,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:group-management",
         },
         {
+          title: "Class Visit",
+          url: "/admin/class-visit",
+          icon: Ticket,
+          requiredPermission: "manage:class-visit",
+        },
+        {
           title: "Reward",
           url: "/admin/reward",
           icon: Gift,
@@ -339,6 +353,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/member/classes",
           icon: Dumbbell,
           requiredPermission: "menu:classes",
+          showForPackageTypes: ["GYM_MEMBERSHIP", "CLASS_SESSION"],
         },
         {
           title: "Schedule",
@@ -370,6 +385,13 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: CreditCard,
           url: "/member/payment-history",
           requiredPermission: "menu:payment-history",
+        },
+        {
+          title: "Class Visit",
+          icon: Ticket,
+          url: "/member/class-visit",
+          requiredPermission: "request:class-visit",
+          hideForPackageTypes: ["GYM_MEMBERSHIP"],
         },
         {
           title: "My Groups",

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   publicProcedure,
@@ -147,6 +148,20 @@ export const userRouter = createTRPCRouter({
       try {
         const sessionUserId = ctx.session.user.id;
         const sessionUserName = ctx.session.user.name;
+
+        // Cek apakah email sudah dipakai user lain
+        if (input.email) {
+          const existing = await ctx.db.user.findUnique({
+            where: { email: input.email },
+            select: { id: true },
+          });
+          if (existing && existing.id !== input.id) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Email sudah digunakan oleh user lain.",
+            });
+          }
+        }
 
         result = await ctx.db.user.update({
           where: { id: input.id },

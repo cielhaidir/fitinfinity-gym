@@ -70,6 +70,7 @@ const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   const [filterSalesId, setFilterSalesId] = useState<string>("all");
   const [filterTrainerId, setFilterTrainerId] = useState<string>("all");
   const [filterPackageId, setFilterPackageId] = useState<string>("all");
+  const [filterCorporateId, setFilterCorporateId] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [filterDateType, setFilterDateType] = useState<"payment" | "startDate" | "endDate" | "createdAt">("payment");
 const [filterStartDate, setFilterStartDate] = useState<string>(
@@ -175,6 +176,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       salesId: filterSalesId !== "all" ? filterSalesId : undefined,
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
       packageId: filterPackageId !== "all" ? filterPackageId : undefined,
+      corporateId: filterCorporateId !== "all" ? filterCorporateId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
       startDate: filterStartDate ? new Date(filterStartDate) : undefined,
@@ -208,6 +210,12 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
   const { data: salesList } = api.subs.getSalesList.useQuery(undefined, {
     enabled: !!session,
   });
+
+  // Query for corporate list (filter dropdown)
+  const { data: corporateList } = api.corporate.list.useQuery(
+    { activeOnly: false, limit: 100 },
+    { enabled: !!session },
+  );
 
   // Search users for transfer functionality (only when search has 3+ characters)
   const { data: searchedUsers = [], isLoading: isSearchingUsers } = api.user.search.useQuery(
@@ -1181,6 +1189,11 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     setPage(1);
   };
 
+  const handleCorporateFilterChange = (corporateId: string) => {
+    setFilterCorporateId(corporateId);
+    setPage(1);
+  };
+
   const handleStatusFilterChange = (status: "all" | "active" | "inactive") => {
     setFilterStatus(status);
     setPage(1);
@@ -1203,6 +1216,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       salesId: filterSalesId !== "all" ? filterSalesId : undefined,
       trainerId: filterTrainerId !== "all" ? filterTrainerId : undefined,
       packageId: filterPackageId !== "all" ? filterPackageId : undefined,
+      corporateId: filterCorporateId !== "all" ? filterCorporateId : undefined,
       status: filterStatus,
       dateFilterType: filterDateType,
       startDate: filterStartDate ? new Date(filterStartDate) : undefined,
@@ -1402,6 +1416,28 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                       {allPackages?.map((pkg) => (
                         <SelectItem key={pkg.id} value={pkg.id}>
                           {pkg.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="corporateFilter" className="text-sm font-medium mb-2 block">
+                    Filter by Corporate
+                  </Label>
+                  <Select
+                    value={filterCorporateId}
+                    onValueChange={handleCorporateFilterChange}
+                  >
+                    <SelectTrigger id="corporateFilter">
+                      <SelectValue placeholder="All Corporate" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Corporate</SelectItem>
+                      <SelectItem value="NONE">Tanpa Corporate</SelectItem>
+                      {corporateList?.items.map((corp) => (
+                        <SelectItem key={corp.id} value={corp.id}>
+                          {corp.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

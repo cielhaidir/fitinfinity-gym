@@ -75,7 +75,14 @@ export default function MemberAttendanceReportPage() {
   const [recapAppliedStart, setRecapAppliedStart] = useState<Date | undefined>();
   const [recapAppliedEnd, setRecapAppliedEnd] = useState<Date | undefined>();
   const [recapPage, setRecapPage] = useState<number>(1);
+  const [recapCorporateId, setRecapCorporateId] = useState<string>("all");
+  const [recapAppliedCorporateId, setRecapAppliedCorporateId] = useState<string>("all");
   const recapPageSize = 25;
+
+  const { data: corporateList } = api.corporate.list.useQuery(
+    { activeOnly: false, limit: 100 },
+    { staleTime: 60_000 },
+  );
 
   const {
     data: recapData,
@@ -85,6 +92,7 @@ export default function MemberAttendanceReportPage() {
     startDate: recapAppliedStart,
     endDate: recapAppliedEnd,
     search: recapSearch || undefined,
+    corporateId: recapAppliedCorporateId !== "all" ? recapAppliedCorporateId : undefined,
     page: recapPage,
     pageSize: recapPageSize,
   });
@@ -93,6 +101,7 @@ export default function MemberAttendanceReportPage() {
     setRecapAppliedStart(recapStartDate ? new Date(recapStartDate) : undefined);
     setRecapAppliedEnd(recapEndDate ? new Date(recapEndDate) : undefined);
     setRecapSearch(recapTempSearch);
+    setRecapAppliedCorporateId(recapCorporateId);
     setRecapPage(1);
   };
 
@@ -103,6 +112,8 @@ export default function MemberAttendanceReportPage() {
     setRecapSearch("");
     setRecapAppliedStart(undefined);
     setRecapAppliedEnd(undefined);
+    setRecapCorporateId("all");
+    setRecapAppliedCorporateId("all");
     setRecapPage(1);
   };
 
@@ -264,7 +275,7 @@ export default function MemberAttendanceReportPage() {
                 <CardTitle>Filter Rekap Kehadiran</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                   <div>
                     <Label>Start Date</Label>
                     <Input
@@ -289,6 +300,23 @@ export default function MemberAttendanceReportPage() {
                       onChange={(e) => setRecapTempSearch(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleApplyRecap()}
                     />
+                  </div>
+                  <div>
+                    <Label>Corporate</Label>
+                    <Select value={recapCorporateId} onValueChange={setRecapCorporateId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Semua Corporate" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua</SelectItem>
+                        <SelectItem value="NONE">Tanpa Corporate</SelectItem>
+                        {corporateList?.items.map((corp) => (
+                          <SelectItem key={corp.id} value={corp.id}>
+                            {corp.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="flex gap-2">

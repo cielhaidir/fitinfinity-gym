@@ -1136,6 +1136,7 @@ export const reportsRouter = createTRPCRouter({
         startDate: z.date().optional(),
         endDate: z.date().optional(),
         search: z.string().optional(),
+        corporateId: z.string().optional(),
         page: z.number().min(1).optional().default(1),
         pageSize: z.number().min(1).max(100).optional().default(25),
       }),
@@ -1156,6 +1157,24 @@ export const reportsRouter = createTRPCRouter({
         if (memberIdFilter.length === 0) {
           return { items: [], totalCount: 0 };
         }
+      }
+
+      // If corporateId is provided, resolve matching memberIds from subscriptions
+      if (input.corporateId) {
+        const corporateSubs = await ctx.db.subscription.findMany({
+          where: {
+            corporateId: input.corporateId === "NONE" ? null : input.corporateId,
+            deletedAt: null,
+          },
+          select: { memberId: true },
+        });
+        const corporateMemberIds = [...new Set(corporateSubs.map((s) => s.memberId))];
+        if (corporateMemberIds.length === 0) return { items: [], totalCount: 0 };
+        // Intersect with search filter if both are present
+        memberIdFilter = memberIdFilter
+          ? memberIdFilter.filter((id) => corporateMemberIds.includes(id))
+          : corporateMemberIds;
+        if (memberIdFilter.length === 0) return { items: [], totalCount: 0 };
       }
 
       // Build where clause for groupBy

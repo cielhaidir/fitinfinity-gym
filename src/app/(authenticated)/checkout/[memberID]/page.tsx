@@ -4,7 +4,7 @@
 
 import { useState, use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, CreditCard, QrCode, Users, Gift } from "lucide-react";
+import { Check, CreditCard, QrCode, Users, Gift, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -52,7 +52,8 @@ export default function SubscriptionPage({
   const { memberID } = use(params);
   const router = useRouter();
   const utils = api.useUtils();
-  const { data: Member } = api.member.getById.useQuery({ id: memberID });
+  const { data: Member } = api.member.getByAnyId.useQuery({ id: memberID });
+  const actualMemberId = Member?.id ?? memberID;
   const { data: gymPackages } = api.package.listByType.useQuery({
     type: "GYM_MEMBERSHIP",
   });
@@ -67,10 +68,11 @@ export default function SubscriptionPage({
   });
   const { data: trainers } = api.personalTrainer.listAllActive.useQuery();
   const { data: salesList } = api.subs.getSalesList.useQuery();
+  const { data: corporateList } = api.corporate.list.useQuery({ activeOnly: true, page: 1, limit: 100 });
 
   // Check for active gym membership
   const { data: memberSubscriptions } = api.subs.getByIdMember.useQuery({
-    memberId: memberID,
+    memberId: actualMemberId,
     page: 1,
     limit: 100, // Get all subscriptions to check for active ones
   });
@@ -109,6 +111,7 @@ export default function SubscriptionPage({
   const [selectedPackage, setSelectedPackage] = useState("");
   const [selectedTrainer, setSelectedTrainer] = useState("");
   const [selectedSales, setSelectedSales] = useState("");
+  const [selectedCorporate, setSelectedCorporate] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("qr");
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
   const [selectedVouchers, setSelectedVouchers] = useState<{
@@ -267,6 +270,11 @@ export default function SubscriptionPage({
         }
       }
 
+      // Add corporate information
+      if (selectedCorporate && selectedCorporate !== "NONE") {
+        queryParams.set("corporateId", selectedCorporate);
+      }
+
       // Keep first voucher for backward compatibility
       if (selectedVouchers.length > 0) {
         const firstVoucher = selectedVouchers[0];
@@ -297,7 +305,7 @@ export default function SubscriptionPage({
         const subscriptionPromises = cart.map(async (item) => {
           try {
             const subscription = await createSubscriptionMutation.mutateAsync({
-              memberId: memberID,
+              memberId: actualMemberId,
               packageId: item.packageId,
               trainerId: item.trainerId,
               salesId: selectedSales,
@@ -311,6 +319,7 @@ export default function SubscriptionPage({
               orderReference: orderId,
               freezeAtStart: item.type === "gym" ? freezeAtStart : undefined,
               freezeDays: item.type === "gym" && freezeAtStart ? freezeDays : undefined,
+              corporateId: selectedCorporate && selectedCorporate !== "NONE" ? selectedCorporate : undefined,
             });
             
             return { success: true as const, id: subscription.id, item };
@@ -451,7 +460,7 @@ export default function SubscriptionPage({
                     }
 
                     await utils.subs.getByIdMember.invalidate({
-                      memberId: memberID,
+                      memberId: actualMemberId,
                     });
                     router.push(`/member/payment-history`);
                   } catch (error) {
@@ -568,7 +577,10 @@ export default function SubscriptionPage({
       <div className="container mx-auto p-5">
         <h1 className="text-3xl font-bold">Subscription Checkout</h1>
         <p className="mb-6 mt-1 text-muted-foreground">
-          Member: {Member?.user?.name}
+          Member:{" "}
+          <span className="font-semibold text-foreground">
+            {Member?.user?.name ?? "Loading..."}
+          </span>
         </p>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -942,15 +954,15 @@ export default function SubscriptionPage({
               </CardContent>
             </Card>
 
-            {/* Sales Selection Card */}
+            {/* Sales & Corporate Card */}
             <Card className="bg-muted/50">
               <CardHeader>
-                <CardTitle>Sales Assignment</CardTitle>
+                <CardTitle>Sales & Corporate Assignment</CardTitle>
                 <CardDescription>
-                  Select the sales person for commission tracking (optional)
+                  Optional — for commission and corporate tracking
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-5">
                 <div>
                   <h3 className="mb-3 text-lg font-medium">Select Sales Person</h3>
                   <Select
@@ -972,6 +984,29 @@ export default function SubscriptionPage({
                           No sales people available
                         </SelectItem>
                       )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-medium">
+                    <Building2 className="h-4 w-4" />
+                    Corporate (opsional)
+                  </h3>
+                  <Select
+                    value={selectedCorporate}
+                    onValueChange={setSelectedCorporate}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih corporate (opsional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">— Tidak ada corporate —</SelectItem>
+                      {corporateList?.items?.map((corp) => (
+                        <SelectItem key={corp.id} value={corp.id}>
+                          {corp.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

@@ -72,7 +72,7 @@ export function ClassDetailsDialog({
 
   if (!class_) return null;
 
-  const registeredCount = class_.registeredMembers?.length ?? 0;
+  const registeredCount = (class_.registeredMembers?.length ?? 0) + (class_.visitRegistrationCount ?? 0);
   const isFull = class_.limit ? registeredCount >= class_.limit : false;
   const waitlistCount = class_.waitingList?.length ?? 0;
 

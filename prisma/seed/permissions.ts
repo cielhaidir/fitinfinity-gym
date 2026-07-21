@@ -29,6 +29,13 @@ const permissions = [
   "delete:classes",
   "regist:classes",
 
+  // Class Visit (pay-per-class untuk non-member)
+  "manage:class-visit",
+
+  // Corporate
+  "manage:corporate",
+  "list:corporate",
+
   // FC Member
   "create:fc-member",
   "edit:fc-member",

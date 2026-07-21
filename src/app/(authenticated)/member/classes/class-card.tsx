@@ -16,7 +16,7 @@ export function ClassCard({
   hasValidSubscription,
   isRegistrationEnabled = true,
 }: ClassCardProps) {
-  const registeredCount = class_.registeredMembers?.length ?? 0;
+  const registeredCount = (class_.registeredMembers?.length ?? 0) + (class_.visitRegistrationCount ?? 0);
   const availableSpots = class_.limit ? class_.limit - registeredCount : "∞";
   const isFull = class_.limit ? registeredCount >= class_.limit : false;
 

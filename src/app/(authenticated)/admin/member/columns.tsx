@@ -120,21 +120,20 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="Duration Left" />
       ),
       cell: ({ row }) => {
-
-        const isNonLeaderGroupMember = (sub: any) =>
-          sub.groupMembers?.length > 0 && (!sub.leadGroupSubscriptions || sub.leadGroupSubscriptions.length === 0);
-        const activeSubs = row.original.subscriptions.filter((sub: any) =>
-          !sub.deletedAt && sub.endDate && sub.isActive && !isNonLeaderGroupMember(sub)
+        const gymSubs = row.original.subscriptions.filter((sub: any) =>
+          !sub.deletedAt && sub.endDate && sub.isActive && sub.package?.type === "GYM_MEMBERSHIP"
         );
-        const latestSub = activeSubs.sort((a: any, b: any) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
+        const latestSub = gymSubs.sort((a: any, b: any) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
         const endDate = latestSub?.endDate;
         const now = new Date();
-        let durationLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : "N/A";
+        const durationLeft = endDate
+          ? Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+          : null;
         return (
-          <div className="w-[150px]">
-            {durationLeft !== "N/A" ? `${durationLeft} days` : durationLeft}
+          <div className="w-[130px]">
+            {durationLeft !== null ? `${durationLeft} days` : <span className="text-muted-foreground">N/A</span>}
           </div>
-        )
+        );
       },
     },
     {
@@ -143,15 +142,29 @@ export const createColumns = ({
         <DataTableColumnHeader column={column} title="Sessions Left" />
       ),
       cell: ({ row }) => {
-        const isNonLeaderGroupMember = (sub: any) =>
-          sub.groupMembers?.length > 0 && (!sub.leadGroupSubscriptions || sub.leadGroupSubscriptions.length === 0);
         const activePtSubs = row.original.subscriptions.filter((sub: any) =>
-          sub.trainerId != null && !sub.deletedAt && sub.isActive && !isNonLeaderGroupMember(sub)
+          sub.trainerId != null && !sub.deletedAt && sub.isActive &&
+          (sub.package?.type === "PERSONAL_TRAINER" || sub.package?.type === "GROUP_TRAINING")
         );
-        const sessionLeft = activePtSubs.reduce((total: number, sub: any) => total + (sub.remainingSessions ?? 0), 0);
+        if (activePtSubs.length === 0) {
+          return <div className="w-[130px] text-muted-foreground">-</div>;
+        }
+        const totalSessions = activePtSubs.reduce((total: number, sub: any) => total + (sub.remainingSessions ?? 0), 0);
+        // end date dari PT sub yang paling akhir
+        const latestPtSub = activePtSubs.sort((a: any, b: any) =>
+          new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime()
+        )[0];
+        const endDate = latestPtSub?.endDate
+          ? new Date(latestPtSub.endDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+          : null;
         return (
-          <div className="w-[150px]">{sessionLeft}</div>
-        )
+          <div className="w-[130px]">
+            <span className="font-medium">{totalSessions} sesi</span>
+            {endDate && (
+              <div className="text-xs text-muted-foreground mt-0.5">{endDate}</div>
+            )}
+          </div>
+        );
       }
     },
     {

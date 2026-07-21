@@ -590,6 +590,8 @@ export const personalTrainerRouter = createTRPCRouter({
         where: {
           leadSubscription: {
             trainerId: personalTrainer.id,
+            isActive: true,
+            deletedAt: null,
             OR: [
               { remainingSessions: { gt: 0 } },
               { remainingBonusSessions: { gt: 0 } },

@@ -138,6 +138,7 @@ export const subscriptionRouter = createTRPCRouter({
         orderReference: z.string().optional(),
         freezeAtStart: z.boolean().optional(),
         freezeDays: z.number().min(0).max(365).optional(),
+        corporateId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -190,6 +191,7 @@ export const subscriptionRouter = createTRPCRouter({
           startDate: input.startDate,
           salesId: input.salesId || null,
           salesType: input.salesType || null,
+          corporateId: input.corporateId ?? null,
           ...(input.subsType === "gym"
             ? {
                 endDate: new Date(
@@ -690,6 +692,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         packageId: z.string().optional(),
+        corporateId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
         dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
         startDate: z.date().optional(),
@@ -727,6 +730,12 @@ export const subscriptionRouter = createTRPCRouter({
   ...(input.packageId && {
     packageId: input.packageId,
   }),
+  // Filter by corporateId: "NONE" = no corporate, else filter by ID
+  ...(input.corporateId === "NONE"
+    ? { corporateId: null }
+    : input.corporateId
+    ? { corporateId: input.corporateId }
+    : {}),
   // Filter by date range based on selected date field type
   ...((start || end) && (() => {
     const dateFilterType = input.dateFilterType || "payment";
@@ -829,6 +838,9 @@ export const subscriptionRouter = createTRPCRouter({
               type: true,
               point: true,
             },
+          },
+          corporate: {
+            select: { id: true, name: true },
           },
           trainer: {
             include: {
@@ -2215,6 +2227,60 @@ export const subscriptionRouter = createTRPCRouter({
       }
     }),
 
+  // Update corporate assignment for a subscription
+  updateCorporate: permissionProtectedProcedure(["update:subscription"])
+    .input(
+      z.object({
+        subscriptionId: z.string(),
+        corporateId: z.string().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        const subscription = await ctx.db.subscription.findUnique({
+          where: { id: input.subscriptionId },
+        });
+        if (!subscription) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Subscription tidak ditemukan" });
+        }
+
+        result = await ctx.db.subscription.update({
+          where: { id: input.subscriptionId },
+          data: { corporateId: input.corporateId },
+          include: {
+            member: { include: { user: { select: { name: true } } } },
+            package: { select: { id: true, name: true } },
+            corporate: { select: { id: true, name: true } },
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        success = false;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "subscription.updateCorporate",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
+    }),
+
   // Transfer subscription to another user
   transfer: permissionProtectedProcedure(["update:subscription"])
     .input(
@@ -2590,6 +2656,7 @@ export const subscriptionRouter = createTRPCRouter({
         salesId: z.string().optional(),
         trainerId: z.string().optional(),
         packageId: z.string().optional(),
+        corporateId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
         dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
         startDate: z.date().optional(),
@@ -2623,6 +2690,12 @@ export const subscriptionRouter = createTRPCRouter({
         ...(input.packageId && {
           packageId: input.packageId,
         }),
+        // Filter by corporateId: "NONE" = no corporate, else filter by ID
+        ...(input.corporateId === "NONE"
+          ? { corporateId: null }
+          : input.corporateId
+          ? { corporateId: input.corporateId }
+          : {}),
         // Filter by date range based on selected date field type
         ...((start || end) && (() => {
           const dateFilterType = input.dateFilterType || "payment";
@@ -2692,6 +2765,9 @@ export const subscriptionRouter = createTRPCRouter({
               type: true,
               point: true,
             },
+          },
+          corporate: {
+            select: { id: true, name: true },
           },
           trainer: {
             include: {
@@ -3897,5 +3973,459 @@ export const subscriptionRouter = createTRPCRouter({
         earliestTransfer: dateRange[0]?.createdAt ?? null,
         latestTransfer: latestTransfer[0]?.createdAt ?? null,
       };
+    }),
+
+  // List subscriptions expiring within the next N days
+  getExpiringSubscriptions: permissionProtectedProcedure(["list:subscription"])
+    .input(z.object({ days: z.number().min(1).max(30).default(7) }))
+    .query(async ({ ctx, input }) => {
+      const now = new Date();
+      const cutoff = new Date(now.getTime() + input.days * 24 * 60 * 60 * 1000);
+
+      const subs = await ctx.db.subscription.findMany({
+        where: {
+          isActive: true,
+          isFrozen: false,
+          deletedAt: null,
+          endDate: { gte: now, lte: cutoff },
+        },
+        orderBy: { endDate: "asc" },
+        select: {
+          id: true,
+          endDate: true,
+          isReminder: true,
+          reminderStage: true,
+          reminderAt: true,
+          salesId: true,
+          salesType: true,
+          member: {
+            select: {
+              id: true,
+              user: { select: { name: true, email: true } },
+            },
+          },
+          package: { select: { name: true, type: true } },
+          trainer: {
+            select: { user: { select: { name: true } } },
+          },
+        },
+      });
+
+      // Batch-resolve sales names (salesId can be PT id or FC id)
+      const ptSalesIds = subs
+        .filter((s) => s.salesType === "PersonalTrainer" && s.salesId)
+        .map((s) => s.salesId!);
+      const fcSalesIds = subs
+        .filter((s) => s.salesType === "FC" && s.salesId)
+        .map((s) => s.salesId!);
+
+      const [ptSales, fcSales] = await Promise.all([
+        ptSalesIds.length
+          ? ctx.db.personalTrainer.findMany({
+              where: { id: { in: ptSalesIds } },
+              select: { id: true, user: { select: { name: true } } },
+            })
+          : [],
+        fcSalesIds.length
+          ? ctx.db.fC.findMany({
+              where: { id: { in: fcSalesIds } },
+              select: { id: true, user: { select: { name: true } } },
+            })
+          : [],
+      ]);
+
+      const ptMap = new Map(ptSales.map((pt) => [pt.id, pt.user.name]));
+      const fcMap = new Map(fcSales.map((fc) => [fc.id, fc.user.name]));
+
+      return subs.map((s) => {
+        let salesName: string | null = null;
+        if (s.salesType === "PersonalTrainer" && s.salesId) {
+          salesName = ptMap.get(s.salesId) ?? null;
+        } else if (s.salesType === "FC" && s.salesId) {
+          salesName = fcMap.get(s.salesId) ?? null;
+        }
+        return {
+          ...s,
+          trainerName: s.trainer?.user?.name ?? null,
+          salesName,
+        };
+      });
+    }),
+
+  // Send H-7 expiry reminder email for a specific subscription (manual trigger)
+  sendExpiryReminderForSub: permissionProtectedProcedure(["list:subscription"])
+    .input(z.object({ subscriptionId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const sub = await ctx.db.subscription.findUnique({
+        where: { id: input.subscriptionId },
+        select: {
+          id: true,
+          endDate: true,
+          member: {
+            select: {
+              id: true,
+              user: { select: { name: true, email: true } },
+            },
+          },
+          package: { select: { name: true } },
+        },
+      });
+
+      if (!sub) throw new TRPCError({ code: "NOT_FOUND", message: "Subscription tidak ditemukan" });
+
+      const memberEmail = sub.member?.user?.email;
+      if (!memberEmail) throw new TRPCError({ code: "BAD_REQUEST", message: "Member tidak memiliki email" });
+
+      const memberName = sub.member?.user?.name ?? "Member";
+      const packageName = sub.package?.name ?? "Gym Membership";
+      const expiryDate = sub.endDate
+        ? format(sub.endDate, "d MMMM yyyy")
+        : "-";
+
+      const emailConfig = await ctx.db.emailConfig.findFirst({ where: { isActive: true } });
+      const baseUrl = process.env.NEXTAUTH_URL ?? "https://fitinfinity.com";
+      const supportEmail = emailConfig?.supportEmail ?? "support@fitinfinity.com";
+      const supportPhone = emailConfig?.supportPhone ?? "-";
+      const logoUrl = emailConfig?.logoUrl ?? "";
+      const address = emailConfig?.businessAddress ?? "";
+
+      const waDigits = supportPhone.replace(/\D/g, "");
+      const waIntl = waDigits.startsWith("0") ? "62" + waDigits.slice(1) : waDigits;
+      const waMessage = `Halo Admin, saya\nNama : ${memberName}\nEmail : ${memberEmail}\nPaket yang akan expired : ${packageName}\n\nIngin melakukan renewal, apakah bisa dibantu?`;
+      const waUrl = `https://wa.me/${waIntl}?text=${encodeURIComponent(waMessage)}`;
+
+      const dbTemplate = await ctx.db.emailTemplate.findFirst({
+        where: { type: "SUBSCRIPTION_EXPIRY", isActive: true },
+      });
+
+      if (dbTemplate?.id) {
+        await emailService.sendEmail({
+          to: memberEmail,
+          templateId: dbTemplate.id,
+          templateData: {
+            memberName,
+            memberEmail,
+            packageName,
+            expiryDate,
+            renewalUrl: `${baseUrl}/member/payment-history`,
+            waUrl,
+            logoUrl,
+            supportEmail,
+            supportPhone,
+            address,
+            currentYear: new Date().getFullYear().toString(),
+          },
+        });
+      } else {
+        // Render template dari file
+        const { readFileSync } = await import("fs");
+        const { join } = await import("path");
+        let templateHtml = "";
+        try {
+          templateHtml = readFileSync(
+            join(process.cwd(), "src/lib/email/templates/subscription-expiry.html"),
+            "utf-8",
+          );
+        } catch {
+          templateHtml = `<p>Halo <strong>{{memberName}}</strong>, membership <strong>{{packageName}}</strong> akan berakhir pada <strong>{{expiryDate}}</strong>. <a href="{{renewalUrl}}">Perpanjang sekarang</a>.</p>`;
+        }
+        const vars: Record<string, string> = {
+          memberName,
+          memberEmail,
+          packageName,
+          expiryDate,
+          renewalUrl: `${baseUrl}/member/payment-history`,
+          waUrl,
+          logoUrl,
+          supportEmail,
+          supportPhone,
+          address,
+          currentYear: new Date().getFullYear().toString(),
+        };
+        const html = templateHtml.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
+        await emailService.sendEmail({
+          to: memberEmail,
+          subject: `⏰ Membership kamu akan habis dalam 7 hari — ${packageName}`,
+          html,
+        });
+      }
+
+      // Update reminder flag
+      await ctx.db.subscription.update({
+        where: { id: sub.id },
+        data: { isReminder: true, reminderAt: new Date(), reminderStage: 1 },
+      });
+
+      return { success: true, sentTo: memberEmail };
+    }),
+
+  // List subscriptions that were unfrozen today
+  getUnfrozenToday: permissionProtectedProcedure(["list:subscription"])
+    .query(async ({ ctx }) => {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+      const ops = await ctx.db.freezeOperation.findMany({
+        where: {
+          operationType: "UNFREEZE",
+          performedAt: { gte: startOfDay, lte: endOfDay },
+        },
+        orderBy: { performedAt: "desc" },
+        select: {
+          id: true,
+          performedAt: true,
+          freezeDays: true,
+          subscription: {
+            select: {
+              id: true,
+              endDate: true,
+              package: { select: { name: true, type: true } },
+              member: {
+                select: {
+                  id: true,
+                  user: { select: { name: true, email: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Deduplicate per member — satu member bisa punya banyak paket terunfreeze
+      const memberMap = new Map<string, {
+        memberId: string;
+        memberName: string;
+        memberEmail: string;
+        latestOpId: string;
+        performedAt: Date;
+        totalFreezeDays: number;
+        packages: { name: string; type: string; freezeDays: number; endDate: Date | null }[];
+      }>();
+
+      for (const op of ops) {
+        const memberId = op.subscription?.member?.id;
+        if (!memberId) continue;
+        const existing = memberMap.get(memberId);
+        const pkg = op.subscription?.package
+          ? {
+              name: op.subscription.package.name,
+              type: op.subscription.package.type,
+              freezeDays: op.freezeDays,
+              endDate: op.subscription.endDate ?? null,
+            }
+          : null;
+        if (existing) {
+          if (pkg) existing.packages.push(pkg);
+          existing.totalFreezeDays += op.freezeDays;
+        } else {
+          memberMap.set(memberId, {
+            memberId,
+            memberName: op.subscription?.member?.user?.name ?? "-",
+            memberEmail: op.subscription?.member?.user?.email ?? "-",
+            latestOpId: op.id,
+            performedAt: op.performedAt,
+            totalFreezeDays: op.freezeDays,
+            packages: pkg ? [pkg] : [],
+          });
+        }
+      }
+
+      return Array.from(memberMap.values());
+    }),
+
+  // Send unfreeze notification email
+  sendUnfreezeNotification: permissionProtectedProcedure(["list:subscription"])
+    .input(z.object({ freezeOperationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const op = await ctx.db.freezeOperation.findUnique({
+        where: { id: input.freezeOperationId },
+        select: {
+          freezeDays: true,
+          performedAt: true,
+          subscription: {
+            select: {
+              id: true,
+              endDate: true,
+              package: { select: { name: true } },
+              member: {
+                select: {
+                  id: true,
+                  user: { select: { name: true, email: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!op) throw new TRPCError({ code: "NOT_FOUND", message: "Data tidak ditemukan" });
+
+      const memberEmail = op.subscription?.member?.user?.email;
+      if (!memberEmail) throw new TRPCError({ code: "BAD_REQUEST", message: "Member tidak memiliki email" });
+
+      const memberName = op.subscription?.member?.user?.name ?? "Member";
+      const unfreezedAt = format(op.performedAt, "d MMMM yyyy");
+
+      // Ambil semua paket terunfreeze hari ini untuk member yang sama
+      const memberId = op.subscription?.member?.id;
+      const startOfDay = new Date(op.performedAt.getFullYear(), op.performedAt.getMonth(), op.performedAt.getDate(), 0, 0, 0);
+      const endOfDay   = new Date(op.performedAt.getFullYear(), op.performedAt.getMonth(), op.performedAt.getDate(), 23, 59, 59, 999);
+
+      const allOps = memberId
+        ? await ctx.db.freezeOperation.findMany({
+            where: { operationType: "UNFREEZE", performedAt: { gte: startOfDay, lte: endOfDay }, memberId },
+            select: {
+              freezeDays: true,
+              subscription: { select: { endDate: true, package: { select: { name: true } } } },
+            },
+          })
+        : [{ freezeDays: op.freezeDays, subscription: op.subscription }];
+
+      const totalFreezeDays = allOps.reduce((sum, o) => sum + o.freezeDays, 0);
+
+      // Build HTML rows untuk setiap paket
+      const packagesHtml = allOps.map((o) => {
+        const pkgName = o.subscription?.package?.name ?? "-";
+        const endDate = o.subscription?.endDate
+          ? format(o.subscription.endDate, "d MMMM yyyy")
+          : "-";
+        return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:10px;">
+          <tr>
+            <td width="50%" style="padding:0 8px 0 0;vertical-align:top;">
+              <p style="margin:0 0 4px;color:#666666;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;">Paket</p>
+              <p style="margin:0;color:#ffffff;font-size:14px;font-weight:700;">${pkgName}</p>
+            </td>
+            <td width="25%" style="padding:0 8px 0 0;vertical-align:top;">
+              <p style="margin:0 0 4px;color:#666666;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;">Freeze</p>
+              <p style="margin:0;color:#ffffff;font-size:14px;font-weight:700;">${o.freezeDays} hari</p>
+            </td>
+            <td width="25%" style="vertical-align:top;text-align:right;">
+              <p style="margin:0 0 4px;color:#666666;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;">Aktif Hingga</p>
+              <p style="margin:0;color:#C9D953;font-size:14px;font-weight:700;">${endDate}</p>
+            </td>
+          </tr>
+        </table>`;
+      }).join(`<div style="height:1px;background:#2a2a2a;margin:4px 0 10px;"></div>`);
+
+      const emailConfig = await ctx.db.emailConfig.findFirst({ where: { isActive: true } });
+      const supportEmail = emailConfig?.supportEmail ?? "support@fitinfinity.com";
+      const supportPhone = emailConfig?.supportPhone ?? "-";
+      const logoUrl = emailConfig?.logoUrl ?? "";
+      const address = emailConfig?.businessAddress ?? "";
+
+      const { readFileSync } = await import("fs");
+      const { join } = await import("path");
+      let templateHtml = "";
+      try {
+        templateHtml = readFileSync(
+          join(process.cwd(), "src/lib/email/templates/subscription-unfreeze.html"),
+          "utf-8",
+        );
+      } catch {
+        templateHtml = `<p>Halo <strong>{{memberName}}</strong>, membership kamu telah aktif kembali per <strong>{{unfreezedAt}}</strong>.</p>{{packagesHtml}}`;
+      }
+      const vars: Record<string, string> = {
+        memberName,
+        memberEmail,
+        unfreezedAt,
+        freezeDays: String(totalFreezeDays),
+        packagesHtml,
+        logoUrl,
+        supportEmail,
+        supportPhone,
+        address,
+        currentYear: new Date().getFullYear().toString(),
+      };
+      const html = templateHtml.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
+
+      await emailService.sendEmail({
+        to: memberEmail,
+        subject: `✅ Membership kamu telah aktif kembali — ${memberName}`,
+        html,
+      });
+
+      return { success: true, sentTo: memberEmail };
+    }),
+
+  // Chart data: monthly revenue, new members, and package distribution for last N months
+  getChartData: permissionProtectedProcedure(["list:subscription"])
+    .input(z.object({ months: z.number().min(1).max(12).default(6) }))
+    .query(async ({ ctx, input }) => {
+      const { months } = input;
+      const now = new Date();
+
+      // Build array of month buckets (oldest → newest)
+      const buckets = Array.from({ length: months }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+        return {
+          label: d.toLocaleString("id-ID", { month: "short", year: "2-digit" }),
+          start: new Date(d.getFullYear(), d.getMonth(), 1),
+          end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
+        };
+      });
+
+      const since = buckets[0]!.start;
+
+      // Fetch all successful payments in window
+      const payments = await ctx.db.payment.findMany({
+        where: {
+          status: "SUCCESS",
+          createdAt: { gte: since },
+          subscription: { deletedAt: null },
+        },
+        select: {
+          totalPayment: true,
+          createdAt: true,
+          subscription: { select: { package: { select: { type: true } } } },
+        },
+      });
+
+      // Fetch new memberships in window
+      const memberships = await ctx.db.membership.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      });
+
+      // Aggregate into buckets
+      const monthlyRevenue = buckets.map((b) => {
+        const total = payments
+          .filter((p) => p.createdAt >= b.start && p.createdAt <= b.end)
+          .reduce((sum, p) => sum + p.totalPayment, 0);
+        return { month: b.label, revenue: total };
+      });
+
+      const monthlyNewMembers = buckets.map((b) => {
+        const count = memberships.filter(
+          (m) => m.createdAt >= b.start && m.createdAt <= b.end,
+        ).length;
+        return { month: b.label, members: count };
+      });
+
+      // Package type distribution (all time active)
+      const packageDist = await ctx.db.subscription.groupBy({
+        by: ["packageId"],
+        where: { isActive: true, deletedAt: null },
+        _count: { id: true },
+      });
+
+      const packageDetails = await ctx.db.package.findMany({
+        where: { id: { in: packageDist.map((p) => p.packageId) } },
+        select: { id: true, type: true, name: true },
+      });
+
+      const typeMap: Record<string, number> = {};
+      for (const p of packageDist) {
+        const pkg = packageDetails.find((d) => d.id === p.packageId);
+        const type = pkg?.type ?? "OTHER";
+        typeMap[type] = (typeMap[type] ?? 0) + p._count.id;
+      }
+
+      const packageDistribution = Object.entries(typeMap).map(([type, count]) => ({
+        type,
+        count,
+      }));
+
+      return { monthlyRevenue, monthlyNewMembers, packageDistribution };
     }),
 });

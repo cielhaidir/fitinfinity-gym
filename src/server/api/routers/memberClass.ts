@@ -48,6 +48,10 @@ export const memberClassRouter = createTRPCRouter({
               },
             },
           },
+          classVisitRegistrations: {
+            where: { status: { not: "CANCELLED" } },
+            select: { id: true },
+          },
         },
         skip: (input.page - 1) * input.limit,
         take: input.limit,
@@ -62,7 +66,10 @@ export const memberClassRouter = createTRPCRouter({
       });
 
       return {
-        items,
+        items: items.map((item) => ({
+          ...item,
+          visitRegistrationCount: item.classVisitRegistrations.length,
+        })),
         total,
         page: input.page,
         limit: input.limit,
@@ -90,10 +97,32 @@ export const memberClassRouter = createTRPCRouter({
           throw new Error("Your membership is not active");
         }
 
+        // Determine subscription type
+        const activeSub = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: membership.id,
+            isActive: true,
+            deletedAt: null,
+            package: { type: { in: ["GYM_MEMBERSHIP", "CLASS_SESSION"] } },
+          },
+          include: { package: { select: { type: true } } },
+          orderBy: { endDate: "asc" },
+        });
+
+        if (!activeSub) {
+          throw new Error("Kamu tidak memiliki paket GYM_MEMBERSHIP atau CLASS_SESSION yang aktif");
+        }
+
+        const isClassSession = activeSub.package.type === "CLASS_SESSION";
+
         const class_ = await ctx.db.class.findUnique({
           where: { id: input.classId },
           include: {
             registeredMembers: true,
+            classVisitRegistrations: {
+              where: { status: { in: ["CONFIRMED", "ATTENDED"] } },
+              select: { id: true },
+            },
           },
         });
 
@@ -105,31 +134,44 @@ export const memberClassRouter = createTRPCRouter({
           throw new Error("Cannot register for past classes");
         }
 
-        if (class_.limit && class_.registeredMembers.length >= class_.limit) {
+        const totalRegistered = class_.registeredMembers.length + class_.classVisitRegistrations.length;
+        if (class_.limit && totalRegistered >= class_.limit) {
           throw new Error("Class is full");
         }
 
         // Check if already registered
         const existingRegistration = await ctx.db.classMember.findFirst({
-          where: {
-            classId: input.classId,
-            memberId: membership.id,
-          },
+          where: { classId: input.classId, memberId: membership.id },
         });
 
         if (existingRegistration) {
           throw new Error("You are already registered for this class");
         }
 
-        result = await ctx.db.classMember.create({
-          data: {
-            classId: input.classId,
-            memberId: membership.id,
-          },
-          include: {
-            class: true,
-          },
-        });
+        if (isClassSession) {
+          // CLASS_SESSION: deduct 1 session now, store subscriptionId
+          result = await ctx.db.$transaction(async (tx) => {
+            const fifoResult = await decrementClassSessionFIFO({ tx, memberId: membership.id });
+            return tx.classMember.create({
+              data: {
+                classId: input.classId,
+                memberId: membership.id,
+                subscriptionId: fifoResult.id,
+              },
+              include: { class: true },
+            });
+          });
+        } else {
+          // GYM_MEMBERSHIP: free, no session deduction
+          result = await ctx.db.classMember.create({
+            data: {
+              classId: input.classId,
+              memberId: membership.id,
+            },
+            include: { class: true },
+          });
+        }
+
         success = true;
         return result;
       } catch (err) {
@@ -539,8 +581,25 @@ export const memberClassRouter = createTRPCRouter({
           throw new Error("You are not registered for this class");
         }
 
-        await ctx.db.classMember.delete({
-          where: { id: existingRegistration.id },
+        // Check class hasn't started yet before allowing cancel
+        const cls = await ctx.db.class.findUnique({
+          where: { id: input.classId },
+          select: { schedule: true },
+        });
+        if (cls && cls.schedule <= new Date()) {
+          throw new Error("Tidak bisa cancel kelas yang sudah dimulai");
+        }
+
+        await ctx.db.$transaction(async (tx) => {
+          await tx.classMember.delete({ where: { id: existingRegistration.id } });
+
+          // Refund 1 session if this was a CLASS_SESSION pre-paid registration
+          if (existingRegistration.subscriptionId) {
+            await tx.subscription.update({
+              where: { id: existingRegistration.subscriptionId },
+              data: { remainingSessions: { increment: 1 } },
+            });
+          }
         });
 
         return { success: true };
@@ -970,11 +1029,11 @@ export const memberClassRouter = createTRPCRouter({
       let result: any = null;
 
       try {
-        // Verify class exists and is today
+        // Verify class exists
         const cls = await ctx.db.class.findUnique({
           where: { id: input.classId },
           include: {
-            registeredMembers: { select: { memberId: true } },
+            registeredMembers: { select: { id: true, memberId: true, subscriptionId: true, attended: true } },
           },
         });
 
@@ -982,47 +1041,62 @@ export const memberClassRouter = createTRPCRouter({
           throw new TRPCError({ code: "NOT_FOUND", message: "Class not found" });
         }
 
-        // Check class is not full
-        if (cls.limit && cls.registeredMembers.length >= cls.limit) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Class is full" });
-        }
-
-        // Check member not already registered for this class
-        const alreadyRegistered = cls.registeredMembers.some(
+        // Check if already marked attended
+        const existingRecord = cls.registeredMembers.find(
           (m) => m.memberId === input.memberId,
         );
-        if (alreadyRegistered) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Member sudah terdaftar di class ini",
-          });
+
+        if (existingRecord?.attended) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Member sudah check-in ke class ini" });
         }
 
-        // Transaction: decrement session + register + mark attended
-        result = await ctx.db.$transaction(async (tx) => {
-          const fifoResult = await decrementClassSessionFIFO({
-            tx,
-            memberId: input.memberId,
+        if (existingRecord) {
+          // Pre-registered (via /member/classes): just mark attended, no session deduction
+          const classMember = await ctx.db.classMember.update({
+            where: { id: existingRecord.id },
+            data: { attended: true, attendedAt: new Date() },
           });
-
-          const classMember = await tx.classMember.create({
-            data: {
-              classId: input.classId,
-              memberId: input.memberId,
-              subscriptionId: fifoResult.id,
-              attended: true,
-              attendedAt: new Date(),
-            },
-          });
-
-          return {
+          result = {
             classMember,
-            subscriptionId: fifoResult.id,
-            remainingSessions: fifoResult.remainingSessions,
-            remainingBonusSessions: fifoResult.remainingBonusSessions,
-            isBonusSession: fifoResult.isBonusSession,
+            subscriptionId: existingRecord.subscriptionId,
+            remainingSessions: null,
+            remainingBonusSessions: 0,
+            isBonusSession: false,
+            preRegistered: true,
           };
-        });
+        } else {
+          // Walk-in (no prior registration): check capacity, deduct session, register + mark attended
+          if (cls.limit && cls.registeredMembers.length >= cls.limit) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Class is full" });
+          }
+
+          // Transaction: decrement session + register + mark attended
+          result = await ctx.db.$transaction(async (tx) => {
+            const fifoResult = await decrementClassSessionFIFO({
+              tx,
+              memberId: input.memberId,
+            });
+
+            const classMember = await tx.classMember.create({
+              data: {
+                classId: input.classId,
+                memberId: input.memberId,
+                subscriptionId: fifoResult.id,
+                attended: true,
+                attendedAt: new Date(),
+              },
+            });
+
+            return {
+              classMember,
+              subscriptionId: fifoResult.id,
+              remainingSessions: fifoResult.remainingSessions,
+              remainingBonusSessions: fifoResult.remainingBonusSessions,
+              isBonusSession: fifoResult.isBonusSession,
+              preRegistered: false,
+            };
+          });
+        }
 
         success = true;
         return result;

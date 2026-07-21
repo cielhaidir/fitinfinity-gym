@@ -62,6 +62,8 @@ export default function MemberClassesPage() {
     );
 
   const { data: membership } = api.member.getMembership.useQuery();
+  const { data: packageData } = api.member.getActivePackageTypes.useQuery();
+  const isClassSession = packageData?.packageTypes.includes("CLASS_SESSION") ?? false;
 
   // Check if current user has a valid subscription for a specific class
   // Only allow checkout for members with active membership
@@ -132,6 +134,14 @@ export default function MemberClassesPage() {
     );
   }
 
+  // Find remaining sessions from CLASS_SESSION subscription
+  const classSessionSub = (subscriptions?.items as any[])?.find(
+    (s: any) => s.package?.type === "CLASS_SESSION" && s.isActive,
+  );
+  const remainingSessions = classSessionSub
+    ? (classSessionSub.remainingSessions ?? 0) + (classSessionSub.remainingBonusSessions ?? 0)
+    : null;
+
   return (
     <ProtectedRoute requiredPermissions={["menu:classes"]}>
       <div className="container mx-auto p-4 md:p-8">
@@ -144,13 +154,21 @@ export default function MemberClassesPage() {
           </p>
         </div>
 
-        {/* Debug information */}
-        {/* <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded">
-          <p>Total classes from API: {classes?.items?.length || 0}</p>
-          <p>Filtered upcoming classes: {upcomingClasses?.length || 0}</p>
-          <p>Classes loading: {classesLoading ? 'Yes' : 'No'}</p>
-          <p>Classes error: {classesError ? classesError.message : 'None'}</p>
-        </div> */}
+        {/* Remaining sessions banner for CLASS_SESSION members */}
+        {isClassSession && remainingSessions !== null && (
+          <div className={`mb-6 flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium ${
+            remainingSessions === 0
+              ? "border-red-500/40 bg-red-500/10 text-red-400"
+              : "border-green-500/40 bg-green-500/10 text-green-400"
+          }`}>
+            <span>🎟️</span>
+            <span>
+              {remainingSessions === 0
+                ? "Sesi kamu habis. Hubungi admin untuk top-up sesi."
+                : `Sisa sesi kamu: ${remainingSessions} sesi — setiap pendaftaran kelas memotong 1 sesi.`}
+            </span>
+          </div>
+        )}
 
         {upcomingClasses?.length === 0 ? (
           <div className="text-center text-gray-600 dark:text-gray-400">

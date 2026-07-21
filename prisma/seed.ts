@@ -10,8 +10,9 @@ async function truncateTables() {
 }
 
 async function main() {
-  // Truncate tables before seeding
-  await truncateTables();
+  // NOTE: Truncate dinonaktifkan agar permission role yang sudah ada tidak hilang.
+  // Jalankan truncateTables() secara manual jika ingin full reset.
+  // await truncateTables();
 
   // Create all permissions first
   const permissions = [
@@ -297,6 +298,17 @@ async function main() {
     { name: "delete:freeze-price" },
     { name: "list:freeze-price" },
     { name: "show:freeze-price" },
+
+    // Class Visit (pay-per-class untuk non-member)
+    { name: "manage:class-visit" },
+    { name: "request:class-visit" },
+
+    // Corporate Management
+    { name: "manage:corporate" },
+    { name: "list:corporate" },
+
+    // Subscription checkout (member self-service)
+    { name: "checkout:subscription" },
   ];
 
   console.log("🌱 Seeding permissions...");
@@ -391,7 +403,8 @@ async function main() {
         "update:profile",
         "checkout:subscription",
         "create:class-registration",
-        "member:body-composition"
+        "member:body-composition",
+        "request:class-visit"
       ],
     },
     {
@@ -563,6 +576,14 @@ async function main() {
         "report:stock-movement",
         "report:purchase-order",
         "member:body-composition",
+
+        // Class Visit management
+        "manage:class-visit",
+        "request:class-visit",
+
+        // Corporate (read for filters, manage untuk CS)
+        "list:corporate",
+        "manage:corporate",
       ],
     },
   ];

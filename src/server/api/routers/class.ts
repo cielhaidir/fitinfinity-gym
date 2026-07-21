@@ -131,23 +131,21 @@ export const classRouter = createTRPCRouter({
         page: z.number().min(1),
         limit: z.number().min(1),
         search: z.string().optional(),
+        filter: z.enum(["all", "past", "upcoming"]).optional().default("upcoming"),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { page, limit, search } = input;
+      const { page, limit, search, filter } = input;
       const skip = (page - 1) * limit;
 
       try {
-        // Calculate date threshold - exclude classes older than 1 day
-        const oneDayAgo = new Date();
-        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-        oneDayAgo.setHours(0, 0, 0, 0); // Set to start of yesterday
+        const whereConditions: any = {};
 
-        const whereConditions: any = {
-          schedule: {
-            gte: oneDayAgo, // Only show classes from yesterday onwards
-          },
-        };
+        if (filter === "upcoming") {
+          whereConditions.schedule = { gte: new Date() };
+        } else if (filter === "past") {
+          whereConditions.schedule = { lt: new Date() };
+        }
 
         // Add search condition if provided
         if (search) {
@@ -164,7 +162,7 @@ export const classRouter = createTRPCRouter({
             include: {
               classType: true,
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: { schedule: filter === "past" ? "desc" : "asc" },
           }),
           ctx.db.class.count({ where }),
         ]);

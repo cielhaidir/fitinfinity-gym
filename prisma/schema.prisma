@@ -162,6 +162,21 @@ enum BonusStartMode {
     CUSTOM_DATE
 }
 
+enum ClassVisitStatus {
+    PENDING_PAYMENT
+    CONFIRMED
+    ATTENDED
+    NO_SHOW
+    CANCELLED
+}
+
+enum ClassVisitPaymentStatus {
+    FREE
+    PENDING
+    PAID
+    REFUNDED
+}
+
 model File {
     id           String   @id @default(uuid())
     bucket       String
@@ -270,6 +285,7 @@ model Class {
     classType         ClassType?         @relation(fields: [classTypeId], references: [id])
     registeredMembers ClassMember[]
     waitingList       ClassWaitingList[]
+    classVisitRegistrations ClassVisitRegistration[] @relation("ClassVisitToClass")
 }
 
 model ClassType {
@@ -330,6 +346,7 @@ model Membership {
     transfersFrom     SubscriptionTransferHistory[]
     freezeOperations  FreezeOperation[]  @relation("FreezeOperationMember")
     promoRedemptions  PromoRedemption[]
+    classVisitRegistrations ClassVisitRegistration[] @relation("ClassVisitToMembership")
 }
 
 model Role {
@@ -412,6 +429,10 @@ model Subscription {
     
     // Class session relations
     classMembers      ClassMember[]
+    
+    // Corporate relation
+    corporateId       String?          // nullable: kosong = bukan dari corporate
+    corporate         Corporate?       @relation(fields: [corporateId], references: [id])
     
     // Promo relations
     triggerPromoRedemptions PromoRedemption[] @relation("TriggerSubscriptionPromo")
@@ -1371,6 +1392,69 @@ model SubscriptionTransferHistory {
 }
 
 // ============================================
+// Corporate
+// ============================================
+
+model Corporate {
+    id            String         @id @default(cuid())
+    name          String         @unique
+    address       String?
+    phone         String?
+    email         String?
+    contactPerson String?
+    isActive      Boolean        @default(true)
+    notes         String?
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+
+    subscriptions Subscription[]
+
+    @@index([isActive])
+    @@index([name])
+}
+
+// ============================================
+// Class Visit Feature
+// ============================================
+
+model ClassVisitRegistration {
+    id              String                   @id @default(cuid())
+    classId         String
+    memberId        String
+
+    // Status kehadiran
+    status          ClassVisitStatus         @default(PENDING_PAYMENT)
+
+    // Info pembayaran
+    isFree          Boolean                  @default(false)     // true jika punya GYM_MEMBERSHIP aktif
+    paidAmount      Float                    @default(0)
+    paymentStatus   ClassVisitPaymentStatus  @default(PENDING)
+    paymentMethod   String?                  // "CASH", "TRANSFER", dll
+    paymentProof    String?                  // URL bukti transfer
+    paidAt          DateTime?
+
+    // Metadata
+    notes               String?
+    confirmedBy         String?                  // userId admin yang konfirmasi
+    confirmedAt         DateTime?
+    cancelReason        String?
+    requestedByMember   Boolean                  @default(false)  // true jika member request sendiri
+
+    createdAt       DateTime                 @default(now())
+    updatedAt       DateTime                 @updatedAt
+
+    class           Class      @relation("ClassVisitToClass", fields: [classId], references: [id])
+    member          Membership @relation("ClassVisitToMembership", fields: [memberId], references: [id])
+
+    @@unique([classId, memberId])
+    @@index([memberId])
+    @@index([classId])
+    @@index([status])
+    @@index([paymentStatus])
+    @@index([createdAt])
+}
+
+// ============================================
 // API Mutation Logs Table
 // ============================================
 
@@ -1400,3 +1484,4 @@ model Logs {
     @@index([success])
     @@index([endpoint, createdAt])
 }
+
