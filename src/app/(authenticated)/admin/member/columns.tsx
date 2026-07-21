@@ -129,9 +129,17 @@ export const createColumns = ({
         const durationLeft = endDate
           ? Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
           : null;
+        const endDateStr = endDate
+          ? new Date(endDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+          : null;
         return (
           <div className="w-[130px]">
-            {durationLeft !== null ? `${durationLeft} days` : <span className="text-muted-foreground">N/A</span>}
+            {durationLeft !== null
+              ? <>
+                  <span>{durationLeft} days</span>
+                  {endDateStr && <div className="text-xs text-muted-foreground mt-0.5">{endDateStr}</div>}
+                </>
+              : <span className="text-muted-foreground">N/A</span>}
           </div>
         );
       },
@@ -154,14 +162,21 @@ export const createColumns = ({
         const latestPtSub = activePtSubs.sort((a: any, b: any) =>
           new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime()
         )[0];
-        const endDate = latestPtSub?.endDate
-          ? new Date(latestPtSub.endDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+        const ptEndDate = latestPtSub?.endDate ? new Date(latestPtSub.endDate) : null;
+        const endDateStr = ptEndDate
+          ? ptEndDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+          : null;
+        const daysLeft = ptEndDate
+          ? Math.max(0, Math.ceil((ptEndDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
           : null;
         return (
           <div className="w-[130px]">
             <span className="font-medium">{totalSessions} sesi</span>
-            {endDate && (
-              <div className="text-xs text-muted-foreground mt-0.5">{endDate}</div>
+            {endDateStr && (
+              <div className="text-xs text-muted-foreground mt-0.5">{endDateStr}</div>
+            )}
+            {daysLeft !== null && (
+              <div className="text-xs text-muted-foreground">{daysLeft} hari</div>
             )}
           </div>
         );
