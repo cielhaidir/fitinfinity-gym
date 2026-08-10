@@ -139,13 +139,25 @@ export const memberClassRouter = createTRPCRouter({
           throw new Error("Class is full");
         }
 
-        // Check if already registered
+        // Check if already registered (regular registration)
         const existingRegistration = await ctx.db.classMember.findFirst({
           where: { classId: input.classId, memberId: membership.id },
         });
 
         if (existingRegistration) {
           throw new Error("You are already registered for this class");
+        }
+
+        // Cross-check: already registered via Class Visit (drop-in)
+        const existingVisit = await ctx.db.classVisitRegistration.findFirst({
+          where: {
+            classId: input.classId,
+            memberId: membership.id,
+            status: { not: "CANCELLED" },
+          },
+        });
+        if (existingVisit) {
+          throw new Error("Kamu sudah terdaftar di kelas ini (via Class Visit)");
         }
 
         if (isClassSession) {
@@ -332,7 +344,13 @@ export const memberClassRouter = createTRPCRouter({
 
         const class_ = await ctx.db.class.findUnique({
           where: { id: input.classId },
-          include: { registeredMembers: true },
+          include: {
+            registeredMembers: true,
+            classVisitRegistrations: {
+              where: { status: { in: ["CONFIRMED", "ATTENDED"] } },
+              select: { id: true },
+            },
+          },
         });
 
         if (!class_) {
@@ -343,30 +361,77 @@ export const memberClassRouter = createTRPCRouter({
           throw new Error("Cannot register for past classes");
         }
 
-        if (class_.limit && class_.registeredMembers.length >= class_.limit) {
+        // Combined capacity: ClassMember + confirmed ClassVisitRegistration
+        const totalRegistered = class_.registeredMembers.length + class_.classVisitRegistrations.length;
+        if (class_.limit && totalRegistered >= class_.limit) {
           throw new Error("Class is full");
         }
 
-        // Check if already registered
+        // Check if already registered (regular)
         const existingRegistration = await ctx.db.classMember.findFirst({
-          where: {
-            classId: input.classId,
-            memberId: input.memberId,
-          },
+          where: { classId: input.classId, memberId: input.memberId },
         });
-
         if (existingRegistration) {
           throw new Error("Member is already registered for this class");
         }
 
-        result = await ctx.db.classMember.create({
-          data: {
+        // Cross-check: already registered via Class Visit
+        const existingVisit = await ctx.db.classVisitRegistration.findFirst({
+          where: {
             classId: input.classId,
             memberId: input.memberId,
+            status: { not: "CANCELLED" },
           },
-          include: {
-            class: true,
+        });
+        if (existingVisit) {
+          throw new Error("Member sudah terdaftar di kelas ini (via Class Visit)");
+        }
+
+        // Coverage cascade: GYM_MEMBERSHIP (free) → CLASS_SESSION (deduct) → reject
+        const activeMembership = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: input.memberId,
+            isActive: true,
+            deletedAt: null,
+            package: { type: "GYM_MEMBERSHIP" },
           },
+        });
+
+        const classSessionSub = activeMembership
+          ? null
+          : await ctx.db.subscription.findFirst({
+              where: {
+                memberId: input.memberId,
+                isActive: true,
+                deletedAt: null,
+                package: { type: "CLASS_SESSION" },
+                OR: [
+                  { remainingSessions: { gt: 0 } },
+                  { remainingBonusSessions: { gt: 0 } },
+                ],
+              },
+            });
+
+        if (!activeMembership && !classSessionSub) {
+          throw new Error(
+            "Member tidak punya GYM_MEMBERSHIP maupun sisa CLASS_SESSION. Untuk drop-in berbayar, gunakan menu Class Visit.",
+          );
+        }
+
+        result = await ctx.db.$transaction(async (tx) => {
+          let subscriptionId: string | null = null;
+          if (classSessionSub) {
+            const fifo = await decrementClassSessionFIFO({ tx, memberId: input.memberId });
+            subscriptionId = fifo.id;
+          }
+          return tx.classMember.create({
+            data: {
+              classId: input.classId,
+              memberId: input.memberId,
+              subscriptionId,
+            },
+            include: { class: true },
+          });
         });
         success = true;
         return result;

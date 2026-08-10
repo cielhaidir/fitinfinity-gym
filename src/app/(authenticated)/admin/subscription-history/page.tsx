@@ -93,6 +93,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
   const [transferReason, setTransferReason] = useState("");
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [transferPriceOption, setTransferPriceOption] = useState<"free" | "config">("config");
+  const [transferBalanceAccountId, setTransferBalanceAccountId] = useState<string>("");
   
   // Edit dates functionality state
   const [editDatesDialogOpen, setEditDatesDialogOpen] = useState(false);
@@ -239,6 +240,11 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
   // Query for getting personal trainers for edit trainer functionality
   const { data: personalTrainers = [] } = api.personalTrainer.getActiveTrainers.useQuery();
 
+  // Query for balance accounts and chart accounts (for transfer fee payment)
+  const { data: balanceAccounts = [] } = api.balanceAccount.getAll.useQuery(
+    { page: 1, limit: 100 },
+    { enabled: !!session },
+  );
   // Query for getting transfer price from config
   const { data: configs = [] } = api.config.getAll.useQuery(undefined, {
     enabled: !!session,
@@ -293,6 +299,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       setTransferReason("");
       setShowUserDropdown(false);
       setTransferPriceOption("config");
+      setTransferBalanceAccountId("");
       refetch();
     },
     onError: (error) => {
@@ -473,6 +480,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       newUserId: transferNewUserId,
       reason: transferReason.trim() || undefined,
       transferPrice: selectedPrice,
+      balanceAccountId: transferBalanceAccountId ? parseInt(transferBalanceAccountId) : undefined,
     });
   };
 
@@ -485,6 +493,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     setTransferReason("");
     setShowUserDropdown(false);
     setTransferPriceOption("config");
+    setTransferBalanceAccountId("");
   };
 
   const handleUserSelect = (user: { id: string; name: string; email: string }) => {
@@ -1061,13 +1070,27 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     {
       accessorKey: "fromMemberName",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="From Member Name" />
+        <DataTableColumnHeader column={column} title="From Member" />
       ),
       cell: ({ row }) => {
         const name = row.original.fromMemberName;
         return (
           <div className="min-w-[120px]">
             <span className="text-sm">{name || "N/A"}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "toMemberName",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="To Member" />
+      ),
+      cell: ({ row }) => {
+        const name = row.original.toMemberName;
+        return (
+          <div className="min-w-[120px]">
+            <span className="text-sm">{name || <span className="text-muted-foreground">N/A</span>}</span>
           </div>
         );
       },
@@ -1721,6 +1744,27 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                   Selected price: <span className="font-medium">Rp {(transferPriceOption === "free" ? 0 : configTransferPrice).toLocaleString('id-ID')}</span>
                 </div>
               </div>
+              {transferPriceOption === "config" && configTransferPrice > 0 && (
+                <>
+                  <div className="grid gap-2">
+                    <Label className="text-sm font-medium">
+                      Payment Account (Bank) <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={transferBalanceAccountId} onValueChange={setTransferBalanceAccountId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select bank account..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(balanceAccounts as any).items?.map((acc: any) => (
+                          <SelectItem key={acc.id} value={String(acc.id)}>
+                            {acc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
               <div className="grid gap-2">
                 <Label htmlFor="reason" className="text-sm font-medium">
                   Reason (Optional)
@@ -1746,7 +1790,11 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
               <Button
                 type="button"
                 onClick={handleConfirmTransfer}
-                disabled={transferSubscriptionMutation.isPending || !transferNewUserId}
+                disabled={
+                  transferSubscriptionMutation.isPending ||
+                  !transferNewUserId ||
+                  (transferPriceOption === "config" && configTransferPrice > 0 && !transferBalanceAccountId)
+                }
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {transferSubscriptionMutation.isPending ? "Processing..." : "Confirm Transfer"}

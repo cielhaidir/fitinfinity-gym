@@ -67,7 +67,7 @@ export default function SubscriptionPage({
     type: "CLASS_SESSION",
   });
   const { data: trainers } = api.personalTrainer.listAllActive.useQuery();
-  const { data: salesList } = api.subs.getSalesList.useQuery();
+  const { data: salesList } = api.subs.getSalesListActive.useQuery();
   const { data: corporateList } = api.corporate.list.useQuery({ activeOnly: true, page: 1, limit: 100 });
 
   // Check for active gym membership

@@ -85,6 +85,7 @@ export default function ClassVisitPage() {
   const [confirmReg, setConfirmReg] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [paymentNotes, setPaymentNotes] = useState<string>("");
+  const [confirmBalanceAccountId, setConfirmBalanceAccountId] = useState<string>("");
 
   // Cancel dialog
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -128,10 +129,21 @@ export default function ClassVisitPage() {
     enabled: registerOpen,
   });
 
+  const { data: balanceAccounts } = api.balanceAccount.getAll.useQuery(
+    { page: 1, limit: 100 },
+    { enabled: confirmOpen },
+  );
+
   // ─── Mutations ───────────────────────────────────────────────────────
   const registerMut = api.classVisit.register.useMutation({
-    onSuccess: (data) => {
-      toast.success(data.isFree ? "Member berhasil didaftarkan (Gratis – punya membership aktif)" : "Request pendaftaran berhasil. Menunggu konfirmasi pembayaran.");
+    onSuccess: (data: any) => {
+      const msg =
+        data.coverage === "MEMBERSHIP"
+          ? "Member berhasil didaftarkan (Gratis – punya GYM_MEMBERSHIP aktif)"
+          : data.coverage === "CLASS_SESSION"
+            ? "Member berhasil didaftarkan (1 sesi kelas dipotong)"
+            : "Request pendaftaran berhasil. Menunggu konfirmasi pembayaran.";
+      toast.success(msg);
       setRegisterOpen(false);
       setSelectedMemberId("");
       setMemberSearch("");
@@ -148,6 +160,7 @@ export default function ClassVisitPage() {
       toast.success("Pembayaran dikonfirmasi. Member resmi terdaftar.");
       setConfirmOpen(false);
       setConfirmReg(null);
+      setConfirmBalanceAccountId("");
       clearProofFile();
       void refetchRegs();
       void refetchClasses();
@@ -367,7 +380,7 @@ export default function ClassVisitPage() {
                               <div className="flex gap-1 justify-center flex-wrap">
                                 {reg.status === "PENDING_PAYMENT" && (
                                   <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs"
-                                    onClick={() => { setConfirmReg(reg); setPaymentMethod("CASH"); setPaymentNotes(""); clearProofFile(); setConfirmOpen(true); }}>
+                                    onClick={() => { setConfirmReg(reg); setPaymentMethod("CASH"); setPaymentNotes(""); setConfirmBalanceAccountId(""); clearProofFile(); setConfirmOpen(true); }}>
                                     Konfirmasi Bayar
                                   </Button>
                                 )}
@@ -410,8 +423,10 @@ export default function ClassVisitPage() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Jika member memiliki <strong>GYM_MEMBERSHIP aktif</strong>, otomatis terdaftar gratis.<br />
-                Jika tidak, status akan <strong>Menunggu Pembayaran</strong>.
+                Sistem otomatis menentukan biaya:<br />
+                1. Punya <strong>GYM_MEMBERSHIP aktif</strong> → gratis.<br />
+                2. Punya <strong>sesi CLASS_SESSION</strong> → potong 1 sesi.<br />
+                3. Tidak keduanya → <strong>Menunggu Pembayaran</strong> (drop-in).
               </p>
               <div>
                 <Label>Cari Member</Label>
@@ -471,6 +486,22 @@ export default function ClassVisitPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {(confirmReg?.paidAmount ?? 0) > 0 && (
+                <div>
+                  <Label>Payment Account (Bank) <span className="text-red-500">*</span></Label>
+                  <Select value={confirmBalanceAccountId} onValueChange={setConfirmBalanceAccountId}>
+                    <SelectTrigger><SelectValue placeholder="Pilih akun bank..." /></SelectTrigger>
+                    <SelectContent>
+                      {(balanceAccounts as any)?.items?.map((acc: any) => (
+                        <SelectItem key={acc.id} value={String(acc.id)}>
+                          {acc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Akan dicatat di laporan cash bank.</p>
+                </div>
+              )}
               <div>
                 <Label>Bukti Pembayaran (opsional)</Label>
                 <div className="mt-1 space-y-2">
@@ -507,7 +538,11 @@ export default function ClassVisitPage() {
               <Button variant="outline" onClick={() => setConfirmOpen(false)}>Batal</Button>
               <Button
                 className="bg-green-600 hover:bg-green-700"
-                disabled={confirmMut.isPending || uploadingProof}
+                disabled={
+                  confirmMut.isPending ||
+                  uploadingProof ||
+                  ((confirmReg?.paidAmount ?? 0) > 0 && !confirmBalanceAccountId)
+                }
                 onClick={async () => {
                   // Upload proof first if a file is selected
                   let uploadedProofPath: string | undefined;
@@ -540,6 +575,7 @@ export default function ClassVisitPage() {
                     paymentMethod,
                     paymentProof: uploadedProofPath,
                     notes: paymentNotes || undefined,
+                    balanceAccountId: confirmBalanceAccountId ? parseInt(confirmBalanceAccountId) : undefined,
                   });
                 }}
               >

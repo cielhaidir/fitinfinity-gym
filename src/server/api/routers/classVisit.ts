@@ -8,6 +8,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { decrementClassSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
 
 export const classVisitRouter = createTRPCRouter({
   /**
@@ -62,7 +63,7 @@ export const classVisitRouter = createTRPCRouter({
           }
         }
 
-        // Check duplicate
+        // Check duplicate (class visit)
         const existing = await ctx.db.classVisitRegistration.findUnique({
           where: { classId_memberId: { classId: input.classId, memberId: input.memberId } },
         });
@@ -70,7 +71,18 @@ export const classVisitRouter = createTRPCRouter({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Member sudah terdaftar di kelas ini" });
         }
 
-        // Check active GYM_MEMBERSHIP subscription
+        // Cross-check: already registered via regular Class Registration
+        const existingClassMember = await ctx.db.classMember.findFirst({
+          where: { classId: input.classId, memberId: input.memberId },
+        });
+        if (existingClassMember) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Member sudah terdaftar di kelas ini (via registrasi kelas)" });
+        }
+
+        // ── Determine coverage via cascade priority ────────────────────
+        // 1) GYM_MEMBERSHIP active  → free (no deduction)
+        // 2) CLASS_SESSION w/ sessions → free (deduct 1 session FIFO)
+        // 3) neither                → drop-in, must pay
         const activeMembership = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
@@ -80,44 +92,68 @@ export const classVisitRouter = createTRPCRouter({
           },
         });
 
-        const isFree = !!activeMembership;
+        const classSessionSub = activeMembership
+          ? null
+          : await ctx.db.subscription.findFirst({
+              where: {
+                memberId: input.memberId,
+                isActive: true,
+                deletedAt: null,
+                package: { type: "CLASS_SESSION" },
+                OR: [
+                  { remainingSessions: { gt: 0 } },
+                  { remainingBonusSessions: { gt: 0 } },
+                ],
+              },
+            });
 
-        // Upsert (in case cancelled before)
-        if (existing && existing.status === "CANCELLED") {
-          result = await ctx.db.classVisitRegistration.update({
-            where: { id: existing.id },
-            data: {
-              status: isFree ? "CONFIRMED" : "PENDING_PAYMENT",
-              isFree,
-              paidAmount: isFree ? 0 : cls.price,
-              paymentStatus: isFree ? "FREE" : "PENDING",
-              paymentMethod: input.paymentMethod ?? null,
-              notes: input.notes ?? null,
-              confirmedBy: isFree ? ctx.session.user.id : null,
-              confirmedAt: isFree ? new Date() : null,
-              cancelReason: null,
-              paidAt: null,
-            },
-          });
-        } else {
-          result = await ctx.db.classVisitRegistration.create({
+        const coverage: "MEMBERSHIP" | "CLASS_SESSION" | "PAID" = activeMembership
+          ? "MEMBERSHIP"
+          : classSessionSub
+            ? "CLASS_SESSION"
+            : "PAID";
+        const isFree = coverage !== "PAID";
+
+        result = await ctx.db.$transaction(async (tx) => {
+          // Deduct a class session if covered by CLASS_SESSION package
+          let sessionSubId: string | null = null;
+          let isBonusSession = false;
+          if (coverage === "CLASS_SESSION") {
+            const fifo = await decrementClassSessionFIFO({ tx, memberId: input.memberId });
+            sessionSubId = fifo.id;
+            isBonusSession = fifo.isBonusSession;
+          }
+
+          const data = {
+            status: isFree ? ("CONFIRMED" as const) : ("PENDING_PAYMENT" as const),
+            isFree,
+            paidAmount: isFree ? 0 : cls.price,
+            paymentStatus: isFree ? ("FREE" as const) : ("PENDING" as const),
+            paymentMethod: input.paymentMethod ?? null,
+            notes: input.notes ?? null,
+            confirmedBy: isFree ? ctx.session.user.id : null,
+            confirmedAt: isFree ? new Date() : null,
+            subscriptionId: sessionSubId,
+            isBonusSession,
+          };
+
+          if (existing && existing.status === "CANCELLED") {
+            return tx.classVisitRegistration.update({
+              where: { id: existing.id },
+              data: { ...data, cancelReason: null, paidAt: null } as any,
+            });
+          }
+          return tx.classVisitRegistration.create({
             data: {
               classId: input.classId,
               memberId: input.memberId,
-              status: isFree ? "CONFIRMED" : "PENDING_PAYMENT",
-              isFree,
-              paidAmount: isFree ? 0 : cls.price,
-              paymentStatus: isFree ? "FREE" : "PENDING",
-              paymentMethod: input.paymentMethod ?? null,
-              notes: input.notes ?? null,
-              confirmedBy: isFree ? ctx.session.user.id : null,
-              confirmedAt: isFree ? new Date() : null,
-            },
+              ...data,
+            } as any,
           });
-        }
+        });
 
         success = true;
-        return { ...result, isFree };
+        return { ...result, isFree, coverage };
       } catch (err) {
         error = err as Error;
         success = false;
@@ -149,6 +185,7 @@ export const classVisitRouter = createTRPCRouter({
         paymentMethod: z.string().min(1),
         paymentProof: z.string().optional(),
         notes: z.string().optional(),
+        balanceAccountId: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -160,6 +197,10 @@ export const classVisitRouter = createTRPCRouter({
       try {
         const reg = await ctx.db.classVisitRegistration.findUnique({
           where: { id: input.registrationId },
+          include: {
+            class: { include: { classType: true } },
+            member: { include: { user: true } },
+          },
         });
 
         if (!reg) throw new TRPCError({ code: "NOT_FOUND", message: "Registrasi tidak ditemukan" });
@@ -167,18 +208,61 @@ export const classVisitRouter = createTRPCRouter({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Registrasi ini tidak dalam status menunggu pembayaran" });
         }
 
-        result = await ctx.db.classVisitRegistration.update({
-          where: { id: input.registrationId },
-          data: {
-            status: "CONFIRMED",
-            paymentStatus: "PAID",
-            paymentMethod: input.paymentMethod,
-            paymentProof: input.paymentProof ?? null,
-            paidAt: new Date(),
-            confirmedBy: ctx.session.user.id,
-            confirmedAt: new Date(),
-            notes: input.notes ?? reg.notes,
-          },
+        result = await ctx.db.$transaction(async (tx) => {
+          const updated = await tx.classVisitRegistration.update({
+            where: { id: input.registrationId },
+            data: {
+              status: "CONFIRMED",
+              paymentStatus: "PAID",
+              paymentMethod: input.paymentMethod,
+              paymentProof: input.paymentProof ?? null,
+              paidAt: new Date(),
+              confirmedBy: ctx.session.user.id,
+              confirmedAt: new Date(),
+              notes: input.notes ?? reg.notes,
+              balanceAccountId: input.balanceAccountId ?? null,
+            } as any,
+          });
+
+          // Create Transaction record for tracking in cash bank report
+          if (reg.paidAmount > 0 && input.balanceAccountId) {
+            const coaConfig = await ctx.db.config.findUnique({ where: { key: "default_coa_id" } });
+            const coaId = coaConfig
+              ? parseInt(coaConfig.value)
+              : (await tx.chartAccount.findFirst({ orderBy: { id: "asc" } }))?.id;
+
+            if (coaId) {
+              const today = new Date();
+              const yearPart = today.getFullYear().toString().slice(-2);
+              const monthPart = String(today.getMonth() + 1).padStart(2, "0");
+              const latestTx = await tx.transaction.findFirst({
+                where: { transaction_number: { startsWith: `TR${yearPart}-${monthPart}` } },
+                orderBy: { transaction_number: "desc" },
+              });
+              let increment = 1;
+              if (latestTx) {
+                const parts = latestTx.transaction_number.split("-");
+                if (parts.length === 3) increment = parseInt(parts[2] ?? "0") + 1;
+              }
+              const transaction_number = `TR${yearPart}-${monthPart}-${increment.toString().padStart(3, "0")}`;
+              const memberName = reg.member?.user?.name ?? "Unknown";
+              const className = reg.class?.name ?? (reg.class?.classType?.name ?? "Class Visit");
+              await tx.transaction.create({
+                data: {
+                  bank_id: input.balanceAccountId,
+                  account_id: coaId,
+                  type: "income",
+                  file: input.paymentProof ?? "",
+                  description: `Class Visit: ${memberName} – ${className}`,
+                  transaction_date: today,
+                  transaction_number,
+                  amount: reg.paidAmount,
+                },
+              });
+            }
+          }
+
+          return updated;
         });
 
         success = true;
@@ -284,12 +368,28 @@ export const classVisitRouter = createTRPCRouter({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Registrasi yang sudah hadir tidak dapat dibatalkan" });
         }
 
-        result = await ctx.db.classVisitRegistration.update({
-          where: { id: input.registrationId },
-          data: {
-            status: "CANCELLED",
-            cancelReason: input.cancelReason ?? null,
-          },
+        const regAny = reg as any;
+
+        result = await ctx.db.$transaction(async (tx) => {
+          // Refund the class session if one was deducted at registration
+          if (regAny.subscriptionId) {
+            await tx.subscription.update({
+              where: { id: regAny.subscriptionId },
+              data: regAny.isBonusSession
+                ? { remainingBonusSessions: { increment: 1 } }
+                : { remainingSessions: { increment: 1 } },
+            });
+          }
+
+          return tx.classVisitRegistration.update({
+            where: { id: input.registrationId },
+            data: {
+              status: "CANCELLED",
+              cancelReason: input.cancelReason ?? null,
+              subscriptionId: null,
+              isBonusSession: false,
+            } as any,
+          });
         });
 
         success = true;
@@ -575,6 +675,32 @@ export const classVisitRouter = createTRPCRouter({
           })
         : null;
 
+      // Aggregate remaining CLASS_SESSION sessions (paid + bonus) if no membership
+      let remainingClassSessions = 0;
+      if (membership && !activeSub) {
+        const classSubs = await ctx.db.subscription.findMany({
+          where: {
+            memberId: membership.id,
+            isActive: true,
+            deletedAt: null,
+            package: { type: "CLASS_SESSION" },
+          },
+          select: { remainingSessions: true, remainingBonusSessions: true },
+        });
+        remainingClassSessions = classSubs.reduce(
+          (sum, s) => sum + (s.remainingSessions ?? 0) + (s.remainingBonusSessions ?? 0),
+          0,
+        );
+      }
+
+      // Coverage: membership = free; else class-session available = covered; else pay
+      const coverage: "MEMBERSHIP" | "CLASS_SESSION" | "PAID" = activeSub
+        ? "MEMBERSHIP"
+        : remainingClassSessions > 0
+          ? "CLASS_SESSION"
+          : "PAID";
+      const isFreeForMe = coverage !== "PAID";
+
       return {
         items: classes.map((cls) => {
           const confirmedCount = cls.classVisitRegistrations.filter(
@@ -595,7 +721,8 @@ export const classVisitRouter = createTRPCRouter({
             classType: cls.classType,
             confirmedCount,
             isFull,
-            isFreeForMe: !!activeSub,
+            isFreeForMe,
+            coverage,
             myRegistration: myRegistration
               ? { id: myRegistration.id, status: myRegistration.status }
               : null,
@@ -603,7 +730,9 @@ export const classVisitRouter = createTRPCRouter({
         }),
         total,
         isMember: !!membership,
-        isFreeForMe: !!activeSub,
+        isFreeForMe,
+        coverage,
+        remainingClassSessions,
       };
     }),
 
@@ -661,7 +790,7 @@ export const classVisitRouter = createTRPCRouter({
           }
         }
 
-        // Duplicate check
+        // Duplicate check (class visit)
         const existing = await ctx.db.classVisitRegistration.findUnique({
           where: { classId_memberId: { classId: input.classId, memberId: membership.id } },
         });
@@ -669,7 +798,15 @@ export const classVisitRouter = createTRPCRouter({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Kamu sudah terdaftar di kelas ini" });
         }
 
-        // Check if free (has active GYM_MEMBERSHIP)
+        // Cross-check: already registered via regular Class Registration
+        const existingClassMember = await ctx.db.classMember.findFirst({
+          where: { classId: input.classId, memberId: membership.id },
+        });
+        if (existingClassMember) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Kamu sudah terdaftar di kelas ini" });
+        }
+
+        // ── Coverage cascade: GYM_MEMBERSHIP → CLASS_SESSION → paid drop-in ──
         const activeSub = await ctx.db.subscription.findFirst({
           where: {
             memberId: membership.id,
@@ -678,29 +815,67 @@ export const classVisitRouter = createTRPCRouter({
             package: { type: "GYM_MEMBERSHIP" },
           },
         });
-        const isFree = !!activeSub;
 
-        const data: any = {
-          classId: input.classId,
-          memberId: membership.id,
-          status: isFree ? "CONFIRMED" : "PENDING_PAYMENT",
-          isFree,
-          paidAmount: isFree ? 0 : (cls.price ?? 0),
-          paymentStatus: isFree ? "FREE" : "PENDING",
-          notes: input.notes ?? null,
-          confirmedBy: isFree ? ctx.session.user.id : null,
-          confirmedAt: isFree ? new Date() : null,
-          requestedByMember: true,
-        };
+        const classSessionSub = activeSub
+          ? null
+          : await ctx.db.subscription.findFirst({
+              where: {
+                memberId: membership.id,
+                isActive: true,
+                deletedAt: null,
+                package: { type: "CLASS_SESSION" },
+                OR: [
+                  { remainingSessions: { gt: 0 } },
+                  { remainingBonusSessions: { gt: 0 } },
+                ],
+              },
+            });
 
-        if (existing && existing.status === "CANCELLED") {
-          result = await ctx.db.classVisitRegistration.update({ where: { id: existing.id }, data });
-        } else {
-          result = await ctx.db.classVisitRegistration.create({ data });
-        }
+        const coverage: "MEMBERSHIP" | "CLASS_SESSION" | "PAID" = activeSub
+          ? "MEMBERSHIP"
+          : classSessionSub
+            ? "CLASS_SESSION"
+            : "PAID";
+        const isFree = coverage !== "PAID";
+
+        result = await ctx.db.$transaction(async (tx) => {
+          let sessionSubId: string | null = null;
+          let isBonusSession = false;
+          if (coverage === "CLASS_SESSION") {
+            const fifo = await decrementClassSessionFIFO({ tx, memberId: membership.id });
+            sessionSubId = fifo.id;
+            isBonusSession = fifo.isBonusSession;
+          }
+
+          const data: any = {
+            classId: input.classId,
+            memberId: membership.id,
+            status: isFree ? "CONFIRMED" : "PENDING_PAYMENT",
+            isFree,
+            paidAmount: isFree ? 0 : (cls.price ?? 0),
+            paymentStatus: isFree ? "FREE" : "PENDING",
+            notes: input.notes ?? null,
+            confirmedBy: isFree ? ctx.session.user.id : null,
+            confirmedAt: isFree ? new Date() : null,
+            requestedByMember: true,
+            subscriptionId: sessionSubId,
+            isBonusSession,
+          };
+
+          if (existing && existing.status === "CANCELLED") {
+            return tx.classVisitRegistration.update({ where: { id: existing.id }, data });
+          }
+          return tx.classVisitRegistration.create({ data });
+        });
 
         success = true;
-        return { ...result, isFree, message: isFree ? "Berhasil terdaftar (Gratis – kamu punya membership aktif)" : "Request berhasil dikirim. Silakan transfer dan upload bukti bayar, lalu tunggu konfirmasi admin." };
+        const message =
+          coverage === "MEMBERSHIP"
+            ? "Berhasil terdaftar (Gratis – kamu punya membership aktif)"
+            : coverage === "CLASS_SESSION"
+              ? "Berhasil terdaftar (1 sesi kelas kamu dipotong)"
+              : "Request berhasil dikirim. Silakan transfer dan upload bukti bayar, lalu tunggu konfirmasi admin.";
+        return { ...result, isFree, coverage, message };
       } catch (err) {
         error = err as Error;
         success = false;
@@ -827,5 +1002,81 @@ export const classVisitRouter = createTRPCRouter({
         where: { id: input.registrationId },
         data: { paymentProof: filePath },
       });
+    }),
+
+  /**
+   * Member views the full history of classes they have ever joined,
+   * combining regular class registrations (ClassMember) and class visits
+   * (ClassVisitRegistration). Includes both past and upcoming.
+   */
+  myClassHistory: permissionProtectedProcedure(["request:class-visit"])
+    .input(
+      z.object({
+        page: z.number().min(1).optional().default(1),
+        pageSize: z.number().min(1).max(50).optional().default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const membership = await ctx.db.membership.findFirst({ where: { userId } });
+      if (!membership) return { items: [], total: 0 };
+
+      const [classMembers, visits] = await Promise.all([
+        ctx.db.classMember.findMany({
+          where: { memberId: membership.id },
+          include: {
+            class: {
+              select: { name: true, schedule: true, duration: true, instructorName: true, classType: true },
+            },
+          },
+        }),
+        ctx.db.classVisitRegistration.findMany({
+          where: { memberId: membership.id, status: { not: "CANCELLED" } },
+          include: {
+            class: {
+              select: { name: true, schedule: true, duration: true, instructorName: true, classType: true },
+            },
+          },
+        }),
+      ]);
+
+      // Unify both sources into one shape
+      const unified = [
+        ...classMembers.map((cm) => ({
+          id: cm.id,
+          source: "REGISTRATION" as const,
+          className: cm.class.name,
+          instructorName: cm.class.instructorName,
+          schedule: cm.class.schedule,
+          duration: cm.class.duration,
+          classType: cm.class.classType,
+          status: cm.attended ? "ATTENDED" : "REGISTERED",
+          isFree: !cm.subscriptionId,
+          usedSession: !!cm.subscriptionId,
+          paidAmount: 0,
+        })),
+        ...visits.map((v) => ({
+          id: v.id,
+          source: "VISIT" as const,
+          className: v.class.name,
+          instructorName: v.class.instructorName,
+          schedule: v.class.schedule,
+          duration: v.class.duration,
+          classType: v.class.classType,
+          status: v.status,
+          isFree: v.isFree,
+          usedSession: !!(v as any).subscriptionId,
+          paidAmount: v.paidAmount,
+        })),
+      ];
+
+      // Sort by class schedule descending (most recent first)
+      unified.sort((a, b) => new Date(b.schedule).getTime() - new Date(a.schedule).getTime());
+
+      const total = unified.length;
+      const start = (input.page - 1) * input.pageSize;
+      const items = unified.slice(start, start + input.pageSize);
+
+      return { items, total };
     }),
 });
