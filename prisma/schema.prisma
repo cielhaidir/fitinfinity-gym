@@ -1372,6 +1372,8 @@ model SubscriptionTransferHistory {
     transferredPoint Int
     fromMemberId     String
     fromMemberName   String
+    toMemberId       String?
+    toMemberName     String?
     amount           Float
     file             String?
     reason           String?
@@ -1432,6 +1434,11 @@ model ClassVisitRegistration {
     paymentMethod   String?                  // "CASH", "TRANSFER", dll
     paymentProof    String?                  // URL bukti transfer
     paidAt          DateTime?
+    balanceAccountId Int?                    // Bank account used for payment tracking
+
+    // Class session tracking (when paid via CLASS_SESSION package)
+    subscriptionId  String?                  // Subscription the session was deducted from
+    isBonusSession  Boolean                  @default(false) // true if a bonus session was used
 
     // Metadata
     notes               String?

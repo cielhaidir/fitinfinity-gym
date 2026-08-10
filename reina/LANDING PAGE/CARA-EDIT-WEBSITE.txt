@@ -1,0 +1,77 @@
+================================================
+CARA EDIT WEBSITE FIT INFINITY (fit-infinity-website.html)
+================================================
+
+File website ini cuma SATU file. Semua tulisan, foto, dan link
+ada di dalamnya. Kamu tidak perlu bisa coding — cukup bisa
+Ctrl+F (cari) dan mengetik.
+
+------------------------------------------------
+1. BUKA FILE-NYA UNTUK DIEDIT
+------------------------------------------------
+- Klik kanan file fit-infinity-website.html → Open with → Notepad.
+  (Lebih nyaman: install "Visual Studio Code" gratis, teksnya berwarna.)
+- Untuk MELIHAT hasilnya: double-click file-nya → terbuka di Chrome.
+- Alur kerja: edit di Notepad → Save (Ctrl+S) → refresh Chrome (F5).
+
+------------------------------------------------
+2. MENGGANTI TULISAN
+------------------------------------------------
+- Tekan Ctrl+F, ketik tulisan yang mau diganti persis seperti
+  yang terlihat di website. Contoh: cari "Forge Your"
+- Ganti teksnya, JANGAN sentuh kode di sekelilingnya
+  (yang berbentuk <tag> seperti <h1>, </p>, class="...").
+- Aturan main: yang boleh diedit adalah teks DI ANTARA > dan <
+  Contoh:  <b>Mini Hyrox</b>  →  <b>Fun Run 5K</b>
+
+------------------------------------------------
+3. YANG WAJIB DIGANTI SEBELUM WEBSITE TAYANG
+------------------------------------------------
+Cari dengan Ctrl+F kata "GANTI" — semua yang harus diisi
+sudah kutandai. Daftarnya:
+  [x] Nomor WhatsApp — SUDAH: 0821-9084-5159
+  [x] Email — SUDAH: fitinfinitymks@gmail.com
+  [x] Jam operasional — SUDAH: Senin-Minggu 06.00-22.00
+  [x] Link & judul 3 reels Member Stories — SUDAH
+  [ ] Foto kartu "Fitness Challenge" di slider event
+  [ ] Foto thumbnail 3 kartu reels (opsional — sekarang pakai
+      foto gym, lebih bagus screenshot frame reels-nya)
+  [ ] Cek jadwal kelas & deskripsi kelas (bagian SCHEDULE di bawah file)
+  [ ] Form Tally → cari "GANTI_DENGAN_ID_TALLY_KAMU"
+      (buat form di tally.so → hubungkan ke Notion → salin ID form)
+
+------------------------------------------------
+4. MENGGANTI JADWAL KELAS
+------------------------------------------------
+Cari: var SCHEDULE
+Formatnya per hari:
+  {d:'Senin', c:[{n:'Body Language', k:'Dance Fit', p:'Gerak, musik...'}]}
+  d = hari · n = nama kelas · k = kategori · p = deskripsi singkat
+Tambah kelas = tambah {n:'...', k:'...', p:'...'} dipisah koma.
+
+------------------------------------------------
+5. MENGGANTI FOTO
+------------------------------------------------
+Foto tertanam di dalam file sebagai kode panjang (data:image/...).
+Cara paling gampang: minta Claude — "tolong ganti foto X dengan
+foto ini" sambil connect folder/kirim fotonya. Claude yang proses
+(kompres + pasang), kamu tinggal terima file barunya.
+
+------------------------------------------------
+6. MENAIKKAN KE INTERNET (DEPLOY)
+------------------------------------------------
+1. Buka https://app.netlify.com/drop  (daftar gratis sekali)
+2. Ubah dulu nama file jadi: index.html
+3. Drag & drop file-nya ke halaman itu → dapat link live
+4. Setiap habis edit: drop ulang file terbaru ke site yang sama
+   (menu Deploys → drag & drop)
+
+Link untuk tiap kanal (biar sumber lead kebaca di Notion):
+  Bio IG   : https://SITEMU.netlify.app/?sumber=Instagram
+  QR event : https://SITEMU.netlify.app/?sumber=Event
+  Meta Ads : https://SITEMU.netlify.app/?utm_source=meta&utm_campaign=NAMACAMPAIGN
+
+------------------------------------------------
+Kalau bingung atau rusak setelah diedit: kirim file-nya ke Claude,
+bilang bagian mana yang berubah — nanti diperbaiki.
+================================================
