@@ -33,6 +33,7 @@ export default function PackagePage() {
     isActive: true,
     maxUsers: null,
     isGroupPackage: false,
+    isGroupClass: false,
     groupPriceType: null,
   });
 
@@ -65,8 +66,8 @@ export default function PackagePage() {
       name === "maxUsers"
     ) {
       updatedValue = value === "" ? null : Number(value);
-    } else if (name === "isGroupPackage") {
-      updatedValue = value === "true";
+    } else if (name === "isGroupPackage" || name === "isGroupClass") {
+      updatedValue = value === "true" || value === true;
     }
 
     if (isEditMode && selectedPackage) {
@@ -128,6 +129,7 @@ export default function PackagePage() {
           ...typeSpecificData,
           maxUsers: Number(packageData.maxUsers) || null,
           isGroupPackage: true, // GROUP_TRAINING packages are always group packages
+          isGroupClass: packageData.isGroupClass ?? false,
           groupPriceType: packageData.groupPriceType || null,
         };
       } else {
@@ -135,6 +137,7 @@ export default function PackagePage() {
           ...typeSpecificData,
           maxUsers: null,
           isGroupPackage: false,
+          isGroupClass: false,
           groupPriceType: null,
         };
       }

@@ -618,6 +618,7 @@ export const memberRouter = createTRPCRouter({
               name: true,
               email: true,
               image: true,
+              birthDate: true,
             },
           },
         },
@@ -646,6 +647,7 @@ export const memberRouter = createTRPCRouter({
               name: true,
               email: true,
               image: true,
+              birthDate: true,
             },
           },
         },
@@ -653,5 +655,69 @@ export const memberRouter = createTRPCRouter({
 
       return member;
     }),
+
+  /**
+   * Get members with birthdays today and in the next 3 days
+   */
+  getUpcomingBirthdays: permissionProtectedProcedure(["list:member"]).query(
+    async ({ ctx }) => {
+      // Get all members with birthDate set
+      const members = await ctx.db.membership.findMany({
+        where: {
+          user: {
+            birthDate: { not: null },
+          },
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+              birthDate: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      const today = new Date();
+      const todayMonth = today.getMonth();
+      const todayDate = today.getDate();
+
+      // Filter members whose birthday (month+day) is today or within the next 3 days
+      const upcomingBirthdays = members
+        .map((m) => {
+          const bd = m.user.birthDate!;
+          const bdMonth = bd.getMonth();
+          const bdDate = bd.getDate();
+
+          // Calculate this year's birthday
+          let birthdayThisYear = new Date(today.getFullYear(), bdMonth, bdDate);
+          // If birthday already passed this year, check next year
+          if (birthdayThisYear < new Date(today.getFullYear(), todayMonth, todayDate)) {
+            birthdayThisYear = new Date(today.getFullYear() + 1, bdMonth, bdDate);
+          }
+
+          const diffMs = birthdayThisYear.getTime() - new Date(today.getFullYear(), todayMonth, todayDate).getTime();
+          const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+          return {
+            id: m.id,
+            name: m.user.name,
+            email: m.user.email,
+            phone: m.user.phone,
+            image: m.user.image,
+            birthDate: bd.toISOString(),
+            daysUntilBirthday: diffDays,
+            isToday: diffDays === 0,
+          };
+        })
+        .filter((m) => m.daysUntilBirthday >= 0 && m.daysUntilBirthday <= 3)
+        .sort((a, b) => a.daysUntilBirthday - b.daysUntilBirthday);
+
+      return upcomingBirthdays;
+    },
+  ),
 
 });

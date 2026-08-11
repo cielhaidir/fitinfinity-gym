@@ -220,12 +220,12 @@ export default function SubscriptionPage({
       return;
     }
 
-    // Validate that trainer/group items have trainerId
+    // Validate that trainer items have trainerId (group does not require trainer)
     const invalidTrainerItems = cart.filter(item =>
-      (item.type === "trainer" || item.type === "group") && !item.trainerId
+      item.type === "trainer" && !item.trainerId
     );
     if (invalidTrainerItems.length > 0) {
-      toast.error("Please select a trainer for all training packages.");
+      toast.error("Please select a trainer for all Personal Trainer packages.");
       return;
     }
 
@@ -793,100 +793,122 @@ export default function SubscriptionPage({
                     <div className="space-y-6">
                       <div>
                         <h3 className="mb-3 text-lg font-medium">
-                          Select Personal Trainer
+                          Select Group Training Package
                         </h3>
-                        <Select
-                          value={selectedTrainer}
-                          onValueChange={setSelectedTrainer}
+                        <RadioGroup
+                          value={selectedPackage}
+                          onValueChange={(val) => {
+                            setSelectedPackage(val);
+                            setSelectedTrainer("");
+                          }}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a trainer" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {trainers?.length ? (
-                              trainers.map((trainer) => (
-                                <SelectItem key={trainer.id} value={trainer.id}>
-                                  {trainer?.user?.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem disabled value="no data">
-                                No data
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
+                          <div className="grid grid-cols-1 gap-4">
+                            {groupPackages?.map((pkg) => (
+                              <div
+                                key={pkg.id}
+                                className="flex items-center space-x-2"
+                              >
+                                <RadioGroupItem value={pkg.id} id={pkg.id} />
+                                <Label
+                                  htmlFor={pkg.id}
+                                  className="flex flex-1 justify-between items-start"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {pkg.name} ({pkg.sessions} sessions)
+                                    </span>
+                                    {pkg.description && (
+                                      <span className="text-sm text-muted-foreground mt-1">
+                                        {pkg.description}
+                                      </span>
+                                    )}
+                                    {pkg.isGroupPackage && (
+                                      <span className="text-sm text-muted-foreground mt-1">
+                                        <Users className="inline h-3 w-3 mr-1" />
+                                        Max {pkg.maxUsers} people • {pkg.groupPriceType === "TOTAL" ? "Split cost" : "Per person"}
+                                      </span>
+                                    )}
+                                    {pkg.isGroupClass && (
+                                      <span className="text-sm text-blue-600 mt-1">
+                                        Group Class — Trainer ditentukan per sesi
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="font-semibold">
+                                    Rp {pkg.price.toLocaleString("id-ID")}
+                                    {pkg.isGroupPackage && pkg.groupPriceType === "TOTAL" && (
+                                      <span className="text-sm text-muted-foreground block">
+                                        (split among group)
+                                      </span>
+                                    )}
+                                  </span>
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </RadioGroup>
                       </div>
 
-                      {selectedTrainer && (
+                      {/* Show trainer select only if selected package is NOT isGroupClass */}
+                      {selectedPackage && selectedPackageDetails && !(selectedPackageDetails as any).isGroupClass && (
                         <div>
                           <h3 className="mb-3 text-lg font-medium">
-                            Select Group Training Package
+                            Select Personal Trainer
                           </h3>
-                          <RadioGroup
-                            value={selectedPackage}
-                            onValueChange={setSelectedPackage}
+                          <Select
+                            value={selectedTrainer}
+                            onValueChange={setSelectedTrainer}
                           >
-                            <div className="grid grid-cols-1 gap-4">
-                              {groupPackages?.map((pkg) => (
-                                <div
-                                  key={pkg.id}
-                                  className="flex items-center space-x-2"
-                                >
-                                  <RadioGroupItem value={pkg.id} id={pkg.id} />
-                                  <Label
-                                    htmlFor={pkg.id}
-                                    className="flex flex-1 justify-between items-start"
-                                  >
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">
-                                        {pkg.name} ({pkg.sessions} sessions)
-                                      </span>
-                                      {pkg.description && (
-                                        <span className="text-sm text-muted-foreground mt-1">
-                                          {pkg.description}
-                                        </span>
-                                      )}
-                                      {pkg.isGroupPackage && (
-                                        <span className="text-sm text-muted-foreground mt-1">
-                                          <Users className="inline h-3 w-3 mr-1" />
-                                          Max {pkg.maxUsers} people • {pkg.groupPriceType === "TOTAL" ? "Split cost" : "Per person"}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="font-semibold">
-                                      Rp {pkg.price.toLocaleString("id-ID")}
-                                      {pkg.isGroupPackage && pkg.groupPriceType === "TOTAL" && (
-                                        <span className="text-sm text-muted-foreground block">
-                                          (split among group)
-                                        </span>
-                                      )}
-                                    </span>
-                                  </Label>
-                                </div>
-                              ))}
-                            </div>
-                          </RadioGroup>
-                          
-                          {selectedPackage && selectedPackageDetails && selectedTrainer && (
-                            <Button
-                              onClick={() => {
-                                addToCart({
-                                  type: "group",
-                                  packageId: selectedPackage,
-                                  trainerId: selectedTrainer,
-                                  name: selectedPackageDetails.name,
-                                  price: selectedPackageDetails.price,
-                                  sessions: selectedPackageDetails.sessions ?? undefined,
-                                });
-                              }}
-                              className="mt-4 w-full"
-                              variant="outline"
-                            >
-                              Add to Order
-                            </Button>
-                          )}
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a trainer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {trainers?.length ? (
+                                trainers.map((trainer) => (
+                                  <SelectItem key={trainer.id} value={trainer.id}>
+                                    {trainer?.user?.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem disabled value="no data">
+                                  No data
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
                         </div>
+                      )}
+
+                      {/* Info box for isGroupClass packages */}
+                      {selectedPackage && selectedPackageDetails && (selectedPackageDetails as any).isGroupClass && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md dark:bg-blue-950 dark:border-blue-800">
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            <strong>Info:</strong> Untuk package ini, Personal Trainer tidak perlu dipilih saat checkout. Trainer akan ditentukan per sesi saat pembuatan Group Class.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Add to Order button */}
+                      {selectedPackage && selectedPackageDetails && (
+                        // For isGroupClass: no trainer needed. Otherwise, trainer must be selected.
+                        ((selectedPackageDetails as any).isGroupClass || selectedTrainer) && (
+                          <Button
+                            onClick={() => {
+                              addToCart({
+                                type: "group",
+                                packageId: selectedPackage,
+                                trainerId: (selectedPackageDetails as any).isGroupClass ? undefined : selectedTrainer,
+                                name: selectedPackageDetails.name,
+                                price: selectedPackageDetails.price,
+                                sessions: selectedPackageDetails.sessions ?? undefined,
+                              });
+                            }}
+                            className="mt-4 w-full"
+                            variant="outline"
+                          >
+                            Add to Order
+                          </Button>
+                        )
                       )}
                     </div>
                   </TabsContent>

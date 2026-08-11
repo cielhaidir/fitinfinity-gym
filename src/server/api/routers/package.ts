@@ -29,6 +29,7 @@ export const packageRouter = createTRPCRouter({
       // Group package fields
       maxUsers: z.number().nullish(),
       isGroupPackage: z.boolean().optional(),
+      isGroupClass: z.boolean().optional(),
       groupPriceType: groupPriceType.nullish(),
     }),
   )
@@ -54,6 +55,7 @@ export const packageRouter = createTRPCRouter({
           isActive: input.isActive ?? true,
           maxUsers: input.maxUsers ?? null,
           isGroupPackage: input.type === "GROUP_TRAINING" ? true : (input.isGroupPackage ?? false),
+          isGroupClass: input.type === "GROUP_TRAINING" ? (input.isGroupClass ?? false) : false,
           groupPriceType: input.groupPriceType ?? null,
         },
       });
@@ -154,6 +156,7 @@ export const packageRouter = createTRPCRouter({
         // Group package fields
         maxUsers: z.number().nullable(),
         isGroupPackage: z.boolean(),
+        isGroupClass: z.boolean().optional(),
         groupPriceType: groupPriceType.nullable(),
       }),
     )
@@ -180,6 +183,7 @@ export const packageRouter = createTRPCRouter({
             isActive: data.isActive,
             maxUsers: data.maxUsers,
             isGroupPackage: data.type === "GROUP_TRAINING" ? true : data.isGroupPackage,
+            isGroupClass: data.type === "GROUP_TRAINING" ? (data.isGroupClass ?? false) : false,
             groupPriceType: data.groupPriceType,
           },
         });
@@ -915,6 +919,12 @@ export const packageRouter = createTRPCRouter({
       search: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
+      // Get the group subscription to find the lead member
+      const groupSub = await ctx.db.groupSubscription.findUnique({
+        where: { id: input.groupSubscriptionId },
+        select: { leadSubscription: { select: { memberId: true } } },
+      });
+
       // Get existing ACTIVE group members (REMOVED members should be available to re-add)
       const existingMembers = await ctx.db.groupMember.findMany({
         where: { groupSubscriptionId: input.groupSubscriptionId, status: "ACTIVE" },
@@ -923,17 +933,15 @@ export const packageRouter = createTRPCRouter({
 
       const existingMemberIds = existingMembers.map(gm => gm.subscription.memberId);
 
-      // Find available members (not already in the group and have active subscription)
+      // Also exclude the lead (owner) of the group
+      if (groupSub?.leadSubscription?.memberId) {
+        existingMemberIds.push(groupSub.leadSubscription.memberId);
+      }
+
+      // Find available members (not already in the group)
       const availableMembers = await ctx.db.membership.findMany({
         where: {
           id: { notIn: existingMemberIds },
-          // Check for active subscriptions instead of membership.isActive
-          subscriptions: {
-            some: {
-              isActive: true,
-              deletedAt: null,
-            },
-          },
           ...(input.search && {
             user: {
               OR: [

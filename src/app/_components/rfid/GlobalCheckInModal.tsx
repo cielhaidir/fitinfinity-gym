@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRFIDCheckIn } from "../hooks/useRFIDCheckIn";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-import { Loader2, Clock, Users, CheckCircle2, XCircle, X } from "lucide-react";
+import { Loader2, Clock, Users, CheckCircle2, XCircle, X, Cake } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -37,7 +37,7 @@ function formatFacilityDescription(lokerNumber: string, handuk: string): string 
 interface CheckInCardMember {
   id: string;
   rfidNumber: string | null;
-  user: { name: string | null; email: string | null; image?: string | null };
+  user: { name: string | null; email: string | null; image?: string | null; birthDate?: string | Date | null };
 }
 
 interface CheckInCardProps {
@@ -169,6 +169,47 @@ function CheckInCard({ member, index, total, onDone }: CheckInCardProps) {
           </div>
         </div>
       </div>
+
+      {/* Birthday Info */}
+      {(() => {
+        if (!member.user.birthDate) return null;
+        const bd = new Date(member.user.birthDate);
+        const today = new Date();
+        const todayMonth = today.getMonth();
+        const todayDate = today.getDate();
+        const bdMonth = bd.getMonth();
+        const bdDate = bd.getDate();
+
+        // This year's birthday
+        let birthdayThisYear = new Date(today.getFullYear(), bdMonth, bdDate);
+        const diffMs = birthdayThisYear.getTime() - new Date(today.getFullYear(), todayMonth, todayDate).getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+        // Show if birthday is today, upcoming within 3 days, or was within the past 7 days
+        if (diffDays === 0) {
+          return (
+            <div className="mb-3 flex items-center gap-2 rounded-md bg-pink-500/10 border border-pink-500/30 px-3 py-2">
+              <Cake className="h-4 w-4 text-pink-500" />
+              <span className="text-sm font-medium text-pink-500">🎂 Selamat Ulang Tahun! (hari ini)</span>
+            </div>
+          );
+        } else if (diffDays > 0 && diffDays <= 3) {
+          return (
+            <div className="mb-3 flex items-center gap-2 rounded-md bg-pink-500/10 border border-pink-500/30 px-3 py-2">
+              <Cake className="h-4 w-4 text-pink-500" />
+              <span className="text-sm font-medium text-pink-500">🎂 Ulang tahun {diffDays} hari lagi ({format(birthdayThisYear, "dd MMM", { locale: localeId })})</span>
+            </div>
+          );
+        } else if (diffDays < 0 && diffDays >= -7) {
+          return (
+            <div className="mb-3 flex items-center gap-2 rounded-md bg-pink-500/10 border border-pink-500/30 px-3 py-2">
+              <Cake className="h-4 w-4 text-pink-500" />
+              <span className="text-sm font-medium text-pink-500">🎂 Ulang tahun {Math.abs(diffDays)} hari yang lalu ({format(birthdayThisYear, "dd MMM", { locale: localeId })})</span>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Loading */}
       {isLoadingMode && (

@@ -74,6 +74,8 @@ export default function ClassVisitPage() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<RegistrationStatus>("all");
   const [classFilter, setClassFilter] = useState<"all" | "past" | "upcoming">("upcoming");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // Register dialog
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -117,7 +119,12 @@ export default function ClassVisitPage() {
 
   // ─── Queries ─────────────────────────────────────────────────────────
   const { data: classesData, isLoading: loadingClasses, refetch: refetchClasses } =
-    api.classVisit.listClasses.useQuery({ filter: classFilter, pageSize: 50 });
+    api.classVisit.listClasses.useQuery({
+      filter: classFilter,
+      pageSize: 50,
+      dateFrom: dateFrom ? new Date(dateFrom + "T00:00:00") : undefined,
+      dateTo: dateTo ? new Date(dateTo + "T23:59:59") : undefined,
+    });
 
   const { data: registrations, isLoading: loadingRegs, refetch: refetchRegs } =
     api.classVisit.listByClass.useQuery(
@@ -220,16 +227,54 @@ export default function ClassVisitPage() {
         {/* ══════════════ LIST VIEW ══════════════ */}
         {!selectedClassId && (
           <div className="space-y-4">
-            <ToggleGroup
-              type="single"
-              value={classFilter}
-              onValueChange={(v) => { if (v) setClassFilter(v as "all" | "past" | "upcoming"); }}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="upcoming" className="text-sm">Coming Soon</ToggleGroupItem>
-              <ToggleGroupItem value="past" className="text-sm">Past</ToggleGroupItem>
-              <ToggleGroupItem value="all" className="text-sm">All</ToggleGroupItem>
-            </ToggleGroup>
+            <div className="flex flex-wrap items-end gap-4">
+              <ToggleGroup
+                type="single"
+                value={classFilter}
+                onValueChange={(v) => {
+                  if (v) {
+                    setClassFilter(v as "all" | "past" | "upcoming");
+                    setDateFrom("");
+                    setDateTo("");
+                  }
+                }}
+                className="justify-start"
+              >
+                <ToggleGroupItem value="upcoming" className="text-sm">Coming Soon</ToggleGroupItem>
+                <ToggleGroupItem value="past" className="text-sm">Past</ToggleGroupItem>
+                <ToggleGroupItem value="all" className="text-sm">All</ToggleGroupItem>
+              </ToggleGroup>
+
+              <div className="flex items-end gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Dari</Label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="h-9 w-[150px]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Sampai</Label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="h-9 w-[150px]"
+                  />
+                </div>
+                {(dateFrom || dateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setDateFrom(""); setDateTo(""); }}
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </div>
 
           <div className="grid gap-4">
             {loadingClasses ? (

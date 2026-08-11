@@ -309,6 +309,32 @@ export const PackageForm: React.FC<PackageFormProps> = ({
                       : "Each member pays the full package price"}
                   </p>
                 </div>
+
+                <div className="flex items-center gap-3 rounded-md border p-3">
+                  <input
+                    type="checkbox"
+                    id="isGroupClass"
+                    name="isGroupClass"
+                    checked={newPackage.isGroupClass ?? false}
+                    onChange={(e) => {
+                      onInputChange({
+                        target: {
+                          name: "isGroupClass",
+                          value: e.target.checked,
+                        },
+                      } as unknown as React.ChangeEvent<HTMLInputElement>);
+                    }}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <div>
+                    <label htmlFor="isGroupClass" className="block text-sm font-medium cursor-pointer">
+                      Group Class Mode
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Jika dicentang, trainer tidak perlu dipilih saat checkout. Trainer akan ditentukan per sesi saat pembuatan Group Class.
+                    </p>
+                  </div>
+                </div>
           </>
         )}
 

@@ -53,6 +53,7 @@ import { freezePriceRouter } from "./routers/freezePrice";
 import { promoRouter } from "./routers/promo";
 import { classVisitRouter } from "./routers/classVisit";
 import { corporateRouter } from "./routers/corporate";
+import { groupClassRouter } from "./routers/groupClass";
 
 /**
  * This is the primary router for your server.
@@ -117,6 +118,7 @@ export const appRouter = createTRPCRouter({
   promo: promoRouter,
   classVisit: classVisitRouter,
   corporate: corporateRouter,
+  groupClass: groupClassRouter,
 });
 
 // export type definition of API

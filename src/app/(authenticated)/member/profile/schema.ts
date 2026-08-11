@@ -20,11 +20,11 @@ export const updateProfileSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   address: z.string().optional(),
-  phone: z.string().optional(),
-  birthDate: z.date().optional(),
+  phone: z.string().min(1, "Phone is required"),
+  birthDate: z.date({ required_error: "Birth date is required" }),
   idNumber: z.string().optional(),
-  height: z.number().optional(),
-  weight: z.number().optional(),
+  height: z.number({ required_error: "Height is required" }).min(1, "Height is required"),
+  weight: z.number({ required_error: "Weight is required" }).min(1, "Weight is required"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
 });
 

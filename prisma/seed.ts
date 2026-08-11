@@ -309,6 +309,9 @@ async function main() {
 
     // Subscription checkout (member self-service)
     { name: "checkout:subscription" },
+
+    // Cancel completed group class (refund sessions)
+    { name: "cancel:completed-session" },
   ];
 
   console.log("🌱 Seeding permissions...");

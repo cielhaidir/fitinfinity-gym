@@ -12,6 +12,7 @@ interface Member {
     name: string | null;
     email: string | null;
     image?: string | null;
+    birthDate?: string | Date | null;
   };
 }
 

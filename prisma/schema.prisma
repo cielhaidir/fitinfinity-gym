@@ -268,6 +268,9 @@ model User {
     
     // API mutation logs
     logs                      Logs[]                @relation("UserLogs")
+    
+    // Group Class created by admin
+    createdGroupClasses       GroupClass[]           @relation("GroupClassCreator")
 }
 
 model Class {
@@ -299,6 +302,7 @@ model ClassType {
     updatedAt   DateTime @updatedAt
     
     classes     Class[]
+    groupClasses GroupClass[]
 }
 
 model ClassMember {
@@ -347,6 +351,7 @@ model Membership {
     freezeOperations  FreezeOperation[]  @relation("FreezeOperationMember")
     promoRedemptions  PromoRedemption[]
     classVisitRegistrations ClassVisitRegistration[] @relation("ClassVisitToMembership")
+    groupClassAttendances GroupClassAttendance[] @relation("GroupClassAttendanceToMembership")
 }
 
 model Role {
@@ -476,6 +481,7 @@ model PersonalTrainer {
     subscriptions Subscription[]
     sessions      TrainerSession[]
     paymentValidations PaymentValidation[]
+    groupClasses  GroupClass[]
 }
 
 enum MembershipStatus {
@@ -511,6 +517,7 @@ model Package {
     // Group package fields
     maxUsers     Int?           // Maximum users for group packages
     isGroupPackage Boolean      @default(false)
+    isGroupClass   Boolean      @default(false) // If true, trainer is assigned per session (not at checkout)
     groupPriceType GroupPriceType? // TOTAL or PER_PERSON
     
     createdAt    DateTime       @default(now())
@@ -1066,6 +1073,7 @@ model GroupSubscription {
     leadSubscription  Subscription @relation(fields: [leadSubscriptionId], references: [id])
     package           Package      @relation(fields: [packageId], references: [id])
     groupMembers      GroupMember[]
+    groupClasses      GroupClass[]
     
     @@index([leadSubscriptionId])
     @@index([packageId])
@@ -1413,6 +1421,65 @@ model Corporate {
 
     @@index([isActive])
     @@index([name])
+}
+
+// ============================================
+// Group Class Feature
+// ============================================
+
+model GroupClass {
+    id                   String   @id @default(cuid())
+    groupSubscriptionId  String
+    classTypeId          String?
+    trainerId            String
+    schedule             DateTime
+    endTime              DateTime
+    duration             Int                             // Duration in minutes
+    description          String?
+    status               GroupClassStatus @default(SCHEDULED)
+    cancelReason         String?
+    createdBy            String?                         // Admin userId who created
+    createdAt            DateTime @default(now())
+    updatedAt            DateTime @updatedAt
+
+    groupSubscription    GroupSubscription @relation(fields: [groupSubscriptionId], references: [id])
+    classType            ClassType?       @relation(fields: [classTypeId], references: [id])
+    trainer              PersonalTrainer  @relation(fields: [trainerId], references: [id])
+    creator              User?            @relation("GroupClassCreator", fields: [createdBy], references: [id])
+    attendances          GroupClassAttendance[]
+
+    @@index([groupSubscriptionId])
+    @@index([trainerId])
+    @@index([schedule])
+    @@index([status])
+}
+
+model GroupClassAttendance {
+    id              String   @id @default(cuid())
+    groupClassId    String
+    memberId        String                              // Membership.id
+    subscriptionId  String?                             // Subscription that was decremented
+    isBonusSession  Boolean  @default(false)
+    attended        Boolean?                            // null=not yet checked, true=attended, false=absent
+    attendedAt      DateTime?
+    lokerNumber     String?                             // Locker number used by member
+    handukType      String?                             // Towel type: None, Small, Large
+    checkInTime     DateTime?                           // Individual check-in time
+    createdAt       DateTime @default(now())
+
+    groupClass      GroupClass  @relation(fields: [groupClassId], references: [id])
+    member          Membership @relation("GroupClassAttendanceToMembership", fields: [memberId], references: [id])
+
+    @@unique([groupClassId, memberId])
+    @@index([groupClassId])
+    @@index([memberId])
+}
+
+enum GroupClassStatus {
+    SCHEDULED
+    ONGOING
+    ENDED
+    CANCELLED
 }
 
 // ============================================

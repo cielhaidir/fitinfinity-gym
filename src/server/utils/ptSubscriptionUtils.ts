@@ -223,3 +223,82 @@ export async function decrementClassSessionFIFO(params: {
 
   throw new Error("Member tidak memiliki sisa sesi class yang tersedia (paid maupun bonus)");
 }
+
+// ─── 4. Group Training Session FIFO Decrement ─────────────────────────
+
+/**
+ * Decrement one session from the GROUP_TRAINING subscription with the
+ * **earliest endDate** (expiry-first FIFO) for a given member.
+ *
+ * Unlike PT FIFO, this filters by package type GROUP_TRAINING and does
+ * not require a trainerId (since group training trainer varies per session).
+ *
+ * Priority within a subscription: paid sessions first, then bonus sessions.
+ *
+ * @returns updated subscription id, new session counts, and whether a bonus
+ *   slot was consumed.
+ * @throws if no GROUP_TRAINING subscription with available sessions is found
+ */
+export async function decrementGroupSessionFIFO(params: {
+  tx: Tx;
+  memberId: string;
+}): Promise<{
+  id: string;
+  remainingSessions: number | null;
+  remainingBonusSessions: number;
+  isBonusSession: boolean;
+}> {
+  const { tx, memberId } = params;
+
+  // Find the GROUP_TRAINING subscription expiring soonest that still has paid sessions
+  const subWithPaid = await tx.subscription.findFirst({
+    where: {
+      memberId,
+      isActive: true,
+      deletedAt: null,
+      remainingSessions: { gt: 0 },
+      package: { type: "GROUP_TRAINING" },
+    },
+    orderBy: { endDate: "asc" },
+    select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+  });
+
+  if (subWithPaid) {
+    const updated = await tx.subscription.update({
+      where: { id: subWithPaid.id },
+      data: { remainingSessions: { decrement: 1 } },
+      select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+    });
+    console.log(
+      `[GroupFIFO] Paid session decremented from subscription ${updated.id}, remaining paid: ${updated.remainingSessions}, bonus: ${updated.remainingBonusSessions}`,
+    );
+    return { ...updated, remainingBonusSessions: updated.remainingBonusSessions ?? 0, isBonusSession: false };
+  }
+
+  // No paid sessions left — try bonus sessions (same expiry-first order)
+  const subWithBonus = await tx.subscription.findFirst({
+    where: {
+      memberId,
+      isActive: true,
+      deletedAt: null,
+      remainingBonusSessions: { gt: 0 },
+      package: { type: "GROUP_TRAINING" },
+    },
+    orderBy: { endDate: "asc" },
+    select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+  });
+
+  if (subWithBonus) {
+    const updated = await tx.subscription.update({
+      where: { id: subWithBonus.id },
+      data: { remainingBonusSessions: { decrement: 1 } },
+      select: { id: true, remainingSessions: true, remainingBonusSessions: true },
+    });
+    console.log(
+      `[GroupFIFO] Bonus session decremented from subscription ${updated.id}, remaining paid: ${updated.remainingSessions}, bonus: ${updated.remainingBonusSessions}`,
+    );
+    return { ...updated, remainingBonusSessions: updated.remainingBonusSessions ?? 0, isBonusSession: true };
+  }
+
+  throw new Error("Member tidak memiliki sisa sesi group training yang tersedia (paid maupun bonus)");
+}

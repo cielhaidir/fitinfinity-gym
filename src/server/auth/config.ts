@@ -22,6 +22,9 @@ declare module "next-auth" {
       // ...other properties
       // role: UserRole;
       phone?: string;
+      birthDate?: string | null;
+      height?: number | null;
+      weight?: number | null;
     } & DefaultSession["user"];
   }
 
@@ -193,8 +196,11 @@ export const authConfig = {
           );
           session.user.permissions = [...new Set(permissions)];
           session.user.roles = user.roles.map((role) => role.name);
-          // Always fetch phone from DB result
+          // Always fetch profile fields from DB result
                     session.user.phone = (user as any).phone ?? "";
+                    session.user.birthDate = (user as any).birthDate ? (user as any).birthDate.toISOString() : null;
+                    session.user.height = (user as any).height ?? null;
+                    session.user.weight = (user as any).weight ?? null;
         }
         // Check and create membership if it doesn't exist
         try {

@@ -4543,11 +4543,104 @@ export const subscriptionRouter = createTRPCRouter({
   // Monthly retention / renewal breakdown for the last N months.
   // For each GYM_MEMBERSHIP subscription that STARTED in a month we classify it:
   //   - "new"     → it is the member's first-ever gym subscription
-  //   - "renewal" → the member already had an earlier gym subscription
-  // renewalRate = renewals / (new + renewals) * 100 for that month.
-  // Definitions match the "Total New Members" / "Total Renewals" stat cards.
+  //   - "renewal" → member perpanjang dalam 30 hari setelah expire (continuous)
+  //   - "rejoin" → member kembali setelah >30 hari expire (win-back)
+  // renewalRate = (renewals + rejoin) / total * 100 for that month.
   getRetentionByMonth: permissionProtectedProcedure(["list:subscription"])
     .input(z.object({ months: z.number().min(1).max(24).default(6) }))
+    .query(async ({ ctx, input }) => {
+      const { months } = input;
+      const now = new Date();
+      const REJOIN_THRESHOLD_DAYS = 30;
+
+      const buckets = Array.from({ length: months }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
+        return {
+          label: d.toLocaleString("id-ID", { month: "short", year: "2-digit" }),
+          start: new Date(d.getFullYear(), d.getMonth(), 1),
+          end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
+          year: d.getFullYear(),
+          monthIndex: d.getMonth(),
+          newMembers: 0,
+          renewals: 0,
+          rejoin: 0,
+        };
+      });
+
+      const bucketFor = (date: Date) =>
+        buckets.find((b) => date >= b.start && date <= b.end);
+
+      // All gym subscriptions (all-time) with start + end dates.
+      const gymSubs = await ctx.db.subscription.findMany({
+        where: { deletedAt: null, package: { type: "GYM_MEMBERSHIP" } },
+        select: { memberId: true, startDate: true, endDate: true },
+      });
+
+      // Group subs per member, sorted by startDate.
+      const byMember = new Map<string, { startDate: Date; endDate: Date | null }[]>();
+      for (const s of gymSubs) {
+        if (!s.startDate) continue;
+        const arr = byMember.get(s.memberId) ?? [];
+        arr.push({ startDate: s.startDate, endDate: s.endDate });
+        byMember.set(s.memberId, arr);
+      }
+
+      for (const subs of byMember.values()) {
+        subs.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+        subs.forEach((sub, idx) => {
+          const bucket = bucketFor(sub.startDate);
+          if (!bucket) return;
+          if (idx === 0) {
+            bucket.newMembers += 1;
+          } else {
+            // Check gap between previous sub's endDate and this sub's startDate
+            const prevEnd = subs[idx - 1]!.endDate;
+            if (prevEnd) {
+              const gapDays = Math.floor(
+                (sub.startDate.getTime() - prevEnd.getTime()) / (24 * 60 * 60 * 1000),
+              );
+              if (gapDays > REJOIN_THRESHOLD_DAYS) {
+                bucket.rejoin += 1;
+              } else {
+                bucket.renewals += 1;
+              }
+            } else {
+              bucket.renewals += 1;
+            }
+          }
+        });
+      }
+
+      return buckets.map((b) => {
+        const total = b.newMembers + b.renewals + b.rejoin;
+        return {
+          month: b.label,
+          year: b.year,
+          monthIndex: b.monthIndex,
+          newMembers: b.newMembers,
+          renewals: b.renewals,
+          rejoin: b.rejoin,
+          total,
+          renewalRate: total > 0 ? Math.round((b.renewals / total) * 1000) / 10 : 0,
+          rejoinRate: total > 0 ? Math.round((b.rejoin / total) * 1000) / 10 : 0,
+          newMemberRate: total > 0 ? Math.round((b.newMembers / total) * 1000) / 10 : 0,
+        };
+      });
+    }),
+
+  // Monthly Churn Rate (based on expiry).
+  //   For each month, find unique members whose GYM subscription expired.
+  //   A member is "churned" only if they have NO subsequent GYM subscription
+  //   after the expired one (truly gone — never came back).
+  //   churnRate = churned / totalExpiring * 100
+  //   Deduplicated per member per month.
+  getTrueRetentionByMonth: permissionProtectedProcedure(["list:subscription"])
+    .input(
+      z.object({
+        months: z.number().min(1).max(24).default(6),
+        graceDays: z.number().min(0).max(120).default(45),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { months } = input;
       const now = new Date();
@@ -4560,81 +4653,7 @@ export const subscriptionRouter = createTRPCRouter({
           end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
           year: d.getFullYear(),
           monthIndex: d.getMonth(),
-          newMembers: 0,
-          renewals: 0,
-        };
-      });
-
-      const bucketFor = (date: Date) =>
-        buckets.find((b) => date >= b.start && date <= b.end);
-
-      // All gym subscriptions (all-time) so we can detect each member's first.
-      const gymSubs = await ctx.db.subscription.findMany({
-        where: { deletedAt: null, package: { type: "GYM_MEMBERSHIP" } },
-        select: { memberId: true, startDate: true },
-      });
-
-      // Group start dates per member.
-      const byMember = new Map<string, Date[]>();
-      for (const s of gymSubs) {
-        if (!s.startDate) continue;
-        const arr = byMember.get(s.memberId) ?? [];
-        arr.push(s.startDate);
-        byMember.set(s.memberId, arr);
-      }
-
-      for (const dates of byMember.values()) {
-        dates.sort((a, b) => a.getTime() - b.getTime());
-        dates.forEach((d, idx) => {
-          const bucket = bucketFor(d);
-          if (!bucket) return;
-          if (idx === 0) bucket.newMembers += 1;
-          else bucket.renewals += 1;
-        });
-      }
-
-      return buckets.map((b) => {
-        const total = b.newMembers + b.renewals;
-        return {
-          month: b.label,
-          year: b.year,
-          monthIndex: b.monthIndex,
-          newMembers: b.newMembers,
-          renewals: b.renewals,
-          total,
-          renewalRate: total > 0 ? Math.round((b.renewals / total) * 1000) / 10 : 0,
-        };
-      });
-    }),
-
-  // Monthly renewal vs churn flow.
-  //   retained (Diperpanjang) → a renewal subscription that STARTED in the month
-  //       (member's non-first gym sub). Anchored by startDate so it matches the
-  //       "Perpanjangan" bar in getRetentionByMonth exactly.
-  //   churned  (Berhenti)     → a gym sub that ENDED in the month (already past)
-  //       and had NO follow-up sub within `graceDays`. Anchored by endDate.
-  //   retentionRate = retained / (retained + churned) * 100
-  getTrueRetentionByMonth: permissionProtectedProcedure(["list:subscription"])
-    .input(
-      z.object({
-        months: z.number().min(1).max(24).default(6),
-        graceDays: z.number().min(0).max(120).default(45),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const { months, graceDays } = input;
-      const now = new Date();
-      const graceMs = graceDays * 24 * 60 * 60 * 1000;
-
-      const buckets = Array.from({ length: months }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
-        return {
-          label: d.toLocaleString("id-ID", { month: "short", year: "2-digit" }),
-          start: new Date(d.getFullYear(), d.getMonth(), 1),
-          end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
-          year: d.getFullYear(),
-          monthIndex: d.getMonth(),
-          retained: 0,
+          totalExpiring: 0,
           churned: 0,
         };
       });
@@ -4644,54 +4663,64 @@ export const subscriptionRouter = createTRPCRouter({
 
       const gymSubs = await ctx.db.subscription.findMany({
         where: { deletedAt: null, package: { type: "GYM_MEMBERSHIP" } },
-        select: { memberId: true, startDate: true, endDate: true },
+        select: { memberId: true, startDate: true, endDate: true, isFrozen: true, isActive: true },
       });
 
-      // Group each member's subscriptions for renewal detection + follow-up lookup.
-      const byMember = new Map<string, { starts: number[]; dates: Date[] }>();
+      // Exclude members who still have active or frozen sub
+      const membersWithActiveOrFrozen = new Set<string>();
+      for (const s of gymSubs) {
+        if (s.isActive || s.isFrozen) {
+          membersWithActiveOrFrozen.add(s.memberId);
+        }
+      }
+
+      // Group start dates per member for follow-up lookup.
+      const startsByMember = new Map<string, number[]>();
       for (const s of gymSubs) {
         if (!s.startDate) continue;
-        const entry = byMember.get(s.memberId) ?? { starts: [], dates: [] };
-        entry.starts.push(s.startDate.getTime());
-        entry.dates.push(s.startDate);
-        byMember.set(s.memberId, entry);
+        const arr = startsByMember.get(s.memberId) ?? [];
+        arr.push(s.startDate.getTime());
+        startsByMember.set(s.memberId, arr);
       }
 
-      // Retained pass: every non-first gym sub is a renewal, bucketed by its
-      // START month (identical logic to getRetentionByMonth "renewals").
-      for (const entry of byMember.values()) {
-        entry.dates.sort((a, b) => a.getTime() - b.getTime());
-        entry.dates.forEach((d, idx) => {
-          if (idx === 0) return; // first sub = new member, not a renewal
-          const bucket = bucketFor(d);
-          if (bucket) bucket.retained += 1;
-        });
-      }
+      // Track per member per bucket to avoid double counting
+      const counted = new Map<string, Set<string>>(); // bucketLabel -> Set<memberId>
 
-      // Churn pass: gym subs that already expired within the month with no
-      // follow-up sub inside the grace window, bucketed by END month.
+      // For each subscription that expires in a bucket month, check if renewed
       for (const s of gymSubs) {
         if (!s.endDate || !s.startDate) continue;
-        if (s.endDate > now) continue;
+        if (s.endDate > now) continue; // only past expiries
+        // Skip members who still have active or frozen sub
+        if (membersWithActiveOrFrozen.has(s.memberId)) continue;
         const bucket = bucketFor(s.endDate);
         if (!bucket) continue;
-        const expiry = s.endDate.getTime();
+
+        // Deduplicate: count each member only once per expiry month
+        const key = bucket.label;
+        if (!counted.has(key)) counted.set(key, new Set());
+        if (counted.get(key)!.has(s.memberId)) continue;
+        counted.get(key)!.add(s.memberId);
+
+        bucket.totalExpiring += 1;
+
         const thisStart = s.startDate.getTime();
-        const starts = byMember.get(s.memberId)?.starts ?? [];
-        const renewed = starts.some((t) => t > thisStart && t <= expiry + graceMs);
-        if (!renewed) bucket.churned += 1;
+        const starts = startsByMember.get(s.memberId) ?? [];
+        // Check if there's ANY follow-up sub that started after this one (no time limit)
+        const hasFollowUp = starts.some((t) => t > thisStart);
+
+        if (!hasFollowUp) {
+          bucket.churned += 1;
+        }
       }
 
       return buckets.map((b) => {
-        const total = b.retained + b.churned;
         return {
           month: b.label,
           year: b.year,
           monthIndex: b.monthIndex,
-          retained: b.retained,
+          totalExpiring: b.totalExpiring,
           churned: b.churned,
-          total,
-          retentionRate: total > 0 ? Math.round((b.retained / total) * 1000) / 10 : 0,
+          churnRate: b.totalExpiring > 0 ? Math.round((b.churned / b.totalExpiring) * 1000) / 10 : 0,
         };
       });
     }),
@@ -4810,6 +4839,111 @@ export const subscriptionRouter = createTRPCRouter({
       return rows;
     }),
 
+  // Detail: list of RENEWAL or REJOIN members for a given month.
+  // type "renewal" = gap ≤30 days from previous endDate, "rejoin" = gap >30 days.
+  // Used by the "Retensi / Renewal Rate" chart drill-down popup.
+  getRenewalMembersByMonth: permissionProtectedProcedure(["list:subscription"])
+    .input(z.object({
+      year: z.number(),
+      month: z.number().min(0).max(11),
+      type: z.enum(["renewal", "rejoin"]).default("renewal"),
+    }))
+    .query(async ({ ctx, input }) => {
+      const start = new Date(input.year, input.month, 1);
+      const end = new Date(input.year, input.month + 1, 0, 23, 59, 59, 999);
+      const REJOIN_THRESHOLD_DAYS = 30;
+
+      // All gym subscriptions (all-time) to detect first vs renewal
+      const allGym = await ctx.db.subscription.findMany({
+        where: { deletedAt: null, package: { type: "GYM_MEMBERSHIP" } },
+        select: { id: true, memberId: true, startDate: true, endDate: true },
+      });
+
+      // Group subs per member
+      const byMember = new Map<string, { startDate: Date; endDate: Date | null; subId: string }[]>();
+      for (const s of allGym) {
+        if (!s.startDate) continue;
+        const arr = byMember.get(s.memberId) ?? [];
+        arr.push({ startDate: s.startDate, endDate: s.endDate, subId: s.id });
+        byMember.set(s.memberId, arr);
+      }
+
+      // Find subscription IDs that match the type and started in the month
+      const matchingSubIds: string[] = [];
+      for (const [, subs] of byMember.entries()) {
+        subs.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+        subs.forEach((s, idx) => {
+          if (idx === 0) return; // first sub = new member
+          if (s.startDate >= start && s.startDate <= end) {
+            const prevEnd = subs[idx - 1]!.endDate;
+            if (prevEnd) {
+              const gapDays = Math.floor(
+                (s.startDate.getTime() - prevEnd.getTime()) / (24 * 60 * 60 * 1000),
+              );
+              if (input.type === "rejoin" && gapDays > REJOIN_THRESHOLD_DAYS) {
+                matchingSubIds.push(s.subId);
+              } else if (input.type === "renewal" && gapDays <= REJOIN_THRESHOLD_DAYS) {
+                matchingSubIds.push(s.subId);
+              }
+            } else if (input.type === "renewal") {
+              matchingSubIds.push(s.subId);
+            }
+          }
+        });
+      }
+
+      if (matchingSubIds.length === 0) return [];
+
+      // Fetch detailed subscription data
+      const subs = await ctx.db.subscription.findMany({
+        where: { id: { in: matchingSubIds } },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
+          member: {
+            select: {
+              id: true,
+              user: { select: { name: true, email: true, phone: true } },
+            },
+          },
+          package: { select: { name: true, price: true } },
+          payments: {
+            where: { status: "SUCCESS", deletedAt: null },
+            orderBy: { paidAt: "desc" },
+            take: 1,
+            select: { totalPayment: true, method: true, paidAt: true },
+          },
+        },
+      });
+
+      const rows = subs.map((s) => {
+        const payment = s.payments[0];
+        return {
+          memberId: s.member.id,
+          name: s.member.user?.name ?? "Unknown",
+          email: s.member.user?.email ?? "-",
+          phone: s.member.user?.phone ?? "-",
+          packageName: s.package?.name ?? "-",
+          startDate: s.startDate,
+          endDate: s.endDate,
+          isActive: s.isActive,
+          amount: payment?.totalPayment ?? s.package?.price ?? 0,
+          method: payment?.method ?? null,
+          paidAt: payment?.paidAt ?? null,
+        };
+      });
+
+      rows.sort((a, b) => {
+        const da = a.startDate ? a.startDate.getTime() : 0;
+        const dbb = b.startDate ? b.startDate.getTime() : 0;
+        return da - dbb;
+      });
+
+      return rows;
+    }),
+
   // Detail: list of CHURNED members for a given expiry month (drill-down for the
   // "Retensi Member (berdasarkan Expiry)" chart). A member is churned if their
   // GYM subscription ended in the month and they did NOT start another gym sub
@@ -4870,15 +5004,21 @@ export const subscriptionRouter = createTRPCRouter({
         },
       });
 
-      // Keep only churned + already-expired subscriptions.
+      // Keep only truly churned: no subsequent GYM sub at all after this one.
+      const seen = new Set<string>(); // deduplicate per member
       const churned = expiring.filter((s) => {
         if (!s.endDate || !s.startDate) return false;
         if (s.endDate > now) return false;
-        const expiry = s.endDate.getTime();
+        // Deduplicate: only count each member once
+        if (seen.has(s.member.id)) return false;
         const thisStart = s.startDate.getTime();
         const starts = startsByMember.get(s.member.id) ?? [];
-        const renewed = starts.some((t) => t > thisStart && t <= expiry + graceMs);
-        return !renewed;
+        const hasFollowUp = starts.some((t) => t > thisStart);
+        if (!hasFollowUp) {
+          seen.add(s.member.id);
+          return true;
+        }
+        return false;
       });
 
       // Resolve sales person names in bulk.
@@ -4938,6 +5078,144 @@ export const subscriptionRouter = createTRPCRouter({
         };
       });
 
+      rows.sort((a, b) => {
+        const da = a.endDate ? a.endDate.getTime() : 0;
+        const dbb = b.endDate ? b.endDate.getTime() : 0;
+        return dbb - da;
+      });
+
+      return rows;
+    }),
+
+  // Report: All churned members — members who had GYM membership and never renewed.
+  // Returns the last GYM subscription for each churned member.
+  getChurnedMembersAll: permissionProtectedProcedure(["list:subscription"])
+    .query(async ({ ctx }) => {
+      const now = new Date();
+
+      const gymSubs = await ctx.db.subscription.findMany({
+        where: { deletedAt: null, package: { type: "GYM_MEMBERSHIP" } },
+        select: { id: true, memberId: true, startDate: true, endDate: true, isFrozen: true, isActive: true },
+      });
+
+      // Exclude members who have ANY active or frozen GYM sub (they haven't truly left)
+      const membersWithActiveOrFrozen = new Set<string>();
+      for (const s of gymSubs) {
+        if (s.isActive || s.isFrozen) {
+          membersWithActiveOrFrozen.add(s.memberId);
+        }
+      }
+
+      // Group start dates per member
+      const startsByMember = new Map<string, number[]>();
+      for (const s of gymSubs) {
+        if (!s.startDate) continue;
+        const arr = startsByMember.get(s.memberId) ?? [];
+        arr.push(s.startDate.getTime());
+        startsByMember.set(s.memberId, arr);
+      }
+
+      // Find each member's LAST expired sub that has no follow-up
+      const lastSubByMember = new Map<string, { subId: string; startDate: Date; endDate: Date }>();
+      for (const s of gymSubs) {
+        if (!s.endDate || !s.startDate) continue;
+        if (s.endDate > now) continue; // only past expiries
+        // Skip members who still have active or frozen sub
+        if (membersWithActiveOrFrozen.has(s.memberId)) continue;
+        const thisStart = s.startDate.getTime();
+        const starts = startsByMember.get(s.memberId) ?? [];
+        const hasFollowUp = starts.some((t) => t > thisStart);
+        if (!hasFollowUp) {
+          const prev = lastSubByMember.get(s.memberId);
+          if (!prev || s.endDate > prev.endDate) {
+            lastSubByMember.set(s.memberId, { subId: s.id, startDate: s.startDate, endDate: s.endDate });
+          }
+        }
+      }
+
+      if (lastSubByMember.size === 0) return [];
+
+      // Fetch detailed data for the churned subs
+      const subIds = Array.from(lastSubByMember.values()).map((v) => v.subId);
+      const subs = await ctx.db.subscription.findMany({
+        where: { id: { in: subIds } },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          member: {
+            select: {
+              id: true,
+              registerDate: true,
+              user: { select: { name: true, email: true, phone: true, image: true } },
+            },
+          },
+          salesId: true,
+          salesType: true,
+          package: { select: { name: true, price: true, day: true } },
+          payments: {
+            where: { status: "SUCCESS", deletedAt: null },
+            orderBy: { paidAt: "desc" },
+            take: 1,
+            select: { totalPayment: true, method: true },
+          },
+        },
+      });
+
+      // Resolve sales names
+      const ptIds = new Set<string>();
+      const fcIds = new Set<string>();
+      for (const s of subs) {
+        if (s.salesId && s.salesType === "PersonalTrainer") ptIds.add(s.salesId);
+        if (s.salesId && s.salesType === "FC") fcIds.add(s.salesId);
+      }
+      const [pts, fcs] = await Promise.all([
+        ptIds.size
+          ? ctx.db.personalTrainer.findMany({
+              where: { id: { in: Array.from(ptIds) } },
+              select: { id: true, user: { select: { name: true } } },
+            })
+          : Promise.resolve([]),
+        fcIds.size
+          ? ctx.db.fC.findMany({
+              where: { id: { in: Array.from(fcIds) } },
+              select: { id: true, user: { select: { name: true } } },
+            })
+          : Promise.resolve([]),
+      ]);
+      const ptMap = new Map(pts.map((p) => [p.id, p.user?.name ?? null]));
+      const fcMap = new Map(fcs.map((f) => [f.id, f.user?.name ?? null]));
+      const resolveSalesName = (salesId: string | null, salesType: string | null) => {
+        if (!salesId || !salesType) return "-";
+        if (salesType === "PersonalTrainer") return ptMap.get(salesId) ?? "-";
+        if (salesType === "FC") return fcMap.get(salesId) ?? "-";
+        return "-";
+      };
+
+      const rows = subs.map((s) => {
+        const daysExpired = s.endDate
+          ? Math.floor((now.getTime() - s.endDate.getTime()) / (24 * 60 * 60 * 1000))
+          : null;
+        const payment = s.payments[0];
+        return {
+          memberId: s.member.id,
+          name: s.member.user?.name ?? "Unknown",
+          email: s.member.user?.email ?? "-",
+          phone: s.member.user?.phone ?? "-",
+          image: s.member.user?.image ?? null,
+          registerDate: s.member.registerDate,
+          salesName: resolveSalesName(s.salesId, s.salesType),
+          packageName: s.package?.name ?? "-",
+          packageDays: s.package?.day ?? null,
+          startDate: s.startDate,
+          endDate: s.endDate,
+          daysExpired,
+          lastPayment: payment?.totalPayment ?? s.package?.price ?? 0,
+          paymentMethod: payment?.method ?? "-",
+        };
+      });
+
+      // Sort by most recently expired first
       rows.sort((a, b) => {
         const da = a.endDate ? a.endDate.getTime() : 0;
         const dbb = b.endDate ? b.endDate.getTime() : 0;

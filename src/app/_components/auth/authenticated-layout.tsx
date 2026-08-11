@@ -31,22 +31,25 @@ export default function AuthenticatedLayout({
       return;
     }
 
-// Redirect to profile page if profile is incomplete
+// Redirect to profile page if profile is incomplete (only for Members)
 if (
   status === "authenticated" &&
   !isLoading &&
   session?.user &&
-  pathname !== "/member/profile"
+  pathname !== "/member/profile" &&
+  session.user.roles?.includes("Member")
 ) {
-  // Require name and phone for profile completeness
   const isProfileIncomplete =
     !session.user.name ||
     session.user.name.trim() === "" ||
     !session.user.phone ||
-    session.user.phone.trim() === "";
+    session.user.phone.trim() === "" ||
+    !session.user.birthDate ||
+    !session.user.height ||
+    !session.user.weight;
 
-  if (isProfileIncomplete && pathname !== "/member/profile") {
-    toast.warning("You need to complete your profile First");
+  if (isProfileIncomplete) {
+    toast.warning("Lengkapi profil Anda terlebih dahulu");
     router.push("/member/profile");
     return;
   }

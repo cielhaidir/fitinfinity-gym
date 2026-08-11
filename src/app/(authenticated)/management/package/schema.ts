@@ -20,6 +20,7 @@ export const PackageSchema = z.object({
   // Group package fields
   maxUsers: z.number().min(1, "Max users must be at least 1").nullable(),
   isGroupPackage: z.boolean().default(false),
+  isGroupClass: z.boolean().default(false),
   groupPriceType: GroupPriceTypeEnum.nullable(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),

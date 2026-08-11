@@ -466,12 +466,21 @@ export const classVisitRouter = createTRPCRouter({
         filter: z.enum(["all", "past", "upcoming"]).optional().default("upcoming"),
         page: z.number().min(1).optional().default(1),
         pageSize: z.number().min(1).max(100).optional().default(20),
+        dateFrom: z.date().optional(),
+        dateTo: z.date().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       const where: any = {};
-      if (input.filter === "upcoming") where.schedule = { gte: new Date() };
-      else if (input.filter === "past") where.schedule = { lt: new Date() };
+      if (input.dateFrom || input.dateTo) {
+        where.schedule = {};
+        if (input.dateFrom) where.schedule.gte = input.dateFrom;
+        if (input.dateTo) where.schedule.lte = input.dateTo;
+      } else if (input.filter === "upcoming") {
+        where.schedule = { gte: new Date() };
+      } else if (input.filter === "past") {
+        where.schedule = { lt: new Date() };
+      }
 
       const [classes, total] = await Promise.all([
         ctx.db.class.findMany({

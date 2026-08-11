@@ -31,7 +31,7 @@ import {
   Snowflake,
   ArrowRightLeft,
 } from "lucide-react";
-import { type LucideIcon, HandCoins, BookOpen, Ticket, Building2 } from "lucide-react";
+import { type LucideIcon, HandCoins, BookOpen, Ticket, Building2, UserX } from "lucide-react";
 
 interface MenuItem {
   title: string;
@@ -296,6 +296,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "manage:class-visit",
         },
         {
+          title: "Group Class",
+          url: "/admin/group-class",
+          icon: Users,
+          requiredPermission: "menu:group-management",
+        },
+        {
           title: "Reward",
           url: "/admin/reward",
           icon: Gift,
@@ -528,6 +534,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "report:active-membership",
         },
         {
+          title: "Member Berhenti",
+          url: "/reports/churned-members",
+          icon: UserX,
+          requiredPermission: "report:active-membership",
+        },
+        {
           title: "Member Profile Report",
           url: "/reports/member-profile",
           icon: UserRound,
@@ -563,17 +575,17 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: Contact,
           requiredPermission: "report:pt",
         },
-         {
+        {
           title: "Trainer Sessions",
           url: "/reports/trainer-sessions",
           icon: Clock,
           requiredPermission: "report:pt",
         },
         {
-          title: "Sales Report",
-          url: "/reports/sales-report",
-          icon: DollarSign,
-          requiredPermission: "report:sales",
+          title: "Group Class Report",
+          url: "/reports/group-class",
+          icon: Users,
+          requiredPermission: "report:pt",
         },
         {
           title: "Commission Report",

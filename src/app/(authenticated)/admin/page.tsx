@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound, ArrowLeftRight, BookOpen, Ticket } from "lucide-react";
+import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound, ArrowLeftRight, BookOpen, Ticket, Cake } from "lucide-react";
 import { api } from "@/trpc/react";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -112,6 +112,26 @@ const DashboardPage: React.FC = () => {
   const { data: retentionData, isLoading: retentionLoading } =
     api.subs.getRetentionByMonth.useQuery({ months: retentionMonths });
 
+  // Drill-down for retention chart
+  const [selectedRetentionMonth, setSelectedRetentionMonth] = useState<
+    { year: number; monthIndex: number; label: string; type: "new" | "renewal" | "rejoin" } | null
+  >(null);
+  const { data: retentionNewDetail, isLoading: retentionNewLoading } =
+    api.subs.getNewMembersByMonth.useQuery(
+      { year: selectedRetentionMonth?.year ?? 0, month: selectedRetentionMonth?.monthIndex ?? 0 },
+      { enabled: !!selectedRetentionMonth && selectedRetentionMonth.type === "new" },
+    );
+  const { data: retentionRenewalDetail, isLoading: retentionRenewalLoading } =
+    api.subs.getRenewalMembersByMonth.useQuery(
+      { year: selectedRetentionMonth?.year ?? 0, month: selectedRetentionMonth?.monthIndex ?? 0, type: "renewal" },
+      { enabled: !!selectedRetentionMonth && selectedRetentionMonth.type === "renewal" },
+    );
+  const { data: retentionRejoinDetail, isLoading: retentionRejoinLoading } =
+    api.subs.getRenewalMembersByMonth.useQuery(
+      { year: selectedRetentionMonth?.year ?? 0, month: selectedRetentionMonth?.monthIndex ?? 0, type: "rejoin" },
+      { enabled: !!selectedRetentionMonth && selectedRetentionMonth.type === "rejoin" },
+    );
+
   // True retention (expiry-based) chart: own month range + grace period
   const [trueRetMonths, setTrueRetMonths] = useState<number>(6);
   const [graceDays, setGraceDays] = useState<number>(45);
@@ -215,6 +235,10 @@ const DashboardPage: React.FC = () => {
   const { data: unfrozenData, isLoading: unfrozenLoading, refetch: refetchUnfrozen } =
     api.subs.getUnfrozenToday.useQuery();
 
+  // Birthday members (today + next 3 days)
+  const { data: birthdayData, isLoading: birthdayLoading } =
+    api.member.getUpcomingBirthdays.useQuery();
+
   const [sentUnfreezeIds, setSentUnfreezeIds] = React.useState<Set<string>>(new Set());
 
   const sendUnfreezeMutation = api.subs.sendUnfreezeNotification.useMutation({
@@ -298,6 +322,51 @@ const DashboardPage: React.FC = () => {
             </Button>
           </div>
         </Card>
+
+        {/* Birthday Members */}
+        {birthdayData && birthdayData.length > 0 && (
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Cake className="h-5 w-5 text-pink-500" />
+              <h3 className="text-lg font-semibold">Ulang Tahun Member</h3>
+              <Badge className="bg-pink-500 text-white">{birthdayData.length}</Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="px-3 py-2 text-left">Nama</th>
+                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left">Phone</th>
+                    <th className="px-3 py-2 text-left">Tanggal Lahir</th>
+                    <th className="px-3 py-2 text-center">Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {birthdayData.map((m) => (
+                    <tr key={m.id} className="border-t">
+                      <td className="px-3 py-2 font-medium">{m.name ?? "-"}</td>
+                      <td className="px-3 py-2">{m.email ?? "-"}</td>
+                      <td className="px-3 py-2">{m.phone ?? "-"}</td>
+                      <td className="px-3 py-2">
+                        {format(new Date(m.birthDate), "dd MMM yyyy", { locale: localeId })}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {m.isToday ? (
+                          <Badge className="bg-pink-500 text-white">🎂 Hari Ini</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-pink-400 text-pink-500">
+                            {m.daysUntilBirthday} hari lagi
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
         {/* Existing Statistics */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -949,7 +1018,8 @@ const DashboardPage: React.FC = () => {
                 </select>
               </div>
               <p className="mb-4 text-[11px] text-muted-foreground">
-                Renewal rate = perpanjangan ÷ (member baru + perpanjangan) per bulan, berdasarkan tanggal mulai subscription GYM.
+                <strong>Perpanjangan</strong> = perpanjang ≤30 hari setelah expire. <strong>Rejoin</strong> = kembali setelah &gt;30 hari tidak aktif.
+                Garis = persentase masing-masing terhadap total subscription bulan itu.
               </p>
               {retentionLoading ? (
                 <div className="flex h-48 items-center justify-center text-muted-foreground text-sm">Memuat...</div>
@@ -973,120 +1043,81 @@ const DashboardPage: React.FC = () => {
                     />
                     <Tooltip
                       formatter={(value: number, name: string) =>
-                        name === "Renewal Rate" ? [`${value}%`, name] : [value, name]
+                        name.includes("%") ? [`${value}%`, name] : [value, name]
                       }
                     />
                     <Legend />
-                    <Bar yAxisId="left" dataKey="newMembers" name="Member Baru" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="left" dataKey="renewals" name="Perpanjangan" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="newMembers"
+                      name="Member Baru"
+                      fill="#10b981"
+                      radius={[4, 4, 0, 0]}
+                      cursor="pointer"
+                      onClick={(data: any) => {
+                        if (data?.year !== undefined && data?.monthIndex !== undefined) {
+                          setSelectedRetentionMonth({ year: data.year, monthIndex: data.monthIndex, label: data.month, type: "new" });
+                        }
+                      }}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="renewals"
+                      name="Perpanjangan"
+                      fill="#4f46e5"
+                      radius={[4, 4, 0, 0]}
+                      cursor="pointer"
+                      onClick={(data: any) => {
+                        if (data?.year !== undefined && data?.monthIndex !== undefined) {
+                          setSelectedRetentionMonth({ year: data.year, monthIndex: data.monthIndex, label: data.month, type: "renewal" });
+                        }
+                      }}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="rejoin"
+                      name="Rejoin"
+                      fill="#f97316"
+                      radius={[4, 4, 0, 0]}
+                      cursor="pointer"
+                      onClick={(data: any) => {
+                        if (data?.year !== undefined && data?.monthIndex !== undefined) {
+                          setSelectedRetentionMonth({ year: data.year, monthIndex: data.monthIndex, label: data.month, type: "rejoin" });
+                        }
+                      }}
+                    />
                     <Line
                       yAxisId="right"
                       type="monotone"
                       dataKey="renewalRate"
-                      name="Renewal Rate"
-                      stroke="#f59e0b"
+                      name="Perpanjangan %"
+                      stroke="#4f46e5"
                       strokeWidth={2}
-                      dot={{ r: 4 }}
+                      dot={{ r: 3 }}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="rejoinRate"
+                      name="Rejoin %"
+                      stroke="#f97316"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="newMemberRate"
+                      name="Member Baru %"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
               )}
             </Card>
 
-            {/* True Retention (expiry-based) Chart */}
-            <Card className="p-6 lg:col-span-2">
-              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-muted-foreground">Retensi Member (berdasarkan Expiry)</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="text-[11px] text-muted-foreground">Masa tenggang</label>
-                  <select
-                    value={graceDays}
-                    onChange={(e) => setGraceDays(Number(e.target.value))}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                  >
-                    <option value={0}>0 hari</option>
-                    <option value={14}>14 hari</option>
-                    <option value={30}>30 hari</option>
-                    <option value={45}>45 hari</option>
-                    <option value={60}>60 hari</option>
-                  </select>
-                  <select
-                    value={trueRetMonths}
-                    onChange={(e) => setTrueRetMonths(Number(e.target.value))}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                  >
-                    <option value={3}>3 bulan</option>
-                    <option value={6}>6 bulan</option>
-                    <option value={12}>12 bulan</option>
-                    <option value={24}>24 bulan</option>
-                  </select>
-                </div>
-              </div>
-              <p className="mb-4 text-[11px] text-muted-foreground">
-                Aliran per bulan: <strong>Perpanjangan</strong> = subscription perpanjangan yang <strong>mulai</strong> bulan itu (cocok dengan grafik atas).
-                <strong> Berhenti</strong> = subscription yang <strong>berakhir</strong> bulan itu &amp; tidak diperpanjang dalam masa tenggang.
-                Retention rate = perpanjangan ÷ (perpanjangan + berhenti).
-              </p>
-              {trueRetLoading ? (
-                <div className="flex h-48 items-center justify-center text-muted-foreground text-sm">Memuat...</div>
-              ) : (trueRetData ?? []).length === 0 ? (
-                <div className="flex h-48 items-center justify-center text-muted-foreground text-sm">Belum ada data.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <ComposedChart
-                    data={trueRetData ?? []}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                    accessibilityLayer={false}
-                    style={{ cursor: "pointer" }}
-                    onClick={(state: any) => {
-                      const data = trueRetData;
-                      if (!data) return;
-                      const idx = Number(state?.activeTooltipIndex);
-                      const p =
-                        Number.isInteger(idx) && idx >= 0 && idx < data.length
-                          ? data[idx]
-                          : state?.activePayload?.[0]?.payload;
-                      if (p && typeof p.year === "number" && typeof p.monthIndex === "number") {
-                        setSelectedChurnMonth({ year: p.year, monthIndex: p.monthIndex, label: p.month });
-                      }
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      domain={[0, 100]}
-                      unit="%"
-                      tick={{ fontSize: 11 }}
-                    />
-                    <Tooltip
-                      formatter={(value: number, name: string) =>
-                        name === "Retention Rate" ? [`${value}%`, name] : [value, name]
-                      }
-                    />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="retained" name="Perpanjangan" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="left" dataKey="churned" name="Berhenti" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="retentionRate"
-                      name="Retention Rate"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      dot={{ r: 4 }}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              )}
-              {!trueRetLoading && (trueRetData ?? []).length > 0 && (
-                <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                  Klik salah satu bulan untuk melihat daftar member yang berhenti (untuk di-follow up)
-                </p>
-              )}
-            </Card>
 
             {/* Package Distribution Donut */}
             <Card className="p-6 lg:col-span-2">
@@ -1380,6 +1411,68 @@ const DashboardPage: React.FC = () => {
                   </table>
                 </div>
               </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Retention Chart Drill-Down Dialog */}
+        <Dialog open={!!selectedRetentionMonth} onOpenChange={(open) => !open && setSelectedRetentionMonth(null)}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedRetentionMonth?.type === "new" ? "Member Baru" : selectedRetentionMonth?.type === "rejoin" ? "Rejoin" : "Perpanjangan"} — {selectedRetentionMonth?.label}
+              </DialogTitle>
+            </DialogHeader>
+            {(selectedRetentionMonth?.type === "new" ? retentionNewLoading : selectedRetentionMonth?.type === "rejoin" ? retentionRejoinLoading : retentionRenewalLoading) ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Memuat...</div>
+            ) : (
+              (() => {
+                const detail = selectedRetentionMonth?.type === "new" ? retentionNewDetail : selectedRetentionMonth?.type === "rejoin" ? retentionRejoinDetail : retentionRenewalDetail;
+                if (!detail || detail.length === 0) {
+                  return <div className="py-8 text-center text-sm text-muted-foreground">Tidak ada data.</div>;
+                }
+                return (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Total: <strong>{detail.length}</strong> member
+                    </p>
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-xs text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Nama</th>
+                            <th className="px-3 py-2 text-left">Email</th>
+                            <th className="px-3 py-2 text-left">Phone</th>
+                            <th className="px-3 py-2 text-left">Paket</th>
+                            <th className="px-3 py-2 text-left">Mulai</th>
+                            <th className="px-3 py-2 text-left">Selesai</th>
+                            <th className="px-3 py-2 text-right">Nominal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detail.map((m, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="px-3 py-2 font-medium">{m.name}</td>
+                              <td className="px-3 py-2 text-xs">{m.email}</td>
+                              <td className="px-3 py-2 text-xs">{m.phone}</td>
+                              <td className="px-3 py-2 text-xs">{m.packageName}</td>
+                              <td className="px-3 py-2 text-xs">
+                                {m.startDate ? format(new Date(m.startDate), "dd MMM yy", { locale: localeId }) : "-"}
+                              </td>
+                              <td className="px-3 py-2 text-xs">
+                                {m.endDate ? format(new Date(m.endDate), "dd MMM yy", { locale: localeId }) : "-"}
+                              </td>
+                              <td className="px-3 py-2 text-right text-xs">
+                                Rp {Number(m.amount).toLocaleString("id-ID")}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()
             )}
           </DialogContent>
         </Dialog>
