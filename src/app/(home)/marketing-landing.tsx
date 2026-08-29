@@ -48,7 +48,7 @@ const SCHEDULE: { d: string; c: { n: string; k: string; p: string }[] }[] = [
 
 const TRAINERS = [
   { name: "Mian", role: "Muay Thai for Fitness · Strength · Tone & Shape", img: "/assets/landing/19-coach-mian.webp", ig: "https://www.instagram.com/p/DMZ9SPSyP0_/" },
-  { name: "Asriani", role: "Mobility · Tone & Shape · Fat Loss", img: "/assets/landing/20-coach-asriani.webp", ig: "https://www.instagram.com/p/DOH8Xxtkve5/" },
+
   { name: "Yusliady Al Fathir", role: "Hypertrophy · Strength · Body Building", img: "/assets/landing/21-coach-yusliady-al-fathir.webp", ig: "https://www.instagram.com/p/DMcpSsMSpy-/" },
   { name: "Agus", role: "HIIT · Cardio · Strength", img: "/assets/landing/22-coach-agus.webp", ig: "https://www.instagram.com/p/DR3fpf5kto2/" },
   { name: "Indar", role: "Hypertrophy · Fat Loss · Nutrition", img: "/assets/landing/23-coach-indar.webp", ig: "https://www.instagram.com/p/DVqJSZEkfn3/" },
