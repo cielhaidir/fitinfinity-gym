@@ -5,6 +5,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 
 export const memberRewardRouter = createTRPCRouter({
   list: permissionProtectedProcedure(["list:reward"])
@@ -127,6 +128,14 @@ export const memberRewardRouter = createTRPCRouter({
         ]);
 
         result = transactionResult[0];
+        await logPointHistory(ctx.db, {
+          userId: membership.userId,
+          amount: -reward.price,
+          type: "SPEND",
+          source: "REWARD_CLAIM",
+          description: `Tukar poin untuk reward: ${reward.name}`,
+          referenceId: result?.id,
+        });
         success = true;
         return result;
       } catch (err) {

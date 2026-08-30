@@ -31,7 +31,7 @@ import {
   Snowflake,
   ArrowRightLeft,
 } from "lucide-react";
-import { type LucideIcon, HandCoins, BookOpen, Ticket, Building2, UserX } from "lucide-react";
+import { type LucideIcon, HandCoins, BookOpen, Ticket, Building2, UserX, Mic, Coins } from "lucide-react";
 
 interface MenuItem {
   title: string;
@@ -71,6 +71,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/management/package",
           icon: Package,
           requiredPermission: "menu:packages",
+        },
+        {
+          title: "Instructor",
+          url: "/management/instructor",
+          icon: Mic,
+          requiredPermission: "list:instructor",
         },
         {
           title: "Class",
@@ -302,6 +308,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:group-management",
         },
         {
+          title: "Jadwal Kelas",
+          url: "/admin/class-calendar",
+          icon: Calendar1,
+          requiredPermission: "list:classes",
+        },
+        {
           title: "Reward",
           url: "/admin/reward",
           icon: Gift,
@@ -416,6 +428,12 @@ export const Menu: { navMain: MenuGroup[] } = {
           icon: CircleGauge,
           url: "/member/body-composition",
           requiredPermission: "menu:payment-history",
+        },
+        {
+          title: "Riwayat Poin",
+          icon: Coins,
+          url: "/member/point-history",
+          requiredPermission: "show:profile",
         },
         // {
         //   title: "Personal Trainer List",
@@ -586,6 +604,18 @@ export const Menu: { navMain: MenuGroup[] } = {
           url: "/reports/group-class",
           icon: Users,
           requiredPermission: "report:pt",
+        },
+        {
+          title: "Instructor Report",
+          url: "/reports/instructor",
+          icon: Mic,
+          requiredPermission: "report:instructor",
+        },
+        {
+          title: "Riwayat Poin",
+          url: "/reports/point-history",
+          icon: Coins,
+          requiredPermission: "list:point-history",
         },
         {
           title: "Commission Report",

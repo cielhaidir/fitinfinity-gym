@@ -6,6 +6,7 @@ import {
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 import { decrementSessionFIFO, decrementGroupSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 
 export const groupClassRouter = createTRPCRouter({
   /**
@@ -427,6 +428,19 @@ export const groupClassRouter = createTRPCRouter({
               where: { id: { in: memberships.map((m) => m.userId) } },
               data: { point: { increment: pointValue } },
             });
+            // Log point history for each member
+            await Promise.all(
+              memberships.map((m) =>
+                logPointHistory(ctx.db, {
+                  userId: m.userId,
+                  amount: pointValue,
+                  type: "EARN",
+                  source: "GROUP_CLASS",
+                  description: `Poin kehadiran group class`,
+                  referenceId: input.groupClassId,
+                }),
+              ),
+            );
           }
         }
 
@@ -560,6 +574,7 @@ export const groupClassRouter = createTRPCRouter({
             where: { id: input.groupClassId },
             data: {
               status: "CANCELLED",
+              sessionCounted: !input.refundSession, // Batalkan Sesi = terhitung, Kembalikan Sesi = tidak terhitung
               cancelReason: input.cancelReason
                 ? `${input.cancelReason} [${input.refundSession ? "Sesi dikembalikan" : "Sesi hangus"}]`
                 : `[${input.refundSession ? "Sesi dikembalikan" : "Sesi hangus"}]`,
@@ -704,20 +719,23 @@ export const groupClassRouter = createTRPCRouter({
         },
       });
 
+      // Only count sessions where sessionCounted is true (excludes "Kembalikan Sesi" cancellations)
+      const countedClasses = groupClasses.filter((gc) => gc.sessionCounted !== false);
+
       // Summary stats
       const totalSessions = groupClasses.length;
       const completedSessions = groupClasses.filter((gc) => gc.status === "ENDED").length;
       const cancelledSessions = groupClasses.filter((gc) => gc.status === "CANCELLED").length;
       const scheduledSessions = groupClasses.filter((gc) => gc.status === "SCHEDULED").length;
-      const totalHours = groupClasses.reduce((sum, gc) => sum + (gc.duration || 0) / 60, 0);
-      const totalAttendees = groupClasses.reduce(
+      const totalHours = countedClasses.reduce((sum, gc) => sum + (gc.duration || 0) / 60, 0);
+      const totalAttendees = countedClasses.reduce(
         (sum, gc) => sum + gc.attendances.filter((a) => a.attended === true).length,
         0,
       );
 
-      // Per-trainer summary
+      // Per-trainer summary (only counted sessions)
       const trainerMap: Record<string, { name: string; sessions: number; hours: number; attendees: number }> = {};
-      for (const gc of groupClasses) {
+      for (const gc of countedClasses) {
         const tid = gc.trainerId;
         if (!trainerMap[tid]) {
           trainerMap[tid] = { name: gc.trainer.user.name ?? "Unknown", sessions: 0, hours: 0, attendees: 0 };

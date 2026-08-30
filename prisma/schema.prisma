@@ -271,6 +271,40 @@ model User {
     
     // Group Class created by admin
     createdGroupClasses       GroupClass[]           @relation("GroupClassCreator")
+    
+    // Point history
+    pointHistories            PointHistory[]         @relation("PointHistoryUser")
+}
+
+model PointHistory {
+    id          String   @id @default(cuid())
+    userId      String
+    amount      Int      // positive = earned, negative = spent/deducted
+    balance     Int      // balance after this transaction
+    type        String   // EARN, SPEND, DEDUCT, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT
+    source      String   // e.g. "CHECKIN", "GROUP_CLASS", "PAYMENT", "REWARD_CLAIM", "TRANSFER", "ADMIN_ADJUST"
+    description String   // human-readable description
+    referenceId String?  // optional link to related entity (subscriptionId, rewardId, etc.)
+    createdAt   DateTime @default(now())
+
+    user        User     @relation("PointHistoryUser", fields: [userId], references: [id])
+
+    @@index([userId])
+    @@index([userId, createdAt])
+    @@index([type])
+    @@index([source])
+}
+
+model Instructor {
+    id          String   @id @default(cuid())
+    name        String
+    phone       String?
+    speciality  String?
+    isActive    Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    classes     Class[]
 }
 
 model Class {
@@ -279,12 +313,19 @@ model Class {
     classTypeId       String?
     limit             Int?
     instructorName    String
+    instructorId      String?
     schedule          DateTime
     duration          Int
     price             Float              @default(0)
+    status            String             @default("SCHEDULED")
+    cancelReason      String?
+    sessionCounted    Boolean            @default(true)
+    cancelledAt       DateTime?
+    cancelledBy       String?
     createdAt         DateTime           @default(now())
     updatedAt         DateTime           @updatedAt
     
+    instructor        Instructor?        @relation(fields: [instructorId], references: [id])
     classType         ClassType?         @relation(fields: [classTypeId], references: [id])
     registeredMembers ClassMember[]
     waitingList       ClassWaitingList[]
@@ -1438,6 +1479,7 @@ model GroupClass {
     description          String?
     status               GroupClassStatus @default(SCHEDULED)
     cancelReason         String?
+    sessionCounted       Boolean  @default(true)         // false when cancelled with session refund
     createdBy            String?                         // Admin userId who created
     createdAt            DateTime @default(now())
     updatedAt            DateTime @updatedAt

@@ -94,6 +94,13 @@ export default function ClassVisitPage() {
   const [cancelReg, setCancelReg] = useState<any>(null);
   const [cancelReason, setCancelReason] = useState<string>("");
 
+  // Attendance dialog (facility selection)
+  const [attendOpen, setAttendOpen] = useState(false);
+  const [attendReg, setAttendReg] = useState<any>(null);
+  const [attendLoker, setAttendLoker] = useState<string>("None");
+  const [attendLokerNumber, setAttendLokerNumber] = useState<string>("");
+  const [attendHanduk, setAttendHanduk] = useState<string>("None");
+
   // Payment proof upload
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
@@ -432,7 +439,7 @@ export default function ClassVisitPage() {
                                 {reg.status === "CONFIRMED" && (
                                   <>
                                     <Button size="sm" variant="outline" className="text-green-600 border-green-500 text-xs"
-                                      onClick={() => attendMut.mutate({ registrationId: reg.id, attended: true })}>
+                                      onClick={() => { setAttendReg(reg); setAttendLoker("None"); setAttendLokerNumber(""); setAttendHanduk("None"); setAttendOpen(true); }}>
                                       <CheckCircle className="w-3 h-3 mr-1" /> Hadir
                                     </Button>
                                     <Button size="sm" variant="outline" className="text-orange-600 border-orange-500 text-xs"
@@ -625,6 +632,72 @@ export default function ClassVisitPage() {
                 }}
               >
                 {uploadingProof ? "Mengupload bukti..." : confirmMut.isPending ? "Mengkonfirmasi..." : "Konfirmasi Pembayaran"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ══════════════ DIALOG: Attendance (Facility) ══════════════ */}
+        <Dialog open={attendOpen} onOpenChange={setAttendOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Tandai Kehadiran</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Tandai <strong>{attendReg?.member?.user?.name}</strong> hadir di kelas <strong>{selectedClass?.name}</strong>.
+              </p>
+              <div>
+                <Label>Loker</Label>
+                <Select value={attendLoker} onValueChange={setAttendLoker}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="None">Tidak pakai</SelectItem>
+                    <SelectItem value="Number">Pakai loker</SelectItem>
+                  </SelectContent>
+                </Select>
+                {attendLoker === "Number" && (
+                  <Input
+                    type="number"
+                    placeholder="Nomor loker"
+                    value={attendLokerNumber}
+                    onChange={(e) => setAttendLokerNumber(e.target.value)}
+                    className="mt-2"
+                    min="1"
+                  />
+                )}
+              </div>
+              <div>
+                <Label>Handuk</Label>
+                <Select value={attendHanduk} onValueChange={setAttendHanduk}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="None">Tidak pakai</SelectItem>
+                    <SelectItem value="Besar">Besar</SelectItem>
+                    <SelectItem value="Kecil">Kecil</SelectItem>
+                    <SelectItem value="Keduanya">Keduanya</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAttendOpen(false)}>Batal</Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700"
+                disabled={attendMut.isPending}
+                onClick={() => {
+                  const lokerNum = attendLoker === "Number" && attendLokerNumber.trim() ? attendLokerNumber.trim() : undefined;
+                  const handuk = attendHanduk !== "None" ? attendHanduk : undefined;
+                  attendMut.mutate({
+                    registrationId: attendReg.id,
+                    attended: true,
+                    lokerNumber: lokerNum,
+                    handuk,
+                  });
+                  setAttendOpen(false);
+                }}
+              >
+                {attendMut.isPending ? "Menyimpan..." : "Tandai Hadir"}
               </Button>
             </DialogFooter>
           </DialogContent>

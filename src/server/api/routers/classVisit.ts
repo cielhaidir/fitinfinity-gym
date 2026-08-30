@@ -9,6 +9,7 @@ import {
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 import { decrementClassSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 
 export const classVisitRouter = createTRPCRouter({
   /**
@@ -290,12 +291,16 @@ export const classVisitRouter = createTRPCRouter({
 
   /**
    * Mark registration as ATTENDED or NO_SHOW
+   * - If ATTENDED: creates AttendanceMember (gym check-in) with facility info, awards points (1x/day)
+   * - If NO_SHOW: only updates status
    */
   markAttendance: permissionProtectedProcedure(["manage:class-visit"])
     .input(
       z.object({
         registrationId: z.string(),
         attended: z.boolean(),
+        lokerNumber: z.string().optional(),
+        handuk: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -307,6 +312,10 @@ export const classVisitRouter = createTRPCRouter({
       try {
         const reg = await ctx.db.classVisitRegistration.findUnique({
           where: { id: input.registrationId },
+          include: {
+            class: { select: { schedule: true, name: true } },
+            member: { select: { id: true, userId: true, user: { select: { id: true, point: true } } } },
+          },
         });
 
         if (!reg) throw new TRPCError({ code: "NOT_FOUND", message: "Registrasi tidak ditemukan" });
@@ -314,11 +323,88 @@ export const classVisitRouter = createTRPCRouter({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Hanya registrasi yang sudah dikonfirmasi yang dapat diabsen" });
         }
 
-        result = await ctx.db.classVisitRegistration.update({
+        // Update registration status
+        const updatedReg = await ctx.db.classVisitRegistration.update({
           where: { id: input.registrationId },
           data: { status: input.attended ? "ATTENDED" : "NO_SHOW" },
         });
 
+        let pointsAwarded = false;
+
+        // If attended: create AttendanceMember (gym check-in) + award points
+        if (input.attended) {
+          // Build facility description
+          const parts: string[] = [];
+          if (input.lokerNumber?.trim()) parts.push(`Loker = ${input.lokerNumber.trim()}`);
+          if (input.handuk && input.handuk !== "None") parts.push(`Handuk = ${input.handuk}`);
+          const facilityDescription = parts.length > 0 ? parts.join(", ") : undefined;
+
+          const checkinTime = reg.class.schedule;
+
+          // Check if AttendanceMember already exists for this member + this class schedule
+          const existing = await ctx.db.attendanceMember.findFirst({
+            where: {
+              memberId: reg.memberId,
+              checkin: checkinTime,
+            },
+          });
+
+          if (existing) {
+            // Update facility info only
+            await ctx.db.attendanceMember.update({
+              where: { id: existing.id },
+              data: { facilityDescription },
+            });
+          } else {
+            // Create new AttendanceMember
+            const newAttendance = await ctx.db.attendanceMember.create({
+              data: {
+                memberId: reg.memberId,
+                checkin: checkinTime,
+                facilityDescription,
+              },
+            });
+
+            // Award points if first check-in today
+            const todayStart = new Date(checkinTime);
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(todayStart);
+            todayEnd.setDate(todayStart.getDate() + 1);
+
+            const alreadyCheckedInToday = await ctx.db.attendanceMember.findFirst({
+              where: {
+                memberId: reg.memberId,
+                checkin: { gte: todayStart, lt: todayEnd },
+                id: { not: newAttendance.id },
+              },
+            });
+
+            if (!alreadyCheckedInToday) {
+              const config = await ctx.db.config.findUnique({
+                where: { key: "rfid_point" },
+              });
+              const pointValue = config ? parseInt(config.value) || 1 : 1;
+
+              if (pointValue > 0) {
+                await ctx.db.user.update({
+                  where: { id: reg.member.userId },
+                  data: { point: { increment: pointValue } },
+                });
+                await logPointHistory(ctx.db, {
+                  userId: reg.member.userId,
+                  amount: pointValue,
+                  type: "EARN",
+                  source: "CHECKIN",
+                  description: `Poin kehadiran class visit (${reg.class.name})`,
+                  referenceId: newAttendance.id,
+                });
+                pointsAwarded = true;
+              }
+            }
+          }
+        }
+
+        result = { ...updatedReg, pointsAwarded };
         success = true;
         return result;
       } catch (err) {

@@ -8,6 +8,7 @@ import {
 import { uploadFile } from "@/lib/upload";
 import bcrypt from "bcryptjs";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 
 export const profileRouter = createTRPCRouter({
   get: permissionProtectedProcedure(["show:profile"])
@@ -367,7 +368,7 @@ export const profileRouter = createTRPCRouter({
     }),
 
   // Admin endpoint to update member points
-  updatePoints: permissionProtectedProcedure(["update:member"])
+  updatePoints: permissionProtectedProcedure(["adjust:point"])
     .input(
       z.object({
         memberId: z.string(),
@@ -395,9 +396,18 @@ export const profileRouter = createTRPCRouter({
         }
 
         // Update the user's points
+        const oldPoints = membership.user?.point ?? 0;
         result = await ctx.db.user.update({
           where: { id: membership.userId },
           data: { point: input.points },
+        });
+        const diff = input.points - oldPoints;
+        await logPointHistory(ctx.db, {
+          userId: membership.userId,
+          amount: diff,
+          type: "ADJUSTMENT",
+          source: "ADMIN_ADJUST",
+          description: `Penyesuaian poin oleh admin (${oldPoints} → ${input.points})`,
         });
         success = true;
         return result;

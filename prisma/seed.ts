@@ -312,6 +312,17 @@ async function main() {
 
     // Cancel completed group class (refund sessions)
     { name: "cancel:completed-session" },
+
+    // Instructor Management
+    { name: "list:instructor" },
+    { name: "create:instructor" },
+    { name: "update:instructor" },
+    { name: "delete:instructor" },
+    { name: "report:instructor" },
+
+    // Point History
+    { name: "list:point-history" },
+    { name: "adjust:point" },
   ];
 
   console.log("🌱 Seeding permissions...");
@@ -587,6 +598,17 @@ async function main() {
         // Corporate (read for filters, manage untuk CS)
         "list:corporate",
         "manage:corporate",
+
+        // Instructor management
+        "list:instructor",
+        "create:instructor",
+        "update:instructor",
+        "delete:instructor",
+        "report:instructor",
+
+        // Point History
+        "list:point-history",
+        "adjust:point",
       ],
     },
   ];

@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { EnrollmentStatus } from "@prisma/client";
 import { mqttService } from "@/lib/mqtt/mqttService";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 
 // Output schema for getMemberCheckinLogs
 const memberCheckinLogSchema = z.object({
@@ -522,6 +523,16 @@ export const esp32Router = createTRPCRouter({
               point: { increment: pointValue }
             }
           });
+          if (pointValue > 0) {
+            await logPointHistory(ctx.db, {
+              userId: membership.user.id,
+              amount: pointValue,
+              type: "EARN",
+              source: "CHECKIN",
+              description: `Poin check-in harian (RFID)`,
+              referenceId: memberAttendance.id,
+            });
+          }
         }
 
         result = {
@@ -635,8 +646,6 @@ export const esp32Router = createTRPCRouter({
           // If config not found, use default value 5
           const pointValue = config ? parseInt(config.value) || 0 : 1;
 
-
-
           // Update user point
           await ctx.db.user.update({
             where: { id: membership.user.id },
@@ -644,6 +653,16 @@ export const esp32Router = createTRPCRouter({
               point: { increment: pointValue }
             }
           });
+          if (pointValue > 0) {
+            await logPointHistory(ctx.db, {
+              userId: membership.user.id,
+              amount: pointValue,
+              type: "EARN",
+              source: "CHECKIN",
+              description: `Poin check-in harian (manual)`,
+              referenceId: memberAttendance.id,
+            });
+          }
         }
 
         result = {

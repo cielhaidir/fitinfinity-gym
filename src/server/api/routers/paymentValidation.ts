@@ -22,6 +22,7 @@ import { start } from "repl";
 import { useRFIDCheckIn } from "@/app/_components/hooks/useRFIDCheckIn";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 import { applyPromosForSuccessfulPayment } from "@/server/utils/promoEngine";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 import { syncPtEndDates } from "@/server/utils/ptSubscriptionUtils";
 
 export const paymentValidationRouter = createTRPCRouter({
@@ -532,6 +533,14 @@ export const paymentValidationRouter = createTRPCRouter({
                 point: { increment: paymentValidation.package.point },
               },
             });
+            await logPointHistory(prisma, {
+              userId: paymentValidation.member.user.id,
+              amount: paymentValidation.package.point,
+              type: "EARN",
+              source: "PACKAGE_PURCHASE",
+              description: `Poin dari pembelian paket ${paymentValidation.package.name}`,
+              referenceId: existingSubscription.id,
+            });
             console.log("Points awarded");
           }
           
@@ -718,6 +727,14 @@ export const paymentValidationRouter = createTRPCRouter({
             data: {
               point: { increment: paymentValidation.package.point },
             },
+          });
+          await logPointHistory(prisma, {
+            userId: paymentValidation.member.user.id,
+            amount: paymentValidation.package.point,
+            type: "EARN",
+            source: "PACKAGE_PURCHASE",
+            description: `Poin dari pembelian paket ${paymentValidation.package.name}`,
+            referenceId: subscription.id,
           });
         }
 

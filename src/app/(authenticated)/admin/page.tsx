@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound, ArrowLeftRight, BookOpen, Ticket, Cake } from "lucide-react";
+import { Users, CreditCard, UserCog, RefreshCw, UserPlus, TrendingUp, Dumbbell, UsersRound, ArrowLeftRight, BookOpen, Ticket, Cake, Trophy } from "lucide-react";
 import { api } from "@/trpc/react";
 import { ProtectedRoute } from "@/app/_components/auth/protected-route";
 import { Button } from "@/components/ui/button";
@@ -238,6 +238,16 @@ const DashboardPage: React.FC = () => {
   // Birthday members (today + next 3 days)
   const { data: birthdayData, isLoading: birthdayLoading } =
     api.member.getUpcomingBirthdays.useQuery();
+
+  // Best selling packages
+  const { data: bestSellingData, isLoading: bestSellingLoading } =
+    api.subs.bestSellingPackages.useQuery({
+      startDate: appliedStartDate,
+      endDate: appliedEndDate,
+      limit: 10,
+    }, {
+      enabled: !!appliedStartDate && !!appliedEndDate,
+    });
 
   const [sentUnfreezeIds, setSentUnfreezeIds] = React.useState<Set<string>>(new Set());
 
@@ -1147,6 +1157,63 @@ const DashboardPage: React.FC = () => {
                     <Legend formatter={(v) => String(v).replace(/_/g, " ")} />
                   </PieChart>
                 </ResponsiveContainer>
+              )}
+            </Card>
+
+            {/* Best Selling Packages Table */}
+            <Card className="p-6 lg:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="h-5 w-5 text-amber-500" />
+                <p className="text-sm font-semibold text-muted-foreground">Paket Terlaris</p>
+              </div>
+              {bestSellingLoading ? (
+                <div className="flex h-48 items-center justify-center text-muted-foreground text-sm">Memuat...</div>
+              ) : !bestSellingData || bestSellingData.length === 0 ? (
+                <div className="flex h-48 items-center justify-center text-muted-foreground text-sm">Belum ada data.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left w-8">#</th>
+                        <th className="px-3 py-2 text-left">Nama Paket</th>
+                        <th className="px-3 py-2 text-left">Tipe</th>
+                        <th className="px-3 py-2 text-right">Harga</th>
+                        <th className="px-3 py-2 text-center">Terjual</th>
+                        <th className="px-3 py-2 text-right">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bestSellingData.map((pkg, i) => (
+                        <tr key={pkg.packageId} className="border-t">
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                          </td>
+                          <td className="px-3 py-2 font-medium">{pkg.packageName}</td>
+                          <td className="px-3 py-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {String(pkg.packageType).replace(/_/g, ' ')}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs">{formatRupiah(pkg.unitPrice)}</td>
+                          <td className="px-3 py-2 text-center font-bold">{pkg.totalSold}</td>
+                          <td className="px-3 py-2 text-right font-medium text-green-600">{formatRupiah(pkg.totalRevenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-muted/30">
+                      <tr className="border-t-2">
+                        <td colSpan={4} className="px-3 py-2 font-semibold text-right">Total</td>
+                        <td className="px-3 py-2 text-center font-bold">
+                          {bestSellingData.reduce((sum, p) => sum + p.totalSold, 0)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold text-green-600">
+                          {formatRupiah(bestSellingData.reduce((sum, p) => sum + p.totalRevenue, 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               )}
             </Card>
 

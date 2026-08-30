@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Combobox } from "@/components/ui/combobox";
 import { X } from "lucide-react";
 
 type ClassName = string;
@@ -26,6 +27,7 @@ type ClassFormProps = {
   name: ClassName;
   limit: number | null;
   instructorName: string;
+  instructorId?: string;
   schedule: Date;
   schedules?: Date[];
   duration: number;
@@ -34,6 +36,7 @@ type ClassFormProps = {
   onNameChange: (name: ClassName) => void;
   onLimitChange: (limit: number | null) => void;
   onInstructorNameChange: (instructorName: string) => void;
+  onInstructorIdChange?: (instructorId: string) => void;
   onScheduleChange: (schedule: Date) => void;
   onSchedulesChange?: (schedules: Date[]) => void;
   onDurationChange: (duration: number) => void;
@@ -47,6 +50,7 @@ export const ClassForm = ({
   name,
   limit,
   instructorName,
+  instructorId,
   schedule,
   schedules = [],
   duration,
@@ -55,6 +59,7 @@ export const ClassForm = ({
   onNameChange,
   onLimitChange,
   onInstructorNameChange,
+  onInstructorIdChange,
   onScheduleChange,
   onSchedulesChange,
   onDurationChange,
@@ -130,6 +135,8 @@ export const ClassForm = ({
 
   // Fetch class types from the database
   const { data: classTypes = [] } = api.classType.list.useQuery();
+  // Fetch active instructors for dropdown
+  const { data: instructors = [] } = api.instructor.getActive.useQuery();
 
   return (
      <SheetContent side="right" className="w-full overflow-y-auto">
@@ -175,13 +182,33 @@ export const ClassForm = ({
           <label htmlFor="instructorName" className="block text-sm font-medium">
             Instructor Name
           </label>
-          <Input
-            type="text"
-            id="instructorName"
-            value={instructorName}
-            onChange={(e) => handleInstructorNameChange(e.target.value)}
-            placeholder="Enter instructor name"
-          />
+          {instructors.length > 0 ? (
+            <Combobox
+              options={instructors.map((i) => ({
+                value: i.id,
+                label: i.name + (i.speciality ? ` — ${i.speciality}` : ""),
+              }))}
+              value={instructorId || ""}
+              onValueChange={(value) => {
+                const selected = instructors.find((i) => i.id === value);
+                if (selected) {
+                  onInstructorIdChange?.(selected.id);
+                  handleInstructorNameChange(selected.name);
+                }
+              }}
+              placeholder="Pilih instructor"
+              searchPlaceholder="Cari instructor..."
+              emptyMessage="Instructor tidak ditemukan."
+            />
+          ) : (
+            <Input
+              type="text"
+              id="instructorName"
+              value={instructorName}
+              onChange={(e) => handleInstructorNameChange(e.target.value)}
+              placeholder="Enter instructor name"
+            />
+          )}
         </div>
 
         {!isEditMode && (

@@ -504,10 +504,15 @@ export default function MemberPage() {
   };
 
 
+  const directToPointHistory = (member: Member) => {
+    router.push(`/reports/point-history?userId=${member.userId}`);
+  };
+
   const getCustomActions = (member: Member) => {
     const baseActions = [
       { label: "Profile", action: directToProfile },
       { label: "Subscription", action: directToSubs },
+      { label: "Kartu Poin", action: directToPointHistory },
       { label: "Access Log", action: directToLogs },
       { label: "Check In Manually", action: handleManualCheckIn },
       { label: "Transfer Subscriptions", action: () => router.push("/admin/subscription-history") },

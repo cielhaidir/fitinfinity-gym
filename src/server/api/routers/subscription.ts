@@ -13,6 +13,7 @@ import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 import { applyPromosForSuccessfulPayment } from "@/server/utils/promoEngine";
 import { syncPtEndDates } from "@/server/utils/ptSubscriptionUtils";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 
 // NOTE: updateExpiredSubscriptions logic has been moved to the cron job:
 // /api/cron/deactivate-expired-subscriptions (runs every 6 hours)
@@ -522,6 +523,14 @@ export const subscriptionRouter = createTRPCRouter({
             data: {
               point: { increment: packageDetails.point },
             },
+          });
+          await logPointHistory(ctx.db, {
+            userId: membership.user.id,
+            amount: packageDetails.point,
+            type: "EARN",
+            source: "SUBSCRIPTION",
+            description: `Poin dari subscription paket ${packageDetails.name}`,
+            referenceId: payment.subscription.id,
           });
         }
 
@@ -1414,16 +1423,27 @@ export const subscriptionRouter = createTRPCRouter({
         });
 
         if (paymentStatus === "SUCCESS") {
+          const earnedPoints = packageData.point * input.duration;
           await ctx.db.user.update({
             where: {
               id: ctx.session.user.id,
             },
             data: {
               point: {
-                increment: packageData.point * input.duration,
+                increment: earnedPoints,
               },
             },
           });
+          if (earnedPoints > 0) {
+            await logPointHistory(ctx.db, {
+              userId: ctx.session.user.id,
+              amount: earnedPoints,
+              type: "EARN",
+              source: "PACKAGE_PURCHASE",
+              description: `Poin dari checkout paket ${packageData.name} (${input.duration} bulan)`,
+              referenceId: subscription.id,
+            });
+          }
         }
 
         result = {
@@ -1529,6 +1549,16 @@ export const subscriptionRouter = createTRPCRouter({
                 point: { decrement: pointsToDeduct },
               },
             });
+            if (pointsToDeduct > 0) {
+              await logPointHistory(tx, {
+                userId: subscription.member.user.id,
+                amount: -pointsToDeduct,
+                type: "DEDUCT",
+                source: "CANCEL_SUBSCRIPTION",
+                description: `Pengurangan poin karena pembatalan subscription paket ${subscription.package.name}`,
+                referenceId: subscription.id,
+              });
+            }
           }
         }
 
@@ -2423,11 +2453,27 @@ export const subscriptionRouter = createTRPCRouter({
               where: { id: subscription.member.userId },
               data: { point: { decrement: safeDecrement } },
             });
+            await logPointHistory(tx, {
+              userId: subscription.member.userId,
+              amount: -safeDecrement,
+              type: "TRANSFER_OUT",
+              source: "TRANSFER",
+              description: `Transfer poin ke ${toMemberName} (subscription transfer)`,
+              referenceId: input.subscriptionId,
+            });
           }
 
           await tx.user.update({
             where: { id: input.newUserId },
             data: { point: { increment: subscription.package.point } },
+          });
+          await logPointHistory(tx, {
+            userId: input.newUserId,
+            amount: subscription.package.point,
+            type: "TRANSFER_IN",
+            source: "TRANSFER",
+            description: `Terima poin dari ${subscription.member.user?.name ?? "Unknown"} (subscription transfer)`,
+            referenceId: input.subscriptionId,
           });
         }
 
@@ -5365,5 +5411,50 @@ export const subscriptionRouter = createTRPCRouter({
         method: p.method,
         date: p.paidAt ?? p.createdAt,
       }));
+    }),
+
+  // Best selling packages — ranked by subscription count in a given date range
+  bestSellingPackages: permissionProtectedProcedure(["menu:dashboard-admin"])
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        limit: z.number().min(1).max(50).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const where: any = { deletedAt: null };
+      if (input.startDate || input.endDate) {
+        where.startDate = {};
+        if (input.startDate) where.startDate.gte = input.startDate;
+        if (input.endDate) where.startDate.lte = input.endDate;
+      }
+
+      const grouped = await ctx.db.subscription.groupBy({
+        by: ["packageId"],
+        where,
+        _count: { _all: true },
+        orderBy: { _count: { packageId: "desc" } },
+        take: input.limit,
+      });
+
+      const packageIds = grouped.map((g) => g.packageId);
+      const packages = await ctx.db.package.findMany({
+        where: { id: { in: packageIds } },
+        select: { id: true, name: true, type: true, price: true },
+      });
+
+      return grouped.map((g) => {
+        const pkg = packages.find((p) => p.id === g.packageId);
+        const unitPrice = pkg?.price ?? 0;
+        return {
+          packageId: g.packageId,
+          packageName: pkg?.name ?? "Unknown",
+          packageType: pkg?.type ?? "OTHER",
+          unitPrice,
+          totalSold: g._count._all,
+          totalRevenue: unitPrice * g._count._all,
+        };
+      });
     }),
 });

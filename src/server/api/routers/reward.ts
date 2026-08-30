@@ -4,6 +4,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { logPointHistory } from "@/server/helpers/pointHistory";
 
 const rewardInputSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -245,6 +246,14 @@ export const rewardRouter = createTRPCRouter({
         ]);
 
         result = transactionResult[0];
+        await logPointHistory(ctx.db, {
+          userId: memberId,
+          amount: -reward.price,
+          type: "SPEND",
+          source: "REWARD_CLAIM",
+          description: `Tukar poin untuk reward: ${reward.name}`,
+          referenceId: result?.id,
+        });
         success = true;
         return result;
       } catch (err) {

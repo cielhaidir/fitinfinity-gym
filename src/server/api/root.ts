@@ -54,6 +54,8 @@ import { promoRouter } from "./routers/promo";
 import { classVisitRouter } from "./routers/classVisit";
 import { corporateRouter } from "./routers/corporate";
 import { groupClassRouter } from "./routers/groupClass";
+import { instructorRouter } from "./routers/instructor";
+import { pointHistoryRouter } from "./routers/pointHistory";
 
 /**
  * This is the primary router for your server.
@@ -119,6 +121,8 @@ export const appRouter = createTRPCRouter({
   classVisit: classVisitRouter,
   corporate: corporateRouter,
   groupClass: groupClassRouter,
+  instructor: instructorRouter,
+  pointHistory: pointHistoryRouter,
 });
 
 // export type definition of API

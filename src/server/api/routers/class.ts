@@ -30,12 +30,14 @@ export const classRouter = createTRPCRouter({
             classTypeId: classType?.id,
             limit: input.limit,
             instructorName: input.instructorName,
+            instructorId: input.instructorId ?? undefined,
             schedule: input.schedule,
             duration: input.duration,
             price: input.price,
           },
           include: {
             classType: true,
+            instructor: true,
           },
         });
         result = newClass;
@@ -89,12 +91,14 @@ export const classRouter = createTRPCRouter({
                 classTypeId: classType?.id,
                 limit: classData.limit,
                 instructorName: classData.instructorName,
+                instructorId: classData.instructorId ?? undefined,
                 schedule: schedule,
                 duration: classData.duration,
                 price: classData.price,
               },
               include: {
                 classType: true,
+                instructor: true,
               },
             })
           )
@@ -161,6 +165,7 @@ export const classRouter = createTRPCRouter({
             where,
             include: {
               classType: true,
+              instructor: true,
             },
             orderBy: { schedule: filter === "past" ? "desc" : "asc" },
           }),
@@ -208,11 +213,13 @@ export const classRouter = createTRPCRouter({
             classTypeId: classTypeId,
             limit: data.limit,
             instructorName: data.instructorName,
+            instructorId: data.instructorId ?? undefined,
             schedule: data.schedule,
             duration: data.duration,
           },
           include: {
             classType: true,
+            instructor: true,
           },
         });
         result = updatedClass;
@@ -276,6 +283,54 @@ export const classRouter = createTRPCRouter({
         });
       }
     }),
+  // Cancel class with two modes: session counted or not
+  cancel: permissionProtectedProcedure(["update:classes"])
+    .input(
+      z.object({
+        id: z.string(),
+        sessionCounted: z.boolean(),
+        cancelReason: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const startTime = Date.now();
+      let success = false;
+      let result: any = null;
+      let error: Error | null = null;
+
+      try {
+        result = await ctx.db.class.update({
+          where: { id: input.id },
+          data: {
+            status: "CANCELLED",
+            sessionCounted: input.sessionCounted,
+            cancelReason: input.cancelReason ?? null,
+            cancelledAt: new Date(),
+            cancelledBy: ctx.session?.user?.id,
+          },
+        });
+        success = true;
+        return result;
+      } catch (err) {
+        error = err as Error;
+        throw err;
+      } finally {
+        logApiMutationAsync({
+          db: ctx.db,
+          endpoint: "class.cancel",
+          method: "PATCH",
+          userId: ctx.session?.user?.id,
+          requestData: input,
+          responseData: success ? result : null,
+          ipAddress: extractIpAddress(ctx.headers),
+          userAgent: extractUserAgent(ctx.headers),
+          success,
+          errorMessage: error?.message,
+          duration: Date.now() - startTime,
+        });
+      }
+    }),
+
   // Public procedure for landing page - no authentication required
   forLandingPage: publicProcedure
     .query(async ({ ctx }) => {
@@ -389,5 +444,76 @@ export const classRouter = createTRPCRouter({
         // console.error("❌ Failed to fetch classes for landing page:", error);
         throw new Error("Failed to fetch classes for landing page");
       }
+    }),
+
+  // Calendar events: combines Class (class visit) and GroupClass schedules
+  calendarEvents: permissionProtectedProcedure(["list:classes"])
+    .input(
+      z.object({
+        startDate: z.date(),
+        endDate: z.date(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const [classes, groupClasses] = await Promise.all([
+        ctx.db.class.findMany({
+          where: {
+            schedule: { gte: input.startDate, lte: input.endDate },
+          },
+          include: {
+            classType: { select: { name: true, icon: true } },
+            instructor: { select: { name: true } },
+            _count: { select: { registeredMembers: true, classVisitRegistrations: true } },
+          },
+          orderBy: { schedule: "asc" },
+        }),
+        ctx.db.groupClass.findMany({
+          where: {
+            schedule: { gte: input.startDate, lte: input.endDate },
+          },
+          include: {
+            classType: { select: { name: true, icon: true } },
+            trainer: { include: { user: { select: { name: true } } } },
+            groupSubscription: { select: { groupName: true } },
+            _count: { select: { attendances: true } },
+          },
+          orderBy: { schedule: "asc" },
+        }),
+      ]);
+
+      const events = [
+        ...classes.map((c) => ({
+          id: c.id,
+          type: "CLASS_VISIT" as const,
+          title: c.name,
+          schedule: c.schedule,
+          duration: c.duration,
+          status: c.status,
+          instructorName: c.instructor?.name ?? c.instructorName,
+          classTypeName: c.classType?.name ?? null,
+          classTypeIcon: c.classType?.icon ?? null,
+          groupName: null as string | null,
+          memberCount: c._count.registeredMembers + c._count.classVisitRegistrations,
+          limit: c.limit,
+        })),
+        ...groupClasses.map((gc) => ({
+          id: gc.id,
+          type: "GROUP_CLASS" as const,
+          title: gc.groupSubscription.groupName ?? "Group Class",
+          schedule: gc.schedule,
+          duration: gc.duration,
+          status: gc.status,
+          instructorName: gc.trainer.user.name ?? "Unknown",
+          classTypeName: gc.classType?.name ?? null,
+          classTypeIcon: gc.classType?.icon ?? null,
+          groupName: gc.groupSubscription.groupName,
+          memberCount: gc._count.attendances,
+          limit: null as number | null,
+        })),
+      ];
+
+      events.sort((a, b) => new Date(a.schedule).getTime() - new Date(b.schedule).getTime());
+
+      return events;
     }),
 });

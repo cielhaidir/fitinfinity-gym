@@ -5,6 +5,10 @@ import { Plus } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/datatable/data-table";
 import { columns } from "./columns";
 import { ClassForm } from "./class-form";
@@ -22,6 +26,7 @@ export default function ClassPage() {
     name: "",
     limit: null as number | null,
     instructorName: "",
+    instructorId: "" as string,
     schedule: new Date(),
     schedules: [] as Date[],
     duration: 60,
@@ -51,11 +56,17 @@ export default function ClassPage() {
     },
   );
 
+  // Cancel dialog state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<Class | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+
   // Mutations
   const createMutation = api.class.create.useMutation();
   const createBulkMutation = api.class.createBulk.useMutation();
   const updateMutation = api.class.update.useMutation();
   const deleteMutation = api.class.remove.useMutation();
+  const cancelMutation = api.class.cancel.useMutation();
 
   // Update form data when selected class changes
   useEffect(() => {
@@ -67,6 +78,7 @@ export default function ClassPage() {
         name: selectedClass.name,
         limit: selectedClass.limit,
         instructorName: selectedClass.instructorName,
+        instructorId: (selectedClass as any).instructorId ?? "",
         schedule: scheduleDate,
         duration: selectedClass.duration,
         price: selectedClass.price,
@@ -76,6 +88,7 @@ export default function ClassPage() {
         name: "",
         limit: null,
         instructorName: "",
+        instructorId: "",
         schedule: new Date(),
         schedules: [],
         duration: 60,
@@ -97,6 +110,10 @@ export default function ClassPage() {
   // Removed handleTrainerChange
   const handleInstructorNameChange = (instructorName: string) => {
     setFormData((prev) => ({ ...prev, instructorName }));
+  };
+
+  const handleInstructorIdChange = (instructorId: string) => {
+    setFormData((prev) => ({ ...prev, instructorId }));
   };
 
   const handleScheduleChange = (schedule: Date) => {
@@ -210,6 +227,7 @@ export default function ClassPage() {
         name: "",
         limit: null,
         instructorName: "",
+        instructorId: "",
         schedule: new Date(),
         schedules: [],
         duration: 60,
@@ -240,6 +258,33 @@ export default function ClassPage() {
       await utils.class.list.invalidate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "An error occurred");
+    }
+  };
+
+  const handleOpenCancel = (class_: Class) => {
+    setCancelTarget(class_);
+    setCancelReason("");
+    setCancelDialogOpen(true);
+  };
+
+  const handleCancelClass = async (sessionCounted: boolean) => {
+    if (!cancelTarget?.id) return;
+    try {
+      await cancelMutation.mutateAsync({
+        id: cancelTarget.id,
+        sessionCounted,
+        cancelReason: cancelReason || undefined,
+      });
+      toast.success(
+        sessionCounted
+          ? "Class dibatalkan — sesi tetap dihitung"
+          : "Class dibatalkan — sesi TIDAK dihitung"
+      );
+      setCancelDialogOpen(false);
+      setCancelTarget(null);
+      await utils.class.list.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal membatalkan class");
     }
   };
 
@@ -279,6 +324,7 @@ export default function ClassPage() {
           columns={columns({
             onEdit: handleEdit,
             onDelete: handleDelete,
+            onCancel: (class_) => handleOpenCancel(class_),
           })}
           data={
             (classes as {
@@ -311,6 +357,7 @@ export default function ClassPage() {
               name: "",
               limit: null,
               instructorName: "",
+              instructorId: "",
               schedule: new Date(),
               schedules: [],
               duration: 60,
@@ -340,6 +387,7 @@ export default function ClassPage() {
           }
           limit={formData.limit}
           instructorName={formData.instructorName}
+          instructorId={formData.instructorId}
           schedule={formData.schedule}
           schedules={formData.schedules}
           duration={formData.duration}
@@ -348,6 +396,7 @@ export default function ClassPage() {
           onNameChange={handleNameChange}
           onLimitChange={handleLimitChange}
           onInstructorNameChange={handleInstructorNameChange}
+          onInstructorIdChange={handleInstructorIdChange}
           onScheduleChange={handleScheduleChange}
           onSchedulesChange={handleSchedulesChange}
           onDurationChange={handleDurationChange}
@@ -357,6 +406,52 @@ export default function ClassPage() {
           isEditMode={isEditMode}
         />
       </Sheet>
+
+      {/* Cancel Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Batalkan Class</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground mb-3">
+              Class: <span className="font-semibold text-foreground">{cancelTarget?.name}</span>
+              {" — "}
+              {cancelTarget?.schedule && new Date(cancelTarget.schedule).toLocaleString("id-ID", {
+                day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+              })}
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Alasan pembatalan (opsional)</label>
+              <Input
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Instructor sakit, cuaca buruk, dll"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            <Button
+              className="w-full bg-orange-500 hover:bg-orange-600"
+              onClick={() => handleCancelClass(true)}
+              disabled={cancelMutation.isPending}
+            >
+              Batalkan — Sesi Tetap Dihitung
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={() => handleCancelClass(false)}
+              disabled={cancelMutation.isPending}
+            >
+              Batalkan — Sesi Tidak Dihitung
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => setCancelDialogOpen(false)}>
+              Kembali
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </ProtectedRoute>
   );

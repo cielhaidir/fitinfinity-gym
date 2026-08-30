@@ -4,16 +4,19 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { type Class } from "./schema";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Edit, Trash2, Ban } from "lucide-react";
 
 interface ColumnsProps {
   onEdit: (class_: Class) => void;
   onDelete: (class_: Class) => void;
+  onCancel?: (class_: Class, sessionCounted: boolean) => void;
 }
 
 export const columns = ({
   onEdit,
   onDelete,
+  onCancel,
 }: ColumnsProps): ColumnDef<Class>[] => [
   {
     accessorKey: "name",
@@ -47,17 +50,6 @@ export const columns = ({
     ),
   },
   {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created At" />
-    ),
-    cell: ({ row }) => (
-      <div className="hidden md:block">
-        {new Date(row.getValue("createdAt")).toLocaleDateString()}
-      </div>
-    ),
-  },
-  {
     accessorKey: "schedule",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Schedule" />
@@ -73,15 +65,6 @@ export const columns = ({
       </div>
     ),
   },
-  // {
-  //   accessorKey: "duration",
-  //   header: ({ column }) => (
-  //     <DataTableColumnHeader column={column} title="Duration" />
-  //   ),
-  //   cell: ({ row }) => (
-  //     <div className="hidden md:block">{row.getValue("duration")} minutes</div>
-  //   ),
-  // },
   {
     accessorKey: "price",
     header: ({ column }) => (
@@ -94,38 +77,60 @@ export const columns = ({
     ),
   },
   {
+    accessorKey: "status",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
+    cell: ({ row }) => {
+      const status = row.original.status ?? "SCHEDULED";
+      const sessionCounted = row.original.sessionCounted;
+      if (status === "CANCELLED") {
+        return (
+          <Badge variant="destructive" className="text-xs">
+            Dibatalkan{sessionCounted === false ? " (sesi tidak dihitung)" : " (sesi dihitung)"}
+          </Badge>
+        );
+      }
+      return <Badge className="bg-green-600 text-xs">Aktif</Badge>;
+    },
+  },
+  {
     id: "actions",
     cell: ({ row }) => {
+      const status = row.original.status ?? "SCHEDULED";
+      const isCancelled = status === "CANCELLED";
       return (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1">
+          {!isCancelled && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(row.original)}
+                title="Edit"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-orange-500 hover:text-orange-600"
+                onClick={() => onCancel?.(row.original, true)}
+                title="Batalkan class"
+              >
+                <Ban className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button
             variant="ghost"
             size="icon"
-            className="hidden md:flex"
-            onClick={() => onEdit(row.original)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden md:flex"
+            className="text-destructive hover:text-destructive"
             onClick={() => onDelete(row.original)}
+            title="Hapus"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-
-          {/* Mobile actions */}
-          <div className="md:hidden">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => onEdit(row.original)}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       );
     },

@@ -46,6 +46,7 @@ import {
   Ban,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Combobox } from "@/components/ui/combobox";
 
 const statusBadge = (status: string) => {
   switch (status) {
@@ -184,7 +185,7 @@ export default function GroupClassPage() {
     const initialHanduk: Record<string, string> = {};
     const initialCheckIn: Record<string, string> = {};
     detail.attendances.forEach((a: any) => {
-      initial[a.memberId] = a.attended ?? true;
+      initial[a.memberId] = a.attended ?? false;
       initialLoker[a.memberId] = a.lokerNumber ?? "";
       initialHanduk[a.memberId] = a.handukType ?? "None";
       initialCheckIn[a.memberId] = a.checkInTime
@@ -631,53 +632,49 @@ export default function GroupClassPage() {
               {/* Group Subscription */}
               <div className="space-y-1">
                 <Label>Group Subscription *</Label>
-                <Select value={formGroupSubId} onValueChange={setFormGroupSubId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingGroupSubs ? "Memuat..." : "Pilih Group"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupSubs?.map((gs) => (
-                      <SelectItem key={gs.id} value={gs.id}>
-                        {gs.groupName ?? `Group - ${gs.leadSubscription.member.user.name}`}
-                        {" "}({(gs.leadSubscription.remainingSessions ?? 0) + (gs.leadSubscription.remainingBonusSessions ?? 0)} sesi)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={(groupSubs ?? []).map((gs) => ({
+                    value: gs.id,
+                    label: `${gs.groupName ?? `Group - ${gs.leadSubscription.member.user.name}`} (${(gs.leadSubscription.remainingSessions ?? 0) + (gs.leadSubscription.remainingBonusSessions ?? 0)} sesi)`,
+                  }))}
+                  value={formGroupSubId}
+                  onValueChange={setFormGroupSubId}
+                  placeholder={loadingGroupSubs ? "Memuat..." : "Pilih Group"}
+                  searchPlaceholder="Cari group..."
+                  emptyMessage="Group tidak ditemukan."
+                />
               </div>
 
               {/* Trainer */}
               <div className="space-y-1">
                 <Label>Trainer *</Label>
-                <Select value={formTrainerId} onValueChange={setFormTrainerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih Trainer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {trainers?.map((t: any) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.user?.name ?? "Unknown"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={(trainers ?? []).map((t: any) => ({
+                    value: t.id,
+                    label: t.user?.name ?? "Unknown",
+                  }))}
+                  value={formTrainerId}
+                  onValueChange={setFormTrainerId}
+                  placeholder="Pilih Trainer"
+                  searchPlaceholder="Cari trainer..."
+                  emptyMessage="Trainer tidak ditemukan."
+                />
               </div>
 
               {/* Class Type */}
               <div className="space-y-1">
                 <Label>Jenis Kelas (opsional)</Label>
-                <Select value={formClassTypeId} onValueChange={setFormClassTypeId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih jenis kelas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classTypes?.map((ct: any) => (
-                      <SelectItem key={ct.id} value={ct.id}>
-                        {ct.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={(classTypes ?? []).map((ct: any) => ({
+                    value: ct.id,
+                    label: ct.name,
+                  }))}
+                  value={formClassTypeId}
+                  onValueChange={setFormClassTypeId}
+                  placeholder="Pilih jenis kelas"
+                  searchPlaceholder="Cari jenis kelas..."
+                  emptyMessage="Jenis kelas tidak ditemukan."
+                />
               </div>
 
               {/* Schedule */}
