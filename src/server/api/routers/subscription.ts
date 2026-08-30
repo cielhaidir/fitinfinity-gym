@@ -5414,6 +5414,7 @@ export const subscriptionRouter = createTRPCRouter({
     }),
 
   // Best selling packages — ranked by subscription count in a given date range
+  // Consistent with getAdminDashboardStats: filters by Payment.createdAt + SUCCESS status
   bestSellingPackages: permissionProtectedProcedure(["menu:dashboard-admin"])
     .input(
       z.object({
@@ -5423,37 +5424,68 @@ export const subscriptionRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const where: any = { deletedAt: null };
-      if (input.startDate || input.endDate) {
-        where.startDate = {};
-        if (input.startDate) where.startDate.gte = input.startDate;
-        if (input.endDate) where.startDate.lte = input.endDate;
-      }
+      const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
+      const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
 
-      const grouped = await ctx.db.subscription.groupBy({
-        by: ["packageId"],
-        where,
-        _count: { _all: true },
-        orderBy: { _count: { packageId: "desc" } },
-        take: input.limit,
+      const paymentDateFilter = start && end
+        ? { createdAt: { gte: start, lte: end } }
+        : {};
+
+      // Get subscriptions that have at least one successful payment in the date range
+      const subscriptionsInRange = await ctx.db.subscription.findMany({
+        where: {
+          deletedAt: null,
+          payments: {
+            some: {
+              status: "SUCCESS",
+              deletedAt: null,
+              ...paymentDateFilter,
+            },
+          },
+        },
+        select: {
+          id: true,
+          packageId: true,
+          payments: {
+            where: {
+              status: "SUCCESS",
+              deletedAt: null,
+              ...paymentDateFilter,
+            },
+            select: { totalPayment: true },
+          },
+        },
       });
 
-      const packageIds = grouped.map((g) => g.packageId);
+      // Aggregate by packageId
+      const packageMap: Record<string, { count: number; revenue: number }> = {};
+      for (const sub of subscriptionsInRange) {
+        const pid = sub.packageId;
+        if (!packageMap[pid]) packageMap[pid] = { count: 0, revenue: 0 };
+        packageMap[pid]!.count++;
+        packageMap[pid]!.revenue += sub.payments.reduce((s, p) => s + p.totalPayment, 0);
+      }
+
+      // Sort by count desc, take top N
+      const sorted = Object.entries(packageMap)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, input.limit);
+
+      const packageIds = sorted.map(([pid]) => pid);
       const packages = await ctx.db.package.findMany({
         where: { id: { in: packageIds } },
         select: { id: true, name: true, type: true, price: true },
       });
 
-      return grouped.map((g) => {
-        const pkg = packages.find((p) => p.id === g.packageId);
-        const unitPrice = pkg?.price ?? 0;
+      return sorted.map(([pid, data]) => {
+        const pkg = packages.find((p) => p.id === pid);
         return {
-          packageId: g.packageId,
+          packageId: pid,
           packageName: pkg?.name ?? "Unknown",
           packageType: pkg?.type ?? "OTHER",
-          unitPrice,
-          totalSold: g._count._all,
-          totalRevenue: unitPrice * g._count._all,
+          unitPrice: pkg?.price ?? 0,
+          totalSold: data.count,
+          totalRevenue: data.revenue,
         };
       });
     }),
