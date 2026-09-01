@@ -446,6 +446,179 @@ export const classRouter = createTRPCRouter({
       }
     }),
 
+  // Class attendance summary — combines Class (registered), ClassVisit, and GroupClass attendance
+  attendanceSummary: permissionProtectedProcedure(["menu:class-attendance"])
+    .input(
+      z.object({
+        startDate: z.date(),
+        endDate: z.date(),
+        search: z.string().optional(),
+        instructorName: z.string().optional(),
+        type: z.enum(["all", "class", "class_visit", "group_class"]).default("all"),
+        page: z.number().min(1).default(1),
+        pageSize: z.number().min(1).max(100).default(20),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      type AttendanceRow = {
+        id: string;
+        type: "CLASS" | "CLASS_VISIT" | "GROUP_CLASS";
+        className: string;
+        classTypeName: string | null;
+        memberName: string;
+        memberId: string;
+        instructorName: string;
+        schedule: Date;
+        attended: boolean;
+        attendedAt: Date | null;
+        status: string;
+      };
+
+      const rows: AttendanceRow[] = [];
+
+      // 1. ClassMember (registered members in Class)
+      if (input.type === "all" || input.type === "class") {
+        const classMembers = await ctx.db.classMember.findMany({
+          where: {
+            class: {
+              schedule: { gte: input.startDate, lte: input.endDate },
+              ...(input.instructorName
+                ? { instructor: { name: { contains: input.instructorName, mode: "insensitive" as const } } }
+                : {}),
+            },
+            ...(input.search
+              ? { member: { user: { name: { contains: input.search, mode: "insensitive" as const } } } }
+              : {}),
+          },
+          include: {
+            class: {
+              include: {
+                classType: { select: { name: true } },
+                instructor: { select: { name: true } },
+              },
+            },
+            member: { include: { user: { select: { name: true } } } },
+          },
+          orderBy: { class: { schedule: "desc" } },
+        });
+
+        for (const cm of classMembers) {
+          rows.push({
+            id: cm.id,
+            type: "CLASS",
+            className: cm.class.name,
+            classTypeName: cm.class.classType?.name ?? null,
+            memberName: cm.member.user.name ?? "Unknown",
+            memberId: cm.memberId,
+            instructorName: cm.class.instructor?.name ?? cm.class.instructorName,
+            schedule: cm.class.schedule,
+            attended: cm.attended,
+            attendedAt: cm.attendedAt,
+            status: cm.attended ? "HADIR" : "BELUM",
+          });
+        }
+      }
+
+      // 2. ClassVisitRegistration
+      if (input.type === "all" || input.type === "class_visit") {
+        const classVisits = await ctx.db.classVisitRegistration.findMany({
+          where: {
+            class: {
+              schedule: { gte: input.startDate, lte: input.endDate },
+              ...(input.instructorName
+                ? { instructor: { name: { contains: input.instructorName, mode: "insensitive" as const } } }
+                : {}),
+            },
+            status: { in: ["CONFIRMED", "ATTENDED", "NO_SHOW"] },
+            ...(input.search
+              ? { member: { user: { name: { contains: input.search, mode: "insensitive" as const } } } }
+              : {}),
+          },
+          include: {
+            class: {
+              include: {
+                classType: { select: { name: true } },
+                instructor: { select: { name: true } },
+              },
+            },
+            member: { include: { user: { select: { name: true } } } },
+          },
+          orderBy: { class: { schedule: "desc" } },
+        });
+
+        for (const cv of classVisits) {
+          rows.push({
+            id: cv.id,
+            type: "CLASS_VISIT",
+            className: cv.class.name,
+            classTypeName: cv.class.classType?.name ?? null,
+            memberName: cv.member.user.name ?? "Unknown",
+            memberId: cv.memberId,
+            instructorName: cv.class.instructor?.name ?? cv.class.instructorName,
+            schedule: cv.class.schedule,
+            attended: cv.status === "ATTENDED",
+            attendedAt: cv.status === "ATTENDED" ? cv.updatedAt : null,
+            status: cv.status === "ATTENDED" ? "HADIR" : cv.status === "NO_SHOW" ? "TIDAK HADIR" : "TERKONFIRMASI",
+          });
+        }
+      }
+
+      // 3. GroupClassAttendance
+      if (input.type === "all" || input.type === "group_class") {
+        const groupAttendances = await ctx.db.groupClassAttendance.findMany({
+          where: {
+            groupClass: {
+              schedule: { gte: input.startDate, lte: input.endDate },
+              status: { not: "CANCELLED" },
+              ...(input.instructorName
+                ? { trainer: { user: { name: { contains: input.instructorName, mode: "insensitive" as const } } } }
+                : {}),
+            },
+            ...(input.search
+              ? { member: { user: { name: { contains: input.search, mode: "insensitive" as const } } } }
+              : {}),
+          },
+          include: {
+            groupClass: {
+              include: {
+                classType: { select: { name: true } },
+                trainer: { include: { user: { select: { name: true } } } },
+                groupSubscription: { select: { groupName: true } },
+              },
+            },
+            member: { include: { user: { select: { name: true } } } },
+          },
+          orderBy: { groupClass: { schedule: "desc" } },
+        });
+
+        for (const ga of groupAttendances) {
+          rows.push({
+            id: ga.id,
+            type: "GROUP_CLASS",
+            className: ga.groupClass.groupSubscription.groupName ?? "Group Class",
+            classTypeName: ga.groupClass.classType?.name ?? null,
+            memberName: ga.member.user.name ?? "Unknown",
+            memberId: ga.memberId,
+            instructorName: ga.groupClass.trainer.user.name ?? "Unknown",
+            schedule: ga.groupClass.schedule,
+            attended: ga.attended === true,
+            attendedAt: ga.attended === true ? ga.attendedAt : null,
+            status: ga.attended === true ? "HADIR" : ga.attended === false ? "TIDAK HADIR" : "BELUM",
+          });
+        }
+      }
+
+      // Sort by schedule desc
+      rows.sort((a, b) => new Date(b.schedule).getTime() - new Date(a.schedule).getTime());
+
+      const total = rows.length;
+      const totalAttended = rows.filter((r) => r.attended).length;
+      const start = (input.page - 1) * input.pageSize;
+      const items = rows.slice(start, start + input.pageSize);
+
+      return { items, total, totalAttended };
+    }),
+
   // Calendar events: combines Class (class visit) and GroupClass schedules
   calendarEvents: permissionProtectedProcedure(["list:classes"])
     .input(

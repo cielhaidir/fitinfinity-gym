@@ -405,7 +405,7 @@ export const Menu: { navMain: MenuGroup[] } = {
           requiredPermission: "menu:payment-history",
         },
         {
-          title: "Class Visit",
+          title: "Request Class",
           icon: Ticket,
           url: "/member/class-visit",
           requiredPermission: "request:class-visit",

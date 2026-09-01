@@ -1174,4 +1174,13 @@ export const classVisitRouter = createTRPCRouter({
 
       return { items, total };
     }),
+
+  // Count pending class visit registrations (for sidebar badge)
+  pendingCount: permissionProtectedProcedure(["manage:class-visit"])
+    .query(async ({ ctx }) => {
+      const count = await ctx.db.classVisitRegistration.count({
+        where: { status: "PENDING_PAYMENT" },
+      });
+      return count;
+    }),
 });

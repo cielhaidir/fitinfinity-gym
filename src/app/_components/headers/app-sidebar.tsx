@@ -20,6 +20,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -50,6 +51,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     staleTime: 60_000,
   });
   const activePackageTypes = packageData?.packageTypes ?? [];
+
+  // Pending class visit count for sidebar badge
+  const { data: pendingClassVisitCount } = api.classVisit.pendingCount.useQuery(undefined, {
+    retry: false,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
   // Add this new useEffect to close mobile menu on route change
   useEffect(() => {
@@ -150,6 +158,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           <span>{subItem.title}</span>
                         </Link>
                       </SidebarMenuButton>
+                      {subItem.url === "/admin/class-visit" && !!pendingClassVisitCount && pendingClassVisitCount > 0 && (
+                        <SidebarMenuBadge className="bg-red-500 text-white rounded-full text-[10px] min-w-[20px] h-5 flex items-center justify-center">
+                          {pendingClassVisitCount}
+                        </SidebarMenuBadge>
+                      )}
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>

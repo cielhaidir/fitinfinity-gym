@@ -6,6 +6,40 @@ import { mqttService } from "@/lib/mqtt/mqttService";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 import { logPointHistory } from "@/server/helpers/pointHistory";
 
+/**
+ * Auto-mark CONFIRMED class visit registrations as ATTENDED
+ * when a member checks in on the day of the class.
+ */
+async function autoAttendClassVisit(db: any, memberId: string) {
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayStart.getDate() + 1);
+
+  const confirmedRegistrations = await db.classVisitRegistration.findMany({
+    where: {
+      memberId,
+      status: "CONFIRMED",
+      class: {
+        schedule: { gte: todayStart, lt: todayEnd },
+      },
+    },
+    select: { id: true },
+  });
+
+  if (confirmedRegistrations.length > 0) {
+    await db.classVisitRegistration.updateMany({
+      where: {
+        id: { in: confirmedRegistrations.map((r: any) => r.id) },
+      },
+      data: { status: "ATTENDED" },
+    });
+  }
+
+  return confirmedRegistrations.length;
+}
+
 // Output schema for getMemberCheckinLogs
 const memberCheckinLogSchema = z.object({
   id: z.string(),
@@ -488,6 +522,9 @@ export const esp32Router = createTRPCRouter({
           }
         });
 
+        // Auto-mark confirmed class visit registrations as ATTENDED
+        const classVisitsAttended = await autoAttendClassVisit(ctx.db, membership.id);
+
         // Only increment points if this is the first check-in today
         const alreadyCheckedInToday = await ctx.db.attendanceMember.findFirst({
           where: {
@@ -537,7 +574,7 @@ export const esp32Router = createTRPCRouter({
 
         result = {
           success: true,
-          message: "Member attendance logged successfully",
+          message: `Member attendance logged successfully${classVisitsAttended > 0 ? ` (${classVisitsAttended} class visit auto-attended)` : ""}`,
           data: memberAttendance
         };
         success = true;
@@ -624,6 +661,9 @@ export const esp32Router = createTRPCRouter({
             facilityDescription: input.facilityDescription || undefined
           }
         });
+
+        // Auto-mark confirmed class visit registrations as ATTENDED
+        await autoAttendClassVisit(ctx.db, membership.id);
 
         // Only increment points if this is the first check-in today
         const alreadyCheckedInToday = await ctx.db.attendanceMember.findFirst({
