@@ -116,6 +116,7 @@ getRevenueBySales: protectedProcedure
     const allAcceptedPayments = await ctx.db.subscription.findMany({
      where: {
   deletedAt: null,
+  isComplimentary: false,
   ...(salesId && { salesId }),
   payments: {
     some: {
@@ -304,7 +305,8 @@ getRevenueBySales: protectedProcedure
           status: 'SUCCESS',
           ...(paymentMethod && { method: paymentMethod }),
                   subscription: {
-              deletedAt: null
+              deletedAt: null,
+              isComplimentary: false,
             }
         },
         include: {
@@ -357,8 +359,10 @@ getRevenueBySales: protectedProcedure
             gte: toGMT8StartOfDay(startDate),
             lte: toGMT8EndOfDay(endDate),
           },
+          deletedAt: null,
           status: 'SUCCESS',
           ...(paymentMethod && { method: paymentMethod }),
+          subscription: { deletedAt: null, isComplimentary: false },
         },
       });
 
@@ -448,7 +452,8 @@ getRevenueBySales: protectedProcedure
             deletedAt: null,
             status: 'SUCCESS',
                     subscription: {
-              deletedAt: null
+              deletedAt: null,
+              isComplimentary: false,
             }
           },
           select: {
@@ -519,7 +524,8 @@ getRevenueBySales: protectedProcedure
           deletedAt: null,
           status: 'SUCCESS',
                   subscription: {
-              deletedAt: null
+              deletedAt: null,
+              isComplimentary: false,
             }
         },
         include: {
@@ -614,7 +620,8 @@ getRevenueBySales: protectedProcedure
             status: 'SUCCESS',
             ...(paymentMethod && { method: paymentMethod }),
             subscription: {
-              deletedAt: null
+              deletedAt: null,
+              isComplimentary: false,
             }
           },
           select: {

@@ -442,6 +442,11 @@ const DashboardPage: React.FC = () => {
                   <h2 className="text-2xl font-bold">
                     {statsLoading ? "..." : dashboardStats?.activeMembershipsCount ?? 0}
                   </h2>
+                  {!statsLoading && (dashboardStats?.activeComplimentaryCount ?? 0) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {dashboardStats!.activeComplimentaryCount} bonus/gratis
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -456,6 +461,7 @@ const DashboardPage: React.FC = () => {
                   <h2 className="text-2xl font-bold">
                     {statsLoading ? "..." : dashboardStats?.totalRenewals ?? 0}
                   </h2>
+                  <p className="text-xs text-muted-foreground">Berbayar saja</p>
                 </div>
               </div>
             </Card>
@@ -470,6 +476,11 @@ const DashboardPage: React.FC = () => {
                   <h2 className="text-2xl font-bold">
                     {statsLoading ? "..." : dashboardStats?.totalNewMembers ?? 0}
                   </h2>
+                  {!statsLoading && (dashboardStats?.complimentaryInRange ?? 0) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      +{dashboardStats!.complimentaryInRange} subscription bonus (tidak dihitung)
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -1095,6 +1106,13 @@ const DashboardPage: React.FC = () => {
                           setSelectedRetentionMonth({ year: data.year, monthIndex: data.monthIndex, label: data.month, type: "rejoin" });
                         }
                       }}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="totalBonus"
+                      name="Bonus/Gratis"
+                      fill="#94a3b8"
+                      radius={[4, 4, 0, 0]}
                     />
                     <Line
                       yAxisId="right"

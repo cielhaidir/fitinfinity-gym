@@ -7,14 +7,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { type Member } from "./schema";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
-import { DataTableRowActions } from "@/components/datatable/data-table-row-actions";
+import {
+  DataTableRowActions,
+  type CustomAction,
+} from "@/components/datatable/data-table-row-actions";
 import { sub } from "date-fns";
 
 interface ColumnsProps {
   onEditMember: (member: any) => void;
   onDeleteMember: (member: any) => void;
-  customActions?: { label: string; action: (member: any) => void }[]; // Support multiple custom actions
-  getCustomActions?: (member: any) => { label: string; action: (member: any) => void }[]; // Dynamic custom actions
+  customActions?: CustomAction<Member>[]; // Support multiple custom actions
+  getCustomActions?: (member: Member) => CustomAction<Member>[]; // Dynamic custom actions
 }
 
 export const createColumns = ({

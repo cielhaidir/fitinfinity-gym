@@ -372,6 +372,32 @@ export const PackageForm: React.FC<PackageFormProps> = ({
           />
         </div>
 
+        <div className="flex items-center gap-3 rounded-md border p-3">
+          <input
+            type="checkbox"
+            id="isComplimentaryOnly"
+            name="isComplimentaryOnly"
+            checked={newPackage.isComplimentaryOnly ?? false}
+            onChange={(e) => {
+              onInputChange({
+                target: {
+                  name: "isComplimentaryOnly",
+                  value: e.target.checked,
+                },
+              } as unknown as React.ChangeEvent<HTMLInputElement>);
+            }}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <div>
+            <label htmlFor="isComplimentaryOnly" className="block text-sm font-medium cursor-pointer">
+              Paket Bonus / Gratis
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Jika dicentang, semua subscription dari paket ini ditandai sebagai bonus dan tidak dihitung dalam laporan penjualan, renewal, dan komisi sales.
+            </p>
+          </div>
+        </div>
+
         <div>
           <label htmlFor="isActive" className="block text-sm font-medium">
             Status

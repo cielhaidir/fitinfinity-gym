@@ -316,7 +316,7 @@ async function main() {
 
     "Customer Service": [
       "show:user", "show:profile", "update:profile",
-      "menu:dashboard-admin", "menu:member", "menu:subscription", "menu:payment", "menu:transaction", "menu:reward", "menu:pos-sale", "menu:pos-category", "menu:pos-item", "menu:class-attendance",
+      "menu:dashboard-admin", "menu:member", "menu:subscription", "menu:payment", "menu:transaction", "menu:reward", "menu:pos-sale", "menu:pos-category", "menu:pos-item", "menu:class-attendance", "menu:group-management",
       "list:member", "show:member", "update:member", "show:membership", "show:attedance",
       "create:subscription", "list:subscription", "show:subscription", "update:subscription",
       "list:freeze-price", "show:freeze-price",
@@ -324,6 +324,7 @@ async function main() {
       "list:pos-category", "show:pos-category", "create:pos-category", "update:pos-category",
       "list:pos-sale", "show:pos-sale", "create:pos-sale", "update:pos-sale",
       "list:classes", "create:class-registration", "create:classes", "update:classes",
+      "create:session", "list:session", "update:session",
       "list:payment", "show:payment", "accept:payment", "decline:payment",
       "list:trainers", "show:trainers", "list:packages", "show:packages", "list:balances", "list:reward", "list:voucher", "list:employees",
       "report:member-attendance", "report:active-membership", "report:member-profile", "report:pt-remaining-sessions", "report:employees",

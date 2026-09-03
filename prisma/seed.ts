@@ -519,6 +519,7 @@ async function main() {
         "menu:pos-category",
         "menu:pos-item",
         "menu:class-attendance",
+        "menu:group-management",
 
         // Member management (read + update)
         "list:member",
@@ -556,6 +557,11 @@ async function main() {
         "create:class-registration",
         "create:classes",
         "update:classes",
+
+        // Group Class / Session management
+        "create:session",
+        "list:session",
+        "update:session",
 
         // Payment (read)
         "list:payment",

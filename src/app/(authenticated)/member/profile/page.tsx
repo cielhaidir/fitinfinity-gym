@@ -1144,7 +1144,7 @@ export default function ProfilePage() {
               <>
                 <div className="md:hidden space-y-3">
                   {memberFreezeHistory.items.map((freeze) => {
-                    const freezeStart = freeze.performedAt ? new Date(freeze.performedAt) : null;
+                    const freezeStart = freeze.freezeStartAt ? new Date(freeze.freezeStartAt) : null;
                     const freezeEnd =
                       freeze.operationType === "FREEZE" && freezeStart && freeze.freezeDays
                         ? addDays(freezeStart, freeze.freezeDays)
@@ -1219,7 +1219,7 @@ export default function ProfilePage() {
                     </TableHeader>
                     <TableBody>
                       {memberFreezeHistory.items.map((freeze) => {
-                        const freezeStart = freeze.performedAt ? new Date(freeze.performedAt) : null;
+                        const freezeStart = freeze.freezeStartAt ? new Date(freeze.freezeStartAt) : null;
                         const freezeEnd =
                           freeze.operationType === "FREEZE" && freezeStart && freeze.freezeDays
                             ? addDays(freezeStart, freeze.freezeDays)

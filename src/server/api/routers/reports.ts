@@ -5,6 +5,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
+import { ACTIVE_SUB_WHERE } from "@/server/utils/subscriptionFilters";
 
 /**
  * Reports Router
@@ -57,8 +58,8 @@ export const reportsRouter = createTRPCRouter({
         // A member is considered active if they have at least one active subscription
         const membershipWhere: any = {};
 
-        // Base subscription condition for active/inactive filter
-        const activeSubCondition = { isActive: true, deletedAt: null };
+        // Base subscription condition for active/inactive filter (excludes frozen)
+        const activeSubCondition = ACTIVE_SUB_WHERE;
         
         // Only include memberships that have at least one active subscription
         if (input.isActive) {

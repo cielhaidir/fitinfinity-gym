@@ -29,6 +29,7 @@ import { Label } from "@/app/_components/ui/label";
 import { Card, CardContent } from "@/app/_components/ui/card";
 
 import { DataTable } from "@/components/datatable/data-table";
+import { type CustomAction } from "@/components/datatable/data-table-row-actions";
 import { createColumns } from "./columns";
 import { api } from "@/trpc/react";
 import { type Member, type UserMember } from "./schema";
@@ -370,17 +371,11 @@ export default function MemberPage() {
     setLimit(newLimit);
   };
 
-  const directToSubs = (member: Member) => {
-    router.push(`/checkout/${member.userId}`);
-  };
+  const subsHref = (member: Member) => `/checkout/${member.userId}`;
 
-  const directToLogs = (member: Member) => {
-    router.push(`/management/access-log/${member.id}`);
-  };
+  const logsHref = (member: Member) => `/management/access-log/${member.id}`;
 
-  const directToProfile = (member: Member) => {
-    router.push(`/member/profile?memberId=${member.id}`);
-  };
+  const profileHref = (member: Member) => `/member/profile?memberId=${member.id}`;
 
   const handleManualCheckIn = (member: Member) => {
     setSelectedMemberForCheckIn(member);
@@ -504,18 +499,16 @@ export default function MemberPage() {
   };
 
 
-  const directToPointHistory = (member: Member) => {
-    router.push(`/reports/point-history?userId=${member.userId}`);
-  };
+  const pointHistoryHref = (member: Member) => `/reports/point-history?userId=${member.userId}`;
 
-  const getCustomActions = (member: Member) => {
-    const baseActions = [
-      { label: "Profile", action: directToProfile },
-      { label: "Subscription", action: directToSubs },
-      { label: "Kartu Poin", action: directToPointHistory },
-      { label: "Access Log", action: directToLogs },
+  const getCustomActions = (member: Member): CustomAction<Member>[] => {
+    const baseActions: CustomAction<Member>[] = [
+      { label: "Profile", href: profileHref },
+      { label: "Subscription", href: subsHref },
+      { label: "Kartu Poin", href: pointHistoryHref },
+      { label: "Access Log", href: logsHref },
       { label: "Check In Manually", action: handleManualCheckIn },
-      { label: "Transfer Subscriptions", action: () => router.push("/admin/subscription-history") },
+      { label: "Transfer Subscriptions", href: () => "/admin/subscription-history" },
     ];
 
     // Check if member has any active subscriptions

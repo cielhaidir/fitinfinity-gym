@@ -8,6 +8,7 @@ import {
   permissionProtectedProcedure,
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { ACTIVE_SUB_WHERE } from "@/server/utils/subscriptionFilters";
 
 // NOTE: updateExpiredSubscriptions logic has been moved to the cron job:
 // /api/cron/deactivate-expired-subscriptions (runs every 6 hours)
@@ -605,10 +606,7 @@ export const memberRouter = createTRPCRouter({
           rfidNumber: input.rfidNumber,
           // Member must have at least one active, non-frozen subscription
           subscriptions: {
-            some: {
-              isActive: true,
-              isFrozen: false,
-            },
+            some: ACTIVE_SUB_WHERE,
           },
         },
         include: {
@@ -635,10 +633,7 @@ export const memberRouter = createTRPCRouter({
           id: input.membershipId,
           // Member must have at least one active, non-frozen subscription
           subscriptions: {
-            some: {
-              isActive: true,
-              isFrozen: false,
-            },
+            some: ACTIVE_SUB_WHERE,
           },
         },
         include: {

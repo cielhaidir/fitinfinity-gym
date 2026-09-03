@@ -6,8 +6,15 @@ import { Button } from "@/components/ui/button";
 import { SearchForm } from "./search-form";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { useState, useCallback, useEffect } from "react";
-import { Menu as data } from "@/lib/menu";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { ChevronRight } from "lucide-react";
+import {
+  Menu as data,
+  isMenuParent,
+  flattenMenuItems,
+  type MenuLeaf,
+  type MenuItem,
+} from "@/lib/menu";
 import { useRouter } from "next/navigation";
 import { useRBAC } from "@/hooks/useRBAC";
 import { api } from "@/trpc/react";
@@ -23,10 +30,18 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 import {
   Command,
@@ -87,33 +102,70 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     command();
   }, []);
 
-  // Filter menu items based on permissions or show all if RBAC is disabled
-  const filteredNavMain = data.navMain
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        // If RBAC is disabled, show all items regardless of permissions
-        if (process.env.NEXT_PUBLIC_ALLOW_RBAC === "false") {
-          return true;
-        }
-
-        // If the item has a permission requirement, check if user has it
-        if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
-          return false;
-        }
-        // Package-type visibility rules (only applied when member has active subscriptions)
-        if (activePackageTypes.length > 0 || item.showForPackageTypes) {
-          if (item.showForPackageTypes && !item.showForPackageTypes.some((t) => activePackageTypes.includes(t))) {
-            return false;
-          }
-        }
-        if (item.hideForPackageTypes && item.hideForPackageTypes.some((t) => activePackageTypes.includes(t))) {
-          return false;
-        }
+  const canSeeLeaf = useCallback(
+    (item: MenuLeaf) => {
+      // If RBAC is disabled, show all items regardless of permissions
+      if (process.env.NEXT_PUBLIC_ALLOW_RBAC === "false") {
         return true;
-      }),
-    }))
-    .filter((group) => group.items.length > 0); // Only show groups with visible items
+      }
+
+      // If the item has a permission requirement, check if user has it
+      if (item.requiredPermission && !hasPermission(item.requiredPermission)) {
+        return false;
+      }
+      // Package-type visibility rules (only applied when member has active subscriptions)
+      if (activePackageTypes.length > 0 || item.showForPackageTypes) {
+        if (item.showForPackageTypes && !item.showForPackageTypes.some((t) => activePackageTypes.includes(t))) {
+          return false;
+        }
+      }
+      if (item.hideForPackageTypes && item.hideForPackageTypes.some((t) => activePackageTypes.includes(t))) {
+        return false;
+      }
+      return true;
+    },
+    [hasPermission, activePackageTypes],
+  );
+
+  // Filter menu items based on permissions (recursively for nested parents)
+  const filteredNavMain = useMemo(
+    () =>
+      data.navMain
+        .map((group) => ({
+          ...group,
+          items: group.items
+            .map((item): MenuItem | null => {
+              if (isMenuParent(item)) {
+                const children = item.items.filter(canSeeLeaf);
+                return children.length > 0 ? { ...item, items: children } : null;
+              }
+              return canSeeLeaf(item) ? item : null;
+            })
+            .filter((item): item is MenuItem => item !== null),
+        }))
+        .filter((group) => group.items.length > 0),
+    [canSeeLeaf],
+  );
+
+  // Track which collapsible parents are open. Auto-open the one containing the active route.
+  const [openParents, setOpenParents] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    for (const group of filteredNavMain) {
+      for (const item of group.items) {
+        if (isMenuParent(item) && item.items.some((leaf) => leaf.url === pathname)) {
+          const key = `${group.title}/${item.title}`;
+          setOpenParents((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+        }
+      }
+    }
+  }, [pathname, filteredNavMain]);
+
+  const renderBadge = (url: string) =>
+    url === "/admin/class-visit" && !!pendingClassVisitCount && pendingClassVisitCount > 0 ? (
+      <SidebarMenuBadge className="bg-red-500 text-white rounded-full text-[10px] min-w-[20px] h-5 flex items-center justify-center">
+        {pendingClassVisitCount}
+      </SidebarMenuBadge>
+    ) : null;
 
   return (
     <>
@@ -132,39 +184,76 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
           {!isMobile && <SearchForm setOpen={setOpen} />}
         </SidebarHeader>
-        <SidebarContent className="pe-2 ps-4">
-          {/* We create a SidebarGroup for each parent. */}
-          {filteredNavMain.map((item) => (
-            <SidebarGroup key={item.title}>
-              <SidebarGroupLabel className="text-gray-400">
-                {item.title}
+        <SidebarContent className="pe-2 ps-3">
+          {filteredNavMain.map((group) => (
+            <SidebarGroup key={group.title} className="py-1">
+              <SidebarGroupLabel className="text-gray-400 uppercase tracking-wider text-[11px]">
+                {group.title}
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {item.items.map((subItem) => (
-                    <SidebarMenuItem key={subItem.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === subItem.url}
-                        className="p-4 text-base sm:p-2 sm:text-sm"
-                      >
-                        <Link
-                          href={subItem.url}
-                          className="flex items-center gap-2"
+                  {group.items.map((item) => {
+                    if (isMenuParent(item)) {
+                      const key = `${group.title}/${item.title}`;
+                      const hasActiveChild = item.items.some((leaf) => leaf.url === pathname);
+                      const isOpen = openParents[key] ?? hasActiveChild;
+                      return (
+                        <Collapsible
+                          key={key}
+                          open={isOpen}
+                          onOpenChange={(v) => setOpenParents((prev) => ({ ...prev, [key]: v }))}
+                          className="group/collapsible"
                         >
-                          {"icon" in subItem && subItem.icon && (
-                            <subItem.icon className="h-4 w-4" />
-                          )}
-                          <span>{subItem.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                      {subItem.url === "/admin/class-visit" && !!pendingClassVisitCount && pendingClassVisitCount > 0 && (
-                        <SidebarMenuBadge className="bg-red-500 text-white rounded-full text-[10px] min-w-[20px] h-5 flex items-center justify-center">
-                          {pendingClassVisitCount}
-                        </SidebarMenuBadge>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton
+                                className="p-4 text-base sm:p-2 sm:text-sm"
+                                isActive={hasActiveChild && !isOpen}
+                              >
+                                {item.icon && <item.icon className="h-4 w-4" />}
+                                <span>{item.title}</span>
+                                <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenuSub>
+                                {item.items.map((leaf) => (
+                                  <SidebarMenuSubItem key={leaf.url} className="relative">
+                                    <SidebarMenuSubButton
+                                      asChild
+                                      isActive={pathname === leaf.url}
+                                    >
+                                      <Link href={leaf.url}>
+                                        {leaf.icon && <leaf.icon className="h-4 w-4" />}
+                                        <span>{leaf.title}</span>
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                    {renderBadge(leaf.url)}
+                                  </SidebarMenuSubItem>
+                                ))}
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    }
+
+                    return (
+                      <SidebarMenuItem key={item.url}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === item.url}
+                          className="p-4 text-base sm:p-2 sm:text-sm"
+                        >
+                          <Link href={item.url} className="flex items-center gap-2">
+                            {item.icon && <item.icon className="h-4 w-4" />}
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {renderBadge(item.url)}
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -193,15 +282,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 heading={group.title}
                 className="py-4"
               >
-                {group.items.map((item) => (
+                {flattenMenuItems(group.items).map((item) => (
                   <CommandItem
-                    key={item.title}
+                    key={item.url}
                     onSelect={() => runCommand(() => router.push(item.url))}
                   >
                     <div className="flex items-center gap-2">
-                      {"icon" in item && item.icon && (
-                        <item.icon className="h-4 w-4" />
-                      )}
+                      {item.icon && <item.icon className="h-4 w-4" />}
                       <span>{item.title}</span>
                     </div>
                   </CommandItem>

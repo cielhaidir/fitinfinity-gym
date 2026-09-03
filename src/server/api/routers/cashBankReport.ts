@@ -87,15 +87,14 @@ getCashBankReport: protectedProcedure
         status: 'SUCCESS',
         deletedAt: null,
         subscription: {
-          deletedAt: null
-        },
-        ...(balanceAccountId && {
-          subscription: {
+          deletedAt: null,
+          isComplimentary: false,
+          ...(balanceAccountId && {
             member: {
               paymentValidations: { some: { balanceId: balanceAccountId } },
             },
-          },
-        }),
+          }),
+        },
       },
       include: {
         subscription: {
@@ -262,8 +261,11 @@ getCashBankReport: protectedProcedure
             lte: end,
           },
           status: 'SUCCESS',
-          ...(balanceAccountId && {
-            subscription: {
+          deletedAt: null,
+          subscription: {
+            deletedAt: null,
+            isComplimentary: false,
+            ...(balanceAccountId && {
               member: {
                 paymentValidations: {
                   some: {
@@ -271,8 +273,8 @@ getCashBankReport: protectedProcedure
                   },
                 },
               },
-            },
-          }),
+            }),
+          },
         },
         _sum: {
           totalPayment: true,
@@ -470,7 +472,10 @@ getCashBankReport: protectedProcedure
               lte: end,
             },
             status: 'SUCCESS',
+            deletedAt: null,
             subscription: {
+              deletedAt: null,
+              isComplimentary: false,
               member: {
                 paymentValidations: {
                   some: {
@@ -670,12 +675,11 @@ getCashBankReport: protectedProcedure
             lte: end,
           },
                   deletedAt: null,
-        subscription: {
-          deletedAt: null
-        },
           status: 'SUCCESS',
-          ...(balanceAccountId && {
-            subscription: {
+          subscription: {
+            deletedAt: null,
+            isComplimentary: false,
+            ...(balanceAccountId && {
               // We need to join through PaymentValidation to get balance account
               member: {
                 paymentValidations: {
@@ -684,8 +688,8 @@ getCashBankReport: protectedProcedure
                   },
                 },
               },
-            },
-          }),
+            }),
+          },
         },
         include: {
           subscription: {

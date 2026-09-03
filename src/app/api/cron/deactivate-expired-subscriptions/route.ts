@@ -233,43 +233,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (toActivateFreezes.length > 0) {
+      // The FreezeOperation record was already created by the `freeze` mutation
+      // when the freeze was scheduled — only flip the flag here.
       await db.subscription.updateMany({
         where: { id: { in: toActivateFreezes.map((s) => s.id) } },
         data: { isFrozen: true },
       });
-
-      // Create FREEZE operation records for audit trail
-      if (systemAdmin) {
-        let freezePrice = await db.freezePrice.findFirst({
-          where: { isActive: true },
-          orderBy: { price: "asc" },
-        });
-        if (!freezePrice) {
-          freezePrice = await db.freezePrice.findFirst();
-        }
-
-        if (freezePrice) {
-          for (const sub of toActivateFreezes) {
-            await db.freezeOperation.create({
-              data: {
-                subscriptionId: sub.id,
-                memberId: sub.memberId,
-                operationType: "FREEZE",
-                freezePriceId: freezePrice.id,
-                price: 0,
-                freezeDays: sub.freezeDays ?? 0,
-                performedById: systemAdmin.id,
-              },
-            });
-          }
-        }
-      }
     }
     results.scheduledFreezesActivated = toActivateFreezes.length;
     details.scheduledFreezesActivated = toActivateFreezes.map((s) => ({
       ...toDetail(s),
       action: "isFrozen: false → true (scheduled freeze)",
-      performedBy: "admin@fitinfinity.com",
       frozenAt: s.frozenAt,
       freezeMode: s.freezeMode,
     }));

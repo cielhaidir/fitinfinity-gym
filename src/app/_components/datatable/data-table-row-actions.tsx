@@ -2,6 +2,7 @@
 
 import type { Row } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -27,8 +28,17 @@ import { ShortcutBadge } from "../ShorcutBadge";
 
 interface ActionItem {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
+  /** When set, the item renders as a link so it can be opened in a new tab. */
+  href?: string;
   disabled?: boolean;
+}
+
+export interface CustomAction<TData> {
+  label: string;
+  action?: (item: TData) => void;
+  /** When set, the item renders as a link so it can be opened in a new tab. */
+  href?: (item: TData) => string;
 }
 
 interface DataTableRowActionsProps<TData> {
@@ -37,7 +47,7 @@ interface DataTableRowActionsProps<TData> {
   // Keep these for backward compatibility
   onEdit?: ((item: TData) => void) | null;
   onDelete?: ((item: TData) => void) | null;
-  customActions?: { label: string; action: (item: TData) => void }[];
+  customActions?: CustomAction<TData>[];
   showEdit?: boolean;
 }
 
@@ -66,7 +76,7 @@ export function DataTableRowActions<TData>({
 
   const handleDelete = () => {
     if (actionToDelete) {
-      actionToDelete.onClick();
+      actionToDelete.onClick?.();
     } else if (onDelete) {
       onDelete(row.original);
     }
@@ -91,28 +101,34 @@ export function DataTableRowActions<TData>({
         <DropdownMenuContent align="end" className="w-[160px]">
           {/* New API with actions array */}
           {usingNewAPI &&
-            actions?.map((action, index) => (
-              <DropdownMenuItem
-                key={index}
-                onClick={
-                  action.label.toLowerCase() === "delete"
-                    ? () => {
-                        setActionToDelete(action);
-                        setIsAlertOpen(true);
-                        document.body.style.pointerEvents = "";
-                      }
-                    : action.onClick
-                }
-                disabled={action.disabled}
-              >
-                {action.label}
-                {action.label.toLowerCase() === "delete" && (
-                  <DropdownMenuShortcut>
-                    <ShortcutBadge keyChar="⌫" />
-                  </DropdownMenuShortcut>
-                )}
-              </DropdownMenuItem>
-            ))}
+            actions?.map((action, index) =>
+              action.href ? (
+                <DropdownMenuItem key={index} asChild disabled={action.disabled}>
+                  <Link href={action.href}>{action.label}</Link>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  key={index}
+                  onClick={
+                    action.label.toLowerCase() === "delete"
+                      ? () => {
+                          setActionToDelete(action);
+                          setIsAlertOpen(true);
+                          document.body.style.pointerEvents = "";
+                        }
+                      : action.onClick
+                  }
+                  disabled={action.disabled}
+                >
+                  {action.label}
+                  {action.label.toLowerCase() === "delete" && (
+                    <DropdownMenuShortcut>
+                      <ShortcutBadge keyChar="⌫" />
+                    </DropdownMenuShortcut>
+                  )}
+                </DropdownMenuItem>
+              ),
+            )}
 
           {/* Legacy API support */}
           {!usingNewAPI && (
@@ -123,15 +139,22 @@ export function DataTableRowActions<TData>({
                 </DropdownMenuItem>
               )}
 
-              {customActions?.map((customAction, index) => (
-                  <div key={index}>
-                    <DropdownMenuItem
-                      onClick={() => customAction.action(row.original)}
-                    >
+              {customActions?.map((customAction, index) =>
+                customAction.href ? (
+                  <DropdownMenuItem key={index} asChild>
+                    <Link href={customAction.href(row.original)}>
                       {customAction.label}
-                    </DropdownMenuItem>
-                  </div>
-                ))}
+                    </Link>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => customAction.action?.(row.original)}
+                  >
+                    {customAction.label}
+                  </DropdownMenuItem>
+                ),
+              )}
 
               {customActions && customActions.length > 0 && (
                 <DropdownMenuSeparator />

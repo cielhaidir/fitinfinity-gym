@@ -311,6 +311,25 @@ export default function FreezeHistoryPage() {
       },
     },
     {
+      accessorKey: "freezeStartAt",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Freeze Start" />
+      ),
+      cell: ({ row }) => {
+        const freezeStartAt = row.original.freezeStartAt;
+        if (row.original.operationType !== "FREEZE") {
+          return <div className="min-w-[100px] text-xs text-muted-foreground">-</div>;
+        }
+        return (
+          <div className="min-w-[100px]">
+            <span className="text-xs">
+              {freezeStartAt ? format(new Date(freezeStartAt), "dd/MM/yyyy") : "N/A"}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "performedAt",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Operation Date" />

@@ -31,6 +31,7 @@ export const packageRouter = createTRPCRouter({
       isGroupPackage: z.boolean().optional(),
       isGroupClass: z.boolean().optional(),
       groupPriceType: groupPriceType.nullish(),
+      isComplimentaryOnly: z.boolean().optional(),
     }),
   )
   .mutation(async ({ ctx, input }) => {
@@ -57,6 +58,7 @@ export const packageRouter = createTRPCRouter({
           isGroupPackage: input.type === "GROUP_TRAINING" ? true : (input.isGroupPackage ?? false),
           isGroupClass: input.type === "GROUP_TRAINING" ? (input.isGroupClass ?? false) : false,
           groupPriceType: input.groupPriceType ?? null,
+          isComplimentaryOnly: input.isComplimentaryOnly ?? false,
         },
       });
       success = true;
@@ -158,6 +160,7 @@ export const packageRouter = createTRPCRouter({
         isGroupPackage: z.boolean(),
         isGroupClass: z.boolean().optional(),
         groupPriceType: groupPriceType.nullable(),
+        isComplimentaryOnly: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -185,6 +188,7 @@ export const packageRouter = createTRPCRouter({
             isGroupPackage: data.type === "GROUP_TRAINING" ? true : data.isGroupPackage,
             isGroupClass: data.type === "GROUP_TRAINING" ? (data.isGroupClass ?? false) : false,
             groupPriceType: data.groupPriceType,
+            ...(data.isComplimentaryOnly !== undefined && { isComplimentaryOnly: data.isComplimentaryOnly }),
           },
         });
         success = true;

@@ -140,6 +140,8 @@ export const subscriptionRouter = createTRPCRouter({
         freezeAtStart: z.boolean().optional(),
         freezeDays: z.number().min(0).max(365).optional(),
         corporateId: z.string().optional(),
+        isComplimentary: z.boolean().optional(),
+        complimentaryNote: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -186,6 +188,11 @@ export const subscriptionRouter = createTRPCRouter({
           }
         }
 
+        // Complimentary: explicit flag, or package is bonus-only, or nothing was paid
+        const isComplimentary =
+          input.isComplimentary ??
+          (packageDetails.isComplimentaryOnly || input.totalPayment === 0);
+
         const data = {
           memberId: member.id,
           packageId: input.packageId,
@@ -193,6 +200,11 @@ export const subscriptionRouter = createTRPCRouter({
           salesId: input.salesId || null,
           salesType: input.salesType || null,
           corporateId: input.corporateId ?? null,
+          isComplimentary,
+          complimentaryNote: isComplimentary
+            ? input.complimentaryNote?.trim() ||
+              (packageDetails.isComplimentaryOnly ? "Paket bonus" : "Diskon 100%")
+            : null,
           ...(input.subsType === "gym"
             ? {
                 endDate: new Date(
@@ -705,6 +717,7 @@ export const subscriptionRouter = createTRPCRouter({
         packageId: z.string().optional(),
         corporateId: z.string().optional(),
         status: z.enum(["all", "active", "inactive"]).optional().default("all"),
+        paymentType: z.enum(["all", "paid", "bonus"]).optional().default("all"),
         dateFilterType: z.enum(["payment", "startDate", "endDate", "createdAt"]).optional().default("payment"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
@@ -724,6 +737,10 @@ export const subscriptionRouter = createTRPCRouter({
   // Filter by status if not "all"
   ...(input.status !== "all" && {
     isActive: input.status === "active",
+  }),
+  // Filter paid vs bonus/complimentary
+  ...(input.paymentType !== "all" && {
+    isComplimentary: input.paymentType === "bonus",
   }),
   OR: [
     { groupMembers: { none: {} } }, // bukan member group
@@ -758,6 +775,7 @@ export const subscriptionRouter = createTRPCRouter({
         payments: {
           some: {
             status: "SUCCESS",
+            deletedAt: null,
             ...((start || end) && {
               paidAt: {
                 ...(start && { gte: start }),
@@ -1846,6 +1864,7 @@ export const subscriptionRouter = createTRPCRouter({
               transactionFreezeId: transactionFreeze.id,
               freezeDays: actualFreezeDays,
               price: freezePaymentAmount, // Same price for all (member pays once)
+              freezeStartAt,
               performedById: ctx.session.user.id,
             },
           });
@@ -1903,6 +1922,7 @@ export const subscriptionRouter = createTRPCRouter({
               transactionFreezeId: null,
               freezeDays: actualFreezeDays,
               price: 0,
+              freezeStartAt,
               performedById: ctx.session.user.id,
             },
           });
@@ -3215,10 +3235,10 @@ export const subscriptionRouter = createTRPCRouter({
       const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
       const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
 
-      // Build date filter for payments (consistent with salesReport.ts)
+      // Build date filter for payments — uses paidAt (consistent with Subscription History)
       const paymentDateFilter = start && end
         ? {
-            createdAt: {
+            paidAt: {
               gte: start,
               lte: end,
             },
@@ -3226,23 +3246,41 @@ export const subscriptionRouter = createTRPCRouter({
         : {};
 
       // 1. Active Memberships Count: subscriptions with endDate AFTER filter's end date (excluding frozen)
-      const activeMembershipsCount = await ctx.db.subscription.count({
+      const activeWhere = {
+        deletedAt: null,
+        isActive: true,
+        isFrozen: false,
+        ...(end && {
+          endDate: {
+            gt: end,
+          },
+        }),
+      };
+      const [activeMembershipsCount, activeComplimentaryCount] = await Promise.all([
+        ctx.db.subscription.count({ where: activeWhere }),
+        ctx.db.subscription.count({ where: { ...activeWhere, isComplimentary: true } }),
+      ]);
+
+      // Complimentary (bonus) subscriptions in range — reported separately, excluded from sales
+      const complimentaryInRange = await ctx.db.subscription.count({
         where: {
           deletedAt: null,
-          isActive: true,
-          isFrozen: false,
-          ...(end && {
-            endDate: {
-              gt: end,
+          isComplimentary: true,
+          payments: {
+            some: {
+              status: "SUCCESS",
+              deletedAt: null,
+              ...paymentDateFilter,
             },
-          }),
+          },
         },
       });
 
-      // 2. Get all subscriptions with payments within date range for further analysis
+      // 2. Get all PAID subscriptions with payments within date range for further analysis
       const subscriptionsInRange = await ctx.db.subscription.findMany({
         where: {
           deletedAt: null,
+          isComplimentary: false,
           payments: {
             some: {
               status: "SUCCESS",
@@ -3292,6 +3330,7 @@ export const subscriptionRouter = createTRPCRouter({
   }
   
         // Get all subscriptions for this member before the current one (by startDate)
+        // Note: previous bonus subs still count as history — member was already a member
         const previousSubscriptionsCount = await ctx.db.subscription.count({
           where: {
             memberId: memberId,
@@ -3343,6 +3382,8 @@ export const subscriptionRouter = createTRPCRouter({
 
       return {
         activeMembershipsCount,
+        activeComplimentaryCount,
+        complimentaryInRange,
         totalRenewals,
         totalNewMembers,
         subscriptionTypeBreakdown,
@@ -3843,6 +3884,7 @@ export const subscriptionRouter = createTRPCRouter({
             memberEmail: operation.member.user?.email || "",
             operationType: operation.operationType,
             performedAt: operation.performedAt,
+            freezeStartAt: operation.freezeStartAt ?? operation.performedAt,
             performedBy: operation.performedBy,
             freezeDays: operation.freezeDays,
             price: operation.price,
@@ -4514,16 +4556,17 @@ export const subscriptionRouter = createTRPCRouter({
 
       const since = buckets[0]!.start;
 
-      // Fetch all successful payments in window
+      // Fetch all successful PAID payments in window (by paidAt — when money was received)
       const payments = await ctx.db.payment.findMany({
         where: {
           status: "SUCCESS",
-          createdAt: { gte: since },
-          subscription: { deletedAt: null },
+          deletedAt: null,
+          paidAt: { gte: since },
+          subscription: { deletedAt: null, isComplimentary: false },
         },
         select: {
           totalPayment: true,
-          createdAt: true,
+          paidAt: true,
           subscription: { select: { package: { select: { type: true } } } },
         },
       });
@@ -4541,7 +4584,7 @@ export const subscriptionRouter = createTRPCRouter({
       // Aggregate into buckets
       const monthlyRevenue = buckets.map((b) => {
         const total = payments
-          .filter((p) => p.createdAt >= b.start && p.createdAt <= b.end)
+          .filter((p) => p.paidAt && p.paidAt >= b.start && p.paidAt <= b.end)
           .reduce((sum, p) => sum + p.totalPayment, 0);
         return { month: b.label, revenue: total };
       });
@@ -4610,6 +4653,9 @@ export const subscriptionRouter = createTRPCRouter({
           newMembers: 0,
           renewals: 0,
           rejoin: 0,
+          newMembersBonus: 0,
+          renewalsBonus: 0,
+          rejoinBonus: 0,
         };
       });
 
@@ -4619,15 +4665,15 @@ export const subscriptionRouter = createTRPCRouter({
       // All gym subscriptions (all-time) with start + end dates.
       const gymSubs = await ctx.db.subscription.findMany({
         where: { deletedAt: null, package: { type: "GYM_MEMBERSHIP" } },
-        select: { memberId: true, startDate: true, endDate: true },
+        select: { memberId: true, startDate: true, endDate: true, isComplimentary: true },
       });
 
       // Group subs per member, sorted by startDate.
-      const byMember = new Map<string, { startDate: Date; endDate: Date | null }[]>();
+      const byMember = new Map<string, { startDate: Date; endDate: Date | null; isComplimentary: boolean }[]>();
       for (const s of gymSubs) {
         if (!s.startDate) continue;
         const arr = byMember.get(s.memberId) ?? [];
-        arr.push({ startDate: s.startDate, endDate: s.endDate });
+        arr.push({ startDate: s.startDate, endDate: s.endDate, isComplimentary: s.isComplimentary });
         byMember.set(s.memberId, arr);
       }
 
@@ -4636,28 +4682,30 @@ export const subscriptionRouter = createTRPCRouter({
         subs.forEach((sub, idx) => {
           const bucket = bucketFor(sub.startDate);
           if (!bucket) return;
+          const bonus = sub.isComplimentary;
           if (idx === 0) {
-            bucket.newMembers += 1;
+            if (bonus) bucket.newMembersBonus += 1; else bucket.newMembers += 1;
           } else {
             // Check gap between previous sub's endDate and this sub's startDate
             const prevEnd = subs[idx - 1]!.endDate;
+            let isRejoin = false;
             if (prevEnd) {
               const gapDays = Math.floor(
                 (sub.startDate.getTime() - prevEnd.getTime()) / (24 * 60 * 60 * 1000),
               );
-              if (gapDays > REJOIN_THRESHOLD_DAYS) {
-                bucket.rejoin += 1;
-              } else {
-                bucket.renewals += 1;
-              }
+              isRejoin = gapDays > REJOIN_THRESHOLD_DAYS;
+            }
+            if (isRejoin) {
+              if (bonus) bucket.rejoinBonus += 1; else bucket.rejoin += 1;
             } else {
-              bucket.renewals += 1;
+              if (bonus) bucket.renewalsBonus += 1; else bucket.renewals += 1;
             }
           }
         });
       }
 
       return buckets.map((b) => {
+        // Rates are computed on PAID subs only — bonus reported alongside for transparency
         const total = b.newMembers + b.renewals + b.rejoin;
         return {
           month: b.label,
@@ -4666,6 +4714,10 @@ export const subscriptionRouter = createTRPCRouter({
           newMembers: b.newMembers,
           renewals: b.renewals,
           rejoin: b.rejoin,
+          newMembersBonus: b.newMembersBonus,
+          renewalsBonus: b.renewalsBonus,
+          rejoinBonus: b.rejoinBonus,
+          totalBonus: b.newMembersBonus + b.renewalsBonus + b.rejoinBonus,
           total,
           renewalRate: total > 0 ? Math.round((b.renewals / total) * 1000) / 10 : 0,
           rejoinRate: total > 0 ? Math.round((b.rejoin / total) * 1000) / 10 : 0,
@@ -5281,8 +5333,8 @@ export const subscriptionRouter = createTRPCRouter({
         where: {
           status: "SUCCESS",
           deletedAt: null,
-          createdAt: { gte: input.startDate, lte: input.endDate },
-          subscription: { deletedAt: null, salesId: { not: null } },
+          paidAt: { gte: input.startDate, lte: input.endDate },
+          subscription: { deletedAt: null, isComplimentary: false, salesId: { not: null } },
         },
         select: {
           totalPayment: true,
@@ -5380,10 +5432,10 @@ export const subscriptionRouter = createTRPCRouter({
         where: {
           status: "SUCCESS",
           deletedAt: null,
-          createdAt: { gte: input.startDate, lte: input.endDate },
-          subscription: { deletedAt: null, salesId: { in: input.salesIds } },
+          paidAt: { gte: input.startDate, lte: input.endDate },
+          subscription: { deletedAt: null, isComplimentary: false, salesId: { in: input.salesIds } },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { paidAt: "desc" },
         select: {
           id: true,
           totalPayment: true,
@@ -5414,7 +5466,7 @@ export const subscriptionRouter = createTRPCRouter({
     }),
 
   // Best selling packages — ranked by subscription count in a given date range
-  // Consistent with getAdminDashboardStats: filters by Payment.createdAt + SUCCESS status
+  // Consistent with getAdminDashboardStats: filters by Payment.paidAt + SUCCESS status
   bestSellingPackages: permissionProtectedProcedure(["menu:dashboard-admin"])
     .input(
       z.object({
@@ -5428,13 +5480,14 @@ export const subscriptionRouter = createTRPCRouter({
       const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
 
       const paymentDateFilter = start && end
-        ? { createdAt: { gte: start, lte: end } }
+        ? { paidAt: { gte: start, lte: end } }
         : {};
 
-      // Get subscriptions that have at least one successful payment in the date range
+      // Get PAID subscriptions that have at least one successful payment in the date range
       const subscriptionsInRange = await ctx.db.subscription.findMany({
         where: {
           deletedAt: null,
+          isComplimentary: false,
           payments: {
             some: {
               status: "SUCCESS",

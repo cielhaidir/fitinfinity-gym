@@ -72,6 +72,7 @@ const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   const [filterPackageId, setFilterPackageId] = useState<string>("all");
   const [filterCorporateId, setFilterCorporateId] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [filterPaymentType, setFilterPaymentType] = useState<"all" | "paid" | "bonus">("all");
   const [filterDateType, setFilterDateType] = useState<"payment" | "startDate" | "endDate" | "createdAt">("payment");
 const [filterStartDate, setFilterStartDate] = useState<string>(
   formatDate(firstDayOfMonth)
@@ -179,6 +180,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       packageId: filterPackageId !== "all" ? filterPackageId : undefined,
       corporateId: filterCorporateId !== "all" ? filterCorporateId : undefined,
       status: filterStatus,
+      paymentType: filterPaymentType,
       dateFilterType: filterDateType,
       startDate: filterStartDate ? new Date(filterStartDate) : undefined,
       endDate: filterEndDate ? new Date(filterEndDate) : undefined,
@@ -739,10 +741,21 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       cell: ({ row }) => {
         const packageName = row.original.package?.name;
         const packagePoint = row.original.package?.point;
+        const isComplimentary = row.original.isComplimentary as boolean | undefined;
+        const complimentaryNote = row.original.complimentaryNote as string | null | undefined;
         return (
           <div className="flex flex-col min-w-[120px]">
             <span className="font-medium text-sm truncate">{packageName || "N/A"}</span>
             <span className="text-xs text-muted-foreground">{packagePoint ? `${packagePoint} pts` : "N/A"}</span>
+            {isComplimentary && (
+              <Badge
+                variant="outline"
+                className="mt-1 w-fit text-[10px] border-amber-500 text-amber-500"
+                title={complimentaryNote ?? undefined}
+              >
+                Bonus
+              </Badge>
+            )}
           </div>
         );
       },
@@ -855,7 +868,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       id: "paymentCreated",
       accessorKey: "payments",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Payment Created" />
+        <DataTableColumnHeader column={column} title="Payment Date" />
       ),
       cell: ({ row }) => {
         const payments = row.original.payments as Array<{ paidAt: Date,  }> | undefined;
@@ -1222,6 +1235,11 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
     setPage(1);
   };
 
+  const handlePaymentTypeFilterChange = (v: "all" | "paid" | "bonus") => {
+    setFilterPaymentType(v);
+    setPage(1);
+  };
+
   const handleStartDateChange = (date: string) => {
     setFilterStartDate(date);
     setPage(1);
@@ -1300,7 +1318,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
         "Personal Trainer",
         "Sales Person",
         "Payment Total",
-        "Payment Created",
+        "Payment Date",
         "Status"
       ];
 
@@ -1316,8 +1334,8 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
         item.trainer?.user?.name || "N/A",
         getSalesPersonName(item.salesId, item.salesType),
         item.payments?.[0]?.totalPayment || "N/A",
-        item.payments?.[0]?.createdAt
-          ? format(new Date(new Date(item.payments[0].createdAt).getTime() + (8 * 60 * 60 * 1000)), "dd/MM/yyyy HH:mm")
+        item.payments?.[0]?.paidAt
+          ? format(new Date(new Date(item.payments[0].paidAt).getTime() + (8 * 60 * 60 * 1000)), "dd/MM/yyyy HH:mm")
           : "N/A",
         item.isActive ? "Active" : "Inactive"
       ]);
@@ -1484,6 +1502,24 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="paymentTypeFilter" className="text-sm font-medium mb-2 block">
+                    Filter by Type
+                  </Label>
+                  <Select
+                    value={filterPaymentType}
+                    onValueChange={handlePaymentTypeFilterChange}
+                  >
+                    <SelectTrigger id="paymentTypeFilter">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="paid">Berbayar</SelectItem>
+                      <SelectItem value="bonus">Bonus / Gratis</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                  <div>
                   <Label htmlFor="dateTypeFilter" className="text-sm font-medium mb-2 block">
                     Filter Period By
@@ -1499,7 +1535,7 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
                       <SelectValue placeholder="Select date type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="payment">Payment Created Date</SelectItem>
+                      <SelectItem value="payment">Payment Date</SelectItem>
                       <SelectItem value="startDate">Subscription Start Date</SelectItem>
                       <SelectItem value="endDate">Subscription End Date</SelectItem>
                  

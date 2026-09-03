@@ -454,6 +454,10 @@ model Subscription {
     
     deletedAt         DateTime?        // Soft delete timestamp
     payments          Payment[]
+
+    // Complimentary / bonus subscription (not a real sale)
+    isComplimentary   Boolean          @default(false)
+    complimentaryNote String?
     
       // Reminder tracking
     isReminder        Boolean          @default(false)   // sudah dikirim reminder atau belum
@@ -560,6 +564,7 @@ model Package {
     isGroupPackage Boolean      @default(false)
     isGroupClass   Boolean      @default(false) // If true, trainer is assigned per session (not at checkout)
     groupPriceType GroupPriceType? // TOTAL or PER_PERSON
+    isComplimentaryOnly Boolean   @default(false) // Package only ever given as bonus, never sold
     
     createdAt    DateTime       @default(now())
     updatedAt    DateTime       @updatedAt
@@ -1274,6 +1279,7 @@ model FreezeOperation {
     operationType       FreezeOperationType
     freezeDays          Int
     price               Int
+    freezeStartAt       DateTime?           // Actual/scheduled freeze start (differs from performedAt for future-dated freezes)
     performedAt         DateTime            @default(now())
     performedById       String
 

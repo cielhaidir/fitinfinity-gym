@@ -7,6 +7,7 @@ import {
 } from "@/server/api/trpc";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
 import { decrementClassSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
+import { ACTIVE_SUB_WHERE } from "@/server/utils/subscriptionFilters";
 import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 export const memberClassRouter = createTRPCRouter({
@@ -391,8 +392,7 @@ export const memberClassRouter = createTRPCRouter({
         const activeMembership = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
-            isActive: true,
-            deletedAt: null,
+            ...ACTIVE_SUB_WHERE,
             package: { type: "GYM_MEMBERSHIP" },
           },
         });
@@ -402,8 +402,7 @@ export const memberClassRouter = createTRPCRouter({
           : await ctx.db.subscription.findFirst({
               where: {
                 memberId: input.memberId,
-                isActive: true,
-                deletedAt: null,
+                ...ACTIVE_SUB_WHERE,
                 package: { type: "CLASS_SESSION" },
                 OR: [
                   { remainingSessions: { gt: 0 } },
@@ -1220,6 +1219,7 @@ export const memberClassRouter = createTRPCRouter({
           status: "SUCCESS",
           subscription: {
             deletedAt: null,
+            isComplimentary: false,
             package: { type: "CLASS_SESSION" },
           },
           ...(start && end

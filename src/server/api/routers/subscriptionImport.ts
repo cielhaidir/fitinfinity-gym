@@ -724,6 +724,8 @@ export const subscriptionImportRouter = createTRPCRouter({
                   method: row.packageLabel, // Use package label as method for now
                   totalPayment: row.allocation || packageData.price,
                   orderReference,
+                  createdAt: row.startDate,
+                  paidAt: row.startDate,
                 },
               });
               

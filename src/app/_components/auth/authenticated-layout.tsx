@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "sonner";
 import { toast } from "sonner";
 import { useRBAC } from "@/hooks/useRBAC";
-import { Menu } from "@/lib/menu";
+import { Menu, flattenMenuItems } from "@/lib/menu";
 import { RFIDProvider } from "../hooks/useRFIDCheckIn";
 import { GlobalCheckInModal } from "../rfid/GlobalCheckInModal";
 
@@ -84,7 +84,7 @@ if (
 
       // Find the current route in the menu
       const currentRoute = Menu.navMain
-        .flatMap((group) => group.items)
+        .flatMap((group) => flattenMenuItems(group.items))
         .find((item) => item.url === pathname);
 
       // Check if route requires permission

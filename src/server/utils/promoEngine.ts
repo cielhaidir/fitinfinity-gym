@@ -160,6 +160,8 @@ export async function applyPromosForSuccessfulPayment({
         isActive: isActiveNow,
         salesId: subscription.salesId,
         salesType: subscription.salesType,
+        isComplimentary: true,
+        complimentaryNote: `Bonus promo "${promo.name}"`,
       },
     });
 

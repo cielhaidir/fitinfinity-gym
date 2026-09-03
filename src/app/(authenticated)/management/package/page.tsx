@@ -35,6 +35,7 @@ export default function PackagePage() {
     isGroupPackage: false,
     isGroupClass: false,
     groupPriceType: null,
+    isComplimentaryOnly: false,
   });
 
   const [search, setSearch] = useState("");
@@ -66,7 +67,7 @@ export default function PackagePage() {
       name === "maxUsers"
     ) {
       updatedValue = value === "" ? null : Number(value);
-    } else if (name === "isGroupPackage" || name === "isGroupClass") {
+    } else if (name === "isGroupPackage" || name === "isGroupClass" || name === "isComplimentaryOnly") {
       updatedValue = value === "true" || value === true;
     }
 
@@ -105,6 +106,7 @@ export default function PackagePage() {
         point: packageData.point === null ? 0 : Number(packageData.point),
         type: packageData.type,
         isActive: packageData.isActive,
+        isComplimentaryOnly: packageData.isComplimentaryOnly ?? false,
       };
 
       // Add type-specific fields

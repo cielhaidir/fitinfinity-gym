@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { EnrollmentStatus } from "@prisma/client";
 import { mqttService } from "@/lib/mqtt/mqttService";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
+import { ACTIVE_SUB_WHERE } from "@/server/utils/subscriptionFilters";
 import { logPointHistory } from "@/server/helpers/pointHistory";
 
 /**
@@ -491,9 +492,7 @@ export const esp32Router = createTRPCRouter({
           where: {
             rfidNumber: rfid,
             subscriptions: {
-              some: {
-                isActive: true
-              }
+              some: ACTIVE_SUB_WHERE,
             }
           },
           include: {
@@ -630,9 +629,7 @@ export const esp32Router = createTRPCRouter({
           where: {
             id: memberId,
             subscriptions: {
-              some: {
-                isActive: true
-              }
+              some: ACTIVE_SUB_WHERE,
             }
           },
           include: {

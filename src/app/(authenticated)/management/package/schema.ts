@@ -22,6 +22,7 @@ export const PackageSchema = z.object({
   isGroupPackage: z.boolean().default(false),
   isGroupClass: z.boolean().default(false),
   groupPriceType: GroupPriceTypeEnum.nullable(),
+  isComplimentaryOnly: z.boolean().default(false),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });

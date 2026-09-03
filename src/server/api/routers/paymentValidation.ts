@@ -499,6 +499,13 @@ export const paymentValidationRouter = createTRPCRouter({
           });
           console.log("Membership activated");
           
+          if (paymentValidation.totalPayment === 0) {
+            await prisma.subscription.update({
+              where: { id: existingSubscription.id },
+              data: { isComplimentary: true, complimentaryNote: "Diskon 100%" },
+            });
+          }
+
           // Create the payment record with the original payment date from validation
           console.log("Creating payment record for existing subscription...");
           const payment = await prisma.payment.create({
@@ -509,7 +516,7 @@ export const paymentValidationRouter = createTRPCRouter({
               totalPayment: paymentValidation.totalPayment,
               // Use paymentDate if provided, otherwise use the paymentValidation createdAt
               createdAt: input.paymentDate ?? paymentValidation.createdAt,
-              paidAt: new Date(), // Set paidAt to now
+              paidAt: input.paymentDate ?? paymentValidation.createdAt,
             },
           });
           console.log("Payment record created:", { id: payment.id, status: payment.status, createdAt: payment.createdAt });
@@ -559,6 +566,9 @@ export const paymentValidationRouter = createTRPCRouter({
           salesType: paymentValidation.salesType,
         });
 
+        const isComplimentary =
+          packageDetails.isComplimentaryOnly || paymentValidation.totalPayment === 0;
+
         // 4. Create Subscription
         const subscription = await prisma.subscription.create({
           data: {
@@ -571,6 +581,10 @@ export const paymentValidationRouter = createTRPCRouter({
             isActive: true,
             salesId: paymentValidation.salesId,
             salesType: paymentValidation.salesType,
+            isComplimentary,
+            complimentaryNote: isComplimentary
+              ? packageDetails.isComplimentaryOnly ? "Paket bonus" : "Diskon 100%"
+              : null,
             ...(paymentValidation.subsType === "gym" && {
               freezeAtStart: paymentValidation.freezeAtStart || false,
               freezeDays: paymentValidation.freezeDays || null,
@@ -653,7 +667,7 @@ export const paymentValidationRouter = createTRPCRouter({
             totalPayment: paymentValidation.totalPayment,
             // Use paymentDate if provided, otherwise use the paymentValidation createdAt
             createdAt: input.paymentDate ?? paymentValidation.createdAt,
-            paidAt: new Date(), // Set paidAt to now (when admin accepted it)
+            paidAt: input.paymentDate ?? paymentValidation.createdAt,
           },
         });
 
