@@ -526,6 +526,34 @@ export default function ClassVisitPage() {
                 <p><span className="text-muted-foreground">Kelas:</span> <strong>{selectedClass?.name}</strong></p>
                 <p><span className="text-muted-foreground">Nominal:</span> <strong>Rp {confirmReg?.paidAmount?.toLocaleString("id-ID")}</strong></p>
               </div>
+              {confirmReg?.paymentProof && (
+                <div>
+                  <Label>Bukti Transfer dari Member</Label>
+                  <div className="mt-1">
+                    {/\.pdf$/i.test(confirmReg.paymentProof) ? (
+                      <a
+                        href={confirmReg.paymentProof}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-500 flex items-center gap-1 hover:underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Buka bukti (PDF)
+                      </a>
+                    ) : (
+                      <a href={confirmReg.paymentProof} target="_blank" rel="noopener noreferrer" className="block">
+                        <img
+                          src={confirmReg.paymentProof}
+                          alt="Bukti transfer dari member"
+                          className="rounded border max-h-48 object-contain w-full bg-muted"
+                        />
+                        <span className="mt-1 text-xs text-blue-500 flex items-center gap-1 hover:underline">
+                          <ExternalLink className="w-3 h-3" /> Buka ukuran penuh
+                        </span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>Metode Pembayaran</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>

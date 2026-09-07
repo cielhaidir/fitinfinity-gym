@@ -11,6 +11,7 @@ import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/serve
 import { decrementClassSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
 import { ACTIVE_SUB_WHERE } from "@/server/utils/subscriptionFilters";
 import { logPointHistory } from "@/server/helpers/pointHistory";
+import { toGMT8StartOfDay, toGMT8EndOfDay } from "@/lib/timezone";
 
 export const classVisitRouter = createTRPCRouter({
   /**
@@ -215,7 +216,7 @@ export const classVisitRouter = createTRPCRouter({
               status: "CONFIRMED",
               paymentStatus: "PAID",
               paymentMethod: input.paymentMethod,
-              paymentProof: input.paymentProof ?? null,
+              paymentProof: input.paymentProof ?? reg.paymentProof ?? null,
               paidAt: new Date(),
               confirmedBy: ctx.session.user.id,
               confirmedAt: new Date(),
@@ -252,7 +253,7 @@ export const classVisitRouter = createTRPCRouter({
                   bank_id: input.balanceAccountId,
                   account_id: coaId,
                   type: "income",
-                  file: input.paymentProof ?? "",
+                  file: input.paymentProof ?? reg.paymentProof ?? "",
                   description: `Class Visit: ${memberName} – ${className}`,
                   transaction_date: today,
                   transaction_number,
@@ -661,11 +662,14 @@ export const classVisitRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const start = input.startDate ? toGMT8StartOfDay(input.startDate) : undefined;
+      const end = input.endDate ? toGMT8EndOfDay(input.endDate) : undefined;
+
       const where: any = { paymentStatus: "PAID" };
-      if (input.startDate || input.endDate) {
+      if (start || end) {
         where.paidAt = {};
-        if (input.startDate) where.paidAt.gte = input.startDate;
-        if (input.endDate) where.paidAt.lte = input.endDate;
+        if (start) where.paidAt.gte = start;
+        if (end) where.paidAt.lte = end;
       }
 
       const regs = await ctx.db.classVisitRegistration.findMany({
@@ -683,8 +687,8 @@ export const classVisitRouter = createTRPCRouter({
         where: {
           isFree: true,
           status: { in: ["CONFIRMED", "ATTENDED"] },
-          ...(input.startDate || input.endDate
-            ? { createdAt: { gte: input.startDate, lte: input.endDate } }
+          ...(start || end
+            ? { createdAt: { ...(start && { gte: start }), ...(end && { lte: end }) } }
             : {}),
         },
       });

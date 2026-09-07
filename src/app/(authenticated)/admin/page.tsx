@@ -609,13 +609,14 @@ const DashboardPage: React.FC = () => {
                 <CreditCard className="h-8 w-8 text-green-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground font-medium">Total Revenue (All Subscriptions)</p>
+                <p className="text-sm text-muted-foreground font-medium">Total Revenue (All Subscriptions + Class Visit)</p>
                 <h2 className="text-3xl font-bold text-green-700">
-                  {statsLoading ? "..." : formatRupiah(
+                  {(statsLoading || classVisitLoading) ? "..." : formatRupiah(
                     (dashboardStats?.subscriptionTypeBreakdown.MEMBERSHIP.revenue ?? 0) +
                     (dashboardStats?.subscriptionTypeBreakdown.PERSONAL_TRAINER.revenue ?? 0) +
                     (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.revenue ?? 0) +
-                    (dashboardStats?.subscriptionTypeBreakdown.CLASS_SESSION.revenue ?? 0)
+                    (dashboardStats?.subscriptionTypeBreakdown.CLASS_SESSION.revenue ?? 0) +
+                    (classVisitStats?.totalRevenue ?? 0)
                   )}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -625,6 +626,9 @@ const DashboardPage: React.FC = () => {
                     (dashboardStats?.subscriptionTypeBreakdown.GROUP_TRAINER.count ?? 0) +
                     (dashboardStats?.subscriptionTypeBreakdown.CLASS_SESSION.count ?? 0)
                   }
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Termasuk Class Visit: {(classVisitLoading) ? "..." : formatRupiah(classVisitStats?.totalRevenue ?? 0)}
                 </p>
               </div>
             </div>
