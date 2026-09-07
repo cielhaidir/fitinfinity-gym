@@ -137,6 +137,10 @@ export const userRouter = createTRPCRouter({
         birthDate: z.date().optional(),
         idNumber: z.string().optional(),
         roleIds: z.array(z.string()).optional(),
+        password: z
+          .string()
+          .min(6, "Password must be at least 6 characters")
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -144,6 +148,7 @@ export const userRouter = createTRPCRouter({
       let success = false;
       let result: any = null;
       let error: Error | null = null;
+      const { password, ...loggableInput } = input;
 
       try {
         const sessionUserId = ctx.session.user.id;
@@ -172,6 +177,7 @@ export const userRouter = createTRPCRouter({
             phone: input.phone,
             birthDate: input.birthDate,
             idNumber: input.idNumber,
+            password: password ? await hash(password, 12) : undefined,
             roles: input.roleIds
               ? {
                   set: [], // First disconnect all roles
@@ -180,8 +186,9 @@ export const userRouter = createTRPCRouter({
               : undefined,
           },
         });
+        const { password: _pw, ...loggableResult } = result;
         userLogger.info(
-          `User ${sessionUserName} (${sessionUserId}) successfully updated user: ${JSON.stringify(result)}`,
+          `User ${sessionUserName} (${sessionUserId}) successfully updated user: ${JSON.stringify(loggableResult)}${password ? " (password changed)" : ""}`,
         );
         success = true;
         return result;
@@ -200,8 +207,8 @@ export const userRouter = createTRPCRouter({
           endpoint: "user.update",
           method: "PUT",
           userId: ctx.session?.user?.id,
-          requestData: input,
-          responseData: success ? result : null,
+          requestData: { ...loggableInput, passwordChanged: !!password },
+          responseData: success ? { ...result, password: undefined } : null,
           ipAddress: extractIpAddress(ctx.headers),
           userAgent: extractUserAgent(ctx.headers),
           success,

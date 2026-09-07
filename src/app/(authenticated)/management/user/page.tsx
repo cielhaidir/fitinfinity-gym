@@ -75,6 +75,7 @@ export default function UserPage() {
             : undefined,
           idNumber: userData.idNumber,
           roleIds: userData.roleIds,
+          password: userData.password ? userData.password : undefined,
         });
       } else {
         await createUserMutation.mutateAsync({
