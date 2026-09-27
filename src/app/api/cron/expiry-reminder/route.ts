@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // ── Cari subscription GYM_MEMBERSHIP yang akan expired H+7 ──────────
-    const subscriptions = await db.subscription.findMany({
+    const candidates = await db.subscription.findMany({
       where: {
         isActive: true,
         deletedAt: null,
@@ -106,6 +106,29 @@ export async function POST(request: NextRequest) {
         },
         package: { select: { name: true } },
       },
+    });
+
+    // ── Skip member yang sudah perpanjang (punya sub GYM lain yang berakhir lebih lama) ──
+    const memberIds = [...new Set(candidates.map((s) => s.memberId))];
+    const continuations = memberIds.length
+      ? await db.subscription.findMany({
+          where: {
+            memberId: { in: memberIds },
+            deletedAt: null,
+            endDate: { gt: nowUtc },
+            package: { type: "GYM_MEMBERSHIP" },
+            OR: [{ isActive: true }, { startDate: { gt: nowUtc } }],
+          },
+          select: { id: true, memberId: true, endDate: true },
+        })
+      : [];
+
+    const subscriptions = candidates.filter((s) => {
+      const renewed = continuations.some(
+        (c) => c.id !== s.id && c.memberId === s.memberId && c.endDate! > s.endDate!,
+      );
+      if (renewed) results.skipped++;
+      return !renewed;
     });
 
     // ── Cari template SUBSCRIPTION_EXPIRY di DB (opsional) ──────────────
@@ -239,6 +262,7 @@ export async function GET() {
     logic: [
       "Find active GYM_MEMBERSHIP subscriptions expiring in 7 days (WIB)",
       "Skip if reminderStage >= 1 (already notified)",
+      "Skip if member already has another GYM subscription ending later (renewed)",
       "Send SUBSCRIPTION_EXPIRY email (DB template or fallback HTML)",
       "Mark subscription: isReminder=true, reminderStage=1",
     ],

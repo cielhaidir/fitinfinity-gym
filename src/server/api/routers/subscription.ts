@@ -4171,7 +4171,7 @@ export const subscriptionRouter = createTRPCRouter({
       const now = new Date();
       const cutoff = new Date(now.getTime() + input.days * 24 * 60 * 60 * 1000);
 
-      const subs = await ctx.db.subscription.findMany({
+      const candidates = await ctx.db.subscription.findMany({
         where: {
           isActive: true,
           isFrozen: false,
@@ -4190,7 +4190,7 @@ export const subscriptionRouter = createTRPCRouter({
           member: {
             select: {
               id: true,
-              user: { select: { name: true, email: true } },
+              user: { select: { name: true, email: true, phone: true } },
             },
           },
           package: { select: { name: true, type: true } },
@@ -4199,6 +4199,31 @@ export const subscriptionRouter = createTRPCRouter({
           },
         },
       });
+
+      // Exclude subs that already have a continuation: another non-deleted sub of the
+      // same member & package type that ends later (already active, or scheduled to start).
+      const memberIds = [...new Set(candidates.map((s) => s.member.id))];
+      const continuations = memberIds.length
+        ? await ctx.db.subscription.findMany({
+            where: {
+              memberId: { in: memberIds },
+              deletedAt: null,
+              endDate: { gt: now },
+              OR: [{ isActive: true }, { startDate: { gt: now } }],
+            },
+            select: { id: true, memberId: true, endDate: true, package: { select: { type: true } } },
+          })
+        : [];
+
+      const subs = candidates.filter((s) =>
+        !continuations.some(
+          (c) =>
+            c.id !== s.id &&
+            c.memberId === s.member.id &&
+            c.package.type === s.package.type &&
+            c.endDate! > s.endDate!,
+        ),
+      );
 
       // Batch-resolve sales names (salesId can be PT id or FC id)
       const ptSalesIds = subs

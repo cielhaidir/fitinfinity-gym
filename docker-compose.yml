@@ -63,6 +63,8 @@
         - /development/data-fit/assets/management/transaction:/app/public/assets/management/transaction
         - /development/data-fit/assets/profile:/app/public/assets/profile
         - /development/data-fit/assets/PT:/app/public/assets/PT
+        - /development/data-fit/assets/pt:/app/public/assets/pt
+        - /development/data-fit/assets/class-visit:/app/public/assets/class-visit
         - /development/data-fit/assets/exercise:/app/public/assets/exercise
         - /development/data-fit/logs:/app/logs
 

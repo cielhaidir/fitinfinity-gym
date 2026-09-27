@@ -13,7 +13,8 @@ import {
 } from "recharts";
 import { format, differenceInDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { Mail, CheckCircle2, AlertCircle } from "lucide-react";
+import { Mail, CheckCircle2, AlertCircle, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx-js-style";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -221,8 +222,41 @@ const DashboardPage: React.FC = () => {
     [salesDetail],
   );
 
+  const EXPIRING_DAY_OPTIONS = [7, 14, 21, 30] as const;
+  const [expiringDays, setExpiringDays] = useState<number>(7);
+
   const { data: expiringData, isLoading: expiringLoading, refetch: refetchExpiring } =
-    api.subs.getExpiringSubscriptions.useQuery({ days: 7 });
+    api.subs.getExpiringSubscriptions.useQuery({ days: expiringDays });
+
+  const exportExpiringToExcel = (subs: NonNullable<typeof expiringData>, label: string, fileSlug: string) => {
+    if (!subs.length) {
+      toast.error("Tidak ada data untuk di-export");
+      return;
+    }
+    const rows = subs.map((sub) => ({
+      Member: sub.member?.user?.name ?? "-",
+      Telepon: sub.member?.user?.phone ?? "-",
+      Email: sub.member?.user?.email ?? "-",
+      Paket: sub.package?.name ?? "-",
+      PT: (sub as any).trainerName ?? "-",
+      Sales: (sub as any).salesName
+        ? `${(sub as any).salesName} (${sub.salesType === "FC" ? "FC" : "PT"})`
+        : "-",
+      Expired: sub.endDate ? format(new Date(sub.endDate), "dd/MM/yyyy") : "-",
+      "Sisa Hari": sub.endDate ? differenceInDays(new Date(sub.endDate), new Date()) : 0,
+      "Reminder Terkirim": sub.isReminder && (sub.reminderStage ?? 0) >= 1
+        ? (sub.reminderAt ? format(new Date(sub.reminderAt), "dd/MM/yyyy") : "Ya")
+        : "Belum",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 28 }, { wch: 16 }, { wch: 30 }, { wch: 24 }, { wch: 20 },
+      { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 18 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, label.slice(0, 31));
+    XLSX.writeFile(wb, `${fileSlug}-${expiringDays}hari-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+  };
 
   const sendReminderMutation = api.subs.sendExpiryReminderForSub.useMutation({
     onSuccess: (data) => {
@@ -708,8 +742,9 @@ const DashboardPage: React.FC = () => {
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
-                    <div className="grid grid-cols-12 gap-3 bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground">
+                    <div className="grid grid-cols-[repeat(13,minmax(0,1fr))] gap-3 bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground">
                       <div className="col-span-2">Member</div>
+                      <div className="col-span-1">Telepon</div>
                       <div className="col-span-2">Email</div>
                       <div className="col-span-2">Paket</div>
                       <div className="col-span-1">PT</div>
@@ -724,8 +759,27 @@ const DashboardPage: React.FC = () => {
                       const isSending = sendReminderMutation.isPending &&
                         sendReminderMutation.variables?.subscriptionId === sub.id;
                       return (
-                        <div key={sub.id} className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm hover:bg-muted/30">
-                          <div className="col-span-2 font-medium truncate">{sub.member?.user?.name ?? "-"}</div>
+                        <div key={sub.id} className="grid grid-cols-[repeat(13,minmax(0,1fr))] items-center gap-3 px-4 py-3 text-sm hover:bg-muted/30">
+                          <div className="col-span-2 font-medium truncate">
+                            {sub.member?.id ? (
+                              <a
+                                href={`/member/profile?memberId=${sub.member.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-[#BFFF00] hover:underline"
+                                title="Buka profil member di tab baru"
+                              >
+                                {sub.member?.user?.name ?? "-"}
+                              </a>
+                            ) : (
+                              sub.member?.user?.name ?? "-"
+                            )}
+                          </div>
+                          <div className="col-span-1 truncate text-xs">
+                            {sub.member?.user?.phone
+                              ? <a href={`tel:${sub.member.user.phone}`} className="hover:underline">{sub.member.user.phone}</a>
+                              : <span className="text-muted-foreground">-</span>}
+                          </div>
                           <div className="col-span-2 text-muted-foreground truncate text-xs">{sub.member?.user?.email ?? "-"}</div>
                           <div className="col-span-2 truncate text-xs">{sub.package?.name ?? "-"}</div>
                           <div className="col-span-1 truncate text-xs">
@@ -767,32 +821,65 @@ const DashboardPage: React.FC = () => {
               </Card>
             );
 
+            const daySelector = (
+              <div className="flex items-center gap-1 rounded-md border p-1">
+                {EXPIRING_DAY_OPTIONS.map((d) => (
+                  <Button
+                    key={d}
+                    size="sm"
+                    variant={expiringDays === d ? "default" : "ghost"}
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setExpiringDays(d)}
+                  >
+                    {d} Hari
+                  </Button>
+                ))}
+              </div>
+            );
+
+            const exportButton = (subs: typeof gymSubs, label: string, slug: string) => (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
+                disabled={expiringLoading || !subs.length}
+                onClick={() => exportExpiringToExcel(subs, label, slug)}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
+              </Button>
+            );
+
             return (
               <>
                 {/* Membership */}
                 <div>
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold">Membership Akan Expired (7 Hari)</h3>
+                      <h3 className="text-lg font-semibold">Membership Akan Expired ({expiringDays} Hari)</h3>
                       <p className="text-sm text-muted-foreground">
                         {expiringLoading ? "Memuat..." : `${gymSubs.length} membership akan expired`}
                       </p>
                     </div>
+                    <div className="flex items-center gap-2">
+                      {daySelector}
+                      {exportButton(gymSubs, "Membership Expired", "membership-akan-expired")}
+                    </div>
                   </div>
-                  {renderTable(gymSubs, "Tidak ada membership yang akan expired dalam 7 hari")}
+                  {renderTable(gymSubs, `Tidak ada membership yang akan expired dalam ${expiringDays} hari`)}
                 </div>
 
                 {/* PT & Group Training */}
                 <div>
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold">Paket PT / Group Training Akan Expired (7 Hari)</h3>
+                      <h3 className="text-lg font-semibold">Paket PT / Group Training Akan Expired ({expiringDays} Hari)</h3>
                       <p className="text-sm text-muted-foreground">
                         {expiringLoading ? "Memuat..." : `${ptSubs.length} paket akan expired`}
                       </p>
                     </div>
+                    {exportButton(ptSubs, "PT Group Expired", "pt-group-akan-expired")}
                   </div>
-                  {renderTable(ptSubs, "Tidak ada paket PT / Group Training yang akan expired dalam 7 hari")}
+                  {renderTable(ptSubs, `Tidak ada paket PT / Group Training yang akan expired dalam ${expiringDays} hari`)}
                 </div>
               </>
             );
