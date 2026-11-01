@@ -10,6 +10,10 @@ export const memberSchema = z.object({
   height: z.number().optional().nullable(),
   weight: z.number().optional().nullable(),
   birthDate: z.string().optional().nullable(),
+  isFrozen: z.boolean().optional(),
+  frozenAt: z.string().optional().nullable(),
+  freezeDays: z.number().optional().nullable(),
+  freezeMode: z.string().optional().nullable(),
 });
 
 export type Member = z.infer<typeof memberSchema>;

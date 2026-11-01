@@ -80,17 +80,37 @@ export async function syncPtEndDates(params: {
  *   slot was consumed.
  * @throws if no subscription with available sessions (paid or bonus) is found
  */
+export function ptSessionScopeWhere(
+  isGroup?: boolean,
+  groupId?: string,
+): Prisma.SubscriptionWhereInput {
+  if (isGroup) {
+    return {
+      leadGroupSubscriptions: {
+        some: { status: "ACTIVE", ...(groupId ? { id: groupId } : {}) },
+      },
+    };
+  }
+  return {
+    leadGroupSubscriptions: { none: { status: "ACTIVE" } },
+    groupMembers: { none: { status: "ACTIVE" } },
+  };
+}
+
 export async function decrementSessionFIFO(params: {
   tx: Tx;
   memberId: string;
   trainerId: string;
+  isGroup?: boolean;
+  groupId?: string;
 }): Promise<{
   id: string;
   remainingSessions: number | null;
   remainingBonusSessions: number;
   isBonusSession: boolean;
 }> {
-  const { tx, memberId, trainerId } = params;
+  const { tx, memberId, trainerId, isGroup, groupId } = params;
+  const scopeWhere = ptSessionScopeWhere(isGroup, groupId);
 
   // Find the subscription expiring soonest that still has paid sessions
   const subWithPaid = await tx.subscription.findFirst({
@@ -98,8 +118,10 @@ export async function decrementSessionFIFO(params: {
       memberId,
       trainerId,
       isActive: true,
+      isFrozen: false,
       deletedAt: null,
       remainingSessions: { gt: 0 },
+      ...scopeWhere,
     },
     orderBy: { endDate: "asc" },
     select: { id: true, remainingSessions: true, remainingBonusSessions: true },
@@ -123,8 +145,10 @@ export async function decrementSessionFIFO(params: {
       memberId,
       trainerId,
       isActive: true,
+      isFrozen: false,
       deletedAt: null,
       remainingBonusSessions: { gt: 0 },
+      ...scopeWhere,
     },
     orderBy: { endDate: "asc" },
     select: { id: true, remainingSessions: true, remainingBonusSessions: true },
@@ -176,6 +200,7 @@ export async function decrementClassSessionFIFO(params: {
     where: {
       memberId,
       isActive: true,
+      isFrozen: false,
       deletedAt: null,
       remainingSessions: { gt: 0 },
       package: { type: "CLASS_SESSION" },
@@ -201,6 +226,7 @@ export async function decrementClassSessionFIFO(params: {
     where: {
       memberId,
       isActive: true,
+      isFrozen: false,
       deletedAt: null,
       remainingBonusSessions: { gt: 0 },
       package: { type: "CLASS_SESSION" },
@@ -255,6 +281,7 @@ export async function decrementGroupSessionFIFO(params: {
     where: {
       memberId,
       isActive: true,
+      isFrozen: false,
       deletedAt: null,
       remainingSessions: { gt: 0 },
       package: { type: "GROUP_TRAINING" },
@@ -280,6 +307,7 @@ export async function decrementGroupSessionFIFO(params: {
     where: {
       memberId,
       isActive: true,
+      isFrozen: false,
       deletedAt: null,
       remainingBonusSessions: { gt: 0 },
       package: { type: "GROUP_TRAINING" },

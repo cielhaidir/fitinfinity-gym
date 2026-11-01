@@ -11,6 +11,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -903,11 +904,36 @@ const [filterEndDate, setFilterEndDate] = useState<string>(
       ),
       cell: ({ row }) => {
         const isActive = row.original.isActive;
+        const isFrozen = (row.original as any).isFrozen;
+        const frozenAt = (row.original as any).frozenAt;
+        const fDays = (row.original as any).freezeDays;
+        const fMode = (row.original as any).freezeMode;
+
+        let unfreezeLabel: string | null = null;
+        if (isFrozen && frozenAt && fMode === "FIXED_DAYS" && fDays) {
+          const d = new Date(frozenAt);
+          d.setDate(d.getDate() + fDays);
+          unfreezeLabel = format(d, "d MMM yyyy", { locale: localeId });
+        }
+
         return (
-          <div className="min-w-[70px]">
-            <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
-              {isActive ? "Active" : "Inactive"}
-            </Badge>
+          <div className="min-w-[90px]">
+            {isFrozen ? (
+              <div className="flex flex-col gap-0.5">
+                <Badge variant="secondary" className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs w-fit">
+                  Freeze
+                </Badge>
+                {unfreezeLabel ? (
+                  <span className="text-[10px] text-muted-foreground">Unfreeze: {unfreezeLabel}</span>
+                ) : fMode === "UNTIL_UNFREEZE" ? (
+                  <span className="text-[10px] text-muted-foreground">Manual unfreeze</span>
+                ) : null}
+              </div>
+            ) : (
+              <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
+                {isActive ? "Active" : "Inactive"}
+              </Badge>
+            )}
           </div>
         );
       },

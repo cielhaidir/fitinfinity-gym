@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
   permissionProtectedProcedure,
@@ -302,6 +303,25 @@ export const personalTrainerRouter = createTRPCRouter({
           );
         }
 
+        // Check if the member has an active gym membership
+        const activeGymMembership = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: input.memberId,
+            isActive: true,
+            isFrozen: false,
+            deletedAt: null,
+            package: { type: "GYM_MEMBERSHIP" },
+          },
+          select: { id: true },
+        });
+
+        if (!activeGymMembership) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Member tidak memiliki membership gym aktif. Pastikan membership gym aktif sebelum menginput sesi PT.",
+          });
+        }
+
         result = await ctx.db.$transaction(async (tx) => {
           let isBonusSession = false;
           let fifoSubscriptionId: string | undefined;
@@ -326,6 +346,7 @@ export const personalTrainerRouter = createTRPCRouter({
               tx,
               memberId: input.memberId,
               trainerId: trainer.id,
+              isGroup: false,
             });
             isBonusSession = fifoResult.isBonusSession;
             fifoSubscriptionId = fifoResult.id;
@@ -430,6 +451,8 @@ export const personalTrainerRouter = createTRPCRouter({
         where: {
           leadSubscription: {
             trainerId: input.trainerId,
+            isActive: true,
+            deletedAt: null,
             OR: [
               { remainingSessions: { gt: 0 } },
               { remainingBonusSessions: { gt: 0 } },
@@ -490,6 +513,10 @@ export const personalTrainerRouter = createTRPCRouter({
         remainingBonusSessions: subscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: subscription.endDate?.toISOString() || "",
         type: "individual" as const,
+        isFrozen: subscription.isFrozen,
+        frozenAt: subscription.frozenAt?.toISOString() ?? null,
+        freezeDays: subscription.freezeDays ?? null,
+        freezeMode: subscription.freezeMode ?? null,
       }));
 
       // Transform group subscriptions
@@ -506,10 +533,15 @@ export const personalTrainerRouter = createTRPCRouter({
         remainingBonusSessions: groupSubscription.leadSubscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
         type: "group" as const,
+        isFrozen: groupSubscription.leadSubscription.isFrozen,
+        frozenAt: groupSubscription.leadSubscription.frozenAt?.toISOString() ?? null,
+        freezeDays: groupSubscription.leadSubscription.freezeDays ?? null,
+        freezeMode: groupSubscription.leadSubscription.freezeMode ?? null,
         groupId: groupSubscription.id,
         groupMemberNames: groupSubscription.groupMembers
           .map(gm => gm.subscription.member.user.name || "Unknown")
           .filter(name => name !== (groupSubscription.leadSubscription.member.user.name || "")),
+        totalGroupMembers: groupSubscription.totalMembers,
       }));
 
       // Combine both individual and group members
@@ -538,6 +570,7 @@ export const personalTrainerRouter = createTRPCRouter({
       // Get all individual subscriptions for this personal trainer
       // Exclude subscriptions that are lead subscriptions for groups
       // AND exclude subscriptions that belong to group members (non-leaders)
+      // Include frozen subscriptions so they appear with a frozen label
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           trainerId: personalTrainer.id,
@@ -586,6 +619,7 @@ export const personalTrainerRouter = createTRPCRouter({
       });
 
       // Get all group subscriptions for this personal trainer
+      // Include frozen lead subscriptions so they appear with a frozen label
       const groupSubscriptions = await ctx.db.groupSubscription.findMany({
         where: {
           leadSubscription: {
@@ -670,6 +704,10 @@ export const personalTrainerRouter = createTRPCRouter({
         remainingBonusSessions: subscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: subscription.endDate?.toISOString() || "",
         type: "individual",
+        isFrozen: subscription.isFrozen,
+        frozenAt: subscription.frozenAt?.toISOString() ?? null,
+        freezeDays: subscription.freezeDays ?? null,
+        freezeMode: subscription.freezeMode ?? null,
       }));
 
       // Transform group subscriptions
@@ -686,10 +724,15 @@ export const personalTrainerRouter = createTRPCRouter({
         remainingBonusSessions: groupSubscription.leadSubscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
         type: "group",
+        isFrozen: groupSubscription.leadSubscription.isFrozen,
+        frozenAt: groupSubscription.leadSubscription.frozenAt?.toISOString() ?? null,
+        freezeDays: groupSubscription.leadSubscription.freezeDays ?? null,
+        freezeMode: groupSubscription.leadSubscription.freezeMode ?? null,
         groupId: groupSubscription.id,
         groupMemberNames: groupSubscription.groupMembers
           .map(gm => gm.subscription.member.user.name || "Unknown")
           .filter(name => name !== (groupSubscription.leadSubscription.member.user.name || "")),
+        totalGroupMembers: groupSubscription.totalMembers,
       }));
 
       // Combine both individual and group members

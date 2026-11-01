@@ -102,9 +102,48 @@ const config = {
       },
     ];
   },
-  // The async headers part can remain if needed, but ensure it doesn't conflict
-  // with next-pwa's own service worker generation and headers.
-  // It's often better to let next-pwa handle service worker related headers.
+  // Rewrite uploaded asset paths to the API file-server route.
+  // Next.js standalone mode does not serve files added to public/ after build.
+  // This ensures runtime-uploaded files (payment proofs, profile pics, etc.)
+  // are accessible via their original paths.
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/assets/class-visit/:path*',
+          destination: '/api/files/assets/class-visit/:path*',
+        },
+        {
+          source: '/assets/transaction/:path*',
+          destination: '/api/files/assets/transaction/:path*',
+        },
+        {
+          source: '/assets/management/transaction/:path*',
+          destination: '/api/files/assets/management/transaction/:path*',
+        },
+        {
+          source: '/assets/profile/:path*',
+          destination: '/api/files/assets/profile/:path*',
+        },
+        {
+          source: '/assets/PT/:path*',
+          destination: '/api/files/assets/PT/:path*',
+        },
+        {
+          source: '/assets/pt/:path*',
+          destination: '/api/files/assets/pt/:path*',
+        },
+        {
+          source: '/assets/exercise/:path*',
+          destination: '/api/files/assets/exercise/:path*',
+        },
+        {
+          source: '/uploads/:path*',
+          destination: '/api/files/uploads/:path*',
+        },
+      ],
+    };
+  },
 };
 
 export default withPWA(config);

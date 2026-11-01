@@ -12,7 +12,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { toGMT8StartOfDay, toGMT8EndOfDay, getGMT8DayBoundaries } from "@/lib/timezone";
 import { logApiMutationAsync, extractIpAddress, extractUserAgent } from "@/server/utils/mutationLogger";
-import { decrementSessionFIFO } from "@/server/utils/ptSubscriptionUtils";
+import { decrementSessionFIFO, ptSessionScopeWhere } from "@/server/utils/ptSubscriptionUtils";
 
 export const trainerSessionRouter = createTRPCRouter({
   // For management to create schedule with trainer selection
@@ -26,6 +26,7 @@ export const trainerSessionRouter = createTRPCRouter({
         endTime: z.date(),
         description: z.string().optional(),
         isGroup: z.boolean().optional(),
+        groupId: z.string().optional(),
         attendanceCount: z.number().min(1).max(50).optional(),
         status: z.enum(["ENDED", "NOT_YET", "CANCELED", "ONGOING"]).optional(),
       }),
@@ -53,17 +54,38 @@ export const trainerSessionRouter = createTRPCRouter({
           });
         }
 
+        // Check if the member has an active gym membership
+        const activeGymMembership = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: input.memberId,
+            isActive: true,
+            isFrozen: false,
+            deletedAt: null,
+            package: { type: "GYM_MEMBERSHIP" },
+          },
+          select: { id: true },
+        });
+
+        if (!activeGymMembership) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Member tidak memiliki membership gym aktif. Pastikan membership gym aktif sebelum menginput sesi PT.",
+          });
+        }
+
         // Get the member's active subscription with sessions available (paid OR bonus)
         const subscription = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
             isActive: true,
+            isFrozen: false,
             deletedAt: null,
             OR: [
               { remainingSessions: { gt: 0 } },
               { remainingBonusSessions: { gt: 0 } },
             ],
+            ...ptSessionScopeWhere(input.isGroup, input.groupId),
           },
           orderBy: { endDate: "asc" },
           include: { package: true },
@@ -72,7 +94,7 @@ export const trainerSessionRouter = createTRPCRouter({
         if (!subscription) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Member tidak memiliki sisa sesi yang tersedia dengan trainer ini",
+            message: "Member tidak memiliki sisa sesi yang tersedia dengan trainer ini (atau sedang freeze)",
           });
         }
 
@@ -93,6 +115,8 @@ export const trainerSessionRouter = createTRPCRouter({
             tx,
             memberId: input.memberId,
             trainerId: trainer.id,
+            isGroup: input.isGroup,
+            groupId: input.groupId,
           });
 
           // If group session, sync all other active group members' sessions to match the leader
@@ -175,6 +199,7 @@ export const trainerSessionRouter = createTRPCRouter({
         endTime: z.date(),
         description: z.string().optional(),
         isGroup: z.boolean().optional(),
+        groupId: z.string().optional(),
         attendanceCount: z.number().min(1).max(50).optional(),
       }),
     )
@@ -204,17 +229,38 @@ export const trainerSessionRouter = createTRPCRouter({
 
         console.log("Found trainer:", trainer.id);
 
+        // Check if the member has an active gym membership
+        const activeGymMembership = await ctx.db.subscription.findFirst({
+          where: {
+            memberId: input.memberId,
+            isActive: true,
+            isFrozen: false,
+            deletedAt: null,
+            package: { type: "GYM_MEMBERSHIP" },
+          },
+          select: { id: true },
+        });
+
+        if (!activeGymMembership) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Member tidak memiliki membership gym aktif. Pastikan membership gym aktif sebelum menginput sesi PT.",
+          });
+        }
+
         // Get the member's active subscription with sessions available (paid OR bonus)
         const subscription = await ctx.db.subscription.findFirst({
           where: {
             memberId: input.memberId,
             trainerId: trainer.id,
             isActive: true,
+            isFrozen: false,
             deletedAt: null,
             OR: [
               { remainingSessions: { gt: 0 } },
               { remainingBonusSessions: { gt: 0 } },
             ],
+            ...ptSessionScopeWhere(input.isGroup, input.groupId),
           },
           orderBy: { endDate: "asc" },
           include: { package: true },
@@ -224,7 +270,7 @@ export const trainerSessionRouter = createTRPCRouter({
           console.log("No subscription found for member with remaining sessions");
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Member tidak memiliki sisa sesi yang tersedia dengan trainer ini",
+            message: "Member tidak memiliki sisa sesi yang tersedia dengan trainer ini (atau sedang freeze)",
           });
         }
 
@@ -254,6 +300,8 @@ export const trainerSessionRouter = createTRPCRouter({
             tx,
             memberId: input.memberId,
             trainerId: trainer.id,
+            isGroup: input.isGroup,
+            groupId: input.groupId,
           });
 
           console.log("Updated subscription (FIFO):", {

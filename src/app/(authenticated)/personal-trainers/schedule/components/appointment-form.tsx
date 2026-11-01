@@ -55,6 +55,8 @@ interface Member {
   type: "individual" | "group";
   groupId?: string;
   groupMemberNames?: string[];
+  totalGroupMembers?: number;
+  isFrozen?: boolean;
 }
 
 export default function AppointmentForm({
@@ -111,13 +113,15 @@ export default function AppointmentForm({
             type: member.type,
             groupId: member.groupId,
             groupMemberNames: (member as any).groupMemberNames ?? [],
+            totalGroupMembers: (member as any).totalGroupMembers ?? 1,
+            isFrozen: (member as any).isFrozen ?? false,
           });
         } else {
           // For individual members, combine by name as before
           const existingMember = memberMap.get(member.name);
           if (existingMember && existingMember.type === "individual") {
             // If member already exists, add remaining sessions
-            console.warn('⚠️ [DEBUG] Combining duplicate member by name:', {
+            console.warn('[DEBUG] Combining duplicate member by name:', {
               name: member.name,
               existing: { id: existingMember.id, sessions: existingMember.remainingSessions },
               new: { id: member.id, sessions: member.remainingSessions },
@@ -125,6 +129,8 @@ export default function AppointmentForm({
             });
             existingMember.remainingSessions += member.remainingSessions;
             existingMember.remainingBonusSessions += (member as any).remainingBonusSessions ?? 0;
+            // If any subscription is frozen, mark the combined entry as frozen
+            if ((member as any).isFrozen) existingMember.isFrozen = true;
           } else {
             // If member doesn't exist, add new entry
             memberMap.set(member.name, {
@@ -135,6 +141,7 @@ export default function AppointmentForm({
               remainingBonusSessions: (member as any).remainingBonusSessions ?? 0,
               type: member.type,
               groupId: member.groupId,
+              isFrozen: (member as any).isFrozen ?? false,
             });
           }
         }
@@ -300,6 +307,7 @@ export default function AppointmentForm({
       endTime: endTime,
       description: description,
       isGroup: isGroupSession,
+      groupId: isGroupSession ? memberData.member.groupId : undefined,
       attendanceCount: isGroupSession ? attendanceCountNum : 1,
       status,
     });
@@ -377,14 +385,20 @@ export default function AppointmentForm({
           value={selectedMemberId}
           onValueChange={(value) => {
             const memberData = memberValueMap.get(value);
-            console.log('🎯 [DEBUG] Select onValueChange fired:', {
+            console.log('[DEBUG] Select onValueChange fired:', {
               selectedValue: value,
               memberCount: combinedMembers.length,
               matchedMemberData: memberData,
-              userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'SSR',
               timestamp: new Date().toISOString()
             });
             setSelectedMemberId(value);
+            // Auto-set attendance count to total group members when selecting a group
+            if (memberData?.type === "group") {
+              const total = memberData.member.totalGroupMembers ?? 1;
+              setAttendanceCount(String(total));
+            } else {
+              setAttendanceCount("1");
+            }
           }}
           key={`select-${combinedMembers.length}-${Date.now()}`}
         >
@@ -404,8 +418,10 @@ export default function AppointmentForm({
               combinedMembers.map((member) => {
                 const stableValue = `${member.type}:${member.id}`;
                 const bonusSessions = (member as any).remainingBonusSessions ?? 0;
-                const isDisabled = member.remainingSessions <= 0 && bonusSessions <= 0;
-                const bonusPart = bonusSessions > 0 ? ` + 🎁${bonusSessions} bonus` : "";
+                const noSessions = member.remainingSessions <= 0 && bonusSessions <= 0;
+                const isFrozen = member.isFrozen ?? false;
+                const isDisabled = noSessions || isFrozen;
+                const bonusPart = bonusSessions > 0 ? ` + ${bonusSessions} bonus` : "";
                 
                 return (
                   <SelectItem
@@ -418,7 +434,8 @@ export default function AppointmentForm({
                     <span className="notranslate" translate="no">
                       {member.type === "group" ? "🏃‍♂️ " : "👤 "}
                       {member.name} ({member.remainingSessions} sesi tersisa{bonusPart})
-                      {isDisabled && " - Tidak tersedia"}
+                      {isFrozen && " - FREEZE"}
+                      {noSessions && !isFrozen && " - Tidak tersedia"}
                     </span>
                   </SelectItem>
                 );

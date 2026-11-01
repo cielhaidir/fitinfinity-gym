@@ -64,16 +64,27 @@ export async function POST(request: NextRequest) {
     });
 
     // ── 1. Activate future-dated subscriptions whose startDate has arrived ──
+    // Skip frozen AND scheduled-freeze subscriptions (freezeMode set = admin scheduled a freeze)
+    // Also skip session-based packages (PT/Group/Class) that have 0 remaining sessions
     const toActivate = await db.subscription.findMany({
       where: {
         isActive: false,
         deletedAt: null,
         isFrozen: false,
+        freezeMode: null, // Do not activate subscriptions with a pending scheduled freeze
         startDate: { lte: now },
         OR: [
           { endDate: null },
           { endDate: { gte: startOfTodayWIB } },
         ],
+        // Exclude session-based packages with 0 remaining sessions (both paid and bonus)
+        NOT: {
+          package: {
+            type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING", "CLASS_SESSION"] },
+          },
+          remainingSessions: { lte: 0 },
+          remainingBonusSessions: { lte: 0 },
+        },
       },
       include: detailInclude,
     });
@@ -115,9 +126,11 @@ export async function POST(request: NextRequest) {
     }));
 
     // ── 3. Deactivate PT/Group subs with 0 remaining sessions (paid AND bonus) ──
+    // Skip frozen subscriptions — their time is paused, don't change isActive while frozen
     const toDeactivateNoSessions = await db.subscription.findMany({
       where: {
         isActive: true,
+        isFrozen: false,
         deletedAt: null,
         remainingSessions: { lte: 0 },
         remainingBonusSessions: { lte: 0 },
@@ -179,11 +192,16 @@ export async function POST(request: NextRequest) {
         newEndDate.setDate(newEndDate.getDate() + remainingDays);
         newEndDate.setHours(23, 59, 59, 999);
 
+        // For session-based packages with 0 sessions, don't reactivate
+        const isSessionBased = ["PERSONAL_TRAINER", "GROUP_TRAINING", "CLASS_SESSION"].includes(sub.package?.type ?? "");
+        const hasNoSessions = (sub.remainingSessions ?? 0) <= 0 && (sub.remainingBonusSessions ?? 0) <= 0;
+        const shouldActivate = !(isSessionBased && hasNoSessions);
+
         await db.subscription.update({
           where: { id: sub.id },
           data: {
             isFrozen: false,
-            isActive: true,
+            isActive: shouldActivate,
             frozenAt: null,
             freezeDays: null,
             freezeMode: null,
@@ -235,10 +253,47 @@ export async function POST(request: NextRequest) {
     if (toActivateFreezes.length > 0) {
       // The FreezeOperation record was already created by the `freeze` mutation
       // when the freeze was scheduled — only flip the flag here.
+      const freezeSubIds = toActivateFreezes.map((s) => s.id);
       await db.subscription.updateMany({
-        where: { id: { in: toActivateFreezes.map((s) => s.id) } },
+        where: { id: { in: freezeSubIds } },
         data: { isFrozen: true },
       });
+
+      // Cascade freeze to group members whose leader subscription was just activated
+      const groupMembersToCascade = await db.groupMember.findMany({
+        where: {
+          status: "ACTIVE",
+          groupSubscription: {
+            leadSubscriptionId: { in: freezeSubIds },
+          },
+          subscription: {
+            isFrozen: false,
+            deletedAt: null,
+            OR: [
+              { remainingSessions: { gt: 0 } },
+              { remainingBonusSessions: { gt: 0 } },
+            ],
+          },
+        },
+        select: {
+          subscriptionId: true,
+          subscription: { select: { frozenAt: true, freezeDays: true, freezeMode: true, endDate: true } },
+        },
+      });
+
+      if (groupMembersToCascade.length > 0) {
+        // Use the first activated freeze's parameters for consistency
+        const refSub = toActivateFreezes[0]!;
+        await db.subscription.updateMany({
+          where: { id: { in: groupMembersToCascade.map((gm) => gm.subscriptionId) } },
+          data: {
+            isFrozen: true,
+            frozenAt: refSub.frozenAt,
+            freezeDays: refSub.freezeDays,
+            freezeMode: refSub.freezeMode,
+          },
+        });
+      }
     }
     results.scheduledFreezesActivated = toActivateFreezes.length;
     details.scheduledFreezesActivated = toActivateFreezes.map((s) => ({
@@ -248,12 +303,22 @@ export async function POST(request: NextRequest) {
       freezeMode: s.freezeMode,
     }));
 
-    // ── 6. Sync group member sessions to match leader ──
+    // ── 6. Sync group member sessions, endDate, and freeze status to match leader ──
     const activeGroups = await db.groupSubscription.findMany({
       where: { status: "ACTIVE" },
       include: {
         leadSubscription: {
-          select: { id: true, remainingSessions: true, remainingBonusSessions: true, endDate: true },
+          select: {
+            id: true,
+            remainingSessions: true,
+            remainingBonusSessions: true,
+            endDate: true,
+            isFrozen: true,
+            frozenAt: true,
+            freezeDays: true,
+            freezeMode: true,
+            remainingDays: true,
+          },
         },
         groupMembers: {
           where: { status: "ACTIVE" },
@@ -274,6 +339,11 @@ export async function POST(request: NextRequest) {
             remainingSessions: group.leadSubscription.remainingSessions,
             remainingBonusSessions: group.leadSubscription.remainingBonusSessions,
             endDate: group.leadSubscription.endDate,
+            isFrozen: group.leadSubscription.isFrozen,
+            frozenAt: group.leadSubscription.frozenAt,
+            freezeDays: group.leadSubscription.freezeDays,
+            freezeMode: group.leadSubscription.freezeMode,
+            remainingDays: group.leadSubscription.remainingDays,
           },
         });
         groupSessionsSynced += r.count;

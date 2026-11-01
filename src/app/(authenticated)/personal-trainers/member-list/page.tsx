@@ -22,6 +22,10 @@ interface MemberData {
   birthDate: string | null;
   remainingSessions: number;
   subscriptionEndDate: string;
+  isFrozen?: boolean;
+  frozenAt?: string | null;
+  freezeDays?: number | null;
+  freezeMode?: string | null;
 }
 
 interface PaginatedResponse {
@@ -58,6 +62,8 @@ export default function MemberListPage() {
       if (existingMember) {
         // If member already exists, add remaining sessions
         existingMember.remainingSessions += member.remainingSessions;
+        // If any subscription is frozen, mark member as frozen
+        if ((member as any).isFrozen) existingMember.isFrozen = true;
         // Keep the latest subscription end date
         if (
           new Date(member.subscriptionEndDate) >
@@ -77,6 +83,10 @@ export default function MemberListPage() {
           birthDate: member.birthDate,
           remainingSessions: member.remainingSessions,
           subscriptionEndDate: member.subscriptionEndDate,
+          isFrozen: (member as any).isFrozen ?? false,
+          frozenAt: (member as any).frozenAt ?? null,
+          freezeDays: (member as any).freezeDays ?? null,
+          freezeMode: (member as any).freezeMode ?? null,
         });
       }
     });

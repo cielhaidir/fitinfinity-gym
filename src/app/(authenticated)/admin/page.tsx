@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { format, differenceInDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { Mail, CheckCircle2, AlertCircle, FileSpreadsheet } from "lucide-react";
+import { Mail, CheckCircle2, AlertCircle, FileSpreadsheet, Clock, Snowflake } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -268,6 +268,14 @@ const DashboardPage: React.FC = () => {
 
   const { data: unfrozenData, isLoading: unfrozenLoading, refetch: refetchUnfrozen } =
     api.subs.getUnfrozenToday.useQuery();
+
+  // Upcoming activations (packages with future startDate)
+  const { data: upcomingActivations, isLoading: upcomingLoading } =
+    api.subs.getUpcomingActivations.useQuery();
+
+  // Scheduled freezes (freeze terjadwal yang belum aktif)
+  const { data: scheduledFreezes, isLoading: scheduledFreezesLoading } =
+    api.subs.getScheduledFreezes.useQuery();
 
   // Birthday members (today + next 3 days)
   const { data: birthdayData, isLoading: birthdayLoading } =
@@ -983,6 +991,149 @@ const DashboardPage: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* ── Upcoming Activations (Package Akan Aktif) ── */}
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Package Akan Aktif</h3>
+              <p className="text-sm text-muted-foreground">
+                {upcomingLoading ? "Memuat..." : `${upcomingActivations?.length ?? 0} package menunggu aktivasi`}
+              </p>
+            </div>
+          </div>
+          <Card className="overflow-hidden">
+            {upcomingLoading ? (
+              <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">Memuat...</div>
+            ) : !upcomingActivations?.length ? (
+              <div className="flex h-24 items-center justify-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                Tidak ada package yang menunggu aktivasi
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                <div className="grid grid-cols-12 gap-3 bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground">
+                  <div className="col-span-2">Member</div>
+                  <div className="col-span-2">Email</div>
+                  <div className="col-span-3">Paket</div>
+                  <div className="col-span-2">PT</div>
+                  <div className="col-span-2">Mulai Aktif</div>
+                  <div className="col-span-1">Countdown</div>
+                </div>
+                {upcomingActivations.map((sub) => {
+                  const daysUntil = differenceInDays(new Date(sub.startDate), new Date());
+                  return (
+                    <div key={sub.id} className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm hover:bg-muted/30">
+                      <div className="col-span-2 font-medium truncate">
+                        {sub.memberId ? (
+                          <a
+                            href={`/member/profile?memberId=${sub.memberId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-[#BFFF00] hover:underline"
+                          >
+                            {sub.memberName}
+                          </a>
+                        ) : sub.memberName}
+                      </div>
+                      <div className="col-span-2 truncate text-xs text-muted-foreground">{sub.memberEmail}</div>
+                      <div className="col-span-3 truncate text-xs">{sub.packageName}</div>
+                      <div className="col-span-2 truncate text-xs">
+                        {sub.trainerName ?? <span className="text-muted-foreground">-</span>}
+                      </div>
+                      <div className="col-span-2 text-xs">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-blue-500" />
+                          {format(new Date(sub.startDate), "d MMM yyyy", { locale: localeId })}
+                        </div>
+                      </div>
+                      <div className="col-span-1">
+                        <Badge variant={daysUntil <= 1 ? "default" : "secondary"} className="text-xs">
+                          {daysUntil}h
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* ── Scheduled Freezes (Freeze Terjadwal) ── */}
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Freeze Terjadwal</h3>
+              <p className="text-sm text-muted-foreground">
+                {scheduledFreezesLoading ? "Memuat..." : `${scheduledFreezes?.length ?? 0} member dijadwalkan freeze`}
+              </p>
+            </div>
+          </div>
+          <Card className="overflow-hidden">
+            {scheduledFreezesLoading ? (
+              <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">Memuat...</div>
+            ) : !scheduledFreezes?.length ? (
+              <div className="flex h-24 items-center justify-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                Tidak ada freeze terjadwal
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                <div className="grid grid-cols-12 gap-3 bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground">
+                  <div className="col-span-2">Member</div>
+                  <div className="col-span-2">Email</div>
+                  <div className="col-span-3">Paket</div>
+                  <div className="col-span-2">Mulai Freeze</div>
+                  <div className="col-span-1">Durasi</div>
+                  <div className="col-span-2">Mode</div>
+                </div>
+                {scheduledFreezes.map((member) => (
+                  <div key={member.memberId} className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm hover:bg-muted/30">
+                    <div className="col-span-2 font-medium truncate">
+                      {member.memberId ? (
+                        <a
+                          href={`/member/profile?memberId=${member.memberId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-[#BFFF00] hover:underline"
+                        >
+                          {member.memberName}
+                        </a>
+                      ) : member.memberName}
+                    </div>
+                    <div className="col-span-2 truncate text-xs text-muted-foreground">{member.memberEmail}</div>
+                    <div className="col-span-3 flex flex-wrap gap-1">
+                      {member.packages.map((pkg, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {pkg.name}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="col-span-2 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Snowflake className="h-3 w-3 text-cyan-500" />
+                        {format(new Date(member.frozenAt), "d MMM yyyy", { locale: localeId })}
+                      </div>
+                    </div>
+                    <div className="col-span-1 text-xs">
+                      {member.freezeDays ? (
+                        <Badge variant="outline" className="text-xs">{member.freezeDays}h</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </div>
+                    <div className="col-span-2 text-xs">
+                      <Badge variant={member.freezeMode === "FIXED_DAYS" ? "secondary" : "outline"} className="text-xs">
+                        {member.freezeMode === "FIXED_DAYS" ? "Fixed Days" : "Until Unfreeze"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </Card>

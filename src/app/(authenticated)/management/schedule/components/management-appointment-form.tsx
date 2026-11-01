@@ -42,6 +42,8 @@ interface Member {
   type: "individual" | "group";
   groupId?: string;
   groupMemberNames?: string[];
+  totalGroupMembers?: number;
+  isFrozen?: boolean;
 }
 
 export default function ManagementAppointmentForm({
@@ -93,6 +95,8 @@ export default function ManagementAppointmentForm({
             type: member.type,
             groupId: 'groupId' in member ? member.groupId : undefined,
             groupMemberNames: (member as any).groupMemberNames ?? [],
+            totalGroupMembers: (member as any).totalGroupMembers ?? 1,
+            isFrozen: (member as any).isFrozen ?? false,
           });
         } else {
           // For individual members, combine by name
@@ -100,6 +104,7 @@ export default function ManagementAppointmentForm({
           if (existingMember && existingMember.type === "individual") {
             existingMember.remainingSessions += member.remainingSessions;
             existingMember.remainingBonusSessions += (member as any).remainingBonusSessions ?? 0;
+            if ((member as any).isFrozen) existingMember.isFrozen = true;
           } else {
             memberMap.set(member.name, {
               id: member.id,
@@ -108,6 +113,7 @@ export default function ManagementAppointmentForm({
               remainingSessions: member.remainingSessions,
               remainingBonusSessions: (member as any).remainingBonusSessions ?? 0,
               type: member.type,
+              isFrozen: (member as any).isFrozen ?? false,
             });
           }
         }
@@ -140,16 +146,18 @@ export default function ManagementAppointmentForm({
   }, [combinedMembers]);
 
   // Convert members to combobox options
+  // Show frozen members with a label but keep them selectable (backend will reject)
   const memberOptions: ComboboxOption[] = useMemo(() => {
     return combinedMembers
       .filter((member) => member.remainingSessions > 0 || member.remainingBonusSessions > 0)
       .map((member) => {
         const stableValue = `${member.type}:${member.id}`;
         const icon = member.type === "group" ? "🏃‍♂️ " : "👤 ";
-        const bonusPart = member.remainingBonusSessions > 0 ? ` + 🎁${member.remainingBonusSessions} bonus` : "";
+        const bonusPart = member.remainingBonusSessions > 0 ? ` + ${member.remainingBonusSessions} bonus` : "";
+        const frozenLabel = member.isFrozen ? " - FREEZE" : "";
         return {
           value: stableValue,
-          label: `${icon}${member.name} (${member.remainingSessions} sesi tersisa${bonusPart})`,
+          label: `${icon}${member.name} (${member.remainingSessions} sesi tersisa${bonusPart})${frozenLabel}`,
         };
       });
   }, [combinedMembers]);
@@ -266,6 +274,7 @@ export default function ManagementAppointmentForm({
       endTime: endTime,
       description: description,
       isGroup: isGroupSession,
+      groupId: isGroupSession ? memberData.member.groupId : undefined,
       attendanceCount: isGroupSession ? attendanceCountNum : 1,
       status: status,
     });
@@ -382,7 +391,17 @@ export default function ManagementAppointmentForm({
           <Combobox
             options={memberOptions}
             value={selectedMemberId}
-            onValueChange={setSelectedMemberId}
+            onValueChange={(value) => {
+              setSelectedMemberId(value);
+              // Auto-set attendance count to total group members when selecting a group
+              const data = memberValueMap.get(value);
+              if (data?.type === "group") {
+                const total = data.member.totalGroupMembers ?? 1;
+                setAttendanceCount(String(total));
+              } else {
+                setAttendanceCount("1");
+              }
+            }}
             placeholder={isMembersLoading ? "Loading members..." : "Pilih member"}
             emptyText={combinedMembers.length === 0 ? "Tidak ada member untuk trainer ini" : "Member tidak ditemukan"}
             disabled={isMembersLoading || combinedMembers.length === 0}

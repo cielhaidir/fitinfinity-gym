@@ -6,6 +6,8 @@ import { type Member } from "./schema";
 import { DataTableColumnHeader } from "@/components/datatable/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { Edit } from "lucide-react";
+import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 
 export const getColumns = (
   onEdit: (member: Member) => void,
@@ -107,16 +109,41 @@ export const getColumns = (
     ),
     cell: ({ row }) => {
       const remainingSessions = row.original.remainingSessions;
+      const isFrozen = row.original.isFrozen;
+      const frozenAt = row.original.frozenAt;
+      const freezeDays = row.original.freezeDays;
+      const freezeMode = row.original.freezeMode;
+
+      let unfreezeDate: string | null = null;
+      if (isFrozen && frozenAt && freezeMode === "FIXED_DAYS" && freezeDays) {
+        const d = new Date(frozenAt);
+        d.setDate(d.getDate() + freezeDays);
+        unfreezeDate = format(d, "d MMM yyyy", { locale: localeId });
+      }
+
       return (
-        <div className="w-[100px] px-2 py-1 text-xs sm:text-sm">
-          <Badge
-            variant={remainingSessions > 0 ? "default" : "destructive"}
-            className={
-              remainingSessions > 0 ? "bg-[#C9D953] hover:bg-[#B8C84A]" : ""
-            }
-          >
-            {remainingSessions > 0 ? "Active" : "Inactive"}
-          </Badge>
+        <div className="w-[140px] px-2 py-1 text-xs sm:text-sm">
+          {isFrozen ? (
+            <div className="flex flex-col gap-0.5">
+              <Badge variant="secondary" className="bg-cyan-600 hover:bg-cyan-700 text-white w-fit">
+                Freeze
+              </Badge>
+              {unfreezeDate ? (
+                <span className="text-[10px] text-muted-foreground">Unfreeze: {unfreezeDate}</span>
+              ) : freezeMode === "UNTIL_UNFREEZE" ? (
+                <span className="text-[10px] text-muted-foreground">Manual unfreeze</span>
+              ) : null}
+            </div>
+          ) : (
+            <Badge
+              variant={remainingSessions > 0 ? "default" : "destructive"}
+              className={
+                remainingSessions > 0 ? "bg-[#C9D953] hover:bg-[#B8C84A]" : ""
+              }
+            >
+              {remainingSessions > 0 ? "Active" : "Inactive"}
+            </Badge>
+          )}
         </div>
       );
     },

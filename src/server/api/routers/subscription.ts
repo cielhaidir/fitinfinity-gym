@@ -1779,36 +1779,41 @@ export const subscriptionRouter = createTRPCRouter({
       // Use provided freezeStartAt or fall back to now
       const freezeStartAt = input.freezeStartAt ? new Date(input.freezeStartAt) : now;
 
-      // Find all active, non-frozen subscriptions for this member that haven't expired
-      // Validation guards (as per improvement plan):
+      // Find all non-frozen subscriptions for this member that haven't expired.
+      // Includes future-dated (not yet active) subscriptions so they freeze too.
       // ❌ Cannot freeze if already frozen (filtered by isFrozen: false)
-      // ❌ Cannot freeze expired subscriptions (filtered by endDate > now)
-      // ❌ Cannot freeze subscriptions without endDate
+      // ❌ Cannot freeze if a scheduled freeze is already pending (freezeMode not null)
+      // ❌ Cannot freeze expired subscriptions (filtered by endDate > now OR endDate null)
+      // Find direct subscriptions for this member (only their own memberId)
+      // FreezeOperation records are created only for these.
+      // Group-related subscriptions (leader/other members) are handled by cascading code below.
       const activeSubscriptions = await ctx.db.subscription.findMany({
         where: {
           memberId: input.memberId,
-          isActive: true,
           isFrozen: false,
           deletedAt: null,
-          endDate: { gt: now }, // Only subscriptions that haven't expired
+          OR: [
+            { isActive: true, endDate: { gt: now } },
+            { isActive: true, endDate: null },
+            { isActive: true, remainingSessions: { gt: 0 } },
+            { isActive: false, startDate: { gt: now } },
+          ],
+          // Exclude session-based packages (PT/Group/Class) that have 0 remaining sessions
+          NOT: {
+            package: {
+              type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING", "CLASS_SESSION"] },
+            },
+            remainingSessions: { lte: 0 },
+            remainingBonusSessions: { lte: 0 },
+          },
         },
         include: { package: true },
       });
 
-      // Explicit validation: check if no active subscriptions found
       if (activeSubscriptions.length === 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "No active subscriptions found to freeze. Subscriptions may already be frozen, expired, or not exist.",
-        });
-      }
-
-      // Additional validation: check if any subscription is missing endDate
-      const subscriptionsWithoutEndDate = activeSubscriptions.filter(sub => !sub.endDate);
-      if (subscriptionsWithoutEndDate.length > 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Cannot freeze ${subscriptionsWithoutEndDate.length} subscription(s) without end date. Only gym memberships with end dates can be frozen.`,
         });
       }
 
@@ -1840,137 +1845,200 @@ export const subscriptionRouter = createTRPCRouter({
         }
       }
 
-      // Create ONE transaction freeze record for the member (if there's a payment)
-      let transactionFreezeId = null;
-      if (freezePaymentAmount > 0 && freezePrice && input.balanceAccountId) {
-        const transactionFreeze = await ctx.db.transactionFreeze.create({
-          data: {
-            balanceAccountId: input.balanceAccountId,
-            amount: freezePaymentAmount,
-            description: `Freeze fee for ${actualFreezeDays} days - ${activeSubscriptions.length} subscription(s)`,
-            createdBy: ctx.session.user.id,
-          },
-        });
-        transactionFreezeId = transactionFreeze.id;
+      // Resolve freeze price ID for free-freeze path (outside transaction — idempotent)
+      let resolvedFreezePriceId = input.freezePriceId ?? null;
+      if (!resolvedFreezePriceId && freezePaymentAmount <= 0 && actualFreezeDays > 0) {
+        let fp = await ctx.db.freezePrice.findFirst({ where: { freezeDays: actualFreezeDays } });
+        if (!fp) {
+          try {
+            fp = await ctx.db.freezePrice.create({ data: { freezeDays: actualFreezeDays, price: 0, isActive: true } });
+          } catch {
+            fp = await ctx.db.freezePrice.findFirst({ where: { freezeDays: actualFreezeDays } });
+          }
+        }
+        resolvedFreezePriceId = fp?.id ?? null;
+      }
 
-        // Create freeze operation record for EACH subscription but link to the SAME TransactionFreeze
+      if (!resolvedFreezePriceId && freezePaymentAmount <= 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Freeze price ID is required" });
+      }
+
+      // Wrap ALL writes (transactionFreeze, freezeOperations, subscription updates) in one transaction
+      const isFutureFreeze = freezeStartAt > now;
+      const freezeMode = (actualFreezeDays && actualFreezeDays > 0) ? "FIXED_DAYS" : "UNTIL_UNFREEZE";
+
+      const results = await ctx.db.$transaction(async (tx) => {
+        // 1. Create payment record if applicable
+        let transactionFreezeIdInner: string | null = null;
+        if (freezePaymentAmount > 0 && freezePrice && input.balanceAccountId) {
+          const txFreeze = await tx.transactionFreeze.create({
+            data: {
+              balanceAccountId: input.balanceAccountId,
+              amount: freezePaymentAmount,
+              description: `Freeze fee for ${actualFreezeDays} days - ${activeSubscriptions.length} subscription(s)`,
+              createdBy: ctx.session.user.id,
+            },
+          });
+          transactionFreezeIdInner = txFreeze.id;
+        }
+
+        // 2. Create freeze operation records
+        const opFreezePriceId = freezePrice?.id ?? resolvedFreezePriceId!;
         for (const subscription of activeSubscriptions) {
-          await ctx.db.freezeOperation.create({
+          await tx.freezeOperation.create({
             data: {
               subscriptionId: subscription.id,
               memberId: input.memberId,
               operationType: "FREEZE",
-              freezePriceId: freezePrice.id,
-              transactionFreezeId: transactionFreeze.id,
+              freezePriceId: opFreezePriceId,
+              transactionFreezeId: transactionFreezeIdInner,
               freezeDays: actualFreezeDays,
-              price: freezePaymentAmount, // Same price for all (member pays once)
+              price: freezePaymentAmount,
               freezeStartAt,
               performedById: ctx.session.user.id,
             },
           });
         }
-      } else {
-        // Create freeze operation record without payment (free freeze) for each subscription
-        // For custom freezes without a freezePriceId, create or find a FreezePrice entry
-        let customFreezePriceId = input.freezePriceId;
-        
-        if (!customFreezePriceId && actualFreezeDays > 0) {
-          // Try to find an existing FreezePrice for this duration (prefer free one)
-          let customFreezePrice = await ctx.db.freezePrice.findFirst({
-            where: {
-              freezeDays: actualFreezeDays,
-            },
-          });
 
-          // If no FreezePrice exists with these days, try to create one (might fail if not unique)
-          if (!customFreezePrice) {
-            try {
-              customFreezePrice = await ctx.db.freezePrice.create({
-                data: {
-                  freezeDays: actualFreezeDays,
-                  price: 0,
-                  isActive: true,
-                },
-              });
-            } catch (error) {
-              // If creation fails (e.g., unique constraint), try to find again
-              customFreezePrice = await ctx.db.freezePrice.findFirst({
+        // 3. Freeze each subscription
+        const updated: { id: string }[] = [];
+        for (const subscription of activeSubscriptions) {
+          const remainingDays = subscription.endDate
+            ? Math.max(0, Math.floor((subscription.endDate.getTime() - freezeStartAt.getTime()) / (1000 * 60 * 60 * 24)))
+            : null;
+
+          const u = await tx.subscription.update({
+            where: { id: subscription.id },
+            data: {
+              isFrozen: !isFutureFreeze,
+              frozenAt: freezeStartAt,
+              freezeDays: actualFreezeDays > 0 ? actualFreezeDays : null,
+              freezeMode,
+              remainingDays,
+            },
+            select: { id: true },
+          });
+          updated.push(u);
+        }
+
+        return { updated, transactionFreezeId: transactionFreezeIdInner };
+      });
+
+      const transactionFreezeId = results.transactionFreezeId;
+
+      // Also freeze group member subscriptions whose leader was just frozen
+      const frozenSubIds = results.updated.map((r) => r.id);
+      const groupMembersToFreeze = await ctx.db.groupMember.findMany({
+        where: {
+          status: "ACTIVE",
+          groupSubscription: {
+            leadSubscriptionId: { in: frozenSubIds },
+          },
+          subscription: {
+            isFrozen: false,
+            deletedAt: null,
+            // Only freeze members that still have sessions
+            OR: [
+              { remainingSessions: { gt: 0 } },
+              { remainingBonusSessions: { gt: 0 } },
+            ],
+          },
+        },
+        select: { subscriptionId: true, subscription: { select: { endDate: true } } },
+      });
+
+      if (groupMembersToFreeze.length > 0) {
+        await ctx.db.$transaction(
+          groupMembersToFreeze.map((gm) => {
+            const rd = gm.subscription.endDate
+              ? Math.max(0, Math.floor((gm.subscription.endDate.getTime() - freezeStartAt.getTime()) / (1000 * 60 * 60 * 24)))
+              : null;
+            return ctx.db.subscription.update({
+              where: { id: gm.subscriptionId },
+              data: {
+                isFrozen: !isFutureFreeze,
+                frozenAt: freezeStartAt,
+                freezeDays: actualFreezeDays > 0 ? actualFreezeDays : null,
+                freezeMode,
+                remainingDays: rd,
+              },
+            });
+          }),
+        );
+        console.log(`[freeze] Also froze ${groupMembersToFreeze.length} group member subscription(s)`);
+      }
+
+      // Also freeze group leader + other members if a non-leader group member was frozen
+      const frozenGroupMembers = await ctx.db.groupMember.findMany({
+        where: {
+          status: "ACTIVE",
+          subscriptionId: { in: frozenSubIds },
+        },
+        select: {
+          groupSubscription: {
+            select: {
+              leadSubscriptionId: true,
+              leadSubscription: { select: { id: true, isFrozen: true, endDate: true, deletedAt: true, remainingSessions: true, remainingBonusSessions: true } },
+              groupMembers: {
                 where: {
-                  freezeDays: actualFreezeDays,
+                  status: "ACTIVE",
+                  subscription: {
+                    isFrozen: false,
+                    deletedAt: null,
+                    OR: [
+                      { remainingSessions: { gt: 0 } },
+                      { remainingBonusSessions: { gt: 0 } },
+                    ],
+                  },
                 },
-              });
+                select: { subscriptionId: true, subscription: { select: { endDate: true } } },
+              },
+            },
+          },
+        },
+      });
+
+      if (frozenGroupMembers.length > 0) {
+        const subsToFreeze: { id: string; endDate: Date | null }[] = [];
+        for (const gm of frozenGroupMembers) {
+          const gs = gm.groupSubscription;
+          // Freeze the leader if not already frozen and has remaining sessions
+          const leaderHasSessions = (gs.leadSubscription.remainingSessions ?? 0) > 0 || (gs.leadSubscription.remainingBonusSessions ?? 0) > 0;
+          if (!gs.leadSubscription.isFrozen && !gs.leadSubscription.deletedAt && leaderHasSessions && !frozenSubIds.includes(gs.leadSubscriptionId)) {
+            subsToFreeze.push({ id: gs.leadSubscriptionId, endDate: gs.leadSubscription.endDate });
+          }
+          // Freeze other group members
+          for (const otherGm of gs.groupMembers) {
+            if (!frozenSubIds.includes(otherGm.subscriptionId) && !subsToFreeze.some((s) => s.id === otherGm.subscriptionId)) {
+              subsToFreeze.push({ id: otherGm.subscriptionId, endDate: otherGm.subscription.endDate });
             }
           }
-
-          customFreezePriceId = customFreezePrice?.id;
         }
-
-        if (!customFreezePriceId) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Freeze price ID is required",
-          });
-        }
-
-        for (const subscription of activeSubscriptions) {
-          await ctx.db.freezeOperation.create({
-            data: {
-              subscriptionId: subscription.id,
-              memberId: input.memberId,
-              operationType: "FREEZE",
-              freezePriceId: customFreezePriceId,
-              transactionFreezeId: null,
-              freezeDays: actualFreezeDays,
-              price: 0,
-              freezeStartAt,
-              performedById: ctx.session.user.id,
-            },
-          });
+        if (subsToFreeze.length > 0) {
+          await ctx.db.$transaction(
+            subsToFreeze.map((sub) => {
+              const rd = sub.endDate
+                ? Math.max(0, Math.floor((sub.endDate.getTime() - freezeStartAt.getTime()) / (1000 * 60 * 60 * 24)))
+                : null;
+              return ctx.db.subscription.update({
+                where: { id: sub.id },
+                data: {
+                  isFrozen: !isFutureFreeze,
+                  frozenAt: freezeStartAt,
+                  freezeDays: actualFreezeDays > 0 ? actualFreezeDays : null,
+                  freezeMode,
+                  remainingDays: rd,
+                },
+              });
+            }),
+          );
+          console.log(`[freeze] Also froze leader + ${subsToFreeze.length} related group subscription(s) (member-triggered)`);
         }
       }
 
-      // Freeze each subscription individually using transaction
-      const results = await ctx.db.$transaction(
-        activeSubscriptions.map((subscription) => {
-          if (!subscription.endDate) {
-            // Skip subscriptions without endDate (shouldn't happen given the query filter)
-            return ctx.db.subscription.update({
-              where: { id: subscription.id },
-              data: {}, // No-op
-            });
-          }
-
-          // Calculate remaining days from freezeStartAt until endDate
-          // misalkan endate 30 januari, sekarang 8 januari, berarti remainingDays = 22
-          const remainingMillis = subscription.endDate.getTime() - freezeStartAt.getTime();
-          const remainingDays = Math.max(0, Math.floor(remainingMillis / (1000 * 60 * 60 * 24)));
-
-          // Determine freeze mode
-          const freezeMode = (actualFreezeDays && actualFreezeDays > 0)
-            ? "FIXED_DAYS"
-            : "UNTIL_UNFREEZE";
-
-          // If freezeStartAt is in the future, mark as scheduled (not yet active freeze)
-          const isFutureFreeze = freezeStartAt > now;
-
-          return ctx.db.subscription.update({
-            where: { id: subscription.id },
-            data: {
-              isFrozen: !isFutureFreeze, // Only set frozen now if not a future-dated freeze
-              // isActive: false, // Subscription becomes inactive while frozen
-              frozenAt: freezeStartAt,
-              freezeDays: actualFreezeDays > 0 ? actualFreezeDays : null,
-              freezeMode: freezeMode,
-              remainingDays: remainingDays,
-              // Do NOT modify endDate
-            },
-          });
-        })
-      );
-
         result = {
-          message: `Successfully frozen ${results.length} subscription(s)${freezePaymentAmount > 0 ? ` with ${actualFreezeDays} days freeze fee of ${freezePaymentAmount}` : ""}`,
-          count: results.length,
+          message: `Successfully frozen ${results.updated.length} subscription(s)${freezePaymentAmount > 0 ? ` with ${actualFreezeDays} days freeze fee of ${freezePaymentAmount}` : ""}`,
+          count: results.updated.length,
           memberId: input.memberId,
           memberName: member.user?.name || "Unknown",
           freezePaymentAmount,
@@ -2071,59 +2139,43 @@ export const subscriptionRouter = createTRPCRouter({
       }
 
       // Create a common performedAt timestamp for all unfreeze operations in this batch
-      // This ensures they group together in the freeze history
       const batchPerformedAt = new Date();
 
-      // Create unfreeze operation record for each subscription
-      for (const subscription of frozenSubscriptions) {
-        await ctx.db.freezeOperation.create({
-          data: {
-            subscriptionId: subscription.id,
-            memberId: input.memberId,
-            operationType: "UNFREEZE",
-            freezePriceId: unfreezePrice.id,
-            price: 0,
-            transactionFreezeId: null,
-            freezeDays: 0,
-            performedById: ctx.session.user.id,
-            performedAt: batchPerformedAt, // Use the same timestamp for all operations
-          },
-        });
-      }
+      // Wrap freeze operations + subscription updates in a single transaction
+      const results = await ctx.db.$transaction(async (tx) => {
+        // 1. Create unfreeze operation records
+        for (const subscription of frozenSubscriptions) {
+          await tx.freezeOperation.create({
+            data: {
+              subscriptionId: subscription.id,
+              memberId: input.memberId,
+              operationType: "UNFREEZE",
+              freezePriceId: unfreezePrice.id,
+              price: 0,
+              transactionFreezeId: null,
+              freezeDays: 0,
+              performedById: ctx.session.user.id,
+              performedAt: batchPerformedAt,
+            },
+          });
+        }
 
-      // Unfreeze each subscription individually using transaction
-      const results = await ctx.db.$transaction(
-        frozenSubscriptions.map((subscription) => {
-          if (!subscription.frozenAt) {
-            // Skip subscriptions without frozenAt (data integrity issue)
-            return ctx.db.subscription.update({
-              where: { id: subscription.id },
-              data: {}, // No-op
-            });
-          }
-
-           // Calculate how long subscription has been frozen
-          // misalkan frozenAt 1 januari, sekarang 8 januari, berarti frozenDaysSoFar = 7
-          const frozenMillis = now.getTime() - subscription.frozenAt.getTime();
-          const frozenDaysSoFar = Math.ceil(frozenMillis / (1000 * 60 * 60 * 24));
+        // 2. Unfreeze each subscription
+        for (const subscription of frozenSubscriptions) {
+          if (!subscription.frozenAt) continue; // Skip data integrity issues
 
           // Infer freezeMode for backward compatibility (legacy data)
           const freezeMode = subscription.freezeMode ||
             (subscription.freezeDays && subscription.freezeDays > 0 ? "FIXED_DAYS" : "UNTIL_UNFREEZE");
 
           let extraDays: number;
-          const remainingDays = subscription.remainingDays ?? 0;
 
           if (freezeMode === "FIXED_DAYS") {
-            const freezeDays = subscription.freezeDays || 0;
-
-            extraDays = remainingDays;
+            extraDays = subscription.remainingDays ?? 0;
           } else {
- 
             if (subscription.remainingDays !== null) {
               extraDays = subscription.remainingDays;
             } else if (subscription.endDate && subscription.frozenAt) {
-              // Fallback for legacy data without remainingDays
               const legacyRemainingMillis = subscription.endDate.getTime() - subscription.frozenAt.getTime();
               extraDays = Math.max(0, Math.ceil(legacyRemainingMillis / (1000 * 60 * 60 * 24)));
             } else {
@@ -2131,29 +2183,138 @@ export const subscriptionRouter = createTRPCRouter({
             }
           }
 
-          // Calculate new end date
           const newEndDate = new Date(now);
           newEndDate.setDate(newEndDate.getDate() + extraDays);
-          // Set to end of day for consistency
           newEndDate.setHours(23, 59, 59, 999);
 
-          unfrozenCount++;
-
-          return ctx.db.subscription.update({
+          await tx.subscription.update({
             where: { id: subscription.id },
             data: {
               isFrozen: false,
-              isActive: true, // Reactivate the subscription
+              isActive: true,
               frozenAt: null,
               freezeDays: null,
               freezeMode: null,
               remainingDays: null,
               endDate: newEndDate,
-              // endDate is intentionally NOT modified — it was never changed during freeze
             },
           });
-        })
-      );
+
+          unfrozenCount++;
+        }
+      });
+
+      // Also unfreeze group member subscriptions whose leader was just unfrozen
+      const unfrozenSubIds = frozenSubscriptions
+        .filter((s) => s.frozenAt) // only the ones we actually unfroze
+        .map((s) => s.id);
+
+      const groupMembersToUnfreeze = await ctx.db.groupMember.findMany({
+        where: {
+          status: "ACTIVE",
+          groupSubscription: {
+            leadSubscriptionId: { in: unfrozenSubIds },
+          },
+          subscription: {
+            isFrozen: true,
+            deletedAt: null,
+          },
+        },
+        select: {
+          subscriptionId: true,
+          subscription: {
+            select: { frozenAt: true, freezeDays: true, freezeMode: true, remainingDays: true, endDate: true },
+          },
+        },
+      });
+
+      if (groupMembersToUnfreeze.length > 0) {
+        await ctx.db.$transaction(
+          groupMembersToUnfreeze.map((gm) => {
+            const sub = gm.subscription;
+            const rd = sub.remainingDays ?? 0;
+            const newEnd = new Date(now);
+            newEnd.setDate(newEnd.getDate() + rd);
+            newEnd.setHours(23, 59, 59, 999);
+
+            return ctx.db.subscription.update({
+              where: { id: gm.subscriptionId },
+              data: {
+                isFrozen: false,
+                isActive: true,
+                frozenAt: null,
+                freezeDays: null,
+                freezeMode: null,
+                remainingDays: null,
+                endDate: newEnd,
+              },
+            });
+          }),
+        );
+        console.log(`[unfreeze] Also unfroze ${groupMembersToUnfreeze.length} group member subscription(s)`);
+      }
+
+      // Also unfreeze group leader + other members if a non-leader group member was unfrozen
+      const unfrozenGroupMembers = await ctx.db.groupMember.findMany({
+        where: {
+          status: "ACTIVE",
+          subscriptionId: { in: unfrozenSubIds },
+        },
+        select: {
+          groupSubscription: {
+            select: {
+              leadSubscriptionId: true,
+              leadSubscription: {
+                select: { id: true, isFrozen: true, deletedAt: true, remainingDays: true },
+              },
+              groupMembers: {
+                where: { status: "ACTIVE", subscription: { isFrozen: true, deletedAt: null } },
+                select: {
+                  subscriptionId: true,
+                  subscription: { select: { remainingDays: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (unfrozenGroupMembers.length > 0) {
+        const subsToUnfreeze: { id: string; remainingDays: number }[] = [];
+        for (const gm of unfrozenGroupMembers) {
+          const gs = gm.groupSubscription;
+          if (gs.leadSubscription.isFrozen && !gs.leadSubscription.deletedAt && !unfrozenSubIds.includes(gs.leadSubscriptionId)) {
+            subsToUnfreeze.push({ id: gs.leadSubscriptionId, remainingDays: gs.leadSubscription.remainingDays ?? 0 });
+          }
+          for (const otherGm of gs.groupMembers) {
+            if (!unfrozenSubIds.includes(otherGm.subscriptionId) && !subsToUnfreeze.some((s) => s.id === otherGm.subscriptionId)) {
+              subsToUnfreeze.push({ id: otherGm.subscriptionId, remainingDays: otherGm.subscription.remainingDays ?? 0 });
+            }
+          }
+        }
+        if (subsToUnfreeze.length > 0) {
+          await ctx.db.$transaction(
+            subsToUnfreeze.map((sub) => {
+              const newEnd = new Date(now);
+              newEnd.setDate(newEnd.getDate() + sub.remainingDays);
+              newEnd.setHours(23, 59, 59, 999);
+              return ctx.db.subscription.update({
+                where: { id: sub.id },
+                data: {
+                  isFrozen: false,
+                  isActive: true,
+                  frozenAt: null,
+                  freezeDays: null,
+                  freezeMode: null,
+                  remainingDays: null,
+                  endDate: newEnd,
+                },
+              });
+            }),
+          );
+          console.log(`[unfreeze] Also unfroze leader + ${subsToUnfreeze.length} related group subscription(s) (member-triggered)`);
+        }
+      }
 
         result = {
           message: `Successfully unfrozen ${unfrozenCount} subscription(s)`,
@@ -4162,6 +4323,117 @@ export const subscriptionRouter = createTRPCRouter({
         earliestTransfer: dateRange[0]?.createdAt ?? null,
         latestTransfer: latestTransfer[0]?.createdAt ?? null,
       };
+    }),
+
+  // List subscriptions with future startDate that will become active (pending activation)
+  getUpcomingActivations: permissionProtectedProcedure(["list:subscription"])
+    .query(async ({ ctx }) => {
+      const now = new Date();
+
+      const subs = await ctx.db.subscription.findMany({
+        where: {
+          isActive: false,
+          deletedAt: null,
+          isFrozen: false,
+          freezeMode: null,
+          startDate: { gt: now },
+        },
+        orderBy: { startDate: "asc" },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          remainingSessions: true,
+          member: {
+            select: {
+              id: true,
+              user: { select: { name: true, email: true, phone: true } },
+            },
+          },
+          package: { select: { name: true, type: true } },
+          trainer: {
+            select: { user: { select: { name: true } } },
+          },
+        },
+      });
+
+      return subs.map((s) => ({
+        id: s.id,
+        startDate: s.startDate,
+        endDate: s.endDate,
+        remainingSessions: s.remainingSessions,
+        memberName: s.member?.user?.name ?? "-",
+        memberEmail: s.member?.user?.email ?? "-",
+        memberPhone: s.member?.user?.phone ?? "-",
+        memberId: s.member?.id ?? "",
+        packageName: s.package?.name ?? "-",
+        packageType: s.package?.type ?? "-",
+        trainerName: s.trainer?.user?.name ?? null,
+      }));
+    }),
+
+  // List subscriptions with a scheduled freeze (frozenAt in the future, freezeMode set, isFrozen still false)
+  getScheduledFreezes: permissionProtectedProcedure(["list:subscription"])
+    .query(async ({ ctx }) => {
+      const now = new Date();
+
+      const subs = await ctx.db.subscription.findMany({
+        where: {
+          isFrozen: false,
+          deletedAt: null,
+          freezeMode: { not: null },
+          frozenAt: { gt: now },
+        },
+        orderBy: { frozenAt: "asc" },
+        select: {
+          id: true,
+          frozenAt: true,
+          freezeDays: true,
+          freezeMode: true,
+          member: {
+            select: {
+              id: true,
+              user: { select: { name: true, email: true, phone: true } },
+            },
+          },
+          package: { select: { name: true, type: true } },
+        },
+      });
+
+      // Group by member
+      const memberMap = new Map<string, {
+        memberId: string;
+        memberName: string;
+        memberEmail: string;
+        memberPhone: string;
+        frozenAt: Date;
+        freezeDays: number | null;
+        freezeMode: string;
+        packages: { name: string; type: string }[];
+      }>();
+
+      for (const s of subs) {
+        const memberId = s.member?.id;
+        if (!memberId) continue;
+        const existing = memberMap.get(memberId);
+        const pkg = s.package ? { name: s.package.name, type: s.package.type } : null;
+        if (existing) {
+          if (pkg) existing.packages.push(pkg);
+        } else {
+          memberMap.set(memberId, {
+            memberId,
+            memberName: s.member?.user?.name ?? "-",
+            memberEmail: s.member?.user?.email ?? "-",
+            memberPhone: s.member?.user?.phone ?? "-",
+            frozenAt: s.frozenAt!,
+            freezeDays: s.freezeDays,
+            freezeMode: s.freezeMode ?? "UNTIL_UNFREEZE",
+            packages: pkg ? [pkg] : [],
+          });
+        }
+      }
+
+      return Array.from(memberMap.values());
     }),
 
   // List subscriptions expiring within the next N days
