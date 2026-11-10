@@ -13,36 +13,32 @@ type Props = {
 
 const TALLY_FORM_ID = "7RzY90";
 
+const SCHEDULE_MONTH = "November 2026";
+
 const SCHEDULE: { d: string; c: { n: string; k: string; p: string }[] }[] = [
-  { d: "Minggu", c: [
-    { n: "Running", k: "Outdoor", p: "Lari bareng komunitas." },
-    { n: "Mix Fight", k: "Combat", p: "Kombinasi teknik fight & kondisi fisik." },
+  { d: "Sen", c: [
+    { n: "Core", k: "Strength · 18:30 · Habib", p: "Fondasi kekuatan dari tengah tubuh." },
   ] },
-  { d: "Senin", c: [
-    { n: "Body Language", k: "Dance Fit", p: "Gerak, musik, dan keringat." },
-    { n: "Core", k: "Strength", p: "Fondasi kekuatan dari tengah tubuh." },
+  { d: "Sel", c: [
+    { n: "Kettle Bell", k: "Strength · 18:15 · Agus", p: "Kekuatan & power dengan kettlebell." },
+    { n: "Pilates Mat for Woman", k: "Mind & Body · 19:15 · Ijha", p: "Kontrol, postur, dan fleksibilitas." },
   ] },
-  { d: "Selasa", c: [
-    { n: "Strength", k: "Strength", p: "Teknik angkat yang benar & progresif." },
-    { n: "Pilates Mat", k: "Mind & Body", p: "Kontrol, postur, dan fleksibilitas." },
+  { d: "Rab", c: [
+    { n: "Core", k: "Strength · 07:30 · Habib", p: "Fondasi kekuatan dari tengah tubuh." },
+    { n: "Step Up", k: "Cardio · 18:15 · Mian", p: "Latihan step intensitas tinggi." },
+    { n: "Yoga", k: "Mind & Body · 19:15 · Wina", p: "Napas, keseimbangan, ketenangan." },
   ] },
-  { d: "Rabu", c: [
-    { n: "Fit Camp", k: "Functional", p: "Sirkuit fungsional seluruh tubuh." },
-    { n: "Kettlebell", k: "Strength", p: "Kekuatan & power dengan kettlebell." },
-    { n: "Yoga", k: "Mind & Body", p: "Napas, keseimbangan, ketenangan." },
+  { d: "Kam", c: [
+    { n: "Mix Fight", k: "Combat · 07:15 · Dedi", p: "Kombinasi teknik fight & kondisi fisik." },
+    { n: "Lower Body", k: "Strength · 18:15 · Agus", p: "Fokus kaki & glutes." },
+    { n: "Pilates Mat for Man", k: "Mind & Body · 19:15 · Adi Beto", p: "Kontrol, postur, dan fleksibilitas untuk pria." },
   ] },
-  { d: "Kamis", c: [
-    { n: "Mix Fight", k: "Combat", p: "Kombinasi teknik fight & kondisi fisik." },
-    { n: "Lower Body", k: "Strength", p: "Fokus kaki & glutes." },
-    { n: "Piloxing", k: "Cardio", p: "Pilates × boxing — cepat & fun." },
+  { d: "Jum", c: [
+    { n: "HIIT", k: "Cardio · 07:30 · Agus", p: "Intensitas tinggi, waktu singkat." },
+    { n: "Yoga", k: "Mind & Body · 18:15 · Iren", p: "Napas, keseimbangan, ketenangan." },
   ] },
-  { d: "Jumat", c: [
-    { n: "HIIT", k: "Cardio", p: "Intensitas tinggi, waktu singkat." },
-    { n: "Yoga", k: "Mind & Body", p: "Napas, keseimbangan, ketenangan." },
-    { n: "Body Pump", k: "Strength", p: "Barbel + musik, full-body burn." },
-  ] },
-  { d: "Sabtu", c: [
-    { n: "Class Corporate & Community", k: "Community", p: "Kelas bareng komunitas & corporate." },
+  { d: "Min", c: [
+    { n: "Mix Fight", k: "Combat · 09:00 · Dedi", p: "Kombinasi teknik fight & kondisi fisik." },
   ] },
 ];
 
@@ -85,7 +81,12 @@ export default function MarketingLanding({ isLoggedIn, dashboardUrl, signInUrl, 
   const [tallySrc, setTallySrc] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
-  const todayIdx = useMemo(() => new Date().getDay(), []);
+  // Map JS getDay() (0=Sun..6=Sat) to SCHEDULE index (0=Sen,1=Sel,2=Rab,3=Kam,4=Jum,5=Min)
+  const todayIdx = useMemo(() => {
+    const jsDay = new Date().getDay(); // 0=Sun,1=Mon,...6=Sat
+    const map: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 0: 5 };
+    return map[jsDay] ?? -1; // Sat(6) = -1 (no class)
+  }, []);
   const year = useMemo(() => new Date().getFullYear(), []);
 
   useEffect(() => {
@@ -291,6 +292,9 @@ export default function MarketingLanding({ isLoggedIn, dashboardUrl, signInUrl, 
               <span className="fi-kick">Weekly Classes</span>
               <h2>One membership. <span className="fi-accent">All classes.</span></h2>
               <p className="fi-lead">Pilih harimu — semua kelas sudah termasuk membership.</p>
+            </div>
+            <div className="fi-rv" style={{ textAlign: "left", marginBottom: "0.5rem" }}>
+              <span style={{ color: "var(--lime)", fontWeight: 700, fontSize: "1.1rem", letterSpacing: "0.05em", textTransform: "uppercase" }}>{SCHEDULE_MONTH}</span>
             </div>
             <div className="fi-daybar fi-rv">
               {SCHEDULE.map((s, i) => (
