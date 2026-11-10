@@ -50,7 +50,7 @@ const TRAINERS = [
   { name: "Mian", role: "Muay Thai for Fitness · Strength · Tone & Shape", img: "/assets/landing/19-coach-mian.jpeg", ig: "https://www.instagram.com/p/DMZ9SPSyP0_/" },
   { name: "Yusliady Al Fathir", role: "Hypertrophy · Strength · Body Building", img: "/assets/landing/21-coach-yusliady-al-fathir.jpeg", ig: "https://www.instagram.com/p/DMcpSsMSpy-/" },
   { name: "Agus", role: "HIIT · Cardio · Strength", img: "/assets/landing/22-coach-agus.jpeg", ig: "https://www.instagram.com/p/DR3fpf5kto2/" },
-  { name: "Uny", role: "Hybrid Training (Adult & Kids) · Functional Training · Post-Stroke Treatment", img: "/assets/landing/23-coach-uny.jpg", ig: "https://www.instagram.com/fitinfinity.id/" },
+  { name: "Uny", role: "Hybrid Training (Adult & Kids) · Functional Training · Post-Stroke Treatment", img: "/assets/landing/23-coach-uny.jpg", ig: "https://www.instagram.com/p/Dfg7P51yeXR/" },
 ];
 
 const GALLERY = [

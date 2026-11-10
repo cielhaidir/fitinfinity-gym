@@ -3914,6 +3914,7 @@ export const subscriptionRouter = createTRPCRouter({
     .input(
       z.object({
         memberId: z.string().optional(),
+        search: z.string().optional(),
         page: z.number().min(1).default(1),
         limit: z.number().min(1).max(100).default(10),
         startDate: z.date().optional(),
@@ -3968,6 +3969,18 @@ export const subscriptionRouter = createTRPCRouter({
           operationType: input.operationType,
         }),
       };
+
+      // Search by member name or email
+      if (input.search) {
+        whereClause.member = {
+          user: {
+            OR: [
+              { name: { contains: input.search, mode: "insensitive" } },
+              { email: { contains: input.search, mode: "insensitive" } },
+            ],
+          },
+        };
+      }
 
       // Apply date filter on performedAt
       if (input.startDate || input.endDate) {

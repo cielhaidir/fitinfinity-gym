@@ -54,6 +54,7 @@ export default function FreezeHistoryPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [operationType, setOperationType] = useState<"all" | "FREEZE" | "UNFREEZE" | "CANCEL_FREEZE">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedFreeze, setSelectedFreeze] = useState<any>(null);
   const [unfreezeDialogOpen, setUnfreezeDialogOpen] = useState(false);
@@ -67,6 +68,7 @@ export default function FreezeHistoryPage() {
     {
       page,
       limit,
+      search: searchQuery || undefined,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
       operationType: operationType as "all" | "FREEZE" | "UNFREEZE" | "CANCEL_FREEZE",
@@ -126,6 +128,7 @@ export default function FreezeHistoryPage() {
     {
       page: 1,
       limit: 10000, // Large limit to get all records
+      search: searchQuery || undefined,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
       operationType,
@@ -633,8 +636,13 @@ export default function FreezeHistoryPage() {
                   data={freezeHistory ?? { items: [], total: 0, page: 1, limit: 10 }}
                   isLoading={isLoading}
                   onPaginationChange={handlePaginationChange}
-                  onSearch={() => {}}
-                  searchColumns={[]}
+                  onSearch={(value: string) => {
+                    setSearchQuery(value);
+                    setPage(1);
+                  }}
+                  searchColumns={[
+                    { id: "memberName", placeholder: "Search by name or email..." },
+                  ]}
                 />
               </div>
             </CardContent>
