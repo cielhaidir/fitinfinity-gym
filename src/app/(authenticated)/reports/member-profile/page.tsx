@@ -70,7 +70,7 @@ export default function MemberProfileReportPage() {
     status:
       status === "all"
         ? undefined
-        : (status as "ACTIVE" | "EXPIRED" | "REVOKED"),
+        : (status as "ACTIVE" | "EXPIRED" | "NO_MEMBERSHIP"),
     gender: gender === "all" ? undefined : gender,
     ageMin,
     ageMax,
@@ -108,7 +108,7 @@ export default function MemberProfileReportPage() {
       status:
         status === "all"
           ? undefined
-          : (status as "ACTIVE" | "EXPIRED" | "REVOKED"),
+          : (status as "ACTIVE" | "EXPIRED" | "NO_MEMBERSHIP"),
       gender: gender === "all" ? undefined : gender,
       ageMin,
       ageMax,
@@ -499,7 +499,7 @@ export default function MemberProfileReportPage() {
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="EXPIRED">Expired</SelectItem>
-                      <SelectItem value="REVOKED">Revoked</SelectItem>
+                      <SelectItem value="NO_MEMBERSHIP">Belum Pernah Membership</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

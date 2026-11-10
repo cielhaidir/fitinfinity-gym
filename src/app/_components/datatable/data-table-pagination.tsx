@@ -17,16 +17,24 @@ import {
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
+  totalRows?: number;
 }
 
 export function DataTablePagination<TData>({
   table,
+  totalRows,
 }: DataTablePaginationProps<TData>) {
   return (
     <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="hidden text-sm text-muted-foreground sm:block">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
+        {(() => {
+          const pageIndex = table.getState().pagination.pageIndex;
+          const pageSize = table.getState().pagination.pageSize;
+          const total = totalRows ?? table.getFilteredRowModel().rows.length;
+          const start = total > 0 ? pageIndex * pageSize + 1 : 0;
+          const end = Math.min((pageIndex + 1) * pageSize, total);
+          return `${start}-${end} dari ${total}`;
+        })()}
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">

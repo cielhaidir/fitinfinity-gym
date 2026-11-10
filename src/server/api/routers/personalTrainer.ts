@@ -548,9 +548,13 @@ export const personalTrainerRouter = createTRPCRouter({
       return [...individualMembers, ...groupMembers];
     }),
 
-  getMembers: permissionProtectedProcedure(["list:trainers"]).query(
-    async ({ ctx }) => {
-      console.log("Getting members for trainer");
+  getMembers: permissionProtectedProcedure(["list:trainers"])
+    .input(z.object({
+      status: z.enum(["ACTIVE", "FROZEN", "INACTIVE"]).default("ACTIVE"),
+    }).optional())
+    .query(
+    async ({ ctx, input }) => {
+      const statusFilter = input?.status ?? "ACTIVE";
 
       // Get the personal trainer's ID
       const personalTrainer = await ctx.db.personalTrainer.findFirst({
@@ -561,39 +565,67 @@ export const personalTrainerRouter = createTRPCRouter({
       });
 
       if (!personalTrainer) {
-        console.log("No active trainer found");
         return [];
       }
 
-      // console.log("Found trainer:", personalTrainer.id);
+      // Build where clause based on status filter
+      const individualWhere: any = {
+        trainerId: personalTrainer.id,
+        deletedAt: null,
+        leadGroupSubscriptions: { none: {} },
+        groupMembers: { none: {} },
+      };
 
-      // Get all individual subscriptions for this personal trainer
-      // Exclude subscriptions that are lead subscriptions for groups
-      // AND exclude subscriptions that belong to group members (non-leaders)
-      // Include frozen subscriptions so they appear with a frozen label
+      const groupLeadWhere: any = {
+        trainerId: personalTrainer.id,
+        deletedAt: null,
+      };
+      let groupStatusFilter: any = undefined;
+
+      if (statusFilter === "ACTIVE") {
+        individualWhere.isActive = true;
+        individualWhere.isFrozen = false;
+        individualWhere.OR = [
+          { remainingSessions: { gt: 0 } },
+          { remainingBonusSessions: { gt: 0 } },
+        ];
+        groupLeadWhere.isActive = true;
+        groupLeadWhere.isFrozen = false;
+        groupLeadWhere.OR = [
+          { remainingSessions: { gt: 0 } },
+          { remainingBonusSessions: { gt: 0 } },
+        ];
+        groupStatusFilter = "ACTIVE";
+      } else if (statusFilter === "FROZEN") {
+        individualWhere.isFrozen = true;
+        groupLeadWhere.isFrozen = true;
+      } else {
+        // INACTIVE: not frozen, and either not active or no sessions left
+        individualWhere.isFrozen = false;
+        individualWhere.OR = [
+          { isActive: false },
+          {
+            AND: [
+              { remainingSessions: { lte: 0 } },
+              { remainingBonusSessions: { lte: 0 } },
+            ],
+          },
+        ];
+        groupLeadWhere.isFrozen = false;
+        groupLeadWhere.OR = [
+          { isActive: false },
+          {
+            AND: [
+              { remainingSessions: { lte: 0 } },
+              { remainingBonusSessions: { lte: 0 } },
+            ],
+          },
+        ];
+      }
+
       const subscriptions = await ctx.db.subscription.findMany({
-        where: {
-          trainerId: personalTrainer.id,
-          isActive: true,
-          deletedAt: null,
-          OR: [
-            { remainingSessions: { gt: 0 } },
-            { remainingBonusSessions: { gt: 0 } },
-          ],
-          leadGroupSubscriptions: {
-            none: {
-              status: "ACTIVE",
-            },
-          },
-          groupMembers: {
-            none: {
-              status: "ACTIVE",
-            },
-          },
-        },
-        orderBy: {
-          remainingSessions: "desc",
-        },
+        where: individualWhere,
+        orderBy: { remainingSessions: "desc" },
         include: {
           member: {
             include: {
@@ -610,29 +642,20 @@ export const personalTrainerRouter = createTRPCRouter({
               },
             },
           },
-          package: {
-            select: {
-              type: true,
-            },
-          },
+          package: { select: { type: true, name: true } },
         },
       });
 
-      // Get all group subscriptions for this personal trainer
-      // Include frozen lead subscriptions so they appear with a frozen label
+      // Get group subscriptions
+      const groupWhere: any = {
+        leadSubscription: groupLeadWhere,
+      };
+      if (groupStatusFilter) {
+        groupWhere.status = groupStatusFilter;
+      }
+
       const groupSubscriptions = await ctx.db.groupSubscription.findMany({
-        where: {
-          leadSubscription: {
-            trainerId: personalTrainer.id,
-            isActive: true,
-            deletedAt: null,
-            OR: [
-              { remainingSessions: { gt: 0 } },
-              { remainingBonusSessions: { gt: 0 } },
-            ],
-          },
-          status: "ACTIVE",
-        },
+        where: groupWhere,
         include: {
           leadSubscription: {
             include: {
@@ -654,7 +677,6 @@ export const personalTrainerRouter = createTRPCRouter({
             },
           },
           groupMembers: {
-            where: { status: "ACTIVE" },
             include: {
               subscription: {
                 include: {
@@ -663,32 +685,9 @@ export const personalTrainerRouter = createTRPCRouter({
               },
             },
           },
-          package: {
-            select: {
-              type: true,
-              sessions: true,
-            },
-          },
+          package: { select: { type: true, sessions: true, name: true } },
         },
       });
-
-      console.log(
-        "Found subscriptions:",
-        subscriptions.map((s) => ({
-          memberId: s.memberId,
-          remainingSessions: s.remainingSessions,
-          userId: s.member.userId,
-        })),
-      );
-
-      console.log(
-        "Found group subscriptions:",
-        groupSubscriptions.map((gs) => ({
-          groupId: gs.id,
-          groupName: gs.groupName,
-          leaderId: gs.leadSubscription.member.userId,
-        })),
-      );
 
       // Transform individual subscriptions
       const individualMembers = subscriptions.map((subscription) => ({
@@ -703,7 +702,8 @@ export const personalTrainerRouter = createTRPCRouter({
         remainingSessions: subscription.remainingSessions || 0,
         remainingBonusSessions: subscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: subscription.endDate?.toISOString() || "",
-        type: "individual",
+        packageName: subscription.package.name || "",
+        type: "individual" as const,
         isFrozen: subscription.isFrozen,
         frozenAt: subscription.frozenAt?.toISOString() ?? null,
         freezeDays: subscription.freezeDays ?? null,
@@ -723,7 +723,8 @@ export const personalTrainerRouter = createTRPCRouter({
         remainingSessions: groupSubscription.leadSubscription.remainingSessions || 0,
         remainingBonusSessions: groupSubscription.leadSubscription.remainingBonusSessions ?? 0,
         subscriptionEndDate: groupSubscription.leadSubscription.endDate?.toISOString() || "",
-        type: "group",
+        packageName: groupSubscription.package.name || "",
+        type: "group" as const,
         isFrozen: groupSubscription.leadSubscription.isFrozen,
         frozenAt: groupSubscription.leadSubscription.frozenAt?.toISOString() ?? null,
         freezeDays: groupSubscription.leadSubscription.freezeDays ?? null,
@@ -735,7 +736,6 @@ export const personalTrainerRouter = createTRPCRouter({
         totalGroupMembers: groupSubscription.totalMembers,
       }));
 
-      // Combine both individual and group members
       return [...individualMembers, ...groupMembers];
     },
   ),
@@ -767,13 +767,16 @@ export const personalTrainerRouter = createTRPCRouter({
 
       const now = new Date();
 
-      // Ambil semua subscription individual untuk trainer ini (tanpa filter sisa sesi/end date)
-      // dan exclude yang menjadi lead untuk group agar tidak double-count
+      // Ambil semua subscription individual untuk trainer ini
+      // Exclude group leaders AND group members to match getMembers logic
       const subscriptions = await ctx.db.subscription.findMany({
         where: {
           trainerId: personalTrainer.id,
           deletedAt: null,
           leadGroupSubscriptions: {
+            none: {},
+          },
+          groupMembers: {
             none: {},
           },
         },
@@ -791,14 +794,33 @@ export const personalTrainerRouter = createTRPCRouter({
         where: {
           leadSubscription: {
             trainerId: personalTrainer.id,
+            deletedAt: null,
           },
         },
         include: {
-          leadSubscription: true,
+          leadSubscription: {
+            include: {
+              member: {
+                include: {
+                  user: {
+                    select: { name: true, phone: true },
+                  },
+                },
+              },
+            },
+          },
         },
       });
 
-      type StatEntry = { isActive: boolean };
+      type StatEntry = {
+        isActive: boolean;
+        isFrozen: boolean;
+        name: string;
+        phone: string | null;
+        frozenAt: Date | null;
+        freezeDays: number | null;
+        freezeMode: string | null;
+      };
       const statsMap = new Map<string, StatEntry>();
 
       // Individual: key = userId
@@ -807,15 +829,25 @@ export const personalTrainerRouter = createTRPCRouter({
         if (!userId) continue;
 
         const key = `individual:${userId}`;
-        const entry = statsMap.get(key) ?? { isActive: false };
+        const entry = statsMap.get(key) ?? {
+          isActive: false,
+          isFrozen: false,
+          name: sub.member.user.name || "Unknown",
+          phone: sub.member.user.phone || null,
+          frozenAt: null,
+          freezeDays: null,
+          freezeMode: null,
+        };
 
-        const isActiveNow =
-          !!sub.isActive &&
-          (sub.remainingSessions ?? 0) > 0 &&
-          !!sub.endDate &&
-          sub.endDate >= now;
+        const hasEndDateValid = !sub.endDate || sub.endDate >= now;
+        const hasSessions = (sub.remainingSessions ?? 0) > 0 || (sub.remainingBonusSessions ?? 0) > 0;
 
-        if (isActiveNow) {
+        if (sub.isFrozen) {
+          entry.isFrozen = true;
+          entry.frozenAt = sub.frozenAt;
+          entry.freezeDays = sub.freezeDays;
+          entry.freezeMode = sub.freezeMode;
+        } else if (!!sub.isActive && hasSessions && hasEndDateValid) {
           entry.isActive = true;
         }
 
@@ -825,30 +857,87 @@ export const personalTrainerRouter = createTRPCRouter({
       // Group: key = groupSubscription.id
       for (const gs of groupSubscriptions) {
         const key = `group:${gs.id}`;
-        const entry = statsMap.get(key) ?? { isActive: false };
-
         const lead = gs.leadSubscription;
-        const isActiveNow =
-          gs.status === "ACTIVE" &&
-          (lead.remainingSessions ?? 0) > 0 &&
-          !!lead.endDate &&
-          lead.endDate >= now;
+        const entry = statsMap.get(key) ?? {
+          isActive: false,
+          isFrozen: false,
+          name: gs.groupName || `Group (${lead.member.user.name || "Unknown"})`,
+          phone: lead.member.user.phone || null,
+          frozenAt: null,
+          freezeDays: null,
+          freezeMode: null,
+        };
 
-        if (isActiveNow) {
+        const hasEndDateValid = !lead.endDate || lead.endDate >= now;
+        const hasSessions = (lead.remainingSessions ?? 0) > 0 || (lead.remainingBonusSessions ?? 0) > 0;
+
+        if (lead.isFrozen) {
+          entry.isFrozen = true;
+          entry.frozenAt = lead.frozenAt;
+          entry.freezeDays = lead.freezeDays;
+          entry.freezeMode = lead.freezeMode;
+        } else if (gs.status === "ACTIVE" && hasSessions && hasEndDateValid) {
           entry.isActive = true;
         }
 
         statsMap.set(key, entry);
       }
 
-      const total = statsMap.size;
-      let active = 0;
-      for (const value of statsMap.values()) {
-        if (value.isActive) active += 1;
-      }
-      const inactive = total - active;
+      type MemberItem = { name: string; phone: string | null };
+      type FrozenMemberItem = MemberItem & {
+        frozenAt: string | null;
+        freezeDays: number | null;
+        freezeMode: string | null;
+        unfreezeDate: string | null;
+      };
 
-      return { total, active, inactive };
+      const total = statsMap.size;
+      const activeList: MemberItem[] = [];
+      const frozenList: FrozenMemberItem[] = [];
+      const inactiveList: MemberItem[] = [];
+      for (const value of statsMap.values()) {
+        if (value.isFrozen) {
+          let unfreezeDate: string | null = null;
+          if (value.freezeMode === "FIXED_DAYS" && value.frozenAt && value.freezeDays) {
+            const ud = new Date(value.frozenAt);
+            ud.setDate(ud.getDate() + value.freezeDays);
+            unfreezeDate = ud.toISOString();
+          }
+          frozenList.push({
+            name: value.name,
+            phone: value.phone,
+            frozenAt: value.frozenAt?.toISOString() ?? null,
+            freezeDays: value.freezeDays,
+            freezeMode: value.freezeMode,
+            unfreezeDate,
+          });
+        } else if (value.isActive) {
+          activeList.push({ name: value.name, phone: value.phone });
+        } else {
+          inactiveList.push({ name: value.name, phone: value.phone });
+        }
+      }
+
+      activeList.sort((a, b) => a.name.localeCompare(b.name));
+      frozenList.sort((a, b) => a.name.localeCompare(b.name));
+      inactiveList.sort((a, b) => a.name.localeCompare(b.name));
+
+      const allMembers = [
+        ...activeList,
+        ...frozenList.map(({ name, phone }) => ({ name, phone })),
+        ...inactiveList,
+      ].sort((a, b) => a.name.localeCompare(b.name));
+
+      return {
+        total,
+        active: activeList.length,
+        frozen: frozenList.length,
+        inactive: inactiveList.length,
+        activeList,
+        frozenList,
+        inactiveList,
+        allMembers,
+      };
     },
   ),
 

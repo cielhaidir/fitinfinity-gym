@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   Phone,
   ChevronsDown,
-  ChevronsUp
+  ChevronsUp,
+  Snowflake
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as XLSX from "xlsx-js-style";
@@ -47,11 +48,18 @@ interface MemberWithSessions {
     name: string;
     sessions: number | null;
     bonusSessions: number;
+    type?: string;
   };
   remainingSessions: number | null;
   remainingBonusSessions: number;
   startDate: Date;
   endDate: Date | null;
+  isGroupLeader?: boolean;
+  groupName?: string | null;
+  isFrozen?: boolean;
+  frozenAt?: Date | string | null;
+  freezeDays?: number | null;
+  freezeMode?: string | null;
 }
 
 interface TrainerData {
@@ -62,11 +70,12 @@ interface TrainerData {
     phone: string | null;
   };
   totalMembersWithRemaining: number;
+  frozenCount?: number;
   members: MemberWithSessions[];
 }
 
 type ViewMode = "grouped" | "flat";
-type StatusFilter = "all" | "active" | "ending-soon" | "expired";
+type StatusFilter = "all" | "active" | "ending-soon" | "expired" | "frozen";
 
 export default function PTRemainingSessionsReportPage() {
   const { toast } = useToast();
@@ -114,46 +123,61 @@ export default function PTRemainingSessionsReportPage() {
 
     let totalTrainers = 0;
     let totalMembers = 0;
+    let totalPackages = 0;
+    let totalFrozen = (reportData as any).totalFrozen ?? 0;
     let totalRemaining = 0;
     let totalBonusRemaining = 0;
+
+    const uniqueIndividuals = new Set<string>();
+    let groupCount = 0;
 
     if (viewMode === "grouped") {
       reportData.items.forEach((trainer: TrainerData) => {
         totalTrainers += 1;
-        totalMembers += trainer.members.length;
-        totalRemaining += trainer.members.reduce(
-          (sum, m) => sum + (m.remainingSessions || 0),
-          0
-        );
-        totalBonusRemaining += trainer.members.reduce(
-          (sum, m) => sum + (m.remainingBonusSessions || 0),
-          0
-        );
+        totalPackages += trainer.members.length;
+        trainer.members.forEach((m) => {
+          if (m.isGroupLeader) {
+            groupCount += 1;
+          } else {
+            uniqueIndividuals.add(m.user.name || m.user.id);
+          }
+          totalRemaining += m.remainingSessions || 0;
+          totalBonusRemaining += m.remainingBonusSessions || 0;
+        });
       });
     } else {
       const trainerIds = new Set<string>();
       reportData.items.forEach((item: TrainerData) => {
         trainerIds.add(item.trainerId);
         item.members.forEach((member) => {
-          totalMembers += 1;
+          totalPackages += 1;
+          if (member.isGroupLeader) {
+            groupCount += 1;
+          } else {
+            uniqueIndividuals.add(member.user.name || member.user.id);
+          }
           totalRemaining += member.remainingSessions || 0;
           totalBonusRemaining += member.remainingBonusSessions || 0;
         });
       });
       totalTrainers = trainerIds.size;
     }
+    totalMembers = uniqueIndividuals.size + groupCount;
 
     return {
       totalTrainers,
       totalMembers,
+      totalPackages,
+      totalFrozen,
       totalRemaining,
       totalBonusRemaining,
-      averagePerMember: totalMembers > 0 ? (totalRemaining / totalMembers).toFixed(1) : "0",
     };
   }, [reportData, viewMode]);
 
   // Determine member status
-  const getMemberStatus = (member: MemberWithSessions): "active" | "ending-soon" | "expired" => {
+  const getMemberStatus = (member: MemberWithSessions): "active" | "ending-soon" | "expired" | "frozen" => {
+    if (member.isFrozen) return "frozen";
+    
     const totalRemaining = (member.remainingSessions || 0) + (member.remainingBonusSessions || 0);
     const today = new Date();
     
@@ -452,7 +476,7 @@ export default function PTRemainingSessionsReportPage() {
 
         {/* Summary Cards */}
         {summaryStats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
@@ -485,10 +509,38 @@ export default function PTRemainingSessionsReportPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-300" />
+                    <ClipboardList className="h-6 w-6 text-purple-600 dark:text-purple-300" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Paid Sessions Left</p>
+                    <p className="text-sm text-muted-foreground">Total Packages</p>
+                    <p className="text-2xl font-bold">{summaryStats.totalPackages}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-cyan-100 dark:bg-cyan-900 rounded-lg">
+                    <Snowflake className="h-6 w-6 text-cyan-600 dark:text-cyan-300" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Frozen</p>
+                    <p className="text-2xl font-bold text-cyan-600">{summaryStats.totalFrozen}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-sky-100 dark:bg-sky-900 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-sky-600 dark:text-sky-300" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Sisa Sesi</p>
                     <p className="text-2xl font-bold">{summaryStats.totalRemaining}</p>
                   </div>
                 </div>
@@ -502,7 +554,7 @@ export default function PTRemainingSessionsReportPage() {
                     <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-300" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">🎁 Bonus Sessions Left</p>
+                    <p className="text-sm text-muted-foreground">Bonus Sesi</p>
                     <p className="text-2xl font-bold text-green-600">{summaryStats.totalBonusRemaining}</p>
                   </div>
                 </div>
@@ -571,6 +623,7 @@ export default function PTRemainingSessionsReportPage() {
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="ending-soon">Ending Soon (≤5)</SelectItem>
+                      <SelectItem value="frozen">Frozen</SelectItem>
                       <SelectItem value="expired">Expired</SelectItem>
                     </SelectContent>
                   </Select>
@@ -640,6 +693,11 @@ export default function PTRemainingSessionsReportPage() {
                       (sum, m) => sum + (m.remainingSessions || 0),
                       0
                     );
+                    // Count: individual unique members (exclude group leaders) + group count
+                    const individualMembers = filteredMembers.filter(m => !m.isGroupLeader);
+                    const groupLeaders = filteredMembers.filter(m => m.isGroupLeader);
+                    const uniqueIndividualCount = new Set(individualMembers.map(m => m.user.name || m.user.id)).size;
+                    const uniqueMemberCount = uniqueIndividualCount + groupLeaders.length;
                     const isExpanded = expandedTrainers.has(trainer.trainerId);
 
                     if (filteredMembers.length === 0) return null;
@@ -680,19 +738,29 @@ export default function PTRemainingSessionsReportPage() {
                                 </div>
                                 <div className="flex items-center gap-3 md:gap-6">
                                   <div className="text-center">
-                                    <p className="text-xl md:text-2xl font-bold">{filteredMembers.length}</p>
+                                    <p className="text-xl md:text-2xl font-bold">{uniqueMemberCount}</p>
                                     <p className="text-xs text-muted-foreground">Members</p>
                                   </div>
                                   <div className="text-center">
+                                    <p className="text-xl md:text-2xl font-bold text-purple-500">{filteredMembers.length}</p>
+                                    <p className="text-xs text-muted-foreground">Packages</p>
+                                  </div>
+                                  {(trainer.frozenCount ?? 0) > 0 && (
+                                    <div className="text-center">
+                                      <p className="text-xl md:text-2xl font-bold text-cyan-500">{trainer.frozenCount}</p>
+                                      <p className="text-xs text-muted-foreground">Frozen</p>
+                                    </div>
+                                  )}
+                                  <div className="text-center">
                                     <p className="text-xl md:text-2xl font-bold text-blue-600">{totalRemaining}</p>
-                                    <p className="text-xs text-muted-foreground">Paid</p>
+                                    <p className="text-xs text-muted-foreground">Sisa Sesi</p>
                                   </div>
                                   {filteredMembers.reduce((s, m) => s + (m.remainingBonusSessions || 0), 0) > 0 && (
                                     <div className="text-center">
                                       <p className="text-xl md:text-2xl font-bold text-green-600">
                                         {filteredMembers.reduce((s, m) => s + (m.remainingBonusSessions || 0), 0)}
                                       </p>
-                                      <p className="text-xs text-muted-foreground">🎁 Bonus</p>
+                                      <p className="text-xs text-muted-foreground">Bonus</p>
                                     </div>
                                   )}
                                 </div>
@@ -702,104 +770,102 @@ export default function PTRemainingSessionsReportPage() {
 
                           <CollapsibleContent>
                             <CardContent>
-                              <div className="overflow-x-auto">
-                                <table className="w-full">
-                                  <thead>
-                                    <tr className="border-b">
-                                      <th className="text-left py-3 px-2">Member Name</th>
-                                      <th className="text-left py-3 px-2">Phone</th>
-                                      <th className="text-left py-3 px-2">Package</th>
-                                      <th className="text-center py-3 px-2">Pkg Sessions</th>
-                                      <th className="text-center py-3 px-2">Paid Left</th>
-                                      <th className="text-center py-3 px-2">🎁 Bonus Left</th>
-                                      <th className="text-left py-3 px-2">Start Date</th>
-                                      <th className="text-left py-3 px-2">End Date</th>
-                                      <th className="text-center py-3 px-2">Status</th>
-                                      <th className="text-center py-3 px-2">Actions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {filteredMembers.map((member) => {
-                                      const status = getMemberStatus(member);
-                                      const remaining = member.remainingSessions || 0;
+                              {(() => {
+                                // Group filtered members by user name
+                                const memberGroups = new Map<string, { user: { name: string | null; phone: string | null; id: string }; membershipId: string; packages: MemberWithSessions[] }>();
+                                filteredMembers.forEach((m) => {
+                                  const key = m.user.name || m.user.id;
+                                  const existing = memberGroups.get(key);
+                                  if (existing) {
+                                    existing.packages.push(m);
+                                  } else {
+                                    memberGroups.set(key, { user: m.user, membershipId: m.membershipId, packages: [m] });
+                                  }
+                                });
+                                const groups = Array.from(memberGroups.values());
 
-                                      return (
-                                        <tr key={member.subscriptionId} className="border-b hover:bg-muted/50">
-                                          <td className="py-3 px-2">
-                                            <div className="font-medium">{member.user.name || "N/A"}</div>
-                                          </td>
-                                          <td className="py-3 px-2">
-                                            <div className="text-sm">{member.user.phone || "N/A"}</div>
-                                          </td>
-                                          <td className="py-3 px-2">
-                                            <div className="font-medium">{member.package.name}</div>
-                                          </td>
-                                          <td className="text-center py-3 px-2">
-                                            {member.package.sessions || "N/A"}
-                                          </td>
-                                          <td className="text-center py-3 px-2">
-                                            <div className="flex items-center justify-center gap-1">
-                                              {remaining <= 5 && remaining > 0 && (
-                                                <AlertTriangle className="h-4 w-4 text-orange-500" />
-                                              )}
-                                              <span
-                                                className={
-                                                  remaining <= 5 && remaining > 0
-                                                    ? "font-bold text-orange-600"
-                                                    : remaining === 0
-                                                      ? "font-bold text-red-600"
-                                                      : "font-medium"
-                                                }
-                                              >
-                                                {remaining}
-                                              </span>
-                                            </div>
-                                          </td>
-                                          <td className="text-center py-3 px-2">
-                                            {member.remainingBonusSessions > 0 ? (
-                                              <span className="font-medium text-green-600">{member.remainingBonusSessions}</span>
-                                            ) : (
-                                              <span className="text-muted-foreground">—</span>
-                                            )}
-                                          </td>
-                                          <td className="py-3 px-2">
-                                            {format(new Date(member.startDate), "MMM dd, yyyy")}
-                                          </td>
-                                          <td className="py-3 px-2">
-                                            {member.endDate
-                                              ? format(new Date(member.endDate), "MMM dd, yyyy")
-                                              : <Badge variant="outline">Active</Badge>}
-                                          </td>
-                                          <td className="text-center py-3 px-2">
-                                            <Badge
-                                              variant={
-                                                status === "active"
-                                                  ? "default"
-                                                  : status === "ending-soon"
-                                                    ? "secondary"
-                                                    : "destructive"
-                                              }
+                                return (
+                                  <div className="space-y-2">
+                                    {groups.map((group, gIdx) => (
+                                      <div key={`${group.user.id}-${gIdx}`} className="rounded-xl border border-border overflow-hidden">
+                                        {/* Member Header */}
+                                        <div className="flex items-center gap-3 p-3 border-b border-border/50 bg-accent/20">
+                                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 text-sm font-bold">
+                                            {group.user.name?.charAt(0)?.toUpperCase() || "?"}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="font-semibold text-sm truncate">{group.user.name || "N/A"}</div>
+                                          </div>
+                                          {group.user.phone ? (
+                                            <a
+                                              href={`tel:${group.user.phone}`}
+                                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 shrink-0"
                                             >
-                                              {status === "active"
-                                                ? "Active"
-                                                : status === "ending-soon"
-                                                  ? "Ending Soon"
-                                                  : "Expired"}
-                                            </Badge>
-                                          </td>
-                                          <td className="text-center py-3 px-2">
-                                            <Link href={`/member/${member.membershipId}`}>
-                                              <Button variant="ghost" size="sm">
-                                                <Eye className="h-4 w-4" />
-                                              </Button>
-                                            </Link>
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
+                                              <Phone className="h-3.5 w-3.5" />
+                                              <span className="hidden sm:inline">{group.user.phone}</span>
+                                            </a>
+                                          ) : (
+                                            <span className="text-xs text-muted-foreground">N/A</span>
+                                          )}
+                                          <Link href={`/member/${group.membershipId}`}>
+                                            <Button variant="ghost" size="sm" className="shrink-0">
+                                              <Eye className="h-4 w-4" />
+                                            </Button>
+                                          </Link>
+                                        </div>
+
+                                        {/* Package Rows */}
+                                        {group.packages.map((pkg, pIdx) => {
+                                          const status = getMemberStatus(pkg);
+                                          const remaining = pkg.remainingSessions || 0;
+
+                                          return (
+                                            <div
+                                              key={pkg.subscriptionId}
+                                              className={`flex items-center justify-between gap-2 px-3 py-2.5 ${
+                                                pIdx < group.packages.length - 1 ? "border-b border-border/30" : ""
+                                              }`}
+                                            >
+                                              <div className="min-w-0 flex-1">
+                                                <div className="text-sm font-medium truncate">{pkg.package.name}</div>
+                                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
+                                                  <span>Sesi: <span className={`font-medium ${remaining <= 5 && remaining > 0 ? "text-orange-500" : remaining === 0 ? "text-red-500" : "text-foreground"}`}>{remaining}</span>{remaining <= 5 && remaining > 0 && " ⚠"}</span>
+                                                  {pkg.remainingBonusSessions > 0 && (
+                                                    <span>Bonus: <span className="font-medium text-green-500">{pkg.remainingBonusSessions}</span></span>
+                                                  )}
+                                                  <span>Start: <span className="text-foreground font-medium">{format(new Date(pkg.startDate), "dd MMM yyyy")}</span></span>
+                                                  <span>Exp: <span className="text-foreground font-medium">{pkg.endDate ? format(new Date(pkg.endDate), "dd MMM yyyy") : "—"}</span></span>
+                                                </div>
+                                                {status === "frozen" && (
+                                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs">
+                                                    {pkg.frozenAt && (
+                                                      <span className="text-cyan-400">Freeze mulai: <span className="font-medium">{format(new Date(pkg.frozenAt), "dd MMM yyyy")}</span></span>
+                                                    )}
+                                                    {pkg.freezeMode === "FIXED_DAYS" && pkg.frozenAt && pkg.freezeDays ? (
+                                                      <span className="text-cyan-400">Aktif kembali: <span className="font-medium">{format(new Date(new Date(pkg.frozenAt).getTime() + pkg.freezeDays * 86400000), "dd MMM yyyy")}</span></span>
+                                                    ) : pkg.freezeMode === "UNTIL_UNFREEZE" ? (
+                                                      <span className="text-amber-400">Menunggu unfreeze manual</span>
+                                                    ) : null}
+                                                    {pkg.freezeDays && (
+                                                      <span className="text-muted-foreground">Durasi: <span className="font-medium">{pkg.freezeDays} hari</span></span>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              <Badge
+                                                variant={status === "active" ? "default" : status === "frozen" ? "outline" : status === "ending-soon" ? "secondary" : "destructive"}
+                                                className={`shrink-0 text-[10px] ${status === "frozen" ? "border-cyan-500 text-cyan-400" : ""}`}
+                                              >
+                                                {status === "active" ? "Active" : status === "frozen" ? "Frozen" : status === "ending-soon" ? "Ending Soon" : "Expired"}
+                                              </Badge>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
 
                               {filteredMembers.some((m) => (m.remainingSessions || 0) <= 5) && (
                                 <Alert className="mt-4">

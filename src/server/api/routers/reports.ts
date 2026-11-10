@@ -344,7 +344,7 @@ export const reportsRouter = createTRPCRouter({
           search: z.string().optional(),
           enrollmentFrom: z.date().optional(),
           enrollmentTo: z.date().optional(),
-          status: z.enum(["ACTIVE", "EXPIRED", "REVOKED"]).optional(),
+          status: z.enum(["ACTIVE", "EXPIRED", "NO_MEMBERSHIP"]).optional(),
           gender: z.string().optional(),
           ageMin: z.number().min(0).optional(),
           ageMax: z.number().min(0).optional(),
@@ -364,6 +364,7 @@ export const reportsRouter = createTRPCRouter({
           user: {
             roles: {
               some: { name: "Member" },
+              every: { name: "Member" },
             },
           },
         };
@@ -403,14 +404,16 @@ export const reportsRouter = createTRPCRouter({
           subFilter.packageId = input.membershipPackageId;
           subFilter.deletedAt = null;
         }
-        if (Object.keys(subFilter).length > 0) {
-          where.subscriptions = { some: subFilter };
-        }
-        if (input.status === "EXPIRED") {
-          where.isActive = false;
-          where.revokedAt = null;
-        } else if (input.status === "REVOKED") {
-          where.revokedAt = { not: null };
+        if (input.status === "NO_MEMBERSHIP") {
+          // Members who have never had any subscription
+          where.subscriptions = { none: {} };
+        } else {
+          if (Object.keys(subFilter).length > 0) {
+            where.subscriptions = { some: subFilter };
+          }
+          if (input.status === "EXPIRED") {
+            where.isActive = false;
+          }
         }
 
         if (input.gender) {
@@ -512,7 +515,7 @@ export const reportsRouter = createTRPCRouter({
           search: z.string().optional(),
           enrollmentFrom: z.date().optional(),
           enrollmentTo: z.date().optional(),
-          status: z.enum(["ACTIVE", "EXPIRED", "REVOKED"]).optional(),
+          status: z.enum(["ACTIVE", "EXPIRED", "NO_MEMBERSHIP"]).optional(),
           gender: z.string().optional(),
           ageMin: z.number().min(0).optional(),
           ageMax: z.number().min(0).optional(),
@@ -596,14 +599,15 @@ export const reportsRouter = createTRPCRouter({
           subFilterExport.packageId = input.membershipPackageId;
           subFilterExport.deletedAt = null;
         }
-        if (Object.keys(subFilterExport).length > 0) {
-          where.subscriptions = { some: subFilterExport };
-        }
-        if (input.status === "EXPIRED") {
-          where.isActive = false;
-          where.revokedAt = null;
-        } else if (input.status === "REVOKED") {
-          where.revokedAt = { not: null };
+        if (input.status === "NO_MEMBERSHIP") {
+          where.subscriptions = { none: {} };
+        } else {
+          if (Object.keys(subFilterExport).length > 0) {
+            where.subscriptions = { some: subFilterExport };
+          }
+          if (input.status === "EXPIRED") {
+            where.isActive = false;
+          }
         }
 
         // Gender filter
@@ -941,12 +945,23 @@ export const reportsRouter = createTRPCRouter({
       )
       .query(async ({ ctx, input }) => {
       const minRem = input.minRemaining ?? 0;
+      const now = new Date();
       const where: any = {
         isActive: true,
+        isFrozen: false,
         deletedAt: null,
         OR: [
           { remainingSessions: { gt: minRem } },
           { remainingBonusSessions: { gt: minRem } },
+        ],
+        // Exclude expired: endDate must be null (no expiry) or in the future
+        AND: [
+          {
+            OR: [
+              { endDate: null },
+              { endDate: { gte: now } },
+            ],
+          },
         ],
         package: {
           type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING"] },
@@ -970,6 +985,10 @@ export const reportsRouter = createTRPCRouter({
         };
       }
 
+      // Exclude group member AND group leader subscriptions (groups handled separately)
+      where.groupMembers = { none: {} };
+      where.leadGroupSubscriptions = { none: {} };
+
       const subscriptions = await ctx.db.subscription.findMany({
         where,
         include: {
@@ -984,7 +1003,7 @@ export const reportsRouter = createTRPCRouter({
             },
           },
           package: {
-            select: { id: true, name: true, sessions: true, bonusSessions: true },
+            select: { id: true, name: true, sessions: true, bonusSessions: true, type: true },
           },
         },
         orderBy: [
@@ -993,6 +1012,84 @@ export const reportsRouter = createTRPCRouter({
         ],
       });
 
+      // Fetch group subscriptions separately (like PT getMembers)
+      const groupLeadWhere: any = {
+        isActive: true,
+        isFrozen: false,
+        deletedAt: null,
+        OR: [
+          { remainingSessions: { gt: minRem } },
+          { remainingBonusSessions: { gt: minRem } },
+        ],
+        AND: [
+          {
+            OR: [
+              { endDate: null },
+              { endDate: { gte: now } },
+            ],
+          },
+        ],
+        package: { type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING"] } },
+      };
+      if (input.trainerId) {
+        groupLeadWhere.trainerId = input.trainerId;
+      } else {
+        groupLeadWhere.trainerId = { not: null };
+      }
+      if (input.search) {
+        groupLeadWhere.member = {
+          user: {
+            OR: [
+              { name: { contains: input.search, mode: "insensitive" as const } },
+              { phone: { contains: input.search, mode: "insensitive" as const } },
+            ],
+          },
+        };
+      }
+
+      const groupSubscriptions = await ctx.db.groupSubscription.findMany({
+        where: {
+          leadSubscription: groupLeadWhere,
+          status: "ACTIVE",
+        },
+        include: {
+          leadSubscription: {
+            include: {
+              member: { include: { user: { select: { id: true, name: true, phone: true } } } },
+              trainer: { include: { user: { select: { id: true, name: true, phone: true } } } },
+              package: { select: { id: true, name: true, sessions: true, bonusSessions: true, type: true } },
+            },
+          },
+          package: { select: { id: true, name: true, sessions: true, bonusSessions: true } },
+          groupMembers: { select: { id: true } },
+        },
+      });
+
+      // Also fetch frozen subscriptions for this trainer
+      const frozenWhere: any = {
+        isFrozen: true,
+        deletedAt: null,
+        groupMembers: { none: {} },
+        leadGroupSubscriptions: { none: {} },
+        package: {
+          type: { in: ["PERSONAL_TRAINER", "GROUP_TRAINING"] },
+        },
+      };
+      if (input.trainerId) {
+        frozenWhere.trainerId = input.trainerId;
+      } else {
+        frozenWhere.trainerId = { not: null };
+      }
+      const frozenSubs = await ctx.db.subscription.findMany({
+        where: frozenWhere,
+        include: {
+          member: { include: { user: { select: { id: true, name: true, phone: true } } } },
+          trainer: { include: { user: { select: { id: true, name: true, phone: true } } } },
+          package: { select: { id: true, name: true, sessions: true, bonusSessions: true, type: true } },
+        },
+      });
+      const frozenCount = frozenSubs.length;
+
       if (input.groupByTrainer) {
         const trainerMap = new Map<
           string,
@@ -1000,55 +1097,130 @@ export const reportsRouter = createTRPCRouter({
             trainerId: string;
             trainerUser: { id: string; name: string | null; phone: string | null };
             totalMembersWithRemaining: number;
+            frozenCount: number;
             members: Array<{
               membershipId: string;
               user: { id: string; name: string | null; phone: string | null };
               subscriptionId: string;
-              package: { id: string; name: string; sessions: number | null; bonusSessions: number };
+              package: { id: string; name: string; sessions: number | null; bonusSessions: number; type?: string };
               remainingSessions: number | null;
               remainingBonusSessions: number;
               startDate: Date;
               endDate: Date | null;
+              isGroupLeader: boolean;
+              groupName: string | null;
+              isFrozen: boolean;
+              frozenAt: Date | null;
+              freezeDays: number | null;
+              freezeMode: string | null;
             }>;
           }
         >();
 
-        subscriptions.forEach((sub) => {
-          if (!sub.trainerId || !sub.trainer) return;
-
-          if (!trainerMap.has(sub.trainerId)) {
-            trainerMap.set(sub.trainerId, {
-              trainerId: sub.trainerId,
-              trainerUser: {
-                id: sub.trainer.user.id,
-                name: sub.trainer.user.name,
-                phone: sub.trainer.user.phone,
-              },
+        // Helper to ensure trainer entry exists
+        const ensureTrainer = (trainerId: string, trainerUser: { id: string; name: string | null; phone: string | null }) => {
+          if (!trainerMap.has(trainerId)) {
+            trainerMap.set(trainerId, {
+              trainerId,
+              trainerUser,
               totalMembersWithRemaining: 0,
+              frozenCount: 0,
               members: [],
             });
           }
+          return trainerMap.get(trainerId)!;
+        };
 
-          const trainerData = trainerMap.get(sub.trainerId)!;
+        // Add individual subscriptions
+        subscriptions.forEach((sub) => {
+          if (!sub.trainerId || !sub.trainer) return;
+          const trainerData = ensureTrainer(sub.trainerId, {
+            id: sub.trainer.user.id, name: sub.trainer.user.name, phone: sub.trainer.user.phone,
+          });
           trainerData.totalMembersWithRemaining += 1;
           trainerData.members.push({
             membershipId: sub.memberId,
-            user: {
-              id: sub.member.user.id,
-              name: sub.member.user.name,
-              phone: sub.member.user.phone,
-            },
+            user: { id: sub.member.user.id, name: sub.member.user.name, phone: sub.member.user.phone },
             subscriptionId: sub.id,
             package: {
-              id: sub.package.id,
-              name: sub.package.name,
-              sessions: sub.package.sessions,
-              bonusSessions: (sub.package as any).bonusSessions ?? 0,
+              id: sub.package.id, name: sub.package.name,
+              sessions: sub.package.sessions, bonusSessions: (sub.package as any).bonusSessions ?? 0,
+              type: (sub.package as any).type ?? undefined,
             },
             remainingSessions: sub.remainingSessions,
             remainingBonusSessions: (sub as any).remainingBonusSessions ?? 0,
             startDate: sub.startDate,
             endDate: sub.endDate,
+            isGroupLeader: false,
+            groupName: null,
+            isFrozen: false,
+            frozenAt: null,
+            freezeDays: null,
+            freezeMode: null,
+          });
+        });
+
+        // Add group subscriptions (like PT getMembers)
+        groupSubscriptions.forEach((gs) => {
+          const sub = gs.leadSubscription;
+          if (!sub.trainerId || !sub.trainer) return;
+          const trainerData = ensureTrainer(sub.trainerId, {
+            id: sub.trainer.user.id, name: sub.trainer.user.name, phone: sub.trainer.user.phone,
+          });
+          trainerData.totalMembersWithRemaining += 1;
+          trainerData.members.push({
+            membershipId: sub.memberId,
+            user: { id: sub.member.user.id, name: sub.member.user.name, phone: sub.member.user.phone },
+            subscriptionId: sub.id,
+            package: {
+              id: gs.package.id, name: gs.package.name,
+              sessions: gs.package.sessions, bonusSessions: (gs.package as any).bonusSessions ?? 0,
+              type: "GROUP_TRAINING",
+            },
+            remainingSessions: sub.remainingSessions,
+            remainingBonusSessions: (sub as any).remainingBonusSessions ?? 0,
+            startDate: sub.startDate,
+            endDate: sub.endDate,
+            isGroupLeader: true,
+            groupName: (gs as any).groupName ?? `${sub.member.user.name}'s Group`,
+            isFrozen: false,
+            frozenAt: null,
+            freezeDays: null,
+            freezeMode: null,
+          });
+        });
+
+        // Add frozen subscriptions to their trainer's member list
+        frozenSubs.forEach((sub) => {
+          if (!sub.trainerId || !sub.trainer) return;
+          const trainerData = ensureTrainer(sub.trainerId, {
+            id: sub.trainer.user.id, name: sub.trainer.user.name, phone: sub.trainer.user.phone,
+          });
+          trainerData.frozenCount += 1;
+          // Calculate freeze end date
+          const frozenAt = sub.frozenAt;
+          const freezeDays = sub.freezeDays;
+          const freezeMode = sub.freezeMode;
+
+          trainerData.members.push({
+            membershipId: sub.memberId,
+            user: { id: sub.member.user.id, name: sub.member.user.name, phone: sub.member.user.phone },
+            subscriptionId: sub.id,
+            package: {
+              id: sub.package.id, name: sub.package.name,
+              sessions: sub.package.sessions, bonusSessions: (sub.package as any).bonusSessions ?? 0,
+              type: (sub.package as any).type ?? undefined,
+            },
+            remainingSessions: sub.remainingSessions,
+            remainingBonusSessions: (sub as any).remainingBonusSessions ?? 0,
+            startDate: sub.startDate,
+            endDate: sub.endDate,
+            isGroupLeader: false,
+            groupName: null,
+            isFrozen: true,
+            frozenAt: frozenAt ?? null,
+            freezeDays: freezeDays ?? null,
+            freezeMode: freezeMode ?? null,
           });
         });
 
@@ -1059,6 +1231,7 @@ export const reportsRouter = createTRPCRouter({
         return {
           items: paginatedItems,
           totalCount: items.length,
+          totalFrozen: frozenCount,
         };
       } else {
         const skip = (input.page - 1) * input.pageSize;

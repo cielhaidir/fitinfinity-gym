@@ -155,7 +155,7 @@ export const createColumns = ({
       cell: ({ row }) => {
         const activePtSubs = row.original.subscriptions.filter((sub: any) =>
           sub.trainerId != null && !sub.deletedAt && sub.isActive &&
-          (sub.package?.type === "PERSONAL_TRAINER" || sub.package?.type === "GROUP_TRAINING")
+          sub.package?.type === "PERSONAL_TRAINER"
         );
         if (activePtSubs.length === 0) {
           return <div className="w-[130px] text-muted-foreground">-</div>;
@@ -171,6 +171,42 @@ export const createColumns = ({
           : null;
         const daysLeft = ptEndDate
           ? Math.max(0, Math.ceil((ptEndDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+          : null;
+        return (
+          <div className="w-[130px]">
+            <span className="font-medium">{totalSessions} sesi</span>
+            {endDateStr && (
+              <div className="text-xs text-muted-foreground mt-0.5">{endDateStr}</div>
+            )}
+            {daysLeft !== null && (
+              <div className="text-xs text-muted-foreground">{daysLeft} hari</div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: "groupSessionLeft",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Group Sessions" />
+      ),
+      cell: ({ row }) => {
+        const activeGroupSubs = row.original.subscriptions.filter((sub: any) =>
+          sub.package?.type === "GROUP_TRAINING" && !sub.deletedAt && sub.isActive
+        );
+        if (activeGroupSubs.length === 0) {
+          return <div className="w-[130px] text-muted-foreground">-</div>;
+        }
+        const totalSessions = activeGroupSubs.reduce((total: number, sub: any) => total + (sub.remainingSessions ?? 0), 0);
+        const latestSub = activeGroupSubs.sort((a: any, b: any) =>
+          new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime()
+        )[0];
+        const endDate = latestSub?.endDate ? new Date(latestSub.endDate) : null;
+        const endDateStr = endDate
+          ? endDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+          : null;
+        const daysLeft = endDate
+          ? Math.max(0, Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
           : null;
         return (
           <div className="w-[130px]">

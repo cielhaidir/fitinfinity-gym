@@ -12,6 +12,9 @@ import {
   ChevronRight,
   Target,
   CalendarDays,
+  Phone,
+  X,
+  Snowflake,
 } from "lucide-react";
 import {
   format,
@@ -65,6 +68,21 @@ export default function PTDashboardPage() {
   const [selectedDay, setSelectedDay] = React.useState<Date | null>(null);
   const [selectedSessions, setSelectedSessions] = React.useState<any[]>([]);
 
+  // Member list popup state
+  type PopupMember = { name: string; phone: string | null };
+  type FrozenPopupMember = PopupMember & {
+    frozenAt: string | null;
+    freezeDays: number | null;
+    freezeMode: string | null;
+    unfreezeDate: string | null;
+  };
+  const [memberPopup, setMemberPopup] = React.useState<{
+    open: boolean;
+    title: string;
+    members: PopupMember[];
+    frozenMembers?: FrozenPopupMember[];
+  }>({ open: false, title: "", members: [] });
+
   // Date filter state for conduct tracking
   const [startDate, setStartDate] = React.useState<string>(
     format(startOfMonth(new Date()), "yyyy-MM-dd")
@@ -106,6 +124,7 @@ export default function PTDashboardPage() {
 
   const totalMembers = memberStats?.total ?? 0;
   const activeMembers = memberStats?.active ?? 0;
+  const frozenMembers = memberStats?.frozen ?? 0;
   const inactiveMembers = memberStats ? memberStats.inactive : 0;
 
   // Group sessions by date
@@ -161,8 +180,11 @@ export default function PTDashboardPage() {
           </div>
         </div>
 
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <Card>
+        <div className="mb-8 grid gap-4 grid-cols-2 md:grid-cols-4">
+          <Card
+            className="cursor-pointer transition-colors hover:bg-accent/50"
+            onClick={() => memberStats && setMemberPopup({ open: true, title: "Total Members", members: memberStats.allMembers })}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Members</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -173,7 +195,10 @@ export default function PTDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className="cursor-pointer transition-colors hover:bg-accent/50"
+            onClick={() => memberStats && setMemberPopup({ open: true, title: "Active Members", members: memberStats.activeList })}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Active Members
@@ -188,7 +213,28 @@ export default function PTDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className="cursor-pointer transition-colors hover:bg-accent/50"
+            onClick={() => memberStats && setMemberPopup({ open: true, title: "Frozen Members", members: [], frozenMembers: memberStats.frozenList })}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Frozen Members
+              </CardTitle>
+              <Snowflake className="h-4 w-4 text-cyan-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-cyan-400">{frozenMembers}</div>
+              <p className="text-xs text-muted-foreground">
+                Members with frozen packages
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="cursor-pointer transition-colors hover:bg-accent/50"
+            onClick={() => memberStats && setMemberPopup({ open: true, title: "Inactive Members", members: memberStats.inactiveList })}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Inactive Members
@@ -418,6 +464,123 @@ export default function PTDashboardPage() {
             )}
           </CardContent>
         </Card>
+        {/* Member List Popup */}
+        {memberPopup.open && (() => {
+          const isFrozenPopup = !!memberPopup.frozenMembers;
+          const displayList = isFrozenPopup ? memberPopup.frozenMembers! : memberPopup.members;
+          const count = displayList.length;
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+              onClick={() => setMemberPopup({ open: false, title: "", members: [] })}
+            >
+              <div
+                className="w-full sm:max-w-md bg-[#1a1a1a] text-white rounded-t-2xl sm:rounded-2xl border border-[#2a2a2a] shadow-2xl max-h-[80vh] flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 duration-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a] shrink-0">
+                  <div>
+                    <h3 className="font-bold text-lg">{memberPopup.title}</h3>
+                    <p className="text-xs text-gray-400">{count} member</p>
+                  </div>
+                  <button
+                    onClick={() => setMemberPopup({ open: false, title: "", members: [] })}
+                    className="p-1 rounded-md hover:bg-[#2a2a2a] transition-colors"
+                  >
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+
+                {/* Member List */}
+                <div className="overflow-y-auto custom-scrollbar flex-1 p-2">
+                  {count === 0 ? (
+                    <div className="text-center text-gray-400 py-8 text-sm">Tidak ada member.</div>
+                  ) : isFrozenPopup ? (
+                    <div className="space-y-1">
+                      {(memberPopup.frozenMembers!).map((m, idx) => {
+                        const unfreezeLabel = m.freezeMode === "FIXED_DAYS" && m.unfreezeDate
+                          ? `Aktif kembali: ${format(new Date(m.unfreezeDate), "dd MMM yyyy", { locale: id })}`
+                          : "Belum ada jadwal unfreeze (menunggu admin)";
+                        const frozenSince = m.frozenAt
+                          ? `Frozen sejak ${format(new Date(m.frozenAt), "dd MMM yyyy", { locale: id })}`
+                          : "";
+                        return (
+                          <div
+                            key={idx}
+                            className="px-3 py-3 rounded-lg hover:bg-[#232323] transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-400 text-sm font-bold">
+                                  {m.name?.charAt(0)?.toUpperCase() || "?"}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-sm font-medium truncate block">{m.name}</span>
+                                  {m.phone && (
+                                    <a
+                                      href={`tel:${m.phone}`}
+                                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#C9D953]"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <Phone className="h-3 w-3" />
+                                      {m.phone}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="ml-11 mt-1.5 flex flex-col gap-0.5">
+                              {frozenSince && (
+                                <span className="text-xs text-gray-500">{frozenSince}</span>
+                              )}
+                              <span className={`text-xs font-medium ${
+                                m.freezeMode === "FIXED_DAYS" ? "text-cyan-400" : "text-amber-400"
+                              }`}>
+                                {unfreezeLabel}
+                              </span>
+                              {m.freezeMode === "FIXED_DAYS" && m.freezeDays && (
+                                <span className="text-xs text-gray-500">Durasi: {m.freezeDays} hari</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {memberPopup.members.map((m, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#232323] transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C9D953]/20 text-[#C9D953] text-sm font-bold">
+                              {m.name?.charAt(0)?.toUpperCase() || "?"}
+                            </div>
+                            <span className="text-sm font-medium truncate">{m.name}</span>
+                          </div>
+                          {m.phone ? (
+                            <a
+                              href={`tel:${m.phone}`}
+                              className="flex items-center gap-1.5 text-xs text-[#C9D953] hover:underline shrink-0 ml-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Phone className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">{m.phone}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-500 shrink-0 ml-2">-</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </ProtectedRoute>
   );

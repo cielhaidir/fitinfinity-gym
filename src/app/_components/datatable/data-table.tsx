@@ -220,7 +220,7 @@ export function DataTable<TData, TValue>({
 </div>
 
 </div>
-      <DataTablePagination table={table} />
+      <DataTablePagination table={table} totalRows={data.total} />
     </div>
   );
 }
