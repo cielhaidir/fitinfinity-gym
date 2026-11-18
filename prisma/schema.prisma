@@ -565,6 +565,7 @@ model Package {
     isGroupClass   Boolean      @default(false) // If true, trainer is assigned per session (not at checkout)
     groupPriceType GroupPriceType? // TOTAL or PER_PERSON
     isComplimentaryOnly Boolean   @default(false) // Package only ever given as bonus, never sold
+    showInCatalog       Boolean   @default(true)  // Show in member-facing packages page
     
     createdAt    DateTime       @default(now())
     updatedAt    DateTime       @updatedAt

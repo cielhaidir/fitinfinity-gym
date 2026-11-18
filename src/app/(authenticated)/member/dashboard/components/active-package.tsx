@@ -52,13 +52,7 @@ export function ActivePackage() {
   };
 
   const handleGetMembership = () => {
-    if (session?.user?.id) {
-      if (membership?.id) {
-        router.push(`/checkout/${membership.id}`);
-      } else {
-        router.push(`/checkout/${session.user.id}`);
-      }
-    }
+    router.push("/member/packages");
   };
 
   if (isLoading) {

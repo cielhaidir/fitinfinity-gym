@@ -32,6 +32,7 @@ export const packageRouter = createTRPCRouter({
       isGroupClass: z.boolean().optional(),
       groupPriceType: groupPriceType.nullish(),
       isComplimentaryOnly: z.boolean().optional(),
+      showInCatalog: z.boolean().optional(),
     }),
   )
   .mutation(async ({ ctx, input }) => {
@@ -59,6 +60,7 @@ export const packageRouter = createTRPCRouter({
           isGroupClass: input.type === "GROUP_TRAINING" ? (input.isGroupClass ?? false) : false,
           groupPriceType: input.groupPriceType ?? null,
           isComplimentaryOnly: input.isComplimentaryOnly ?? false,
+          showInCatalog: input.showInCatalog ?? true,
         },
       });
       success = true;
@@ -161,6 +163,7 @@ export const packageRouter = createTRPCRouter({
         isGroupClass: z.boolean().optional(),
         groupPriceType: groupPriceType.nullable(),
         isComplimentaryOnly: z.boolean().optional(),
+        showInCatalog: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -189,6 +192,7 @@ export const packageRouter = createTRPCRouter({
             isGroupClass: data.type === "GROUP_TRAINING" ? (data.isGroupClass ?? false) : false,
             groupPriceType: data.groupPriceType,
             ...(data.isComplimentaryOnly !== undefined && { isComplimentaryOnly: data.isComplimentaryOnly }),
+            ...(data.showInCatalog !== undefined && { showInCatalog: data.showInCatalog }),
           },
         });
         success = true;
@@ -269,6 +273,28 @@ export const packageRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       return ctx.db.package.findMany({
         where: { type: input.type, isActive: true },
+      });
+    }),
+
+  // Public listing for member-facing packages page (no admin permission needed)
+  listAvailable: protectedProcedure
+    .query(async ({ ctx }) => {
+      return ctx.db.package.findMany({
+        where: { isActive: true, isComplimentaryOnly: false, showInCatalog: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          type: true,
+          sessions: true,
+          bonusSessions: true,
+          day: true,
+          isGroupPackage: true,
+          maxUsers: true,
+          groupPriceType: true,
+        },
+        orderBy: [{ type: "asc" }, { price: "asc" }],
       });
     }),
 

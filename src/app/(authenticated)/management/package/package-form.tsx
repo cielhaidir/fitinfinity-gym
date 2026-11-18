@@ -398,6 +398,32 @@ export const PackageForm: React.FC<PackageFormProps> = ({
           </div>
         </div>
 
+        <div className="flex items-center gap-3 rounded-md border p-3">
+          <input
+            type="checkbox"
+            id="showInCatalog"
+            name="showInCatalog"
+            checked={newPackage.showInCatalog ?? true}
+            onChange={(e) => {
+              onInputChange({
+                target: {
+                  name: "showInCatalog",
+                  value: e.target.checked,
+                },
+              } as unknown as React.ChangeEvent<HTMLInputElement>);
+            }}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <div>
+            <label htmlFor="showInCatalog" className="block text-sm font-medium cursor-pointer">
+              Tampilkan di Katalog
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Jika dicentang, paket ini akan muncul di halaman Paket & Harga yang dilihat member.
+            </p>
+          </div>
+        </div>
+
         <div>
           <label htmlFor="isActive" className="block text-sm font-medium">
             Status

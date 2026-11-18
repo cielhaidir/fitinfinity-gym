@@ -165,6 +165,20 @@ export const createColumns = ({
   //     ),
   // },
   {
+    accessorKey: "showInCatalog",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Katalog" />
+    ),
+    cell: ({ row }) => (
+      <Badge
+        variant="outline"
+        className={row.getValue("showInCatalog") ? "border-green-500/30 text-green-400" : "border-zinc-500/30 text-zinc-500"}
+      >
+        {row.getValue("showInCatalog") ? "Tampil" : "Tersembunyi"}
+      </Badge>
+    ),
+  },
+  {
     id: "actions",
     cell: ({ row }) => (
       <DataTableRowActions
